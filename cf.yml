@@ -4,7 +4,7 @@ Description: Blog infrastructure with S3, CloudFront, API Gateway, Lambda, Dynam
 Parameters:
   DomainName:
     Type: String
-    Description: e.g. blog.com
+    Description: The domain name (e.g. blog.com)
   HostedZoneId:
     Type: String
     Description: Route 53 Hosted Zone ID for your domain

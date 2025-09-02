@@ -4,13 +4,13 @@ Description: S3 Bucket for Lambda / CloudFront Code Storage
 Parameters:
   TagProject:
     Type: String
-    Description: Logical project identifier (e.g. PersonalWebsite)
+    Description: Logical project identifier (e.g. blog)
   TagOwner:
     Type: String
-    Description: Resource owner (e.g. Oleksandr)
+    Description: Resource owner (e.g. olek)
   TagEnvironment:
     Type: String
-    Description: Deployment environment (e.g. Production)
+    Description: Deployment environment (e.g. prod)
   TagRegion:
     Type: String
     Description: AWS region (e.g. us-west-2)

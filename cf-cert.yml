@@ -4,19 +4,19 @@ Description: ACM Certificate for CloudFront in us-east-1
 Parameters:
   DomainName:
     Type: String
-    Description: The domain name to create a certificate for (e.g., www.example.com)
+    Description: The domain name to create a certificate for (e.g. blog.com)
   HostedZoneId:
     Type: String
     Description: The Route53 Hosted Zone ID for the domain
   TagProject:
     Type: String
-    Description: Logical project identifier (e.g. PersonalWebsite)
+    Description: Logical project identifier (e.g. blog)
   TagOwner:
     Type: String
-    Description: Resource owner (e.g. Oleksandr)
+    Description: Resource owner (e.g. olek)
   TagEnvironment:
     Type: String
-    Description: Deployment environment (e.g. Production)
+    Description: Deployment environment (e.g. prod)
   TagRegion:
     Type: String
     Description: AWS region (e.g. us-west-2)
