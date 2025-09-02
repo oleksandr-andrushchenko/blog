@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+mangum
+boto3
+Jinja2
+htmlmin
+python-dotenv
+pydantic[email]
+httpx
+python-jose

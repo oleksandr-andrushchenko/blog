@@ -1,0 +1,452 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Blog infrastructure with S3, CloudFront, API Gateway, Lambda, DynamoDB, Cognito
+
+Parameters:
+  DomainName:
+    Type: String
+    Description: e.g. blog.com
+  HostedZoneId:
+    Type: String
+    Description: Route 53 Hosted Zone ID for your domain
+  CertificateArn:
+    Type: String
+    Description: ARN of the ACM certificate in us-east-1 for CloudFront
+  NotificationEmail:
+    Type: String
+    Description: Email for contact form notifications
+  NotificationPhone:
+    Type: String
+    Description: Phone for contact form notifications
+  TagProject:
+    Type: String
+    Description: Logical project identifier (e.g. blog)
+  TagOwner:
+    Type: String
+    Description: Resource owner (e.g. olek)
+  TagEnvironment:
+    Type: String
+    Description: Deployment environment (e.g. prod)
+  TagRegion:
+    Type: String
+    Description: AWS region (e.g. us-west-2)
+
+Resources:
+  SiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-site"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+        - Key: Owner
+          Value: !Ref TagOwner
+        - Key: Region
+          Value: !Ref TagRegion
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SiteBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontOAI
+            Effect: Allow
+            Principal:
+              CanonicalUser: !GetAtt CloudFrontOAI.S3CanonicalUserId
+            Action: s3:GetObject
+            Resource: !Sub "arn:aws:s3:::${SiteBucket}/*"
+
+  CloudFrontOAI:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Sub "Access Identity for ${DomainName}"
+
+  DynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-dynamodb-table"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      Tags:
+        - Key: Project
+          Value: !Ref TagProject
+        - Key: Owner
+          Value: !Ref TagOwner
+        - Key: Environment
+          Value: !Ref TagEnvironment
+
+  BackendFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-backend-function-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ContactFormPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !GetAtt ContactFormTopic.TopicArn
+        - PolicyName: LambdaDynamoDBPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: !GetAtt DynamoDBTable.Arn
+        - PolicyName: LambdaLoggingPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+      Tags:
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+        - Key: Owner
+          Value: !Ref TagOwner
+        - Key: Region
+          Value: !Ref TagRegion
+
+  BackendFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-backend-function"
+      Description: Lambda function to serve backend requests from the API Gateway
+      Role: !GetAtt BackendFunctionRole.Arn
+      Handler: app.handler
+      Runtime: python3.12
+      Environment:
+        Variables:
+          BASE_URL: !Sub "https://${DomainName}"
+          COGNITO_DOMAIN: !Sub "${CognitoUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
+          COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient
+          COGNITO_CLIENT_SECRET: !GetAtt CognitoUserPoolClient.ClientSecret
+          COGNITO_USER_POOL_ID: !Ref CognitoUserPool
+          CONTACT_TOPIC_ARN: !Ref ContactFormTopic
+          DYNAMODB_TABLE: !Ref DynamoDBTable
+      Code:
+        S3Bucket: !Sub "${AWS::StackName}-code"
+        S3Key: backend-function.zip
+      Tags:
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+        - Key: Owner
+          Value: !Ref TagOwner
+        - Key: Region
+          Value: !Ref TagRegion
+
+  BackendFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref BackendFunction
+      Principal: apigateway.amazonaws.com
+
+  ApiGateway:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub "${AWS::StackName}-api"
+      ProtocolType: HTTP
+      Tags:
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+        - Key: Owner
+          Value: !Ref TagOwner
+        - Key: Region
+          Value: !Ref TagRegion
+
+  ApiGatewayLambdaIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref ApiGateway
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt BackendFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  ApiGatewayDefaultRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: "ANY /{proxy+}"
+      Target: !Sub "integrations/${ApiGatewayLambdaIntegration}"
+
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub "${AWS::StackName}-user-pool"
+      AutoVerifiedAttributes:
+        - email
+      Tags:
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+        - Key: Owner
+          Value: !Ref TagOwner
+        - Key: Region
+          Value: !Ref TagRegion
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub "${AWS::StackName}-user-pool-client"
+      UserPoolId: !Ref CognitoUserPool
+      GenerateSecret: true
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+      CallbackURLs:
+        - !Sub "https://${DomainName}/auth/callback"
+      LogoutURLs:
+        - !Sub "https://${DomainName}/auth/logout"
+      SupportedIdentityProviders:
+        - COGNITO
+      Tags:
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+        - Key: Owner
+          Value: !Ref TagOwner
+        - Key: Region
+          Value: !Ref TagRegion
+
+  CognitoUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      Domain: !Sub "${AWS::StackName}-user-pool-domain"
+
+  ApiGatewayAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      Name: "${AWS::StackName}-api-gateway-authorizer"
+      ApiId: !Ref ApiGateway
+      AuthorizerType: JWT
+      IdentitySource:
+        - "$request.header.Authorization"
+      JwtConfiguration:
+        Audience:
+          - !Ref CognitoUserPoolClient
+        Issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPool}"
+
+  # API Gateway – no caching, forward Authorization + query string
+  ApiCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub "${AWS::StackName}-api-cache-policy"
+        DefaultTTL: 0
+        MinTTL: 0
+        MaxTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          QueryStringsConfig:
+            QueryStringBehavior: all
+          HeadersConfig:
+            HeaderBehavior: whitelist
+            Headers:
+              - Authorization
+
+  ApiOriginRequestPolicy:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: !Sub "${AWS::StackName}-api-origin-request-policy"
+        QueryStringsConfig:
+          QueryStringBehavior: all
+        HeadersConfig:
+          HeaderBehavior: whitelist
+          Headers:
+            - Authorization
+
+  # S3 assets – cache aggressively, forward Origin header only
+  S3CachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub "${AWS::StackName}-s3-cache-policy"
+        DefaultTTL: 86400   # 1 day
+        MinTTL: 3600        # 1 hour
+        MaxTTL: 31536000    # 1 year
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          QueryStringsConfig:
+            QueryStringBehavior: none
+          HeadersConfig:
+            HeaderBehavior: whitelist
+            Headers:
+              - Origin
+
+  S3OriginRequestPolicy:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: !Sub "${AWS::StackName}-s3-origin-request-policy"
+        QueryStringsConfig:
+          QueryStringBehavior: none
+        HeadersConfig:
+          HeaderBehavior: whitelist
+          Headers:
+            - Origin
+
+
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases: [ !Ref DomainName ]
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+          - Id: s3Origin
+            DomainName: !GetAtt SiteBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOAI}"
+          - Id: apiOrigin
+            DomainName: !Sub "${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com"
+            OriginPath: "/"
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+        DefaultCacheBehavior:
+          TargetOriginId: apiOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [ GET, HEAD, POST, PUT, DELETE, PATCH, OPTIONS ]
+          CachedMethods: [ GET, HEAD ]
+          CachePolicyId: !Ref ApiCachePolicy
+          OriginRequestPolicyId: !Ref ApiOriginRequestPolicy
+        CacheBehaviors:
+          - PathPattern: /assets/*
+            TargetOriginId: s3Origin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [ GET, HEAD ]
+            CachedMethods: [ GET, HEAD ]
+            CachePolicyId: !Ref S3CachePolicy
+            OriginRequestPolicyId: !Ref S3OriginRequestPolicy
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CertificateArn
+          SslSupportMethod: sni-only
+      Tags:
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+        - Key: Owner
+          Value: !Ref TagOwner
+        - Key: Region
+          Value: !Ref TagRegion
+
+  DNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref DomainName
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt CloudFrontDistribution.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2
+
+  ContactFormTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${AWS::StackName}-contact-form-topic"
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref NotificationEmail
+        - Protocol: sms
+          Endpoint: !Ref NotificationPhone
+      Tags:
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+        - Key: Owner
+          Value: !Ref TagOwner
+        - Key: Region
+          Value: !Ref TagRegion
+
+  BackendFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${BackendFunction}"
+      RetentionInDays: 14
+      Tags:
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+        - Key: Owner
+          Value: !Ref TagOwner
+        - Key: Region
+          Value: !Ref TagRegion
+
+Outputs:
+  WebsiteURL:
+    Value: !Sub "https://${DomainName}"
+  CloudFrontDistributionId:
+    Value: !GetAtt CloudFrontDistribution.Id
+  BackendFunctionName:
+    Value: !Ref BackendFunction
+  ContactFormTopicArn:
+    Value: !Ref ContactFormTopic
+  BackendFunctionRoleName:
+    Value: !Ref BackendFunctionRole
+    Description: IAM Role name for the Lambda contact form handler
+  BackendFunctionLogGroupName:
+    Value: !Ref BackendFunctionLogGroup
+    Description: CloudWatch log group for the contact form Lambda
+  ApiGatewayId:
+    Value: !Ref ApiGateway
+  DynamoDBTableName:
+    Value: !Ref DynamoDBTable
+  CognitoUserPoolId:
+    Value: !Ref CognitoUserPool
+  CognitoUserPoolClientId:
+    Value: !Ref CognitoUserPoolClient

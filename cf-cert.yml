@@ -1,0 +1,47 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: ACM Certificate for CloudFront in us-east-1
+
+Parameters:
+  DomainName:
+    Type: String
+    Description: The domain name to create a certificate for (e.g., www.example.com)
+  HostedZoneId:
+    Type: String
+    Description: The Route53 Hosted Zone ID for the domain
+  TagProject:
+    Type: String
+    Description: Logical project identifier (e.g. PersonalWebsite)
+  TagOwner:
+    Type: String
+    Description: Resource owner (e.g. Oleksandr)
+  TagEnvironment:
+    Type: String
+    Description: Deployment environment (e.g. Production)
+  TagRegion:
+    Type: String
+    Description: AWS region (e.g. us-west-2)
+    Default: us-east-1
+
+Resources:
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref DomainName
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZoneId
+      Tags:
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+        - Key: Owner
+          Value: !Ref TagOwner
+        - Key: Region
+          Value: !Ref TagRegion
+
+Outputs:
+  CertificateArn:
+    Description: ARN of the ACM certificate to use in CloudFront
+    Value: !Ref Certificate

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    {% if google_analytics_id %}
+        <!-- Google tag (gtag.js) -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id={{ google_analytics_id }}"></script>
+        <script>
+          window.dataLayer = window.dataLayer || []
+
+          function gtag() {
+            dataLayer.push(arguments)
+          }
+
+          gtag("js", new Date())
+          gtag("config", "{{ google_analytics_id }}")
+        </script>
+    {% endif %}
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>{% block title %}{% endblock %}</title>
+
+    {% if head.meta_name %}
+        {% for key, val in head.meta_name.items() %}
+            <meta name="{{ key }}" content="{{ val }}"/>
+        {% endfor %}
+    {% endif %}
+
+    {% if head.meta_property %}
+        {% for key, val in head.meta_property.items() %}
+            <meta property="{{ key }}" content="{{ val }}"/>
+        {% endfor %}
+    {% endif %}
+
+    {% if head.schema_org %}
+        <script type="application/ld+json">{{ head.schema_org | tojson | safe }}</script>
+    {% endif %}
+
+    {% if head.favicon and head.favicon.active %}
+        {% if head.favicon.generator == "realfavicongenerator" %}
+            <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96"/>
+            <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+            <link rel="shortcut icon" href="/favicon.ico"/>
+            <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"/>
+            <link rel="manifest" href="/site.webmanifest"/>
+        {% endif %}
+    {% endif %}
+
+    <link rel="canonical" href="{% block canonical_url %}{% endblock %}">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css"
+          integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans&family=Anton&display=swap">
+    <link rel="stylesheet" href="{{ asset_url('styles.css') }}">
+</head>
+
+<body class="d-flex flex-column min-vh-100">
+
+<header class="d-print-none">
+    <nav class="navbar navbar-expand-md bg-{{ header.bg }}"
+         data-bs-theme="{{ header.bs }}">
+        <div class="container">
+            <a class="navbar-brand link-secondary" style="outline:none" href="/">{{ site_name }}</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar"
+                    aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbar">
+                <ul class="navbar-nav me-auto">
+                    {% if contacts.nav_active and contacts.active %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url('contacts') }}">
+                                {{ contacts.nav | default("Contacts") }}
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+                {% if auth.active %}
+                    {% if current_user %}
+                        <i class="bi bi-person-circle"></i> {{ current_user.email }}
+                        <a href="{{ url('logout') }}" class="btn btn-secondary">
+                            {{ header.logout_label | default("Logout") }} <i class="bi bi-box-arrow-right"></i>
+                        </a>
+                    {% else %}
+                        <a href="{{ url('login') }}" class="btn btn-secondary">
+                            <i class="bi bi-box-arrow-in-right"></i>
+                            {{ header.login_label | default("Login") }}
+                        </a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+</header>
+
+<main>
+    <div class="container">
+        <h1>{% block header %}{% endblock %}</h1>
+        <p class="small text-secondary">{% block sub_header %}{% endblock %}</p>
+        {% block content %}{% endblock %}
+    </div>
+</main>
+
+<footer class="mt-auto bg-light text-center text-md-start d-print-none">
+    <div class="container py-3">
+        &copy; {{ footer.current_year | default("2025") }} {{ site_name }}
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q"
+        crossorigin="anonymous"></script>
+<script src="{{ asset_url('scripts.js') }}"></script>
+</body>
+</html>

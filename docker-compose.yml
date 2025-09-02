@@ -1,0 +1,45 @@
+services:
+  be-function:
+    image: python:3.12-slim
+    container_name: ${DOCKER_CONTAINER}-be-function
+    working_dir: /app
+    ports:
+      - "${BE_FUNCTION_PORT}:5000"
+    env_file:
+      - .env
+    environment:
+      ENV: local
+      CLOUDFRONT_BASE_URL: ""
+    volumes:
+      - ./be-function-src:/app
+      - ./.env:/.env
+    command: >
+      bash -c "pip install --no-cache-dir -r requirements.txt &&
+               uvicorn app:app --host 0.0.0.0 --port ${BE_FUNCTION_PORT} --reload"
+    networks:
+      - network
+
+  dynamodb:
+    image: amazon/dynamodb-local
+    container_name: ${DOCKER_CONTAINER}-dynamodb
+    ports:
+      - "${DYNAMODB_PORT}:8000"
+    networks:
+      - network
+
+  scripts:
+    image: python:3.11-slim
+    container_name: ${DOCKER_CONTAINER}-scripts
+    working_dir: /app
+    env_file:
+      - .env
+    volumes:
+      - ./scripts:/app
+    command: >
+      bash -c "pip install --no-cache-dir -r requirements.txt && tail -f /dev/null"
+    networks:
+      - network
+
+networks:
+  network:
+    name: ${DOCKER_CONTAINER}-network

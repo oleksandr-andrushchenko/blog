@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.py[cod]
+*.egg
+*.egg-info/
+dist/
+build/
+*.log
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# IDE files
+.idea/
+.vscode/
+
+# Environment files
+.env
+
+# Custom
+info.txt
+.site-build/
+.code-build/
+bootstrap-5.3.7-dist/
+bootstrap-icons-1.13.1/
+
+be-function-src/data.json
+be-function-src/assets/*
+!be-function-src/assets/styles.css
+!be-function-src/assets/scripts.js

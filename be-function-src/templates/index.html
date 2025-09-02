@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ index.title | default(site_name ~ " – " ~ site_about) }}{% endblock %}
+{% block canonical_url %}{{ full_url("index") }}{% endblock %}
+{% block header %}{{ index.header | default(site_name) }}{% endblock %}
+{% block sub_header %}{{ index.sub_header | default(site_about) }}{% endblock %}
+{% block content %}
+    {{ index.current_user_label | default("Current user") }}:
+    <div>{{ current_user.username if current_user else "N/A" }}</div>
+
+    {{ index.asset_label | default("Asset") }}:
+    <div><img src="{{ asset_url('pikachu.webp') }}" alt="test" class="w-25"/></div>
+{% endblock %}

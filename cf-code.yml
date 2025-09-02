@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: S3 Bucket for Lambda / CloudFront Code Storage
+
+Parameters:
+  TagProject:
+    Type: String
+    Description: Logical project identifier (e.g. PersonalWebsite)
+  TagOwner:
+    Type: String
+    Description: Resource owner (e.g. Oleksandr)
+  TagEnvironment:
+    Type: String
+    Description: Deployment environment (e.g. Production)
+  TagRegion:
+    Type: String
+    Description: AWS region (e.g. us-west-2)
+    Default: us-east-1
+
+Resources:
+  CodeBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref AWS::StackName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+        - Key: Owner
+          Value: !Ref TagOwner
+        - Key: Region
+          Value: !Ref TagRegion
+
+Outputs:
+  CodeBucketName:
+    Description: Name of the S3 bucket for storing Lambda / CloudFront code
+    Value: !Ref CodeBucket

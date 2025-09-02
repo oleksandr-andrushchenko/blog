@@ -1,0 +1,11 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block header %}{{ code }} - {{ title }}{% endblock %}
+{% block sub_header %}{{ message }}{% endblock %}
+{% block content %}
+    <a href="{{ url('index') }}" class="btn btn-sm btn-secondary">
+        <i class="bi bi-arrow-return-left"></i>
+        {{ error.back_home_label | default("Back home") }}
+    </a>
+{% endblock %}

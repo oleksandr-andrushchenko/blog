@@ -1,0 +1,148 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ contacts.title | default("Contacts | " ~ site_name) }}{% endblock %}
+{% block canonical_url %}{{ full_url("contacts") }}{% endblock %}
+{% block header %}{{ contacts.header | default("Contacts") }}{% endblock %}
+{% block sub_header %}{{ contacts.sub_header | default("Contact us") }}{% endblock %}
+{% block content %}
+    <div class="row">
+        <div class="col-12 col-md-6">
+            <form class="row g-3" id="contact-form" novalidate>
+                <div class="col-12">
+                    <input type="text" class="form-control" id="name" name="name"
+                           placeholder="{{ contacts.name_label | default("Your Name") }}"
+                           value="{{ current_user.name if current_user else '' }}"
+                           required>
+                    <div class="invalid-feedback">{{ contacts.name_error_label | default("Please enter your name.") }}</div>
+                </div>
+                <div class="col-12">
+                    <input type="email" class="form-control" id="email" name="email"
+                           placeholder="{{ contacts.email_label | default("Your Email") }}"
+                           value="{{ current_user.email if current_user else '' }}" required>
+                    <div class="invalid-feedback">{{ contacts.email_error_label | default("Please enter a valid email address.") }}</div>
+                </div>
+                <div class="col-12">
+                    <textarea class="form-control" id="message" name="message"
+                              placeholder="{{ contacts.message_label | default("Your Message") }}"
+                              rows="10"
+                              required></textarea>
+                    <div class="invalid-feedback">{{ contacts.message_error_label | default("Please enter a message.") }}</div>
+                </div>
+                <div class="col-12">
+                    <div id="form-status" class="alert d-none" role="alert"></div>
+                    <button type="submit" class="btn btn-outline-dark">
+                        {{ contacts.send_message_label | default("Send Message") }} <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="col-12 col-md-6 mt-5 mt-md-0 text-center text-md-start">
+            <h3 class="mb-4">{{ contacts.contact_details_label | default("Contact details") }}</h3>
+            <div class="d-flex flex-column gap-3">
+                {% if contacts.phone and contacts.phone.active %}
+                    <div>
+                        <i class="bi bi-telephone-outbound"></i> {{ contacts.phone.label | default("Phone") }}
+                        <a class="d-block" href="tel:{{ contacts.phone.id }}">{{ contacts.phone.id }}</a>
+                    </div>
+                {% endif %}
+
+                {% if contacts.email and contacts.email.active %}
+                    <div>
+                        <i class="bi bi-envelope-at"></i> {{ contacts.email.label | default("Email") }}
+                        <a class="d-block" href="mailto:{{ contacts.email.id }}">{{ contacts.email.id }}</a>
+                    </div>
+                {% endif %}
+
+                {% if contacts.address and contacts.address.active %}
+                    <div>
+                        <i class="bi bi-geo"></i> {{ contacts.address.label | default("Address") }}
+                        <div>{{ contacts.address.id }}</div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const form = document.querySelector("#contact-form")
+        const statusDiv = document.getElementById("form-status")
+
+        // helper: reset validation state
+        function clearValidationErrors() {
+          form.querySelectorAll(".is-invalid").forEach(el => el.classList.remove("is-invalid"))
+          form.querySelectorAll(".is-valid").forEach(el => el.classList.remove("is-valid"))
+        }
+
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault()
+          event.stopPropagation()
+
+          form.classList.add("was-validated")
+
+          // clear previous states
+          form.querySelectorAll("input, textarea").forEach(el => {
+            el.classList.remove("is-invalid", "is-valid")
+            el.setCustomValidity("")
+          })
+
+          if (!form.checkValidity()) {
+            return
+          }
+
+          const name = form.name.value.trim()
+          const email = form.email.value.trim()
+          const message = form.message.value.trim()
+
+          try {
+            const response = await fetch("{{ url('create_message') }}", {
+              method: "POST",
+              headers: {"Content-Type": "application/json"},
+              body: JSON.stringify({name, email, message})
+            })
+
+            if (response.ok) {
+              // reset all input states
+              form.querySelectorAll("input, textarea").forEach(el => {
+                el.classList.remove("is-valid", "is-invalid")
+                el.setCustomValidity("")
+              })
+
+              statusDiv.className = "alert alert-success d-flex align-items-center"
+              statusDiv.innerHTML = `
+    <i class="bi bi-check-circle-fill me-2"></i>
+    {{ contacts.message_sent_label | default("Message sent!") }}
+  `
+              form.reset()
+              form.classList.remove("was-validated")
+            } else if (response.status === 422) {
+              const data = await response.json()
+              if (data.details) {
+                Object.entries(data.details).forEach(([field, msg]) => {
+                  const input = form.querySelector(`[name="${field}"]`)
+                  if (input) {
+                    input.setCustomValidity(msg)
+                    input.classList.add("is-invalid")
+                    input.classList.remove("is-valid")
+                    const feedback = input.parentElement.querySelector(".invalid-feedback")
+                    if (feedback) feedback.textContent = msg
+                  }
+                })
+              }
+              statusDiv.className = "alert alert-danger d-flex align-items-center"
+              statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>${data.message || "{{ contacts.message_failed_label | default("Something went wrong.") }}"}`
+            } else {
+              statusDiv.className = "alert alert-danger d-flex align-items-center"
+              statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>{{ contacts.message_failed_label | default("Something went wrong.") }}`
+            }
+          } catch (err) {
+            statusDiv.className = "alert alert-danger d-flex align-items-center"
+            statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>{{ contacts.message_unknown_label | default("Network error. Please try again.") }}`
+          }
+
+          statusDiv.classList.remove("d-none")
+        })
+      })
+    </script>
+{% endblock %}
