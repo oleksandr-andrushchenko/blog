@@ -1,53 +1,46 @@
 import htmlmin
 import re
 import os
+import boto3
+import uuid
+import datetime
+import logging
+import sys
+import httpx
+from jose import jwt, jwk
+from jose.exceptions import JWTError
+import base64
+from typing import Callable, Optional, Dict, Any
 from starlette.datastructures import State
+from starlette.status import HTTP_200_OK
+from jinja2 import Environment, FileSystemLoader, pass_context
 from config import (
     is_prod,
+    get_config,
     get_cognito_domain,
     get_aws_region,
     get_dynamodb_endpoint,
     get_dynamodb_table_name,
     get_base_url,
     get_contact_topic_arn,
-    get_config,
     get_cognito_user_pool_id,
     get_cognito_client_id,
     get_cognito_client_secret,
 )
-from jinja2 import Environment, FileSystemLoader
-from jinja2 import pass_context
-import boto3
-import uuid
-import datetime
 from models import (
     MessageDTO,
     User,
     Token,
 )
-from typing import Callable
-import logging
-import sys
-import httpx
-from jose import jwt, jwk
-from jose.exceptions import JWTError
 from errors import (
     InvalidTokenError,
     InvalidCodeError,
     CodeExchangeFailedError,
     InvalidTokenKidError,
 )
-import base64
-from starlette.status import (
-    HTTP_200_OK,
-)
 
 
 class Lazy:
-    """
-    Lazy loader wrapper. Only initializes the resource when first accessed.
-    """
-
     def __init__(self, factory: Callable):
         self._factory = factory
         self._instance = None
@@ -213,6 +206,8 @@ def list_posts(limit: int = 10):
 
 
 def serve_create_message(message: MessageDTO) -> None:
+    if is_prod():
+        return
     sns_client = boto3.client("sns", region_name=get_aws_region())
 
     text = (
@@ -229,16 +224,11 @@ def serve_create_message(message: MessageDTO) -> None:
     )
 
 
-def get_html_content(template: str, request, current_user: User = None, data: dict = None) -> str:
+def get_html_content(template: str, data: Dict[str, Any]) -> str:
     if data is None:
         data = {}
     template = jinja2_env().get_template(template)
-    html = template.render({
-        **get_config(),
-        **data,
-        "request": request,
-        "current_user": current_user
-    })
+    html = template.render(data)
     return minify_html(html) if is_prod() else html
 
 
@@ -250,13 +240,33 @@ async def get_cognito_jwks() -> dict:
         return resp.json()
 
 
-async def get_user_from_token(token: str, app_state: State) -> User:
+async def configure_app_state(app_state: State) -> None:
+    if is_prod():
+        # Startup: fetch JWKS
+        # Fetch JWKS keys for token validation
+        app_state.jwks = await get_cognito_jwks()
+    else:
+        app_state.logged_in = False
+
+
+async def get_user_from_token(token: Optional[str], app_state: State) -> Optional[User]:
+    if not is_prod() and app_state.logged_in:
+        return User(
+            username="Test username",
+            email="test@example.com",
+            name="Test User",
+            sub="test-sub"
+        )
+
+    if not token:
+        return None
+
     try:
         unverified_header = jwt.get_unverified_header(token)
         kid = unverified_header.get("kid")
 
         # Try to find key
-        key = next((k for k in getattr(app_state, "jwks", {}).get("keys", []) if k["kid"] == kid), None)
+        key = next((k for k in app_state.jwks.get("keys", []) if k["kid"] == kid), None)
 
         # If not found → refresh JWKS once
         if key is None:
@@ -278,6 +288,30 @@ async def get_user_from_token(token: str, app_state: State) -> User:
         )
     except JWTError:
         raise InvalidTokenError("Invalid token")
+
+
+async def serve_index(custom_data: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        **get_config(),
+        **custom_data
+    }
+
+
+async def serve_contacts(custom_data: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        **get_config(),
+        **custom_data
+    }
+
+
+async def serve_error(custom_data: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        **get_config(),
+        "auth": {
+            "active": False
+        },
+        **custom_data
+    }
 
 
 async def serve_login(callback_url: str, non_prod_callback_url: str, referer: str, app_state: State) -> str:

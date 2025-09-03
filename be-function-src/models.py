@@ -10,7 +10,7 @@ class Token(BaseModel):
     iat: int  # issued at (UNIX timestamp)
     exp: int  # expiration (UNIX timestamp)
     aud: str  # audience / client_id
-    plain: str # plain id_token
+    plain: str  # plain token
 
 
 class User(BaseModel):

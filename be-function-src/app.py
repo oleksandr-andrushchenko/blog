@@ -18,10 +18,9 @@ from mangum import Mangum
 from http import HTTPStatus
 import time
 from contextlib import asynccontextmanager
-
 from config import (
     get_feature,
-    is_prod
+    is_prod,
 )
 from models import (
     MessageDTO,
@@ -34,12 +33,14 @@ from utils import (
     get_html_content,
     get_full_url,
     get_url,
-    logger,
-    get_cognito_jwks,
     get_user_from_token,
+    configure_app_state,
+    serve_index,
+    serve_contacts,
     serve_login_callback,
     serve_login,
     serve_logout,
+    serve_error,
 )
 from errors import (
     InvalidTokenError,
@@ -51,12 +52,7 @@ from errors import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if is_prod():
-        # Startup: fetch JWKS
-        # Fetch JWKS keys for token validation
-        app.state.jwks = await get_cognito_jwks()
-    else:
-        app.state.logged_in = False
+    await configure_app_state(app.state)
     yield
     # Shutdown: nothing special here, but can clean up resources
     # e.g., closing db connections
@@ -71,22 +67,10 @@ if not is_prod():
 
 # todo: adding CORS middleware if your frontend ever makes direct JS requests to Lambda
 
-async def get_current_user(request: Request) -> User | None:
-    if not is_prod() and getattr(request.app.state, "logged_in", False):
-        return User(
-            username="Test username",
-            email="test@example.com",
-            name="Test User",
-            sub="test-sub"
-        )
-
-    id_token = request.cookies.get("session_token")
-    if not id_token:
-        return None
-
+async def get_current_user(request: Request) -> Optional[User]:
     try:
         return await get_user_from_token(
-            token=id_token,
+            token=request.cookies.get("session_token"),
             app_state=request.app.state
         )
     except (InvalidTokenKidError, InvalidTokenError) as e:
@@ -106,31 +90,32 @@ index_page = get_feature("index")
 if index_page.get("active", True):
     @app.get(index_page.get("path", "/"), name="index")
     async def index(request: Request, current_user: CurrentUser = None):
-        html_content = get_html_content(
-            "index.html",
-            request=request,
-            current_user=current_user
+        data = await serve_index({
+            "request": request,
+            "current_user": current_user
+        })
+        content = get_html_content("index.html", data)
+        return HTMLResponse(
+            content=content
         )
-        return HTMLResponse(content=html_content)
 
 contacts_page = get_feature("contacts")
 if contacts_page.get("active"):
     @app.get(contacts_page.get("path", "/contacts"), name="contacts")
     async def contacts(request: Request, current_user: CurrentUser = None):
-        html_content = get_html_content(
-            "contacts.html",
-            request=request,
-            current_user=current_user
-        )
+        data = await serve_contacts({
+            "request": request,
+            "current_user": current_user
+        })
+        content = get_html_content("contacts.html", data)
         return HTMLResponse(
-            content=html_content
+            content=content
         )
 
 
     @app.post("/message", name="create_message")
     async def create_message(message: MessageDTO):
-        if is_prod():
-            serve_create_message(message)
+        serve_create_message(message)
         return HTMLResponse(
             status_code=HTTP_201_CREATED
         )
@@ -221,34 +206,33 @@ async def new_post(data: dict = Body(...)):
 # -------------------------
 # Exception handlers
 # -------------------------
-def get_error_response(request: Request, status_code: int, details):
+async def get_error_response(request: Request, status_code: int, details):
     status_enum = HTTPStatus(status_code)
-    content = {
+    public_data = {
         "code": status_code,
         "title": status_enum.phrase,
         "message": status_enum.description,
         "details": details,
     }
+    data = await serve_error({})
     content_type = request.headers.get("content-type", "")
     if content_type.startswith("application/json"):
         return JSONResponse(
             status_code=status_code,
-            content=content,
+            content=public_data,
         )
-    html_content = get_html_content(
-        "error.html",
-        request=request,
-        data=content
-    )
+    data.update(public_data)
+    data.update({"request": request})
+    content = get_html_content("error.html", data)
     return HTMLResponse(
         status_code=status_code,
-        content=html_content,
+        content=content,
     )
 
 
 @app.exception_handler(StarletteHTTPException)
 async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
-    return get_error_response(
+    return await get_error_response(
         request,
         exc.status_code,
         exc.detail
@@ -261,7 +245,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     for error in exc.errors():
         field = error["loc"][-1] if len(error["loc"]) > 1 else error["loc"][0]
         details[field] = error["msg"]
-    return get_error_response(
+    return await get_error_response(
         request,
         HTTP_422_UNPROCESSABLE_ENTITY,
         details
