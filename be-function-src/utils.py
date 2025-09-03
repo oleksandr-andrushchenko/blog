@@ -2,16 +2,17 @@ import htmlmin
 import re
 import os
 from config import is_prod, get_aws_region, get_dynamodb_endpoint, get_dynamodb_table_name, get_base_url, \
-    get_contact_topic_arn, get_config
+    get_contact_topic_arn, get_config, get_cognito_user_pool_id
 from jinja2 import Environment, FileSystemLoader
 from jinja2 import pass_context
 import boto3
 import uuid
 import datetime
-from models import MessageDTO
+from models import MessageDTO, User
 from typing import Callable
 import logging
 import sys
+import httpx
 
 
 class Lazy:
@@ -73,8 +74,6 @@ def get_full_url(request, name: str, **params) -> str:
 def asset_url(path: str, with_base: bool = False) -> str:
     path = path.lstrip("/")
     base = get_base_url() if with_base else ""
-    if is_prod():
-        return f"{base}/{path}"
     return f"{base}/assets/{path}"
 
 
@@ -185,10 +184,7 @@ def list_posts(limit: int = 10):
     return resp.get("Items", [])
 
 
-def serve_create_message(message: MessageDTO):
-    if not is_prod():
-        return
-
+def serve_create_message(message: MessageDTO) -> None:
     sns_client = boto3.client("sns", region_name=get_aws_region())
 
     text = (
@@ -205,7 +201,7 @@ def serve_create_message(message: MessageDTO):
     )
 
 
-def get_html_content(template: str, request, current_user=None, data: dict = None) -> str:
+def get_html_content(template: str, request, current_user: User = None, data: dict = None) -> str:
     if data is None:
         data = {}
     template = jinja2_env().get_template(template)
@@ -216,3 +212,11 @@ def get_html_content(template: str, request, current_user=None, data: dict = Non
         "current_user": current_user
     })
     return minify_html(html) if is_prod() else html
+
+
+async def get_cognito_jwks() -> dict:
+    async with httpx.AsyncClient() as client:
+        jwks_url = f"https://cognito-idp.{get_aws_region()}.amazonaws.com/{get_cognito_user_pool_id()}/.well-known/jwks.json"
+        resp = await client.get(jwks_url)
+        resp.raise_for_status()
+        return resp.json()

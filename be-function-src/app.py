@@ -27,11 +27,9 @@ from contextlib import asynccontextmanager
 
 from config import (
     get_feature,
-    get_aws_region,
     get_cognito_domain,
     get_cognito_client_id,
     get_cognito_client_secret,
-    get_cognito_user_pool_id,
     is_prod
 )
 from models import (
@@ -46,6 +44,7 @@ from utils import (
     get_full_url,
     get_url,
     logger,
+    get_cognito_jwks,
 )
 
 
@@ -54,12 +53,7 @@ async def lifespan(app: FastAPI):
     if is_prod():
         # Startup: fetch JWKS
         # Fetch JWKS keys for token validation
-        # todo: refreshing JWKS periodically if keys rotate.
-        async with httpx.AsyncClient() as client:
-            JWKS_URL = f"https://cognito-idp.{get_aws_region()}.amazonaws.com/{get_cognito_user_pool_id()}/.well-known/jwks.json"
-            resp = await client.get(JWKS_URL)
-            resp.raise_for_status()
-            app.state.jwks = resp.json()
+        app.state.jwks = await get_cognito_jwks()
     else:
         app.state.logged_in = False
     yield
@@ -88,14 +82,24 @@ async def get_current_user(request: Request) -> User | None:
     if not token:
         return None  # no token, user is anonymous
 
-    jwks = request.app.state.jwks
     try:
         unverified_header = jwt.get_unverified_header(token)
-        key = next((k for k in jwks["keys"] if k["kid"] == unverified_header.get("kid")), None)
+        kid = unverified_header.get("kid")
+        jwks = request.app.state.jwks
+
+        # Try to find key
+        key = next((k for k in jwks["keys"] if k["kid"] == kid), None)
+
+        # If not found → refresh JWKS once
+        if key is None:
+            jwks = await get_cognito_jwks()
+            request.app.state.jwks = jwks
+            key = next((k for k in jwks["keys"] if k["kid"] == kid), None)
+
         if key is None:
             raise HTTPException(
                 status_code=HTTP_401_UNAUTHORIZED,
-                detail="Invalid token"
+                detail="Invalid token (unknown kid)"
             )
 
         # Decode JWT to get claims
@@ -105,7 +109,8 @@ async def get_current_user(request: Request) -> User | None:
         user_data = {
             "username": claims.get("cognito:username"),
             "email": claims.get("email"),
-            # add other fields if your User model has them
+            "name": claims.get("name"),
+            "sub": claims.get("sub"),
         }
         return User(**user_data)
 
@@ -140,7 +145,6 @@ if contacts_page.get("active"):
         html_content = get_html_content(
             "contacts.html",
             request=request,
-            # todo: autofill name & email if user logged in
             current_user=current_user
         )
         return HTMLResponse(
@@ -150,7 +154,8 @@ if contacts_page.get("active"):
 
     @app.post("/message", name="create_message")
     async def create_message(message: MessageDTO):
-        serve_create_message(message)
+        if is_prod():
+            serve_create_message(message)
         return HTMLResponse(
             status_code=HTTP_201_CREATED
         )
@@ -160,22 +165,23 @@ if auth.get("active"):
     # todo: simulate login/logout for non-prod env (setup fake cookies)
     @app.get("/auth/login", name="login")
     async def login(request: Request):
+        # todo: make sure referer belongs to the website
+        referer = request.headers.get("referer")
+
         if is_prod():
-            auth_url = (
+            redirect_url = (
                 f"https://{get_cognito_domain()}/oauth2/authorize"
                 f"?client_id={get_cognito_client_id()}"
                 f"&response_type=code"
-                f"&redirect_uri={get_full_url(request, 'login-callback')}"
+                f"&redirect_uri={referer if referer else get_full_url(request, 'login-callback')}"
                 f"&scope=openid+email+profile"
             )
-            return RedirectResponse(
-                url=auth_url
-            )
+        else:
+            request.app.state.logged_in = True
+            redirect_url = referer if referer else get_url(request, "index")
 
-        request.app.state.logged_in = True
-        index_url = get_url(request, "index")
         return RedirectResponse(
-            url=index_url
+            url=redirect_url
         )
 
 
@@ -240,23 +246,23 @@ if auth.get("active"):
 
 
     @app.get("/auth/logout", name="logout")
-    async def logout(request: Request):
+    async def logout(request: Request, response: Response):
+        # todo: make sure referer belongs to the website
+        referer = request.headers.get("referer")
+
         if is_prod():
-            logout_url = (
+            response.delete_cookie("session_token", path="/")
+            redirect_url = (
                 f"https://{get_cognito_domain()}/logout"
                 f"?client_id={get_cognito_client_id()}"
-                f"&logout_uri={get_full_url(request, 'index')}"
+                f"&logout_uri={referer if referer else get_full_url(request, 'index')}"
             )
-            response = RedirectResponse(
-                url=logout_url
-            )
-            response.delete_cookie("session_token", path="/")
-            return response
+        else:
+            request.app.state.logged_in = False
+            redirect_url = referer if referer else get_url(request, "index")
 
-        request.app.state.logged_in = False
-        index_url = get_url(request, "index")
         return RedirectResponse(
-            url=index_url
+            url=redirect_url
         )
 
 
