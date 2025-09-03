@@ -9,6 +9,7 @@ services:
       - .env
     environment:
       ENV: local
+      BASE_URL: "http://${BE_FUNCTION_PORT}:${BE_FUNCTION_PORT}"
       CLOUDFRONT_BASE_URL: ""
     volumes:
       - ./be-function-src:/app
