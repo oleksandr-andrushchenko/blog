@@ -4,7 +4,6 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.status import (
-    HTTP_200_OK,
     HTTP_201_CREATED,
     HTTP_302_FOUND,
     HTTP_400_BAD_REQUEST,
@@ -18,18 +17,10 @@ from models import User
 from mangum import Mangum
 from http import HTTPStatus
 import time
-import httpx
-from urllib.parse import urlencode
-from jose import jwt
-from jose.exceptions import JWTError
-import base64
 from contextlib import asynccontextmanager
 
 from config import (
     get_feature,
-    get_cognito_domain,
-    get_cognito_client_id,
-    get_cognito_client_secret,
     is_prod
 )
 from models import (
@@ -45,6 +36,16 @@ from utils import (
     get_url,
     logger,
     get_cognito_jwks,
+    get_user_from_token,
+    serve_login_callback,
+    serve_login,
+    serve_logout,
+)
+from errors import (
+    InvalidTokenError,
+    InvalidCodeError,
+    CodeExchangeFailedError,
+    InvalidTokenKidError,
 )
 
 
@@ -71,53 +72,27 @@ if not is_prod():
 # todo: adding CORS middleware if your frontend ever makes direct JS requests to Lambda
 
 async def get_current_user(request: Request) -> User | None:
-    if not is_prod() and request.app.state.logged_in:
+    if not is_prod() and getattr(request.app.state, "logged_in", False):
         return User(
             username="Test username",
             email="test@example.com",
             name="Test User",
             sub="test-sub"
         )
-    token = request.cookies.get("session_token")
-    if not token:
-        return None  # no token, user is anonymous
+
+    id_token = request.cookies.get("session_token")
+    if not id_token:
+        return None
 
     try:
-        unverified_header = jwt.get_unverified_header(token)
-        kid = unverified_header.get("kid")
-        jwks = request.app.state.jwks
-
-        # Try to find key
-        key = next((k for k in jwks["keys"] if k["kid"] == kid), None)
-
-        # If not found → refresh JWKS once
-        if key is None:
-            jwks = await get_cognito_jwks()
-            request.app.state.jwks = jwks
-            key = next((k for k in jwks["keys"] if k["kid"] == kid), None)
-
-        if key is None:
-            raise HTTPException(
-                status_code=HTTP_401_UNAUTHORIZED,
-                detail="Invalid token (unknown kid)"
-            )
-
-        # Decode JWT to get claims
-        claims = jwt.decode(token, key, algorithms=["RS256"], audience=get_cognito_client_id())
-
-        # Map claims to User model
-        user_data = {
-            "username": claims.get("cognito:username"),
-            "email": claims.get("email"),
-            "name": claims.get("name"),
-            "sub": claims.get("sub"),
-        }
-        return User(**user_data)
-
-    except JWTError:
+        return await get_user_from_token(
+            token=id_token,
+            app_state=request.app.state
+        )
+    except (InvalidTokenKidError, InvalidTokenError) as e:
         raise HTTPException(
             status_code=HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
+            detail=str(e)
         )
 
 
@@ -162,24 +137,14 @@ if contacts_page.get("active"):
 
 auth = get_feature("auth")
 if auth.get("active"):
-    # todo: simulate login/logout for non-prod env (setup fake cookies)
     @app.get("/auth/login", name="login")
     async def login(request: Request):
-        # todo: make sure referer belongs to the website
-        referer = request.headers.get("referer")
-
-        if is_prod():
-            redirect_url = (
-                f"https://{get_cognito_domain()}/oauth2/authorize"
-                f"?client_id={get_cognito_client_id()}"
-                f"&response_type=code"
-                f"&redirect_uri={referer if referer else get_full_url(request, 'login-callback')}"
-                f"&scope=openid+email+profile"
-            )
-        else:
-            request.app.state.logged_in = True
-            redirect_url = referer if referer else get_url(request, "index")
-
+        redirect_url = await serve_login(
+            callback_url=get_full_url(request, 'login-callback'),
+            non_prod_callback_url=get_url(request, "index"),
+            referer=request.headers.get("referer"),
+            app_state=request.app.state
+        )
         return RedirectResponse(
             url=redirect_url
         )
@@ -187,80 +152,40 @@ if auth.get("active"):
 
     @app.get("/auth/callback", name="login-callback")
     async def login_callback(request: Request):
-        code = request.query_params.get("code")
-        if not code:
+        try:
+            token = await serve_login_callback(
+                code=request.query_params.get("code"),
+                redirect_url=get_full_url(request, 'login-callback')
+            )
+            response = RedirectResponse(
+                url=get_url(request, "index"),
+                status_code=HTTP_302_FOUND
+            )
+            response.set_cookie(
+                key="session_token",
+                value=token.plain,
+                httponly=True,
+                secure=True,
+                samesite="lax",
+                max_age=min(0, token.exp - int(time.time()))
+            )
+            return response
+        except (InvalidCodeError, CodeExchangeFailedError, InvalidTokenError) as e:
             raise HTTPException(
                 status_code=HTTP_400_BAD_REQUEST,
-                detail="Missing code"
+                detail=str(e)
             )
-
-        token_url = f"https://{get_cognito_domain()}/oauth2/token"
-        cognito_client_id = get_cognito_client_id()
-        cognito_client_secret = get_cognito_client_secret()
-        data = {
-            "grant_type": "authorization_code",
-            "client_id": cognito_client_id,
-            "code": code,
-            "redirect_uri": get_full_url(request, 'login-callback'),
-        }
-        headers = {"Content-Type": "application/x-www-form-urlencoded"}
-
-        # If client secret is used
-        if cognito_client_secret:
-            auth_str = f"{cognito_client_id}:{cognito_client_secret}"
-            headers["Authorization"] = "Basic " + base64.b64encode(auth_str.encode()).decode()
-
-        async with httpx.AsyncClient() as client:
-            token_resp = await client.post(token_url, data=urlencode(data), headers=headers)
-            if token_resp.status_code != HTTP_200_OK:
-                raise HTTPException(
-                    status_code=HTTP_400_BAD_REQUEST,
-                    detail="Failed to exchange code"
-                )
-            tokens = token_resp.json()
-
-        # Store ID token in secure HTTP-only cookie
-        # tokens = response from Cognito
-        id_token = tokens["id_token"]
-
-        # Decode without verification just to read 'exp'
-        unverified_claims = jwt.get_unverified_claims(id_token)
-        exp = unverified_claims["exp"]  # UNIX timestamp
-        now = int(time.time())
-        max_age = exp - now
-        if max_age < 0:
-            max_age = 0  # token already expired
-        response = RedirectResponse(
-            url=get_url(request, "index"),
-            status_code=HTTP_302_FOUND
-        )
-        response.set_cookie(
-            "session_token",
-            id_token,
-            httponly=True,
-            secure=True,
-            samesite="lax",
-            max_age=max_age
-        )
-        return response
 
 
     @app.get("/auth/logout", name="logout")
     async def logout(request: Request, response: Response):
-        # todo: make sure referer belongs to the website
-        referer = request.headers.get("referer")
-
-        if is_prod():
-            response.delete_cookie("session_token", path="/")
-            redirect_url = (
-                f"https://{get_cognito_domain()}/logout"
-                f"?client_id={get_cognito_client_id()}"
-                f"&logout_uri={referer if referer else get_full_url(request, 'index')}"
-            )
-        else:
-            request.app.state.logged_in = False
-            redirect_url = referer if referer else get_url(request, "index")
-
+        response.delete_cookie("session_token")
+        redirect_url = await serve_logout(
+            callback_url=get_full_url(request, 'index'),
+            non_prod_callback_url=get_url(request, "index"),
+            referer=request.headers.get("referer"),
+            app_state=request.app.state
+        )
         return RedirectResponse(
             url=redirect_url
         )

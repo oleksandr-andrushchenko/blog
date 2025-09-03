@@ -2,6 +2,17 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 
 
+class Token(BaseModel):
+    sub: str
+    email: Optional[EmailStr]
+    name: Optional[str]
+    username: Optional[str]  # map from 'cognito:username'
+    iat: int  # issued at (UNIX timestamp)
+    exp: int  # expiration (UNIX timestamp)
+    aud: str  # audience / client_id
+    plain: str # plain id_token
+
+
 class User(BaseModel):
     username: str
     email: Optional[str]

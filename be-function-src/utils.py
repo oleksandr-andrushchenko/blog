@@ -1,18 +1,46 @@
 import htmlmin
 import re
 import os
-from config import is_prod, get_aws_region, get_dynamodb_endpoint, get_dynamodb_table_name, get_base_url, \
-    get_contact_topic_arn, get_config, get_cognito_user_pool_id
+from starlette.datastructures import State
+from config import (
+    is_prod,
+    get_cognito_domain,
+    get_aws_region,
+    get_dynamodb_endpoint,
+    get_dynamodb_table_name,
+    get_base_url,
+    get_contact_topic_arn,
+    get_config,
+    get_cognito_user_pool_id,
+    get_cognito_client_id,
+    get_cognito_client_secret,
+)
 from jinja2 import Environment, FileSystemLoader
 from jinja2 import pass_context
 import boto3
 import uuid
 import datetime
-from models import MessageDTO, User
+from models import (
+    MessageDTO,
+    User,
+    Token,
+)
 from typing import Callable
 import logging
 import sys
 import httpx
+from jose import jwt, jwk
+from jose.exceptions import JWTError
+from errors import (
+    InvalidTokenError,
+    InvalidCodeError,
+    CodeExchangeFailedError,
+    InvalidTokenKidError,
+)
+import base64
+from starlette.status import (
+    HTTP_200_OK,
+)
 
 
 class Lazy:
@@ -220,3 +248,109 @@ async def get_cognito_jwks() -> dict:
         resp = await client.get(jwks_url)
         resp.raise_for_status()
         return resp.json()
+
+
+async def get_user_from_token(token: str, app_state: State) -> User:
+    try:
+        unverified_header = jwt.get_unverified_header(token)
+        kid = unverified_header.get("kid")
+
+        # Try to find key
+        key = next((k for k in getattr(app_state, "jwks", {}).get("keys", []) if k["kid"] == kid), None)
+
+        # If not found → refresh JWKS once
+        if key is None:
+            app_state.jwks = await get_cognito_jwks()
+            key = next((k for k in app_state.jwks.get("keys", []) if k["kid"] == kid), None)
+
+        if key is None:
+            raise InvalidTokenKidError("Invalid token (unknown kid)")
+
+        # Construct public key and decode JWT
+        public_key = jwk.construct(key)
+        claims = jwt.decode(token, public_key, algorithms=["RS256"], audience=get_cognito_client_id())
+
+        return User(
+            username=claims.get("cognito:username"),
+            email=claims.get("email"),
+            name=claims.get("name"),
+            sub=claims.get("sub"),
+        )
+    except JWTError:
+        raise InvalidTokenError("Invalid token")
+
+
+async def serve_login(callback_url: str, non_prod_callback_url: str, referer: str, app_state: State) -> str:
+    # todo: make sure referer belongs to the website
+    if is_prod():
+        redirect_url = (
+            f"https://{get_cognito_domain()}/oauth2/authorize"
+            f"?client_id={get_cognito_client_id()}"
+            f"&response_type=code"
+            f"&redirect_uri={referer if referer else callback_url}"
+            f"&scope=openid+email+profile"
+        )
+    else:
+        app_state.logged_in = True
+        redirect_url = referer if referer else non_prod_callback_url
+    return redirect_url
+
+
+async def serve_logout(callback_url: str, non_prod_callback_url: str, referer: str, app_state: State) -> str:
+    if is_prod():
+        redirect_url = (
+            f"https://{get_cognito_domain()}/logout"
+            f"?client_id={get_cognito_client_id()}"
+            f"&logout_uri={referer if referer else callback_url}"
+        )
+    else:
+        app_state.logged_in = False
+        redirect_url = referer if referer else non_prod_callback_url
+    return redirect_url
+
+
+async def serve_login_callback(code: str, redirect_url: str) -> Token:
+    if not code:
+        raise InvalidCodeError("Missing code")
+
+    token_url = f"https://{get_cognito_domain()}/oauth2/token"
+    cognito_client_id = get_cognito_client_id()
+    cognito_client_secret = get_cognito_client_secret()
+    data = {
+        "grant_type": "authorization_code",
+        "client_id": cognito_client_id,
+        "code": code,
+        "redirect_uri": redirect_url,
+    }
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+
+    # If client secret is used
+    if cognito_client_secret:
+        auth_str = f"{cognito_client_id}:{cognito_client_secret}"
+        headers["Authorization"] = "Basic " + base64.b64encode(auth_str.encode()).decode()
+
+    async with httpx.AsyncClient() as client:
+        token_resp = await client.post(token_url, data=data, headers=headers)
+        if token_resp.status_code != HTTP_200_OK:
+            raise CodeExchangeFailedError("Failed to exchange code")
+        tokens = token_resp.json()
+
+    # Store ID token in secure HTTP-only cookie
+    # tokens = response from Cognito
+    id_token = tokens["id_token"]
+    if not id_token:
+        raise InvalidTokenError("Missing id_token")
+
+    # Decode without verification just to read 'exp'
+    claims = jwt.get_unverified_claims(id_token)
+
+    return Token(
+        sub=claims.get("sub"),
+        email=claims.get("email"),
+        name=claims.get("name"),
+        username=claims.get("cognito:username"),
+        iat=claims.get("iat"),
+        exp=claims.get("exp"),
+        aud=claims.get("aud"),
+        plain=id_token,
+    )

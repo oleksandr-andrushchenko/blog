@@ -86,12 +86,12 @@
                     {% if current_user %}
                         <i class="bi bi-person-circle"></i> {{ current_user.email }}
                         <a href="{{ url('logout') }}" class="btn btn-secondary">
-                            {{ header.logout_label | default("Logout") }} <i class="bi bi-box-arrow-right"></i>
+                            {{ header.logout_label | default("Sign out") }} <i class="bi bi-box-arrow-right"></i>
                         </a>
                     {% else %}
                         <a href="{{ url('login') }}" class="btn btn-secondary">
                             <i class="bi bi-box-arrow-in-right"></i>
-                            {{ header.login_label | default("Login") }}
+                            {{ header.login_label | default("Sign in") }}
                         </a>
                     {% endif %}
                 {% endif %}
