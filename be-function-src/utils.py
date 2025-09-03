@@ -14,31 +14,157 @@ from typing import Callable, Optional, Dict, Any
 from starlette.datastructures import State
 from starlette.status import HTTP_200_OK
 from jinja2 import Environment, FileSystemLoader, pass_context
-from config import (
-    is_prod,
-    get_config,
-    get_cognito_domain,
-    get_aws_region,
-    get_dynamodb_endpoint,
-    get_dynamodb_table_name,
-    get_base_url,
-    get_contact_topic_arn,
-    get_cognito_user_pool_id,
-    get_cognito_client_id,
-    get_cognito_client_secret,
-)
-from models import (
-    MessageDTO,
-    User,
-    Token,
-)
-from errors import (
-    InvalidTokenError,
-    InvalidCodeError,
-    CodeExchangeFailedError,
-    InvalidTokenKidError,
-)
+import dotenv
+import json
+from pydantic import BaseModel, EmailStr, Field
 
+
+# -------------------------
+# Models
+# -------------------------
+
+class Token(BaseModel):
+    sub: str
+    email: Optional[EmailStr]
+    name: Optional[str]
+    username: Optional[str]  # map from 'cognito:username'
+    iat: int  # issued at (UNIX timestamp)
+    exp: int  # expiration (UNIX timestamp)
+    aud: str  # audience / client_id
+    plain: str  # plain token
+
+
+class User(BaseModel):
+    username: str
+    email: Optional[str]
+    name: Optional[str]
+    sub: str
+
+
+class MessageDTO(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    email: EmailStr
+    message: str = Field(..., min_length=5, max_length=1000)
+
+
+# -------------------------
+# Errors
+# -------------------------
+
+class BaseError(Exception):
+    pass
+
+
+class InvalidTokenError(BaseError):
+    pass
+
+
+class InvalidTokenKidError(BaseError):
+    pass
+
+
+class InvalidCodeError(BaseError):
+    pass
+
+
+class CodeExchangeFailedError(BaseError):
+    pass
+
+
+# -------------------------
+# Config
+# -------------------------
+
+def get_live_config(load_env=False):
+    if load_env:
+        dotenv.load_dotenv(dotenv_path="/.env", override=True)
+
+    return {
+        "env": os.getenv("ENV"),
+        "cloudfront_base_url": os.getenv("CLOUDFRONT_BASE_URL"),
+        "aws_region": os.getenv("AWS_REGION"),
+        "dynamodb_endpoint": os.getenv("DYNAMODB_ENDPOINT"),
+        "dynamodb_table": os.getenv("DYNAMODB_TABLE"),
+        "google_analytics_id": os.getenv("GOOGLE_ANALYTICS_ID"),
+        "contact_topic_arn": os.getenv("CONTACT_TOPIC_ARN"),
+        "allowed_origin": os.getenv("ALLOWED_ORIGIN"),
+        "cognito_domain": os.getenv("COGNITO_DOMAIN"),  # e.g. myapp-auth.auth.us-east-1.amazoncognito.com
+        "cognito_client_id": os.getenv("COGNITO_CLIENT_ID"),
+        "cognito_client_secret": os.getenv("COGNITO_CLIENT_SECRET"),
+        "cognito_user_pool_id": os.getenv("COGNITO_USER_POOL_ID"),
+        **{
+            "auth": {},
+            "head": {},
+            "header": {},
+            "index": {},
+            "contacts": {},
+            "footer": {},
+            "error": {}
+        },
+        **json.load(open("./data.json"))
+    }
+
+
+config = get_live_config()
+
+
+def is_prod():
+    return config.get("env") == "prod"
+
+
+def get_config():
+    if is_prod():
+        return config
+    return get_live_config(True)
+
+
+def get_base_url():
+    return get_config().get("base_url")
+
+
+def get_aws_region():
+    return get_config().get("aws_region")
+
+
+def get_dynamodb_endpoint():
+    return get_config().get("dynamodb_endpoint")
+
+
+def get_dynamodb_table_name():
+    return get_config().get("dynamodb_table")
+
+
+def get_feature(feature):
+    return get_config().get(feature)
+
+
+def get_contact_topic_arn():
+    return get_config().get("contact_topic_arn")
+
+
+def get_allowed_origin():
+    return get_config().get("allowed_origin")
+
+
+def get_cognito_domain():
+    return get_config().get("cognito_domain")
+
+
+def get_cognito_client_id():
+    return get_config().get("cognito_client_id")
+
+
+def get_cognito_client_secret():
+    return get_config().get("cognito_client_secret")
+
+
+def get_cognito_user_pool_id():
+    return get_config().get("cognito_user_pool_id")
+
+
+# -------------------------
+# Services
+# -------------------------
 
 class Lazy:
     def __init__(self, factory: Callable):

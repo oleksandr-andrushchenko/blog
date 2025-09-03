@@ -13,19 +13,23 @@ from starlette.status import (
 )
 from typing_extensions import Annotated
 from typing import Optional
-from models import User
 from mangum import Mangum
 from http import HTTPStatus
 import time
 from contextlib import asynccontextmanager
-from config import (
+from utils import (
+    # models
+    User,
+    MessageDTO,
+    # config
     get_feature,
     is_prod,
-)
-from models import (
-    MessageDTO,
-)
-from utils import (
+    # errors
+    InvalidTokenError,
+    InvalidCodeError,
+    CodeExchangeFailedError,
+    InvalidTokenKidError,
+    # services
     list_posts,
     get_post,
     create_post,
@@ -41,12 +45,6 @@ from utils import (
     serve_login,
     serve_logout,
     serve_error,
-)
-from errors import (
-    InvalidTokenError,
-    InvalidCodeError,
-    CodeExchangeFailedError,
-    InvalidTokenKidError,
 )
 
 
