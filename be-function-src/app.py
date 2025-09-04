@@ -19,7 +19,7 @@ import time
 from contextlib import asynccontextmanager
 from utils import (
     # models
-    User,
+    UserToken,
     MessageDTO,
     # config
     get_feature,
@@ -29,16 +29,17 @@ from utils import (
     InvalidCodeError,
     CodeExchangeFailedError,
     InvalidTokenKidError,
+    # helpers
+    get_html_content,
+    get_full_url,
+    get_url,
+    get_user_token_from_plain_token,
+    configure_app_state,
     # services
     list_posts,
     get_post,
     create_post,
     serve_create_message,
-    get_html_content,
-    get_full_url,
-    get_url,
-    get_user_from_token,
-    configure_app_state,
     serve_index,
     serve_contacts,
     serve_login_callback,
@@ -65,10 +66,10 @@ if not is_prod():
 
 # todo: adding CORS middleware if your frontend ever makes direct JS requests to Lambda
 
-async def get_current_user(request: Request) -> Optional[User]:
+async def get_user_token(request: Request) -> Optional[UserToken]:
     try:
-        return await get_user_from_token(
-            token=request.cookies.get("session_token"),
+        return await get_user_token_from_plain_token(
+            plain_token=request.cookies.get("session_token"),
             app_state=request.app.state
         )
     except (InvalidTokenKidError, InvalidTokenError) as e:
@@ -78,7 +79,7 @@ async def get_current_user(request: Request) -> Optional[User]:
         )
 
 
-CurrentUser = Annotated[Optional[User], Depends(get_current_user)]
+UserToken = Annotated[Optional[UserToken], Depends(get_user_token)]
 # TODO: add CORS middleware if needed (fastapi.middleware.cors.CORSMiddleware)
 
 # -------------------------
@@ -87,10 +88,10 @@ CurrentUser = Annotated[Optional[User], Depends(get_current_user)]
 index_page = get_feature("index")
 if index_page.get("active", True):
     @app.get(index_page.get("path", "/"), name="index")
-    async def index(request: Request, current_user: CurrentUser = None):
+    async def index(request: Request, user_token: UserToken = None):
         data = await serve_index({
             "request": request,
-            "current_user": current_user
+            "user_token": user_token
         })
         content = get_html_content("index.html", data)
         return HTMLResponse(
@@ -100,10 +101,10 @@ if index_page.get("active", True):
 contacts_page = get_feature("contacts")
 if contacts_page.get("active"):
     @app.get(contacts_page.get("path", "/contacts"), name="contacts")
-    async def contacts(request: Request, current_user: CurrentUser = None):
+    async def contacts(request: Request, user_token: UserToken = None):
         data = await serve_contacts({
             "request": request,
-            "current_user": current_user
+            "user_token": user_token
         })
         content = get_html_content("contacts.html", data)
         return HTMLResponse(

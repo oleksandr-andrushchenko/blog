@@ -23,7 +23,7 @@ from pydantic import BaseModel, EmailStr, Field
 # Models
 # -------------------------
 
-class Token(BaseModel):
+class UserToken(BaseModel):
     sub: str
     email: Optional[EmailStr]
     name: Optional[str]
@@ -31,7 +31,7 @@ class Token(BaseModel):
     iat: int  # issued at (UNIX timestamp)
     exp: int  # expiration (UNIX timestamp)
     aud: str  # audience / client_id
-    plain: str  # plain token
+    plain_token: Optional[str]  # plain token
 
 
 class User(BaseModel):
@@ -314,20 +314,37 @@ async def configure_app_state(app_state: State) -> None:
         app_state.logged_in = False
 
 
-async def get_user_from_token(token: Optional[str], app_state: State) -> Optional[User]:
+def map_jwt_claims_to_user_token(claims: Dict[str, Any], plain_token: str = None) -> UserToken:
+    return UserToken(
+        sub=claims.get("sub"),
+        email=claims.get("email"),
+        name=claims.get("name"),
+        username=claims.get("cognito:username"),
+        iat=claims.get("iat"),
+        exp=claims.get("exp"),
+        aud=claims.get("aud"),
+        plain_token=plain_token
+    )
+
+
+async def get_user_token_from_plain_token(plain_token: Optional[str], app_state: State) -> Optional[UserToken]:
     if not is_prod() and app_state.logged_in:
-        return User(
+        return UserToken(
             username="Test username",
             email="test@example.com",
             name="Test User",
-            sub="test-sub"
+            sub="test-sub",
+            iat=0,
+            exp=0,
+            aud="",
+            plain_token=None
         )
 
-    if not token:
+    if not plain_token:
         return None
 
     try:
-        unverified_header = jwt.get_unverified_header(token)
+        unverified_header = jwt.get_unverified_header(plain_token)
         kid = unverified_header.get("kid")
 
         # Try to find key
@@ -343,14 +360,9 @@ async def get_user_from_token(token: Optional[str], app_state: State) -> Optiona
 
         # Construct public key and decode JWT
         public_key = jwk.construct(key)
-        claims = jwt.decode(token, public_key, algorithms=["RS256"], audience=get_cognito_client_id())
+        claims = jwt.decode(plain_token, public_key, algorithms=["RS256"], audience=get_cognito_client_id())
 
-        return User(
-            username=claims.get("cognito:username"),
-            email=claims.get("email"),
-            name=claims.get("name"),
-            sub=claims.get("sub"),
-        )
+        return map_jwt_claims_to_user_token(claims)
     except JWTError:
         raise InvalidTokenError("Invalid token")
 
@@ -473,7 +485,7 @@ async def serve_logout(callback_url: str, non_prod_callback_url: str, referer: s
     return redirect_url
 
 
-async def serve_login_callback(code: str, redirect_url: str) -> Token:
+async def serve_login_callback(code: str, redirect_url: str) -> UserToken:
     if not code:
         raise InvalidCodeError("Missing code")
 
@@ -508,13 +520,4 @@ async def serve_login_callback(code: str, redirect_url: str) -> Token:
     # Decode without verification just to read 'exp'
     claims = jwt.get_unverified_claims(id_token)
 
-    return Token(
-        sub=claims.get("sub"),
-        email=claims.get("email"),
-        name=claims.get("name"),
-        username=claims.get("cognito:username"),
-        iat=claims.get("iat"),
-        exp=claims.get("exp"),
-        aud=claims.get("aud"),
-        plain=id_token,
-    )
+    return map_jwt_claims_to_user_token(claims, id_token)

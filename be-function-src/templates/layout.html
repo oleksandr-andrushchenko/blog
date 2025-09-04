@@ -83,8 +83,8 @@
                     {% endif %}
                 </ul>
                 {% if auth.active %}
-                    {% if current_user %}
-                        <i class="bi bi-person-circle"></i> {{ current_user.email }}
+                    {% if user_token %}
+                        <i class="bi bi-person-circle"></i> {{ user_token.email }}
                         <a href="{{ url('logout') }}" class="btn btn-secondary">
                             {{ header.logout_label | default("Sign out") }} <i class="bi bi-box-arrow-right"></i>
                         </a>
