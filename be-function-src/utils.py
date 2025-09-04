@@ -289,67 +289,6 @@ def get_dynamodb_table(table_name: str):
 dynamodb_table = Lazy(lambda: get_dynamodb_table(get_dynamodb_table_name()))
 
 
-# --- Post functions ---
-def create_post(title: str, slug: str, author_id: str, content: str, tags: list[str]):
-    post_id = str(uuid.uuid4())
-    now = datetime.datetime.utcnow().isoformat()
-
-    # Post metadata
-    dynamodb_table().put_item(Item={
-        "PK": f"POST#{post_id}",
-        "SK": "METADATA",
-        "post_id": post_id,
-        "title": title,
-        "slug": slug,
-        "author_id": author_id,
-        "content": content,
-        "tags": tags,
-        "created_at": now
-    })
-
-    # Tag references
-    for tag in tags:
-        dynamodb_table().put_item(Item={
-            "PK": f"TAG#{tag}",
-            "SK": f"POST#{post_id}",
-            "post_id": post_id,
-            "title": title,
-            "slug": slug,
-            "created_at": now
-        })
-
-    return {"post_id": post_id}
-
-
-def get_post(post_id: str):
-    resp = dynamodb_table().get_item(Key={"PK": f"POST#{post_id}", "SK": "METADATA"})
-    return resp.get("Item")
-
-
-def list_posts(limit: int = 10):
-    resp = dynamodb_table().scan(Limit=limit)
-    return resp.get("Items", [])
-
-
-def serve_create_message(message: MessageDTO) -> None:
-    if is_prod():
-        return
-    sns_client = boto3.client("sns", region_name=get_aws_region())
-
-    text = (
-        f"New contact form submission:\n"
-        f"Name: {message.name}\n"
-        f"Email: {message.email}\n"
-        f"Message: {message.message}"
-    )
-
-    sns_client.publish(
-        TopicArn=get_contact_topic_arn(),
-        Message=text,
-        Subject="New Contact Form Submission"
-    )
-
-
 def get_html_content(template: str, data: Dict[str, Any]) -> str:
     if data is None:
         data = {}
@@ -419,6 +358,67 @@ async def get_user_from_token(token: Optional[str], app_state: State) -> Optiona
 # -------------------------
 # Services
 # -------------------------
+
+# --- Post functions ---
+async def create_post(title: str, slug: str, author_id: str, content: str, tags: list[str]):
+    post_id = str(uuid.uuid4())
+    now = datetime.datetime.utcnow().isoformat()
+
+    # Post metadata
+    dynamodb_table().put_item(Item={
+        "PK": f"POST#{post_id}",
+        "SK": "METADATA",
+        "post_id": post_id,
+        "title": title,
+        "slug": slug,
+        "author_id": author_id,
+        "content": content,
+        "tags": tags,
+        "created_at": now
+    })
+
+    # Tag references
+    for tag in tags:
+        dynamodb_table().put_item(Item={
+            "PK": f"TAG#{tag}",
+            "SK": f"POST#{post_id}",
+            "post_id": post_id,
+            "title": title,
+            "slug": slug,
+            "created_at": now
+        })
+
+    return {"post_id": post_id}
+
+
+async def get_post(post_id: str):
+    resp = dynamodb_table().get_item(Key={"PK": f"POST#{post_id}", "SK": "METADATA"})
+    return resp.get("Item")
+
+
+async def list_posts(limit: int = 10):
+    resp = dynamodb_table().scan(Limit=limit)
+    return resp.get("Items", [])
+
+
+async def serve_create_message(message: MessageDTO) -> None:
+    if is_prod():
+        return
+    sns_client = boto3.client("sns", region_name=get_aws_region())
+
+    text = (
+        f"New contact form submission:\n"
+        f"Name: {message.name}\n"
+        f"Email: {message.email}\n"
+        f"Message: {message.message}"
+    )
+
+    sns_client.publish(
+        TopicArn=get_contact_topic_arn(),
+        Message=text,
+        Subject="New Contact Form Submission"
+    )
+
 
 async def serve_index(custom_data: Dict[str, Any]) -> Dict[str, Any]:
     return {

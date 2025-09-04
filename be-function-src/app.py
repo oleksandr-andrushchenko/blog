@@ -113,7 +113,7 @@ if contacts_page.get("active"):
 
     @app.post("/message", name="create_message")
     async def create_message(message: MessageDTO):
-        serve_create_message(message)
+        await serve_create_message(message)
         return HTMLResponse(
             status_code=HTTP_201_CREATED
         )
@@ -176,12 +176,12 @@ if auth.get("active"):
 
 @app.get("/posts")
 async def posts():
-    return list_posts()
+    return await list_posts()
 
 
 @app.get("/posts/{post_id}")
 async def post(post_id: str):
-    item = get_post(post_id)
+    item = await get_post(post_id)
     if not item:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
@@ -192,7 +192,7 @@ async def post(post_id: str):
 
 @app.post("/posts")
 async def new_post(data: dict = Body(...)):
-    return create_post(
+    return await create_post(
         data["title"],
         data["slug"],
         data["author_id"],
