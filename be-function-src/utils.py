@@ -26,6 +26,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 class UserToken(BaseModel):
     sub: str
+    iss: str  # "cognito", "google", etc.
     email: Optional[str] = None
     name: Optional[str] = None
     username: Optional[str] = None  # only for Cognito native
@@ -333,6 +334,7 @@ def map_jwt_claims_to_user_token(claims: dict[str, Any], plain_token: str = None
 
     return UserToken(
         sub=claims["sub"],  # required
+        iss=claims.get("iss"),
         email=claims.get("email"),
         name=claims.get("name"),
         username=claims.get("cognito:username"),
