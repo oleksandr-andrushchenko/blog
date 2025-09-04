@@ -10,12 +10,13 @@ import httpx
 from jose import jwt, jwk
 from jose.exceptions import JWTError
 import base64
-from typing import Callable, Optional, Dict, Any
+from typing import Callable, Optional, Dict, Any, Union
 from starlette.datastructures import State
 from starlette.status import HTTP_200_OK
 from jinja2 import Environment, FileSystemLoader, pass_context
 import dotenv
 import json
+from datetime import datetime, timezone
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -25,13 +26,14 @@ from pydantic import BaseModel, EmailStr, Field
 
 class UserToken(BaseModel):
     sub: str
-    email: Optional[EmailStr]
-    name: Optional[str]
-    username: Optional[str]  # map from 'cognito:username'
-    iat: int  # issued at (UNIX timestamp)
-    exp: int  # expiration (UNIX timestamp)
-    aud: str  # audience / client_id
-    plain_token: Optional[str]  # plain token
+    email: Optional[str] = None
+    name: Optional[str] = None
+    username: Optional[str] = None  # only for Cognito native
+    iat: Optional[datetime] = None  # issued at
+    exp: Optional[datetime] = None  # expiration
+    max_age: Optional[int] = None
+    aud: Optional[Union[str, list[str]]] = None  # audience / client_id
+    plain_token: Optional[str] = None  # plain token
 
 
 class User(BaseModel):
@@ -314,16 +316,31 @@ async def configure_app_state(app_state: State) -> None:
         app_state.logged_in = False
 
 
-def map_jwt_claims_to_user_token(claims: Dict[str, Any], plain_token: str = None) -> UserToken:
+def to_datetime(ts: Any) -> Optional[datetime]:
+    if isinstance(ts, (int, float)):
+        return datetime.fromtimestamp(ts, tz=timezone.utc)
+    return None
+
+
+def map_jwt_claims_to_user_token(claims: dict[str, Any], plain_token: str = None) -> UserToken:
+    exp = to_datetime(claims.get("exp"))
+    max_age = None
+
+    if exp is not None:
+        now = datetime.now(timezone.utc)
+        delta = exp - now
+        max_age = max(0, int(delta.total_seconds()))
+
     return UserToken(
-        sub=claims.get("sub"),
+        sub=claims["sub"],  # required
         email=claims.get("email"),
         name=claims.get("name"),
         username=claims.get("cognito:username"),
-        iat=claims.get("iat"),
-        exp=claims.get("exp"),
+        iat=to_datetime(claims.get("iat")),
+        exp=exp,
+        max_age=max_age,
         aud=claims.get("aud"),
-        plain_token=plain_token
+        plain_token=plain_token,
     )
 
 
@@ -334,8 +351,9 @@ async def get_user_token_from_plain_token(plain_token: Optional[str], app_state:
             email="test@example.com",
             name="Test User",
             sub="test-sub",
-            iat=0,
-            exp=0,
+            iat=None,
+            exp=None,
+            max_age=None,
             aud="",
             plain_token=None
         )
@@ -520,4 +538,6 @@ async def serve_login_callback(code: str, redirect_url: str) -> UserToken:
     # Decode without verification just to read 'exp'
     claims = jwt.get_unverified_claims(id_token)
 
-    return map_jwt_claims_to_user_token(claims, id_token)
+    user_token = map_jwt_claims_to_user_token(claims, id_token)
+
+    return user_token

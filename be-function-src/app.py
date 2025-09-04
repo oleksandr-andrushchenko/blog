@@ -15,7 +15,6 @@ from typing_extensions import Annotated
 from typing import Optional
 from mangum import Mangum
 from http import HTTPStatus
-import time
 from contextlib import asynccontextmanager
 from utils import (
     # models
@@ -151,7 +150,7 @@ if auth.get("active"):
                 httponly=True,
                 secure=True,
                 samesite="lax",
-                max_age=min(0, token.exp - int(time.time()))
+                max_age=token.max_age
             )
             return response
         except (InvalidCodeError, CodeExchangeFailedError, InvalidTokenError) as e:
