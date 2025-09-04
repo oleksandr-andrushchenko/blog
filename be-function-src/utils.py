@@ -163,7 +163,7 @@ def get_cognito_user_pool_id():
 
 
 # -------------------------
-# Services
+# Helpers
 # -------------------------
 
 class Lazy:
@@ -415,6 +415,10 @@ async def get_user_from_token(token: Optional[str], app_state: State) -> Optiona
     except JWTError:
         raise InvalidTokenError("Invalid token")
 
+
+# -------------------------
+# Services
+# -------------------------
 
 async def serve_index(custom_data: Dict[str, Any]) -> Dict[str, Any]:
     return {
