@@ -247,7 +247,10 @@ Resources:
       LogoutURLs:
         - !Sub "https://${DomainName}/auth/logout"
       SupportedIdentityProviders:
-        - COGNITO
+        - COGNITO # native signup/signin
+#        - Google
+#        - Facebook
+#        - Apple
       Tags:
         - Key: Environment
           Value: !Ref TagEnvironment
