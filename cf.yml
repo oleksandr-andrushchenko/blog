@@ -80,11 +80,28 @@ Resources:
           AttributeType: S
         - AttributeName: sk
           AttributeType: S
+        - AttributeName: gsi_provider_sub
+          AttributeType: S
+        - AttributeName: gsi_email
+          AttributeType: S
       KeySchema:
         - AttributeName: pk
           KeyType: HASH
         - AttributeName: sk
           KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI_PROVIDER_SUB
+          KeySchema:
+            - AttributeName: gsi_provider_sub
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: GSI_EMAIL
+          KeySchema:
+            - AttributeName: gsi_email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
       Tags:
         - Key: Project
           Value: !Ref TagProject

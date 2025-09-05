@@ -3,8 +3,8 @@ include .env
 export
 
 DC = docker-compose
-BE_FUNCTION_CONTAINER = $(DOCKER_CONTAINER)-be-function
-SCRIPTS_CONTAINER = $(DOCKER_CONTAINER)-scripts
+BE_FUNCTION_CONTAINER = $(DOCKER_NAME)-be-function
+SCRIPTS_CONTAINER = $(DOCKER_NAME)-scripts
 CODE_STACK_NAME = $(STACK_NAME)-code
 CERT_STACK_NAME = $(STACK_NAME)-cert
 SITE_BUILD_DIR=.site-build
@@ -263,8 +263,7 @@ down: ## Stop local Docker containers
 
 .PHONY: rebuild
 rebuild: ## Rebuild and start Docker containers
-	$(DC) down
-	$(DC) up -d --remove-orphans
+	$(DC) up -d --build
 
 .PHONY: login
 login: ## Open shell in Docker container
@@ -309,3 +308,61 @@ generate-code-files: ## Build Lambda zips for all listed LAMBDAS
 .PHONY: open
 open: ## Show local site URL
 	@echo "🌐 Visit http://localhost:$(BE_FUNCTION_PORT) in your browser manually."
+
+.PHONY: create-local-dynamodb
+create-local-dynamodb: ## Create DynamoDB table in local DynamoDB
+	@echo "🚀 Creating local DynamoDB table $(DYNAMODB_TABLE)..."
+	@if aws dynamodb describe-table \
+		--region "$(AWS_REGION)" \
+		--table-name "$(DYNAMODB_TABLE)" \
+		--endpoint-url "http://localhost:$(DYNAMODB_PORT)" > /dev/null 2>&1; then \
+		echo "⚠️ Table $(DYNAMODB_TABLE) already exists, skipping creation."; \
+	else \
+		aws dynamodb create-table \
+			--region "$(AWS_REGION)" \
+			--table-name "$(DYNAMODB_TABLE)" \
+			--billing-mode PAY_PER_REQUEST \
+			--attribute-definitions \
+				AttributeName=pk,AttributeType=S \
+				AttributeName=sk,AttributeType=S \
+				AttributeName=gsi_provider_sub,AttributeType=S \
+				AttributeName=gsi_email,AttributeType=S \
+			--key-schema \
+				AttributeName=pk,KeyType=HASH \
+				AttributeName=sk,KeyType=RANGE \
+			--global-secondary-indexes '[{"IndexName":"GSI_PROVIDER_SUB","KeySchema":[{"AttributeName":"gsi_provider_sub","KeyType":"HASH"}],"Projection":{"ProjectionType":"ALL"}},{"IndexName":"GSI_EMAIL","KeySchema":[{"AttributeName":"gsi_email","KeyType":"HASH"}],"Projection":{"ProjectionType":"ALL"}}]' \
+			--endpoint-url http://localhost:$(DYNAMODB_PORT) \
+			--no-cli-pager; \
+		echo "✅ DynamoDB table $(DYNAMODB_TABLE) initialized in local DynamoDB"; \
+	fi
+
+.PHONY: fetch-latest-local-dynamodb
+fetch-latest-local-dynamodb: ## Fetch latest 10 records from local DynamoDB
+	@echo "📦 Fetching latest 10 records from $(DYNAMODB_TABLE)..."
+	aws dynamodb scan \
+		--table-name "$(DYNAMODB_TABLE)" \
+		--limit 10 \
+		--endpoint-url "http://localhost:$(DYNAMODB_PORT)" \
+		--region "$(AWS_REGION)" \
+		--no-cli-pager \
+		--output json
+
+.PHONY: clear-local-dynamodb
+clear-local-dynamodb: ## Delete all items from local DynamoDB table
+	@echo "🗑️ Clearing all items from $(DYNAMODB_TABLE)..."
+	@for key in $$(aws dynamodb scan \
+		--table-name "$(DYNAMODB_TABLE)" \
+		--attributes-to-get "pk" "sk" \
+		--endpoint-url "http://localhost:$(DYNAMODB_PORT)" \
+		--region "$(AWS_REGION)" \
+		--query "Items[*]" \
+		--output json | tr -d '[]{},"'); do \
+			PK=$$(echo $$key | cut -d: -f1); \
+			SK=$$(echo $$key | cut -d: -f2); \
+			aws dynamodb delete-item \
+				--table-name "$(DYNAMODB_TABLE)" \
+				--key "{\"pk\": {\"S\": \"$$PK\"}, \"sk\": {\"S\": \"$$SK\"}}" \
+				--endpoint-url "http://localhost:$(DYNAMODB_PORT)" \
+				--region "$(AWS_REGION)"; \
+	done
+	@echo "✅ Table $(DYNAMODB_TABLE) cleared."

@@ -19,6 +19,7 @@ from contextlib import asynccontextmanager
 from utils import (
     # models
     UserToken,
+    User,
     MessageDTO,
     # config
     get_feature,
@@ -29,16 +30,18 @@ from utils import (
     CodeExchangeFailedError,
     InvalidTokenKidError,
     # helpers
+    logger,
     get_html_content,
     get_full_url,
     get_url,
-    get_user_token_from_plain_token,
+    get_user_token_by_plain_token,
+    get_user_by_plain_token,
     configure_app_state,
     # services
     list_posts,
     get_post,
     create_post,
-    serve_create_message,
+    serve_create_contacts_message,
     serve_index,
     serve_contacts,
     serve_login_callback,
@@ -46,6 +49,41 @@ from utils import (
     serve_logout,
     serve_error,
 )
+
+
+# -------------------------
+# Dependencies
+# -------------------------
+async def get_user_token(request: Request) -> Optional[UserToken]:
+    try:
+        return await get_user_token_by_plain_token(
+            plain_token=request.cookies.get("session_token"),
+            app_state=request.app.state
+        )
+    except (InvalidTokenKidError, InvalidTokenError) as e:
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail=str(e)
+        )
+
+
+UserToken = Annotated[Optional[UserToken], Depends(get_user_token)]
+
+
+async def get_user(request: Request) -> Optional[UserToken]:
+    try:
+        return await get_user_by_plain_token(
+            plain_token=request.cookies.get("session_token"),
+            app_state=request.app.state
+        )
+    except (InvalidTokenKidError, InvalidTokenError) as e:
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail=str(e)
+        )
+
+
+User = Annotated[Optional[User], Depends(get_user)]
 
 
 @asynccontextmanager
@@ -62,23 +100,6 @@ app = FastAPI(lifespan=lifespan)
 if not is_prod():
     app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 
-
-# todo: adding CORS middleware if your frontend ever makes direct JS requests to Lambda
-
-async def get_user_token(request: Request) -> Optional[UserToken]:
-    try:
-        return await get_user_token_from_plain_token(
-            plain_token=request.cookies.get("session_token"),
-            app_state=request.app.state
-        )
-    except (InvalidTokenKidError, InvalidTokenError) as e:
-        raise HTTPException(
-            status_code=HTTP_401_UNAUTHORIZED,
-            detail=str(e)
-        )
-
-
-UserToken = Annotated[Optional[UserToken], Depends(get_user_token)]
 # TODO: add CORS middleware if needed (fastapi.middleware.cors.CORSMiddleware)
 
 # -------------------------
@@ -88,6 +109,7 @@ index_page = get_feature("index")
 if index_page.get("active", True):
     @app.get(index_page.get("path", "/"), name="index")
     async def index(request: Request, user_token: UserToken = None):
+        # logger.debug(f"user_token: {user_token}")
         data = await serve_index({
             "request": request,
             "user_token": user_token
@@ -111,9 +133,9 @@ if contacts_page.get("active"):
         )
 
 
-    @app.post("/message", name="create_message")
-    async def create_message(message: MessageDTO):
-        await serve_create_message(message)
+    @app.post("/contacts/message", name="create_contacts_message")
+    async def create_contacts_message(message: MessageDTO):
+        await serve_create_contacts_message(message)
         return HTMLResponse(
             status_code=HTTP_201_CREATED
         )
@@ -122,12 +144,17 @@ auth = get_feature("auth")
 if auth.get("active"):
     @app.get("/auth/login", name="login")
     async def login(request: Request):
+        # todo: make sure referer belongs to the website
+        referer = request.headers.get('referer')
+        index_url = get_full_url(request, 'index')
+        callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={referer if referer else index_url}"
+        logger.info(f"login: callback_url: {callback_url}")
+
         redirect_url = await serve_login(
-            callback_url=get_full_url(request, 'login-callback'),
-            non_prod_callback_url=get_url(request, "index"),
-            referer=request.headers.get("referer"),
-            app_state=request.app.state
+            callback_url=callback_url
         )
+        logger.info(f"login: redirect_url: {redirect_url}")
+
         return RedirectResponse(
             url=redirect_url
         )
@@ -136,21 +163,27 @@ if auth.get("active"):
     @app.get("/auth/callback", name="login-callback")
     async def login_callback(request: Request):
         try:
-            token = await serve_login_callback(
+            redirect_url = request.query_params.get('redirect_url')
+            logger.info(f"login_callback: redirect_url: {redirect_url}")
+
+            callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={redirect_url}"
+            logger.info(f"login_callback: callback_url: {callback_url}")
+
+            user_token = await serve_login_callback(
                 code=request.query_params.get("code"),
-                redirect_url=get_full_url(request, 'login-callback')
+                callback_url=callback_url
             )
             response = RedirectResponse(
-                url=get_url(request, "index"),
+                url=redirect_url,
                 status_code=HTTP_302_FOUND
             )
             response.set_cookie(
                 key="session_token",
-                value=token.plain,
+                value=user_token.plain_token,
                 httponly=True,
                 secure=True,
                 samesite="lax",
-                max_age=token.max_age
+                max_age=user_token.max_age
             )
             return response
         except (InvalidCodeError, CodeExchangeFailedError, InvalidTokenError) as e:
@@ -161,17 +194,22 @@ if auth.get("active"):
 
 
     @app.get("/auth/logout", name="logout")
-    async def logout(request: Request, response: Response):
-        response.delete_cookie("session_token")
+    async def logout(request: Request):
+        # todo: make sure referer belongs to the website
+        referer = request.headers.get("referer")
+        callback_url = referer if referer else get_full_url(request, 'index')
+        logger.info(f"logout: callback_url: {callback_url}")
+
         redirect_url = await serve_logout(
-            callback_url=get_full_url(request, 'index'),
-            non_prod_callback_url=get_url(request, "index"),
-            referer=request.headers.get("referer"),
-            app_state=request.app.state
+            callback_url=callback_url
         )
-        return RedirectResponse(
+        logger.info(f"logout: redirect_url: {redirect_url}")
+
+        response = RedirectResponse(
             url=redirect_url
         )
+        response.delete_cookie("session_token")
+        return response
 
 
 @app.get("/posts")
@@ -230,6 +268,7 @@ async def get_error_response(request: Request, status_code: int, details):
 
 @app.exception_handler(StarletteHTTPException)
 async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    logger.debug(f"custom_http_exception_handler: {exc}")
     return await get_error_response(
         request,
         exc.status_code,
@@ -239,6 +278,7 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.debug(f"validation_exception_handler: {exc}")
     details = {}
     for error in exc.errors():
         field = error["loc"][-1] if len(error["loc"]) > 1 else error["loc"][0]

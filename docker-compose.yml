@@ -1,46 +1,44 @@
 services:
   be-function:
-    image: python:3.12-slim
-    container_name: ${DOCKER_CONTAINER}-be-function
-    working_dir: /app
+    build:
+      context: ./be-function-src
+      dockerfile: Dockerfile
+    container_name: "${DOCKER_NAME}-be-function"
     ports:
       - "${BE_FUNCTION_PORT}:5000"
     env_file:
       - .env
     environment:
       ENV: local
-      BASE_URL: "http://${BE_FUNCTION_PORT}:${BE_FUNCTION_PORT}"
-      CLOUDFRONT_BASE_URL: ""
+      BASE_URL: "http://localhost:${BE_FUNCTION_PORT}"
+      DYNAMODB_ENDPOINT: "http://${DOCKER_NAME}-dynamodb:8000"
     volumes:
       - ./be-function-src:/app
       - ./.env:/.env
-    command: >
-      bash -c "pip install --no-cache-dir -r requirements.txt &&
-               uvicorn app:app --host 0.0.0.0 --port ${BE_FUNCTION_PORT} --reload"
     networks:
       - network
 
   dynamodb:
     image: amazon/dynamodb-local
-    container_name: ${DOCKER_CONTAINER}-dynamodb
+    container_name: "${DOCKER_NAME}-dynamodb"
     ports:
       - "${DYNAMODB_PORT}:8000"
     networks:
       - network
 
   scripts:
-    image: python:3.11-slim
-    container_name: ${DOCKER_CONTAINER}-scripts
-    working_dir: /app
+    build:
+      context: ./scripts
+      dockerfile: Dockerfile
+    container_name: ${DOCKER_NAME}-scripts
     env_file:
       - .env
     volumes:
       - ./scripts:/app
-    command: >
-      bash -c "pip install --no-cache-dir -r requirements.txt && tail -f /dev/null"
+      - ./.env:/.env
     networks:
       - network
 
 networks:
   network:
-    name: ${DOCKER_CONTAINER}-network
+    name: ${DOCKER_NAME}-network
