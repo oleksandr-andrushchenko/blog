@@ -616,7 +616,7 @@ async def list_posts(limit: int = 10):
 
 
 async def serve_create_contacts_message(message: MessageDTO) -> None:
-    if is_prod():
+    if not is_prod():
         return
     sns_client = boto3.client("sns", region_name=get_aws_region())
 

@@ -9,7 +9,6 @@ services:
     env_file:
       - .env
     environment:
-      ENV: local
       BASE_URL: "http://localhost:${BE_FUNCTION_PORT}"
       DYNAMODB_ENDPOINT: "http://${DOCKER_NAME}-dynamodb:8000"
     volumes:
