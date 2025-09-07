@@ -9,6 +9,7 @@ from starlette.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
     HTTP_404_NOT_FOUND,
+    HTTP_409_CONFLICT,
     HTTP_422_UNPROCESSABLE_ENTITY,
 )
 from typing_extensions import Annotated
@@ -21,6 +22,9 @@ from utils import (
     UserToken,
     User,
     MessageDTO,
+    PostDTO,
+    Post,
+    PublicPost,
     # config
     get_feature,
     is_prod,
@@ -29,6 +33,7 @@ from utils import (
     InvalidCodeError,
     CodeExchangeFailedError,
     InvalidTokenKidError,
+    SlugDuplicationError,
     # helpers
     logger,
     get_html_content,
@@ -40,7 +45,8 @@ from utils import (
     # services
     list_posts,
     get_post,
-    create_post,
+    serve_create_post_page,
+    serve_create_post,
     serve_create_contacts_message,
     serve_index,
     serve_contacts,
@@ -118,6 +124,36 @@ if index_page.get("active", True):
         return HTMLResponse(
             content=content
         )
+
+create_post = get_feature("create_post")
+if create_post.get("active"):
+    @app.get(create_post.get("path", "/posts"), name="create-post-page")
+    async def create_post_page(request: Request, user_token: UserToken = None):
+        data = await serve_create_post_page({
+            "request": request,
+            "user_token": user_token
+        })
+        content = get_html_content("create-post.html", data)
+        return HTMLResponse(
+            content=content
+        )
+
+
+    @app.post(create_post.get("path", "/posts"), name="create-post", status_code=HTTP_201_CREATED,
+              response_model=PublicPost)
+    async def create_post(post_dto: PostDTO, user: User = None) -> Post:
+        if not user:
+            raise HTTPException(
+                status_code=HTTP_401_UNAUTHORIZED
+            )
+        try:
+            post = await serve_create_post(post_dto, user)
+        except SlugDuplicationError as e:
+            raise HTTPException(
+                status_code=HTTP_409_CONFLICT,
+                detail=str(e)
+            )
+        return post
 
 contacts_page = get_feature("contacts")
 if contacts_page.get("active"):
@@ -218,7 +254,7 @@ async def posts():
 
 
 @app.get("/posts/{post_id}")
-async def post(post_id: str):
+async def post_page(post_id: str):
     item = await get_post(post_id)
     if not item:
         raise HTTPException(
@@ -226,17 +262,6 @@ async def post(post_id: str):
             detail="Post not found",
         )
     return item
-
-
-@app.post("/posts")
-async def new_post(data: dict = Body(...)):
-    return await create_post(
-        data["title"],
-        data["slug"],
-        data["author_id"],
-        data["content"],
-        data.get("tags", []),
-    )
 
 
 # -------------------------

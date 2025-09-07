@@ -12,14 +12,16 @@ from urllib.parse import quote
 from jose import jwt, jwk
 from jose.exceptions import JWTError
 import base64
-from typing import Callable, Optional, Dict, Any, Union
+from typing import Callable, Optional, Dict, Any, Union, List
 from starlette.datastructures import State
 from starlette.status import HTTP_200_OK
 from jinja2 import Environment, FileSystemLoader, pass_context
 import dotenv
 import json
 from datetime import datetime, timezone
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
+from boto3.dynamodb.conditions import Key
+from botocore.exceptions import ClientError
 
 
 # -------------------------
@@ -45,7 +47,7 @@ class User(BaseModel):
     name: Optional[str] = None
     username: Optional[str] = None
     providers: Dict[str, Dict[str, Optional[str]]] = Field(default_factory=dict)  # noqa
-    created_at: Optional[str] = None
+    created_at: str = None
     updated_at: Optional[str] = None
 
 
@@ -53,6 +55,51 @@ class MessageDTO(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
     message: str = Field(..., min_length=5, max_length=1000)
+
+
+class PostDTO(BaseModel):
+    title: str
+    slug: Optional[str] = None
+    content: str
+    tags: List[str]
+
+    @field_validator("slug", mode="before")
+    @classmethod
+    def build_slug_if_missing(cls, value, info):
+        if value:
+            return to_kebab_case(value)
+        # get title from other fields
+        title = info.data.get("title") if info.data else ""
+        return to_kebab_case(title) if title else None
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def normalize_tags(cls, value):
+        if not value:
+            return []
+        # lowercase, kebab-case, dedupe
+        normalized = [to_kebab_case(t) for t in value]
+        return list(dict.fromkeys(normalized))
+
+
+class Tag(BaseModel):
+    name: str
+
+
+class Post(BaseModel):
+    id: str
+    title: str
+    slug: str
+    user_id: str
+    content: str
+    tags: List[Tag]
+    created_at: str = None
+    updated_at: Optional[str] = None
+
+
+class PublicPost(BaseModel):
+    id: str
+    slug: str
 
 
 # -------------------------
@@ -76,6 +123,15 @@ class InvalidCodeError(BaseError):
 
 
 class CodeExchangeFailedError(BaseError):
+    pass
+
+
+class DynamoDBTransactionError(BaseError):
+    def is_conditional(self) -> bool:
+        return "ConditionalCheckFailed" in str(self)
+
+
+class SlugDuplicationError(BaseError):
     pass
 
 
@@ -105,6 +161,7 @@ def get_live_config(load_env=False):
             "head": {},
             "header": {},
             "index": {},
+            "create_post": {},
             "contacts": {},
             "footer": {},
             "error": {}
@@ -183,6 +240,53 @@ class Lazy:
         if self._instance is None:
             self._instance = self._factory()
         return self._instance
+
+
+def to_kebab_case(s: str) -> str:
+    s = s.lower().strip()
+    s = re.sub(r"[^\w\s-]", "", s)
+    s = re.sub(r"\s+", "-", s)
+    return s
+
+
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+async def dynamodb_transact_write_or_raise(table, transact_items: List[Dict[str, Any]]):
+    """
+    Executes a DynamoDB TransactWriteItems call and raises a
+    DynamoTransactionError with detailed reasons if it fails.
+    """
+    try:
+        await table.meta.client.transact_write_items(TransactItems=transact_items)
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code")
+        if error_code == "TransactionCanceledException":
+            details = []
+            reasons = e.response.get("CancellationReasons", [])
+
+            for reason in reasons:
+                if not reason or not isinstance(reason, dict):
+                    continue
+
+                code = reason.get("Code")
+                if not code or code == "None":
+                    continue
+
+                msg = reason.get("Message")
+                if not msg:
+                    continue
+
+                details.append(f"{code} - {msg}")
+
+            if details:
+                details_text = " (" + ". ".join(details) + ")"
+            else:
+                details_text = ""
+
+            raise DynamoDBTransactionError(f"DynamoDB transaction failed{details_text}")
+        raise
 
 
 def get_logger():
@@ -283,39 +387,23 @@ def get_aioboto3_session():
     return aioboto3.Session(**args)
 
 
+def get_dynamodb_resource_kwargs():
+    return {} if is_prod() else {
+        "aws_access_key_id": "dummy",
+        "aws_secret_access_key": "dummy",
+        "region_name": get_aws_region(),
+        "endpoint_url": get_dynamodb_endpoint(),
+    }
+
+
 aioboto3_session = Lazy(get_aioboto3_session)
 
 
-def deserialize_item(item: dict) -> dict:
-    """
-    Convert DynamoDB AttributeValue dict to plain Python dict.
-    e.g., {'S': 'string'} -> 'string', {'N': '42'} -> 42
-    """
-    result = {}
-    for k, v in item.items():
-        if "S" in v:
-            result[k] = v["S"]
-        elif "N" in v:
-            result[k] = int(v["N"]) if "." not in v["N"] else float(v["N"])
-        elif "BOOL" in v:
-            result[k] = v["BOOL"]
-        elif "M" in v:
-            result[k] = deserialize_item(v["M"])
-        elif "L" in v:
-            result[k] = [deserialize_item(x["M"]) if "M" in x else list(x.values())[0] for x in v["L"]]
-        else:
-            result[k] = None
-    return result
-
-
 async def with_dynamodb_table(fn: Callable):
-    """
-    Opens a DynamoDB client and runs async function `fn(client)`.
-    """
     session = aioboto3_session()
-    # logger.debug(f"dynamodb_endpoint: {get_dynamodb_endpoint()}")
-    async with session.client("dynamodb", endpoint_url=get_dynamodb_endpoint()) as client:
-        return await fn(client)
+    async with session.resource("dynamodb", **get_dynamodb_resource_kwargs()) as dynamodb:
+        table = await dynamodb.Table(get_dynamodb_table_name())
+        return await fn(table)
 
 
 def get_html_content(template: str, data: Dict[str, Any]) -> str:
@@ -348,46 +436,43 @@ def to_datetime(ts: Any) -> Optional[datetime]:
 
 
 async def get_user_by_user_token(token: UserToken) -> Optional[User]:
-    async def fn(client):
-        table_name = get_dynamodb_table_name()
+    async def fn(table):
         provider_item = None
         internal_item = None
         user_id = None
 
         # 1: Lookup provider record by GSI_PROVIDER_SUB
         if token.sub:
-            query_value = f"{token.iss}#{token.sub}"
-            logger.debug(f"Querying GSI_PROVIDER_SUB with value: {query_value}")
+            provider_sub = f"{token.iss}#{token.sub}"
+            logger.debug(f"Querying GSI_PROVIDER_SUB with value: {provider_sub}")
 
-            resp = await client.query(
-                TableName=table_name,
+            resp = await table.query(
                 IndexName="GSI_PROVIDER_SUB",
-                KeyConditionExpression="gsi_provider_sub = :ps",
-                ExpressionAttributeValues={":ps": {"S": query_value}}
+                KeyConditionExpression=Key("gsi_provider_sub").eq(provider_sub)
             )
             items = resp.get("Items", [])
             if items:
-                provider_item = deserialize_item(items[0])
+                provider_item = items[0]
                 user_id = provider_item["user_id"]
 
                 # Fetch internal record
-                resp2 = await client.get_item(
-                    TableName=table_name,
-                    Key={"pk": {"S": f"USER#{user_id}"}, "sk": {"S": "INTERNAL"}}
+                resp2 = await table.get_item(
+                    Key={
+                        "pk": f"USER#{user_id}",
+                        "sk": "INTERNAL"
+                    }
                 )
-                internal_item = deserialize_item(resp2.get("Item")) if resp2.get("Item") else None
+                internal_item = resp2.get("Item") if "Item" in resp2 else None
 
         # 2: Fallback: lookup internal user by GSI_EMAIL
         if not provider_item and token.email:
-            resp = await client.query(
-                TableName=table_name,
+            resp = await table.query(
                 IndexName="GSI_EMAIL",
-                KeyConditionExpression="gsi_email = :email",
-                ExpressionAttributeValues={":email": {"S": token.email}}
+                KeyConditionExpression=Key("gsi_email").eq(token.email)
             )
             items = resp.get("Items", [])
             if items:
-                internal_item = deserialize_item(items[0])
+                internal_item = items[0]
                 user_id = internal_item["id"]
 
         # 3: Not found
@@ -415,8 +500,7 @@ async def get_user_by_user_token(token: UserToken) -> Optional[User]:
 
 
 async def upsert_user_by_user_token(token: UserToken) -> User:
-    async def fn(client):
-        table_name = get_dynamodb_table_name()
+    async def fn(table):
         now = datetime.now(timezone.utc).isoformat()
 
         # 1: Lookup existing user
@@ -443,7 +527,7 @@ async def upsert_user_by_user_token(token: UserToken) -> User:
             "created_at": now,
             "updated_at": now
         }
-        await client.put_item(TableName=table_name, Item={k: {"S": str(v)} for k, v in internal_item.items()})
+        await table.put_item(Item=internal_item)
 
         # 4: Ensure provider record exists
         provider_item = {
@@ -455,7 +539,7 @@ async def upsert_user_by_user_token(token: UserToken) -> User:
             "created_at": now,
             "updated_at": now
         }
-        await client.put_item(TableName=table_name, Item={k: {"S": str(v)} for k, v in provider_item.items()})
+        await table.put_item(Item=provider_item)
 
         # 5: Return User model
         return User(
@@ -464,8 +548,8 @@ async def upsert_user_by_user_token(token: UserToken) -> User:
             name=token.name,
             username=token.username,
             providers=providers,
-            created_at=internal_item["created_at"],
-            updated_at=internal_item["updated_at"]
+            created_at=internal_item.get("created_at"),
+            updated_at=internal_item.get("updated_at")
         )
 
     return await with_dynamodb_table(fn)
@@ -481,7 +565,7 @@ def map_jwt_claims_to_user_token(claims: dict[str, Any], plain_token: str = None
         max_age = max(0, int(delta.total_seconds()))
 
     return UserToken(
-        sub=claims["sub"],  # required
+        sub=claims.get("sub"),
         iss=claims.get("iss"),
         email=claims.get("email"),
         name=claims.get("name"),
@@ -512,30 +596,28 @@ def get_dummy_user_token() -> UserToken:
 async def get_user_token_by_plain_token(plain_token: Optional[str], app_state: State) -> Optional[UserToken]:
     if not plain_token:
         return None
-
     if not is_prod():
         return get_dummy_user_token()
-
     try:
         unverified_header = jwt.get_unverified_header(plain_token)
         kid = unverified_header.get("kid")
 
-        # Try to find key
         key = next((k for k in app_state.jwks.get("keys", []) if k["kid"] == kid), None)
-
-        # If not found → refresh JWKS once
         if key is None:
             app_state.jwks = await get_cognito_jwks()
             key = next((k for k in app_state.jwks.get("keys", []) if k["kid"] == kid), None)
-
         if key is None:
             raise InvalidTokenKidError("Invalid token (unknown kid)")
 
-        # Construct public key and decode JWT
-        public_key = jwk.construct(key)
-        claims = jwt.decode(plain_token, public_key, algorithms=["RS256"], audience=get_cognito_client_id())
-
-        return map_jwt_claims_to_user_token(claims)
+        issuer = f"https://cognito-idp.{get_aws_region()}.amazonaws.com/{get_cognito_user_pool_id()}"
+        claims = jwt.decode(
+            plain_token,
+            key,  # pass the JWK dict
+            algorithms=["RS256"],
+            audience=get_cognito_client_id(),
+            issuer=issuer,
+        )
+        return map_jwt_claims_to_user_token(claims, plain_token)
     except JWTError:
         raise InvalidTokenError("Invalid token")
 
@@ -558,43 +640,93 @@ async def get_user_by_plain_token(plain_token: Optional[str], app_state: State) 
 # Services
 # -------------------------
 
-# --- Post functions ---
-async def create_post(title: str, slug: str, author_id: str, content: str, tags: list[str]):
+async def serve_create_post_page(custom_data: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        **get_config(),
+        **custom_data
+    }
+
+
+async def serve_create_post(post_dto: PostDTO, user: User) -> Post:
     async def fn(table):
+        now = utc_now_iso()
         post_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc).isoformat()
 
-        # Post metadata
-        await table.put_item(
-            Item={
-                "pk": f"POST#{post_id}",
-                "sk": "METADATA",
+        post_item = {
+            "pk": f"POST#{post_id}",
+            "sk": "METADATA",
+            "post_id": post_id,
+            "title": post_dto.title,
+            "slug": post_dto.slug,
+            "user_id": user.id,
+            "content": post_dto.content,
+            "tags": list(dict.fromkeys(post_dto.tags)),  # dedupe
+            "created_at": now,
+            "updated_at": now,
+        }
+
+        slug_item = {
+            "pk": f"SLUG#{post_dto.slug}",
+            "sk": "POST",
+            "post_id": post_id,
+            "created_at": now,
+        }
+
+        tag_items = [
+            {
+                "pk": f"TAG#{tag}",
+                "sk": f"POST#{post_id}",
                 "post_id": post_id,
-                "title": title,
-                "slug": slug,
-                "author_id": author_id,
-                "content": content,
-                "tags": tags,
+                "title": post_dto.title,
+                "slug": post_dto.slug,
                 "created_at": now,
-                "updated_at": now
-            },
-            ConditionExpression="attribute_not_exists(PK)"
-        )
+            }
+            for tag in post_item["tags"]
+        ]
 
-        # Tag references
-        for tag in tags:
-            await table.put_item(
-                Item={
-                    "pk": f"TAG#{tag}",
-                    "sk": f"POST#{post_id}",
-                    "post_id": post_id,
-                    "title": title,
-                    "slug": slug,
-                    "created_at": now
+        transact_items = [
+            {
+                "Put": {
+                    "TableName": table.name,
+                    "Item": slug_item,
+                    "ConditionExpression": "attribute_not_exists(pk)"
                 }
-            )
+            },
+            {
+                "Put": {
+                    "TableName": table.name,
+                    "Item": post_item,
+                    "ConditionExpression": "attribute_not_exists(pk)"
+                }
+            },
+            *[
+                {
+                    "Put": {
+                        "TableName": table.name,
+                        "Item": tag
+                    }
+                }
+                for tag in tag_items
+            ]
+        ]
 
-        return {"post_id": post_id}
+        try:
+            await dynamodb_transact_write_or_raise(table, transact_items)
+        except DynamoDBTransactionError as e:
+            if e.is_conditional():
+                raise SlugDuplicationError(f"Duplicate slug")
+            raise
+
+        return Post(
+            id=post_id,
+            title=post_item["title"],
+            slug=post_item["slug"],
+            user_id=post_item["user_id"],
+            content=post_item["content"],
+            tags=[Tag(name=t) for t in post_item["tags"]],
+            created_at=now,
+            updated_at=now,
+        )
 
     return await with_dynamodb_table(fn)
 
@@ -616,6 +748,7 @@ async def list_posts(limit: int = 10):
 
 
 async def serve_create_contacts_message(message: MessageDTO) -> None:
+    # todo: store message in dynamodb table and return object
     if not is_prod():
         return
     sns_client = boto3.client("sns", region_name=get_aws_region())

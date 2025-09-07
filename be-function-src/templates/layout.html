@@ -84,11 +84,17 @@
                 </ul>
                 {% if auth.active %}
                     {% if user_token %}
-                        <div>
-                            <i class="bi bi-person-circle"></i> {{ user_token.email }}
-                            <a href="{{ url('logout') }}" class="btn btn-secondary btn-sm">
-                                {{ header.logout_label | default("Sign out") }} <i class="bi bi-box-arrow-right"></i>
+                        <div class="d-flex gap-3 align-items-center">
+                            <a href="{{ url('create-post') }}" class="btn btn-dark">
+                                <i class="bi bi-pencil-square"></i> {{ header.create_post | default("Create post") }}
                             </a>
+                            <div >
+                                <i class="bi bi-person-circle"></i> {{ user_token.email }}
+                                <a href="{{ url('logout') }}" class="btn btn-secondary btn-sm">
+                                    {{ header.logout_label | default("Sign out") }} <i
+                                        class="bi bi-box-arrow-right"></i>
+                                </a>
+                            </div>
                         </div>
                     {% else %}
                         <a href="{{ url('login') }}" class="btn btn-secondary">

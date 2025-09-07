@@ -1,0 +1,112 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ create_post.title | default("Create Post | " ~ site_name) }}{% endblock %}
+{% block canonical_url %}{{ full_url("create-post") }}{% endblock %}
+{% block header %}{{ create_post.header | default("Create Post") }}{% endblock %}
+{% block sub_header %}{{ create_post.sub_header | default("Publish a new article") }}{% endblock %}
+{% block content %}
+    <div class="row">
+        <div class="col-12 col-md-8">
+            <form class="row g-3" id="post-form" novalidate>
+                <!-- Title -->
+                <div class="col-12">
+                    <input type="text" class="form-control" id="title" name="title"
+                           placeholder="{{ create_post.title_label | default('Title') }}"
+                           required minlength="20" maxlength="500">
+                    <div class="invalid-feedback">{{ create_post.title_error | default("Please enter a title (20–500 chars).") }}</div>
+                </div>
+
+                <!-- Slug (optional, auto-generated if empty) -->
+                <div class="col-12">
+                    <input type="text" class="form-control" id="slug" name="slug"
+                           placeholder="{{ create_post.slug_label | default('Slug (optional)') }}"
+                           minlength="20" maxlength="500">
+                    <div class="form-text">{{ create_post.slug_help | default("Leave empty to auto-generate from title.") }}</div>
+                    <div class="invalid-feedback">{{ create_post.slug_error | default("Slug must be 20–500 chars.") }}</div>
+                </div>
+
+                <!-- Content -->
+                <div class="col-12">
+          <textarea class="form-control" id="content" name="content"
+                    placeholder="{{ create_post.content_label | default('Content') }}"
+                    rows="12" required minlength="1000" maxlength="10000"></textarea>
+                    <div class="invalid-feedback">{{ create_post.content_error | default("Please enter content (1000–10000 chars).") }}</div>
+                </div>
+
+                <!-- Tags -->
+                <div class="col-12">
+                    <input type="text" class="form-control" id="tags" name="tags"
+                           placeholder="{{ create_post.tags_label | default('Tags (comma-separated)') }}">
+                    <div class="form-text">{{ create_post.tags_help | default("Enter tags separated by commas.") }}</div>
+                    <div class="invalid-feedback">{{ create_post.tags_error | default("Please enter valid tags.") }}</div>
+                </div>
+
+                <!-- Submit -->
+                <div class="col-12">
+                    <div id="form-status" class="alert d-none" role="alert"></div>
+                    <button type="submit" class="btn btn-outline-dark">
+                        {{ create_post.publish_label | default("Publish Post") }} <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const form = document.querySelector("#post-form")
+        const statusDiv = document.getElementById("form-status")
+
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          form.classList.add("was-validated")
+
+          if (!form.checkValidity()) return
+
+          const title = form.title.value.trim()
+          const slug = form.slug.value.trim()
+          const content = form.content.value.trim()
+          const tags = form.tags.value.split(",").map(t => t.trim()).filter(Boolean)
+
+          try {
+            const response = await fetch("{{ url('create-post') }}", {
+              method: "POST",
+              headers: {"Content-Type": "application/json"},
+              body: JSON.stringify({title, slug, content, tags})
+            })
+
+            if (response.ok) {
+              statusDiv.className = "alert alert-success d-flex align-items-center"
+              statusDiv.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i>{{ create_post.post_published | default("Post published!") }}`
+              form.reset()
+              form.classList.remove("was-validated")
+            } else if (response.status === 422) {
+              const data = await response.json()
+              if (data.details) {
+                Object.entries(data.details).forEach(([field, msg]) => {
+                  const input = form.querySelector(`[name="${field}"]`)
+                  if (input) {
+                    input.setCustomValidity(msg)
+                    input.classList.add("is-invalid")
+                    const feedback = input.parentElement.querySelector(".invalid-feedback")
+                    if (feedback) feedback.textContent = msg
+                  }
+                })
+              }
+              statusDiv.className = "alert alert-danger d-flex align-items-center"
+              statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>${data.message || "{{ create_post.post_failed | default('Something went wrong.') }}"}`
+            } else {
+              statusDiv.className = "alert alert-danger d-flex align-items-center"
+              statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>{{ create_post.post_failed | default("Something went wrong.") }}`
+            }
+          } catch (err) {
+            statusDiv.className = "alert alert-danger d-flex align-items-center"
+            statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>{{ create_post.post_unknown | default("Network error. Please try again.") }}`
+          }
+
+          statusDiv.classList.remove("d-none")
+        })
+      })
+    </script>
+{% endblock %}
