@@ -133,7 +133,7 @@ if contacts_page.get("active"):
         )
 
 
-    @app.post("/contacts/message", name="create_contacts_message")
+    @app.post("/contacts/message", name="create-contacts-message")
     async def create_contacts_message(message: MessageDTO):
         await serve_create_contacts_message(message)
         return HTMLResponse(
