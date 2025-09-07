@@ -671,19 +671,6 @@ async def serve_login(callback_url: str) -> str:
     return callback_url
 
 
-# todo: switch functions order (serve_logout and serve_login_callback)
-
-async def serve_logout(callback_url: str) -> str:
-    if is_prod():
-        return (
-            f"https://{get_cognito_domain()}/logout"
-            f"?client_id={get_cognito_client_id()}"
-            f"&logout_uri={quote(callback_url, safe='')}"
-        )
-
-    return callback_url
-
-
 async def serve_login_callback(code: str, callback_url: str) -> UserToken:
     if is_prod():
         if not code:
@@ -698,12 +685,12 @@ async def serve_login_callback(code: str, callback_url: str) -> UserToken:
             "code": code,
             "redirect_uri": quote(callback_url, safe=''),
         }
-        headers = {"Content-Type": "application/x-www-form-urlencoded"}
-
-        # If client secret is used
-        if cognito_client_secret:
-            auth_str = f"{cognito_client_id}:{cognito_client_secret}"
-            headers["Authorization"] = "Basic " + base64.b64encode(auth_str.encode()).decode()
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": "Basic " + base64.b64encode(
+                f"{cognito_client_id}:{cognito_client_secret}".encode()
+            ).decode()
+        }
 
         async with httpx.AsyncClient() as client:
             token_resp = await client.post(token_url, data=data, headers=headers)
@@ -711,18 +698,25 @@ async def serve_login_callback(code: str, callback_url: str) -> UserToken:
                 raise CodeExchangeFailedError("Failed to exchange code")
             tokens = token_resp.json()
 
-        # Store ID token in secure HTTP-only cookie
-        # tokens = response from Cognito
-        id_token = tokens["id_token"]
-        if not id_token:
-            raise InvalidTokenError("Missing id_token")
+        token = tokens.get("id_token")
+        if not token:
+            raise InvalidTokenError("Missing token")
 
-        # Decode without verification just to read 'exp'
-        claims = jwt.get_unverified_claims(id_token)
-
-        user_token = map_jwt_claims_to_user_token(claims, id_token)
+        claims = jwt.get_unverified_claims(token)
+        user_token = map_jwt_claims_to_user_token(claims, token)
     else:
         user_token = get_dummy_user_token()
 
     await upsert_user_by_user_token(user_token)
     return user_token
+
+
+async def serve_logout(callback_url: str) -> str:
+    if is_prod():
+        return (
+            f"https://{get_cognito_domain()}/logout"
+            f"?client_id={get_cognito_client_id()}"
+            f"&logout_uri={quote(callback_url, safe='')}"
+        )
+
+    return callback_url
