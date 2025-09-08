@@ -351,7 +351,7 @@ Resources:
           Headers:
             - Authorization
 
-  # S3 assets – cache aggressively, forward Origin header only
+  # S3 static – cache aggressively, forward Origin header only
   S3CachePolicy:
     Type: AWS::CloudFront::CachePolicy
     Properties:
@@ -407,7 +407,7 @@ Resources:
           CachePolicyId: !Ref ApiCachePolicy
           OriginRequestPolicyId: !Ref ApiOriginRequestPolicy
         CacheBehaviors:
-          - PathPattern: /assets/*
+          - PathPattern: /static/*
             TargetOriginId: s3Origin
             ViewerProtocolPolicy: redirect-to-https
             AllowedMethods: [ GET, HEAD ]

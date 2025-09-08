@@ -103,9 +103,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# Serve local assets
+# Serve local static files
 if not is_prod():
-    app.mount("/assets", StaticFiles(directory="assets"), name="assets")
+    app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # TODO: add CORS middleware if needed (fastapi.middleware.cors.CORSMiddleware)
 

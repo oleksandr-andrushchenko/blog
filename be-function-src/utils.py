@@ -334,10 +334,10 @@ def get_full_url(request, name: str, **params) -> str:
     return str(url).rstrip("/")
 
 
-def asset_url(path: str, with_base: bool = False) -> str:
+def static_url(path: str, with_base: bool = False) -> str:
     path = path.lstrip("/")
     base = get_base_url() if with_base else ""
-    return f"{base}/assets/{path}"
+    return f"{base}/static/{path}"
 
 
 def get_jinja2_env():
@@ -347,7 +347,7 @@ def get_jinja2_env():
         auto_reload=not is_prod()
     )
     jinja2_env.globals.update({
-        "asset_url": asset_url,
+        "static_url": static_url,
         "url": url_for,
         "full_url": full_url_for
     })

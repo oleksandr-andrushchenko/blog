@@ -5,7 +5,7 @@
 {% block header %}{{ index.header | default(site_name) }}{% endblock %}
 {% block sub_header %}{{ index.sub_header | default(site_about) }}{% endblock %}
 {% block content %}
-    <img src="{{ asset_url('pikachu.webp') }}" alt="test" class="w-25"/>
+    <img src="{{ static_url('pikachu.webp') }}" alt="test" class="w-25"/>
 
     <div>
         <h2>{{ index.popular_tags | default("Popular tags") }}</h2>
