@@ -1,0 +1,58 @@
+[
+  {
+    "IndexName": "GSI_PROVIDER_SUB",
+    "KeySchema": [
+      {
+        "AttributeName": "gsi_provider_sub",
+        "KeyType": "HASH"
+      }
+    ],
+    "Projection": {
+      "ProjectionType": "ALL"
+    }
+  },
+  {
+    "IndexName": "GSI_EMAIL",
+    "KeySchema": [
+      {
+        "AttributeName": "gsi_email",
+        "KeyType": "HASH"
+      }
+    ],
+    "Projection": {
+      "ProjectionType": "ALL"
+    }
+  },
+  {
+    "IndexName": "GSI_POST_CREATED_AT",
+    "KeySchema": [
+      {
+        "AttributeName": "gsi_post_pk",
+        "KeyType": "HASH"
+      },
+      {
+        "AttributeName": "created_at",
+        "KeyType": "RANGE"
+      }
+    ],
+    "Projection": {
+      "ProjectionType": "ALL"
+    }
+  },
+  {
+    "IndexName": "GSI_TAG_POPULARITY",
+    "KeySchema": [
+      {
+        "AttributeName": "gsi_tag_pk",
+        "KeyType": "HASH"
+      },
+      {
+        "AttributeName": "posts_count",
+        "KeyType": "RANGE"
+      }
+    ],
+    "Projection": {
+      "ProjectionType": "ALL"
+    }
+  }
+]

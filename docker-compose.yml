@@ -1,8 +1,8 @@
 services:
   be-function:
     build:
-      context: ./be-function-src
-      dockerfile: Dockerfile
+      context: ./
+      dockerfile: Dockerfile-be-function-src
     container_name: "${DOCKER_NAME}-be-function"
     ports:
       - "${BE_FUNCTION_PORT}:5000"

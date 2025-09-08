@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ posts.title | default("Posts | " ~ site_name) }}{% endblock %}
+{% block canonical_url %}{{ full_url("posts") }}{% endblock %}
+{% block header %}{{ posts.header | default("Posts") }}{% endblock %}
+{% block sub_header %}{{ posts.sub_header | default("Recent articles") }}{% endblock %}
+{% block content %}
+    {% if post_items %}
+        {% for post in post_items %}
+            <div>
+                <a href="{{ url("post", post_id=post.id) }}">
+                    <h2>{{ post.title }}</h2>
+                </a>
+                {% for tag in post.tags %}
+                    <a href="{{ url("index") }}" class="btn btn-outline-secondary btn-sm">
+                        {{ tag.name }}
+                    </a>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    {% else %}
+        {{ index.no_post_items | default("N/A") }}
+    {% endif %}
+{% endblock %}

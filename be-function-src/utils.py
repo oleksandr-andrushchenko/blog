@@ -37,7 +37,7 @@ class UserToken(BaseModel):
     iat: Optional[datetime] = None  # issued at
     exp: Optional[datetime] = None  # expiration
     max_age: Optional[int] = None
-    aud: Optional[Union[str, list[str]]] = None  # audience / client_id
+    aud: Optional[Union[str, List[str]]] = None  # audience / client_id
     plain_token: Optional[str] = None  # plain token
 
 
@@ -84,6 +84,7 @@ class PostDTO(BaseModel):
 
 class Tag(BaseModel):
     name: str
+    posts_count: Optional[int] = None
 
 
 class Post(BaseModel):
@@ -135,6 +136,10 @@ class SlugDuplicationError(BaseError):
     pass
 
 
+class PostNotFound(BaseError):
+    pass
+
+
 # -------------------------
 # Config
 # -------------------------
@@ -162,6 +167,8 @@ def get_live_config(load_env=False):
             "header": {},
             "index": {},
             "create_post": {},
+            "post": {},
+            "posts": {},
             "contacts": {},
             "footer": {},
             "error": {}
@@ -640,18 +647,22 @@ async def get_user_by_plain_token(plain_token: Optional[str], app_state: State) 
 # Services
 # -------------------------
 
-async def serve_create_post_page(custom_data: Dict[str, Any]) -> Dict[str, Any]:
+async def get_create_post_page_data(custom_data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         **get_config(),
         **custom_data
     }
 
 
-async def serve_create_post(post_dto: PostDTO, user: User) -> Post:
+# -------------------------
+# Create Post with tags metadata and posts_count increment
+# -------------------------
+async def create_post(post_dto: PostDTO, user: User) -> Post:
     async def fn(table):
         now = utc_now_iso()
         post_id = str(uuid.uuid4())
 
+        # Main post item
         post_item = {
             "pk": f"POST#{post_id}",
             "sk": "METADATA",
@@ -660,11 +671,13 @@ async def serve_create_post(post_dto: PostDTO, user: User) -> Post:
             "slug": post_dto.slug,
             "user_id": user.id,
             "content": post_dto.content,
-            "tags": list(dict.fromkeys(post_dto.tags)),  # dedupe
+            "tags": list(dict.fromkeys(post_dto.tags)),
             "created_at": now,
             "updated_at": now,
+            "gsi_post_pk": "POST",
         }
 
+        # Slug item for uniqueness
         slug_item = {
             "pk": f"SLUG#{post_dto.slug}",
             "sk": "POST",
@@ -672,18 +685,7 @@ async def serve_create_post(post_dto: PostDTO, user: User) -> Post:
             "created_at": now,
         }
 
-        tag_items = [
-            {
-                "pk": f"TAG#{tag}",
-                "sk": f"POST#{post_id}",
-                "post_id": post_id,
-                "title": post_dto.title,
-                "slug": post_dto.slug,
-                "created_at": now,
-            }
-            for tag in post_item["tags"]
-        ]
-
+        # Build transaction items
         transact_items = [
             {
                 "Put": {
@@ -698,23 +700,56 @@ async def serve_create_post(post_dto: PostDTO, user: User) -> Post:
                     "Item": post_item,
                     "ConditionExpression": "attribute_not_exists(pk)"
                 }
-            },
-            *[
-                {
-                    "Put": {
-                        "TableName": table.name,
-                        "Item": tag
-                    }
-                }
-                for tag in tag_items
-            ]
+            }
         ]
 
+        # Tag items and posts_count update
+        for tag in post_item["tags"]:
+            tag_pk = f"TAG#{tag}"
+
+            # 1. Reference post under tag
+            transact_items.append({
+                "Put": {
+                    "TableName": table.name,
+                    "Item": {
+                        "pk": tag_pk,
+                        "sk": f"POST#{post_id}",
+                        "post_id": post_id,
+                        "title": post_dto.title,
+                        "slug": post_dto.slug,
+                        "created_at": now,
+                    }
+                }
+            })
+
+            # 2. Update tag metadata (increment posts_count)
+            transact_items.append({
+                "Update": {
+                    "TableName": table.name,
+                    "Key": {
+                        "pk": tag_pk,
+                        "sk": "METADATA"
+                    },
+                    "UpdateExpression": "SET tag_name = :tag, "
+                                        "created_at = if_not_exists(created_at, :now), "
+                                        "posts_count = if_not_exists(posts_count, :zero) + :inc, "
+                                        "gsi_tag_pk = :gsi_tag_pk",
+                    "ExpressionAttributeValues": {
+                        ":tag": tag,
+                        ":now": now,
+                        ":inc": 1,
+                        ":zero": 0,
+                        ":gsi_tag_pk": "TAG"
+                    }
+                }
+            })
+
+        # Execute transaction
         try:
             await dynamodb_transact_write_or_raise(table, transact_items)
         except DynamoDBTransactionError as e:
             if e.is_conditional():
-                raise SlugDuplicationError(f"Duplicate slug")
+                raise SlugDuplicationError("Duplicate slug")
             raise
 
         return Post(
@@ -731,23 +766,122 @@ async def serve_create_post(post_dto: PostDTO, user: User) -> Post:
     return await with_dynamodb_table(fn)
 
 
-async def get_post(post_id: str):
+async def find_post(post_id: str) -> Optional[Post]:
     async def fn(table):
-        resp = table.get_item(Key={"pk": f"POST#{post_id}", "sk": "METADATA"})
-        return resp.get("Item")
+        resp = await table.get_item(Key={"pk": f"POST#{post_id}", "sk": "METADATA"})
+        item = resp.get("Item")
+        if not item:
+            return None
+
+        return Post(
+            id=item["post_id"],
+            title=item["title"],
+            slug=item["slug"],
+            user_id=item["user_id"],
+            content=item["content"],
+            tags=[Tag(name=t) for t in item.get("tags", [])],
+            created_at=item.get("created_at"),
+            updated_at=item.get("updated_at"),
+        )
 
     return await with_dynamodb_table(fn)
 
 
-async def list_posts(limit: int = 10):
+async def get_latest_posts(limit: int = 10, last_sk: Optional[str] = None) -> List[Post]:
     async def fn(table):
-        resp = table.scan(Limit=limit)
-        return resp.get("Items", [])
+        key_cond = Key("gsi_post_pk").eq("POST")
+        if last_sk:
+            key_cond &= Key("created_at").lt(last_sk)
+
+        resp = await table.query(
+            IndexName="GSI_POST_CREATED_AT",
+            KeyConditionExpression=key_cond,
+            ScanIndexForward=False,
+            Limit=limit
+        )
+        items = resp.get("Items", [])
+        # logger.debug(json.dumps(items,indent=4))
+        return [
+            Post(
+                id=item["post_id"],
+                title=item["title"],
+                slug=item["slug"],
+                user_id=item.get("user_id"),
+                content=item.get("content"),
+                tags=[Tag(name=t) for t in item.get("tags", [])],
+                created_at=item.get("created_at"),
+                updated_at=item.get("updated_at"),
+            )
+            for item in items
+        ]
 
     return await with_dynamodb_table(fn)
 
 
-async def serve_create_contacts_message(message: MessageDTO) -> None:
+# -------------------------
+# Latest Posts by Tag (cursor-based)
+# -------------------------
+async def get_latest_posts_by_tag(tag: str, limit: int = 10, last_sk: Optional[str] = None) -> List[Post]:
+    async def fn(table):
+        key_cond = Key("pk").eq(f"TAG#{tag}")
+        if last_sk:
+            key_cond &= Key("sk").lt(last_sk)
+
+        resp = await table.query(
+            KeyConditionExpression=key_cond,
+            ScanIndexForward=False,
+            Limit=limit
+        )
+        tag_items = resp.get("Items", [])
+        if not tag_items:
+            return []
+
+        post_ids = [item["post_id"] for item in tag_items]
+        keys = [{"pk": f"POST#{pid}", "sk": "METADATA"} for pid in post_ids]
+
+        resp = await table.batch_get_item(RequestItems={table.name: {"Keys": keys}})
+        post_items = resp["Responses"].get(table.name, [])
+        post_items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+
+        return [
+            Post(
+                id=item["post_id"],
+                title=item["title"],
+                slug=item["slug"],
+                user_id=item["user_id"],
+                content=item["content"],
+                tags=[Tag(name=t) for t in item.get("tags", [])],
+                created_at=item.get("created_at"),
+                updated_at=item.get("updated_at"),
+            )
+            for item in post_items
+        ]
+
+    return await with_dynamodb_table(fn)
+
+
+async def get_popular_tags(limit: int = 10) -> List[Tag]:
+    async def fn(table):
+        resp = await table.query(
+            IndexName="GSI_TAG_POPULARITY",
+            KeyConditionExpression=Key("gsi_tag_pk").eq("TAG"),
+            ScanIndexForward=False,
+            Limit=limit
+        )
+        items = resp.get("Items", [])
+        # logger.debug(items)
+        # logger.debug(json.dumps(items, indent=4))
+        return [
+            Tag(
+                name=item["tag_name"],
+                posts_count=int(item["posts_count"]),
+            ) for item in items
+        ]
+
+    return await with_dynamodb_table(fn)
+
+
+async def create_contacts_message(message: MessageDTO) -> None:
     # todo: store message in dynamodb table and return object
     if not is_prod():
         return
@@ -767,21 +901,43 @@ async def serve_create_contacts_message(message: MessageDTO) -> None:
     )
 
 
-async def serve_index(custom_data: Dict[str, Any]) -> Dict[str, Any]:
+async def get_index_page_data(custom_data: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        **get_config(),
+        **custom_data,
+        "popular_tags": await get_popular_tags(10),
+        "latest_posts": await get_latest_posts(10)
+    }
+
+
+async def get_posts_page_data(custom_data: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        **get_config(),
+        **custom_data,
+        "post_items": await get_latest_posts(10)
+    }
+
+
+async def get_post_page_data(post_id: str, custom_data: Dict[str, Any]) -> Dict[str, Any]:
+    post = await find_post(post_id)
+    if post is None:
+        raise PostNotFound(f"Post '{post_id}' not found")
+
+    return {
+        **get_config(),
+        **custom_data,
+        "post_item": post
+    }
+
+
+async def get_contacts_page_data(custom_data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         **get_config(),
         **custom_data
     }
 
 
-async def serve_contacts(custom_data: Dict[str, Any]) -> Dict[str, Any]:
-    return {
-        **get_config(),
-        **custom_data
-    }
-
-
-async def serve_error(custom_data: Dict[str, Any]) -> Dict[str, Any]:
+async def get_error_page_data(custom_data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         **get_config(),
         "auth": {
@@ -791,7 +947,7 @@ async def serve_error(custom_data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-async def serve_login(callback_url: str) -> str:
+async def get_login_redirect_url(callback_url: str) -> str:
     if is_prod():
         return (
             f"https://{get_cognito_domain()}/oauth2/authorize"
@@ -804,7 +960,7 @@ async def serve_login(callback_url: str) -> str:
     return callback_url
 
 
-async def serve_login_callback(code: str, callback_url: str) -> UserToken:
+async def get_user_token_by_code(code: str, callback_url: str) -> UserToken:
     if is_prod():
         if not code:
             raise InvalidCodeError("Missing code")
@@ -844,7 +1000,7 @@ async def serve_login_callback(code: str, callback_url: str) -> UserToken:
     return user_token
 
 
-async def serve_logout(callback_url: str) -> str:
+async def get_logout_redirect_url(callback_url: str) -> str:
     if is_prod():
         return (
             f"https://{get_cognito_domain()}/logout"

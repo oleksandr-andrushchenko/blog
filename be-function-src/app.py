@@ -34,6 +34,7 @@ from utils import (
     CodeExchangeFailedError,
     InvalidTokenKidError,
     SlugDuplicationError,
+    PostNotFound,
     # helpers
     logger,
     get_html_content,
@@ -43,17 +44,17 @@ from utils import (
     get_user_by_plain_token,
     configure_app_state,
     # services
-    list_posts,
-    get_post,
-    serve_create_post_page,
-    serve_create_post,
-    serve_create_contacts_message,
-    serve_index,
-    serve_contacts,
-    serve_login_callback,
-    serve_login,
-    serve_logout,
-    serve_error,
+    get_posts_page_data,
+    get_post_page_data,
+    get_create_post_page_data,
+    create_post,
+    create_contacts_message,
+    get_index_page_data,
+    get_contacts_page_data,
+    get_user_token_by_code,
+    get_login_redirect_url,
+    get_logout_redirect_url,
+    get_error_page_data,
 )
 
 
@@ -116,7 +117,7 @@ if index_page.get("active", True):
     @app.get(index_page.get("path", "/"), name="index")
     async def index(request: Request, user_token: UserToken = None):
         # logger.debug(f"user_token: {user_token}")
-        data = await serve_index({
+        data = await get_index_page_data({
             "request": request,
             "user_token": user_token
         })
@@ -125,11 +126,11 @@ if index_page.get("active", True):
             content=content
         )
 
-create_post = get_feature("create_post")
-if create_post.get("active"):
-    @app.get(create_post.get("path", "/posts"), name="create-post-page")
+create_post_feature = get_feature("create_post")
+if create_post_feature.get("active"):
+    @app.get(create_post_feature.get("path", "/posts"), name="create-post-page")
     async def create_post_page(request: Request, user_token: UserToken = None):
-        data = await serve_create_post_page({
+        data = await get_create_post_page_data({
             "request": request,
             "user_token": user_token
         })
@@ -139,15 +140,15 @@ if create_post.get("active"):
         )
 
 
-    @app.post(create_post.get("path", "/posts"), name="create-post", status_code=HTTP_201_CREATED,
-              response_model=PublicPost)
-    async def create_post(post_dto: PostDTO, user: User = None) -> Post:
+    @app.post(create_post_feature.get("path", "/create-post"), name="create-post", status_code=HTTP_201_CREATED,
+              response_model=PublicPost, response_class=JSONResponse)
+    async def _create_post(post_dto: PostDTO, user: User = None) -> Post:
         if not user:
             raise HTTPException(
                 status_code=HTTP_401_UNAUTHORIZED
             )
         try:
-            post = await serve_create_post(post_dto, user)
+            post = await create_post(post_dto, user)
         except SlugDuplicationError as e:
             raise HTTPException(
                 status_code=HTTP_409_CONFLICT,
@@ -157,28 +158,22 @@ if create_post.get("active"):
 
 contacts_page = get_feature("contacts")
 if contacts_page.get("active"):
-    @app.get(contacts_page.get("path", "/contacts"), name="contacts")
+    @app.get(contacts_page.get("path", "/contacts"), name="contacts", response_class=HTMLResponse)
     async def contacts(request: Request, user_token: UserToken = None):
-        data = await serve_contacts({
+        data = await get_contacts_page_data({
             "request": request,
             "user_token": user_token
         })
-        content = get_html_content("contacts.html", data)
-        return HTMLResponse(
-            content=content
-        )
+        return get_html_content("contacts.html", data)
 
 
-    @app.post("/contacts/message", name="create-contacts-message")
-    async def create_contacts_message(message: MessageDTO):
-        await serve_create_contacts_message(message)
-        return HTMLResponse(
-            status_code=HTTP_201_CREATED
-        )
+    @app.post("/contacts/message", name="create-contacts-message", status_code=HTTP_201_CREATED)
+    async def _create_contacts_message(message: MessageDTO):
+        await create_contacts_message(message)
 
 auth = get_feature("auth")
 if auth.get("active"):
-    @app.get("/auth/login", name="login")
+    @app.get("/auth/login", name="login", response_class=RedirectResponse)
     async def login(request: Request):
         # todo: make sure referer belongs to the website
         referer = request.headers.get('referer')
@@ -186,14 +181,12 @@ if auth.get("active"):
         callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={referer if referer else index_url}"
         logger.info(f"login: callback_url: {callback_url}")
 
-        redirect_url = await serve_login(
+        redirect_url = await get_login_redirect_url(
             callback_url=callback_url
         )
         logger.info(f"login: redirect_url: {redirect_url}")
 
-        return RedirectResponse(
-            url=redirect_url
-        )
+        return redirect_url
 
 
     @app.get("/auth/callback", name="login-callback")
@@ -205,7 +198,7 @@ if auth.get("active"):
             callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={redirect_url}"
             logger.info(f"login_callback: callback_url: {callback_url}")
 
-            user_token = await serve_login_callback(
+            user_token = await get_user_token_by_code(
                 code=request.query_params.get("code"),
                 callback_url=callback_url
             )
@@ -236,7 +229,7 @@ if auth.get("active"):
         callback_url = referer if referer else get_full_url(request, 'index')
         logger.info(f"logout: callback_url: {callback_url}")
 
-        redirect_url = await serve_logout(
+        redirect_url = await get_logout_redirect_url(
             callback_url=callback_url
         )
         logger.info(f"logout: redirect_url: {redirect_url}")
@@ -247,21 +240,31 @@ if auth.get("active"):
         response.delete_cookie("session_token")
         return response
 
+posts_feature = get_feature("posts")
+if posts_feature.get("active", True):
+    @app.get(posts_feature.get("path", "/posts"), name="posts", response_class=HTMLResponse)
+    async def posts(request: Request, user_token: UserToken = None):
+        data = await get_posts_page_data({
+            "request": request,
+            "user_token": user_token
+        })
+        return get_html_content("posts.html", data)
 
-@app.get("/posts")
-async def posts():
-    return await list_posts()
-
-
-@app.get("/posts/{post_id}")
-async def post_page(post_id: str):
-    item = await get_post(post_id)
-    if not item:
-        raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
-            detail="Post not found",
-        )
-    return item
+post_feature = get_feature("post")
+if post_feature.get("active", True):
+    @app.get(post_feature.get("path", "/posts/{post_id}"), name="post", response_class=HTMLResponse)
+    async def post_page(post_id: str, request: Request, user_token: UserToken = None):
+        try:
+            data = await get_post_page_data(post_id, {
+                "request": request,
+                "user_token": user_token
+            })
+            return get_html_content("post.html", data)
+        except PostNotFound:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail="Post not found",
+            )
 
 
 # -------------------------
@@ -275,7 +278,7 @@ async def get_error_response(request: Request, status_code: int, details):
         "message": status_enum.description,
         "details": details,
     }
-    data = await serve_error({})
+    data = await get_error_page_data({})
     content_type = request.headers.get("content-type", "")
     if content_type.startswith("application/json"):
         return JSONResponse(

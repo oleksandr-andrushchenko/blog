@@ -310,14 +310,16 @@ open: ## Show local site URL
 	@echo "🌐 Visit http://localhost:$(BE_FUNCTION_PORT) in your browser manually."
 
 .PHONY: create-local-dynamodb
-create-local-dynamodb: ## Create DynamoDB table in local DynamoDB
+create-local-dynamodb:
 	@echo "🚀 Creating local DynamoDB table $(DYNAMODB_TABLE)..."
-	@if aws dynamodb describe-table \
+	@if AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
+		aws dynamodb describe-table \
 		--region "$(AWS_REGION)" \
 		--table-name "$(DYNAMODB_TABLE)" \
 		--endpoint-url "http://localhost:$(DYNAMODB_PORT)" > /dev/null 2>&1; then \
 		echo "⚠️ Table $(DYNAMODB_TABLE) already exists, skipping creation."; \
 	else \
+		AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
 		aws dynamodb create-table \
 			--region "$(AWS_REGION)" \
 			--table-name "$(DYNAMODB_TABLE)" \
@@ -327,10 +329,14 @@ create-local-dynamodb: ## Create DynamoDB table in local DynamoDB
 				AttributeName=sk,AttributeType=S \
 				AttributeName=gsi_provider_sub,AttributeType=S \
 				AttributeName=gsi_email,AttributeType=S \
+				AttributeName=gsi_post_pk,AttributeType=S \
+				AttributeName=created_at,AttributeType=S \
+				AttributeName=gsi_tag_pk,AttributeType=S \
+				AttributeName=posts_count,AttributeType=N \
 			--key-schema \
 				AttributeName=pk,KeyType=HASH \
 				AttributeName=sk,KeyType=RANGE \
-			--global-secondary-indexes '[{"IndexName":"GSI_PROVIDER_SUB","KeySchema":[{"AttributeName":"gsi_provider_sub","KeyType":"HASH"}],"Projection":{"ProjectionType":"ALL"}},{"IndexName":"GSI_EMAIL","KeySchema":[{"AttributeName":"gsi_email","KeyType":"HASH"}],"Projection":{"ProjectionType":"ALL"}}]' \
+			--global-secondary-indexes file://dynamodb_gsis.json \
 			--endpoint-url http://localhost:$(DYNAMODB_PORT) \
 			--no-cli-pager; \
 		echo "✅ DynamoDB table $(DYNAMODB_TABLE) initialized in local DynamoDB"; \
@@ -339,6 +345,7 @@ create-local-dynamodb: ## Create DynamoDB table in local DynamoDB
 .PHONY: fetch-latest-local-dynamodb
 fetch-latest-local-dynamodb: ## Fetch latest 10 records from local DynamoDB
 	@echo "📦 Fetching latest 10 records from $(DYNAMODB_TABLE)..."
+	AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
 	aws dynamodb scan \
 		--table-name "$(DYNAMODB_TABLE)" \
 		--limit 10 \
@@ -347,22 +354,21 @@ fetch-latest-local-dynamodb: ## Fetch latest 10 records from local DynamoDB
 		--no-cli-pager \
 		--output json
 
-.PHONY: clear-local-dynamodb
-clear-local-dynamodb: ## Delete all items from local DynamoDB table
-	@echo "🗑️ Clearing all items from $(DYNAMODB_TABLE)..."
-	@for key in $$(aws dynamodb scan \
-		--table-name "$(DYNAMODB_TABLE)" \
-		--attributes-to-get "pk" "sk" \
-		--endpoint-url "http://localhost:$(DYNAMODB_PORT)" \
+.PHONY: drop-local-dynamodb
+drop-local-dynamodb: ## Drop DynamoDB table in local DynamoDB
+	@echo "🗑️ Dropping local DynamoDB table $(DYNAMODB_TABLE)..."
+	@if AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
+		aws dynamodb describe-table \
 		--region "$(AWS_REGION)" \
-		--query "Items[*]" \
-		--output json | tr -d '[]{},"'); do \
-			PK=$$(echo $$key | cut -d: -f1); \
-			SK=$$(echo $$key | cut -d: -f2); \
-			aws dynamodb delete-item \
-				--table-name "$(DYNAMODB_TABLE)" \
-				--key "{\"pk\": {\"S\": \"$$PK\"}, \"sk\": {\"S\": \"$$SK\"}}" \
-				--endpoint-url "http://localhost:$(DYNAMODB_PORT)" \
-				--region "$(AWS_REGION)"; \
-	done
-	@echo "✅ Table $(DYNAMODB_TABLE) cleared."
+		--table-name "$(DYNAMODB_TABLE)" \
+		--endpoint-url "http://localhost:$(DYNAMODB_PORT)" > /dev/null 2>&1; then \
+		AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
+		aws dynamodb delete-table \
+			--region "$(AWS_REGION)" \
+			--table-name "$(DYNAMODB_TABLE)" \
+			--endpoint-url http://localhost:$(DYNAMODB_PORT) \
+			--no-cli-pager; \
+		echo "✅ Table $(DYNAMODB_TABLE) deleted from local DynamoDB"; \
+	else \
+		echo "⚠️ Table $(DYNAMODB_TABLE) does not exist, skipping deletion."; \
+	fi

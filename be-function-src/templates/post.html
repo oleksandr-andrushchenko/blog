@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ post.title | default(post_item.title ~ " | " ~ site_name) }}{% endblock %}
+{% block canonical_url %}{{ full_url("post", post_id=post_item.id) }}{% endblock %}
+{% block header %}{{ post.header | default(post_item.title) }}{% endblock %}
+{% block sub_header %}{{ post.sub_header | default(post_item.created_at) }}{% endblock %}
+{% block content %}
+    {% for tag in post_item.tags %}
+        <a href="{{ url("index") }}" class="btn btn-outline-secondary btn-sm">
+            {{ tag.name }}
+        </a>
+    {% endfor %}
+{% endblock %}

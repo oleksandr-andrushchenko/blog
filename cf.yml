@@ -84,6 +84,14 @@ Resources:
           AttributeType: S
         - AttributeName: gsi_email
           AttributeType: S
+        - AttributeName: gsi_post_pk
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+        - AttributeName: gsi_tag_pk
+          AttributeType: S
+        - AttributeName: posts_count
+          AttributeType: N
       KeySchema:
         - AttributeName: pk
           KeyType: HASH
@@ -100,6 +108,22 @@ Resources:
           KeySchema:
             - AttributeName: gsi_email
               KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: GSI_POST_CREATED_AT
+          KeySchema:
+            - AttributeName: gsi_post_pk
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: GSI_TAG_POPULARITY
+          KeySchema:
+            - AttributeName: gsi_tag_pk
+              KeyType: HASH
+            - AttributeName: posts_count
+              KeyType: RANGE
           Projection:
             ProjectionType: ALL
       Tags:
@@ -265,9 +289,9 @@ Resources:
         - !Sub "https://${DomainName}/auth/logout"
       SupportedIdentityProviders:
         - COGNITO # native signup/signin
-#        - Google
-#        - Facebook
-#        - Apple
+      #        - Google
+      #        - Facebook
+      #        - Apple
       Tags:
         - Key: Environment
           Value: !Ref TagEnvironment

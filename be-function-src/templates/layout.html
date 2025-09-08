@@ -74,10 +74,17 @@
             </button>
             <div class="collapse navbar-collapse" id="navbar">
                 <ul class="navbar-nav me-auto">
+                    {% if posts.nav_active and posts.active %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url('posts') }}">
+                                {{ posts.nav_label | default("Posts") }}
+                            </a>
+                        </li>
+                    {% endif %}
                     {% if contacts.nav_active and contacts.active %}
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url('contacts') }}">
-                                {{ contacts.nav | default("Contacts") }}
+                                {{ contacts.nav_label | default("Contacts") }}
                             </a>
                         </li>
                     {% endif %}
@@ -85,10 +92,10 @@
                 {% if auth.active %}
                     {% if user_token %}
                         <div class="d-flex gap-3 align-items-center">
-                            <a href="{{ url('create-post') }}" class="btn btn-dark">
-                                <i class="bi bi-pencil-square"></i> {{ header.create_post | default("Create post") }}
+                            <a href="{{ url('create-post') }}" class="btn btn-dark btn-sm">
+                                <i class="bi bi-pencil-square"></i> {{ header.create_post_label | default("Create post") }}
                             </a>
-                            <div >
+                            <div>
                                 <i class="bi bi-person-circle"></i> {{ user_token.email }}
                                 <a href="{{ url('logout') }}" class="btn btn-secondary btn-sm">
                                     {{ header.logout_label | default("Sign out") }} <i
