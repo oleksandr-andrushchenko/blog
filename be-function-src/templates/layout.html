@@ -73,17 +73,22 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbar">
+                {% if auth.active and user_token %}
+                    <a href="{{ url('create-post-page') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-pencil-square"></i> {{ header.create_post_label | default("Create post") }}
+                    </a>
+                {% endif %}
                 <ul class="navbar-nav me-auto">
                     {% if posts.nav_active and posts.active %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url('posts') }}">
+                            <a class="nav-link" href="{{ url('posts-page') }}">
                                 {{ posts.nav_label | default("Posts") }}
                             </a>
                         </li>
                     {% endif %}
                     {% if contacts.nav_active and contacts.active %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url('contacts') }}">
+                            <a class="nav-link" href="{{ url('contacts-page') }}">
                                 {{ contacts.nav_label | default("Contacts") }}
                             </a>
                         </li>
@@ -91,17 +96,12 @@
                 </ul>
                 {% if auth.active %}
                     {% if user_token %}
-                        <div class="d-flex gap-3 align-items-center">
-                            <a href="{{ url('create-post') }}" class="btn btn-dark btn-sm">
-                                <i class="bi bi-pencil-square"></i> {{ header.create_post_label | default("Create post") }}
+                        <div>
+                            <i class="bi bi-person-circle"></i> {{ user_token.email }}
+                            <a href="{{ url('logout') }}" class="btn btn-secondary btn-sm">
+                                {{ header.logout_label | default("Sign out") }} <i
+                                    class="bi bi-box-arrow-right"></i>
                             </a>
-                            <div>
-                                <i class="bi bi-person-circle"></i> {{ user_token.email }}
-                                <a href="{{ url('logout') }}" class="btn btn-secondary btn-sm">
-                                    {{ header.logout_label | default("Sign out") }} <i
-                                        class="bi bi-box-arrow-right"></i>
-                                </a>
-                            </div>
                         </div>
                     {% else %}
                         <a href="{{ url('login') }}" class="btn btn-secondary">
@@ -117,8 +117,19 @@
 
 <main>
     <div class="container">
-        <h1>{% block header %}{% endblock %}</h1>
-        <p class="small text-secondary">{% block sub_header %}{% endblock %}</p>
+        {% if breadcrumbs %}
+            <nav aria-label="breadcrumb" style="--bs-breadcrumb-divider: '>';">
+                <ol class="breadcrumb">
+                    {% for label, url in breadcrumbs.items() %}
+                        {% if loop.last or url is none %}
+                            <li class="breadcrumb-item active" aria-current="page">{{ label }}</li>
+                        {% else %}
+                            <li class="breadcrumb-item"><a href="{{ url }}">{{ label }}</a></li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        {% endif %}
         {% block content %}{% endblock %}
     </div>
 </main>

@@ -333,6 +333,8 @@ create-local-dynamodb:
 				AttributeName=created_at,AttributeType=S \
 				AttributeName=gsi_tag_pk,AttributeType=S \
 				AttributeName=posts_count,AttributeType=N \
+				AttributeName=gsi_tag_name_pk,AttributeType=S \
+				AttributeName=tag_name,AttributeType=S \
 			--key-schema \
 				AttributeName=pk,KeyType=HASH \
 				AttributeName=sk,KeyType=RANGE \
@@ -342,13 +344,13 @@ create-local-dynamodb:
 		echo "✅ DynamoDB table $(DYNAMODB_TABLE) initialized in local DynamoDB"; \
 	fi
 
-.PHONY: fetch-latest-local-dynamodb
-fetch-latest-local-dynamodb: ## Fetch latest 10 records from local DynamoDB
-	@echo "📦 Fetching latest 10 records from $(DYNAMODB_TABLE)..."
+.PHONY: fetch-local-dynamodb
+fetch-local-dynamodb: ## Fetch 100 records from local DynamoDB
+	@echo "📦 Fetching 100 records from $(DYNAMODB_TABLE)..."
 	AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
 	aws dynamodb scan \
 		--table-name "$(DYNAMODB_TABLE)" \
-		--limit 10 \
+		--limit 100 \
 		--endpoint-url "http://localhost:$(DYNAMODB_PORT)" \
 		--region "$(AWS_REGION)" \
 		--no-cli-pager \

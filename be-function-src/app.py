@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Request, Response, Depends, HTTPException, Body
+from typing import List
+from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
@@ -21,10 +22,13 @@ from utils import (
     # models
     UserToken,
     User,
-    MessageDTO,
+    ContactMessageDTO,
     PostDTO,
     Post,
     PublicPost,
+    PublicContactMessage,
+    TagQueryDTO,
+    PublicTag,
     # config
     get_feature,
     is_prod,
@@ -39,21 +43,22 @@ from utils import (
     logger,
     get_html_content,
     get_full_url,
-    get_url,
     get_user_token_by_plain_token,
     get_user_by_plain_token,
     configure_app_state,
     # services
     get_posts_page_data,
+    get_post,
     get_post_page_data,
     get_create_post_page_data,
     create_post,
-    create_contacts_message,
+    create_contact_message,
     get_index_page_data,
     get_contacts_page_data,
     get_user_token_by_code,
     get_login_redirect_url,
     get_logout_redirect_url,
+    get_tags,
     get_error_page_data,
 )
 
@@ -113,34 +118,32 @@ if not is_prod():
 # Routes
 # -------------------------
 index_page = get_feature("index")
+auth_feature = get_feature("auth")
+create_post_feature = get_feature("create_post")
+posts_feature = get_feature("posts")
+post_feature = get_feature("post")
+contacts_feature = get_feature("contacts")
+
 if index_page.get("active", True):
-    @app.get(index_page.get("path", "/"), name="index")
+    @app.get(index_page.get("path", "/"), name="index", response_class=HTMLResponse)
     async def index(request: Request, user_token: UserToken = None):
-        # logger.debug(f"user_token: {user_token}")
         data = await get_index_page_data({
             "request": request,
             "user_token": user_token
         })
-        content = get_html_content("index.html", data)
-        return HTMLResponse(
-            content=content
-        )
+        return get_html_content("index.html", data)
 
-create_post_feature = get_feature("create_post")
 if create_post_feature.get("active"):
-    @app.get(create_post_feature.get("path", "/posts"), name="create-post-page")
+    @app.get(create_post_feature.get("path", "/create-post"), name="create-post-page", response_class=HTMLResponse)
     async def create_post_page(request: Request, user_token: UserToken = None):
         data = await get_create_post_page_data({
             "request": request,
             "user_token": user_token
         })
-        content = get_html_content("create-post.html", data)
-        return HTMLResponse(
-            content=content
-        )
+        return get_html_content("create-post.html", data)
 
 
-    @app.post(create_post_feature.get("path", "/create-post"), name="create-post", status_code=HTTP_201_CREATED,
+    @app.post(create_post_feature.get("path", "/post"), name="create-post", status_code=HTTP_201_CREATED,
               response_model=PublicPost, response_class=JSONResponse)
     async def _create_post(post_dto: PostDTO, user: User = None) -> Post:
         if not user:
@@ -156,10 +159,9 @@ if create_post_feature.get("active"):
             )
         return post
 
-contacts_page = get_feature("contacts")
-if contacts_page.get("active"):
-    @app.get(contacts_page.get("path", "/contacts"), name="contacts", response_class=HTMLResponse)
-    async def contacts(request: Request, user_token: UserToken = None):
+if contacts_feature.get("active"):
+    @app.get(contacts_feature.get("path", "/contacts"), name="contacts-page", response_class=HTMLResponse)
+    async def contacts_page(request: Request, user_token: UserToken = None):
         data = await get_contacts_page_data({
             "request": request,
             "user_token": user_token
@@ -167,12 +169,12 @@ if contacts_page.get("active"):
         return get_html_content("contacts.html", data)
 
 
-    @app.post("/contacts/message", name="create-contacts-message", status_code=HTTP_201_CREATED)
-    async def _create_contacts_message(message: MessageDTO):
-        await create_contacts_message(message)
+    @app.post("/contacts/message", name="create-contact-message", status_code=HTTP_201_CREATED,
+              response_model=PublicContactMessage, response_class=JSONResponse)
+    async def _create_contact_message(message_dto: ContactMessageDTO, user: User = None):
+        return await create_contact_message(message_dto, user)
 
-auth = get_feature("auth")
-if auth.get("active"):
+if auth_feature.get("active"):
     @app.get("/auth/login", name="login", response_class=RedirectResponse)
     async def login(request: Request):
         # todo: make sure referer belongs to the website
@@ -240,31 +242,35 @@ if auth.get("active"):
         response.delete_cookie("session_token")
         return response
 
-posts_feature = get_feature("posts")
-if posts_feature.get("active", True):
-    @app.get(posts_feature.get("path", "/posts"), name="posts", response_class=HTMLResponse)
-    async def posts(request: Request, user_token: UserToken = None):
-        data = await get_posts_page_data({
+
+@app.get(posts_feature.get("path", "/posts"), name="posts-page", response_class=HTMLResponse)
+async def posts_page(request: Request, user_token: UserToken = None):
+    data = await get_posts_page_data({
+        "request": request,
+        "user_token": user_token
+    })
+    return get_html_content("posts.html", data)
+
+
+@app.get(post_feature.get("path", "/posts/{post_id}"), name="post-page", response_class=HTMLResponse)
+async def post_page(post_id: str, request: Request, user_token: UserToken = None):
+    try:
+        post = await get_post(post_id)
+        data = await get_post_page_data(post, {
             "request": request,
             "user_token": user_token
         })
-        return get_html_content("posts.html", data)
+        return get_html_content("post.html", data)
+    except PostNotFound:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail="Post not found",
+        )
 
-post_feature = get_feature("post")
-if post_feature.get("active", True):
-    @app.get(post_feature.get("path", "/posts/{post_id}"), name="post", response_class=HTMLResponse)
-    async def post_page(post_id: str, request: Request, user_token: UserToken = None):
-        try:
-            data = await get_post_page_data(post_id, {
-                "request": request,
-                "user_token": user_token
-            })
-            return get_html_content("post.html", data)
-        except PostNotFound:
-            raise HTTPException(
-                status_code=HTTP_404_NOT_FOUND,
-                detail="Post not found",
-            )
+
+@app.get("/tags", name="get-tags", response_model=List[PublicTag], response_class=JSONResponse)
+async def _get_tags(query_dto: TagQueryDTO = Depends()):
+    return await get_tags(query_dto)
 
 
 # -------------------------

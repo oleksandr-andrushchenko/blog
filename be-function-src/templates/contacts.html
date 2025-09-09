@@ -1,10 +1,11 @@
 {% extends "layout.html" %}
 
 {% block title %}{{ contacts.title | default("Contacts | " ~ site_name) }}{% endblock %}
-{% block canonical_url %}{{ full_url("contacts") }}{% endblock %}
-{% block header %}{{ contacts.header | default("Contacts") }}{% endblock %}
-{% block sub_header %}{{ contacts.sub_header | default("Contact us") }}{% endblock %}
+{% block canonical_url %}{{ full_url("contacts-page") }}{% endblock %}
+
 {% block content %}
+    <h1>{{ contacts.header | default("Contacts") }}</h1>
+    <p class="small text-secondary">{{ contacts.sub_header | default("Contact us") }}</p>
     <div class="row">
         <div class="col-12 col-md-6">
             <form class="row g-3" id="contact-form" novalidate>
@@ -30,7 +31,7 @@
                 </div>
                 <div class="col-12">
                     <div id="form-status" class="alert d-none" role="alert"></div>
-                    <button type="submit" class="btn btn-outline-dark">
+                    <button type="submit" class="btn btn-outline-secondary">
                         {{ contacts.send_message_label | default("Send Message") }} <i class="bi bi-chevron-right"></i>
                     </button>
                 </div>
@@ -96,7 +97,7 @@
           const message = form.message.value.trim()
 
           try {
-            const response = await fetch("{{ url('create-contacts-message') }}", {
+            const response = await fetch("{{ url('create-contact-message') }}", {
               method: "POST",
               headers: {"Content-Type": "application/json"},
               body: JSON.stringify({name, email, message})

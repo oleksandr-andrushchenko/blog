@@ -1,14 +1,15 @@
 {% extends "layout.html" %}
 
 {% block title %}{{ posts.title | default("Posts | " ~ site_name) }}{% endblock %}
-{% block canonical_url %}{{ full_url("posts") }}{% endblock %}
-{% block header %}{{ posts.header | default("Posts") }}{% endblock %}
-{% block sub_header %}{{ posts.sub_header | default("Recent articles") }}{% endblock %}
+{% block canonical_url %}{{ full_url("posts-page") }}{% endblock %}
+
 {% block content %}
+    <h1>{{ posts.header | default("Posts") }}</h1>
+    <p class="small text-secondary">{{ posts.sub_header | default("Recent articles") }}</p>
     {% if post_items %}
         {% for post in post_items %}
             <div>
-                <a href="{{ url("post", post_id=post.id) }}">
+                <a href="{{ url("post-page", post_id=post.id) }}">
                     <h2>{{ post.title }}</h2>
                 </a>
                 {% for tag in post.tags %}

@@ -1,10 +1,11 @@
 {% extends "layout.html" %}
 
-{% block title %}{{ create_post.title | default("Create Post | " ~ site_name) }}{% endblock %}
+{% block title %}{{ create_post.title | default("Create post | " ~ site_name) }}{% endblock %}
 {% block canonical_url %}{{ full_url("create-post") }}{% endblock %}
-{% block header %}{{ create_post.header | default("Create Post") }}{% endblock %}
-{% block sub_header %}{{ create_post.sub_header | default("Publish a new article") }}{% endblock %}
+
 {% block content %}
+    <h1>{{ create_post.header | default("Create post") }}</h1>
+    <p class="small text-secondary">{{ create_post.sub_header | default("Publish a new article") }}</p>
     <div class="row">
         <div class="col-12 col-md-8">
             <form class="row g-3" id="post-form" novalidate>
@@ -44,7 +45,7 @@
                 <!-- Submit -->
                 <div class="col-12">
                     <div id="form-status" class="alert d-none" role="alert"></div>
-                    <button type="submit" class="btn btn-outline-dark">
+                    <button type="submit" class="btn btn-outline-secondary">
                         {{ create_post.publish_label | default("Publish Post") }} <i class="bi bi-chevron-right"></i>
                     </button>
                 </div>

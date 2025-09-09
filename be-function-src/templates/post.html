@@ -1,13 +1,20 @@
 {% extends "layout.html" %}
 
 {% block title %}{{ post.title | default(post_item.title ~ " | " ~ site_name) }}{% endblock %}
-{% block canonical_url %}{{ full_url("post", post_id=post_item.id) }}{% endblock %}
-{% block header %}{{ post.header | default(post_item.title) }}{% endblock %}
-{% block sub_header %}{{ post.sub_header | default(post_item.created_at) }}{% endblock %}
+{% block canonical_url %}{{ full_url("post-page", post_id=post_item.id) }}{% endblock %}
+
 {% block content %}
-    {% for tag in post_item.tags %}
-        <a href="{{ url("index") }}" class="btn btn-outline-secondary btn-sm">
-            {{ tag.name }}
-        </a>
-    {% endfor %}
+    <h1>{{ post.header | default(post_item.title) }}</h1>
+    <p class="small text-secondary">{{ post.sub_header | default(post_item.created_at) }}</p>
+    <div>{{ post_item.content }}</div>
+    <div>
+        {% for tag in post_item.tags %}
+            <a href="{{ url("index") }}" class="btn btn-outline-secondary btn-sm">
+                {{ tag.name }}
+            </a>
+        {% endfor %}
+    </div>
+    <div>
+        {{ post.author_label | default('Author') }}: {{ post_author.name }}
+    </div>
 {% endblock %}

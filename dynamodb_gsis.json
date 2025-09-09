@@ -54,5 +54,21 @@
     "Projection": {
       "ProjectionType": "ALL"
     }
+  },
+  {
+    "IndexName": "GSI_TAG_NAME",
+    "KeySchema": [
+      {
+        "AttributeName": "gsi_tag_name_pk",
+        "KeyType": "HASH"
+      },
+      {
+        "AttributeName": "tag_name",
+        "KeyType": "RANGE"
+      }
+    ],
+    "Projection": {
+      "ProjectionType": "ALL"
+    }
   }
 ]
