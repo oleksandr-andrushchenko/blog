@@ -8,6 +8,7 @@ import datetime
 import logging
 import sys
 import httpx
+from enum import Enum
 from urllib.parse import quote
 from jose import jwt
 from jose.exceptions import JWTError
@@ -47,6 +48,7 @@ class User(BaseModel):
     name: Optional[str] = None
     username: Optional[str] = None
     providers: Dict[str, Dict[str, Optional[str]]] = Field(default_factory=dict)  # noqa
+    permissions: List[str] = Field(default_factory=lambda: [Permission.REGULAR])  # noqa
     created_at: str
     updated_at: Optional[str] = None
 
@@ -125,6 +127,15 @@ class PublicContactMessage(BaseModel):
     id: str
 
 
+class Permission(str, Enum):
+    REGULAR = "regular"
+    ROOT = "root"
+    ALL = "*"
+
+    CREATE_POST = "create_post"
+    CREATE_CONTACT_MESSAGE = "create_contact_message"
+
+
 # -------------------------
 # Errors
 # -------------------------
@@ -166,6 +177,12 @@ class UserNotFound(BaseError):
     pass
 
 
+class AuthorizationFailedError(BaseError):
+    def __init__(self, permission: str):
+        self.permission = permission
+        super().__init__(f"User lacks required permission: {permission}")
+
+
 # -------------------------
 # Config
 # -------------------------
@@ -187,6 +204,15 @@ def get_live_config(load_env=False):
         "cognito_client_id": os.getenv("COGNITO_CLIENT_ID"),
         "cognito_client_secret": os.getenv("COGNITO_CLIENT_SECRET"),
         "cognito_user_pool_id": os.getenv("COGNITO_USER_POOL_ID"),
+        "permission_hierarchy": {
+            Permission.REGULAR: [
+                Permission.CREATE_POST,
+                Permission.CREATE_CONTACT_MESSAGE,
+            ],
+            Permission.ROOT: [
+                Permission.ALL
+            ],
+        },
         **{
             "auth": {},
             "head": {},
@@ -260,6 +286,10 @@ def get_cognito_user_pool_id():
     return get_config().get("cognito_user_pool_id")
 
 
+def get_permission_hierarchy() -> Dict[str, List[str]]:
+    return get_config().get("permission_hierarchy")
+
+
 # -------------------------
 # Helpers
 # -------------------------
@@ -273,6 +303,46 @@ class Lazy:
         if self._instance is None:
             self._instance = self._factory()
         return self._instance
+
+
+def verify_authorization(
+        user: User,
+        permission: str,
+        resource: BaseModel = None,
+        permissions: Optional[List[str]] = None,
+        hierarchy: Optional[Dict[str, List[str]]] = None,
+) -> bool:
+    """
+    Verify if user has access to perform action requiring `permission`.
+    """
+    hierarchy = hierarchy or get_permission_hierarchy()
+
+    # Owner check
+    if resource:
+        data = resource.model_dump()
+        owner_id = data.get("owner_id") or data.get("user_id")
+        if owner_id and str(owner_id) == str(user.id):
+            return True
+
+    # Default to user permissions
+    permissions = permissions or user.permissions or [Permission.REGULAR]
+
+    # Root/all permissions
+    if Permission.ALL in permissions:
+        return True
+
+    if permission in permissions:
+        return True
+
+    # Check inherited permissions
+    for user_permission in permissions:
+        children = hierarchy.get(user_permission, [])
+        if children:
+            if verify_authorization(user, permission, resource, children, hierarchy):
+                return True
+
+    # No match → fail
+    raise AuthorizationFailedError(permission)
 
 
 def to_kebab_case(s: str) -> str:
@@ -687,6 +757,8 @@ async def get_create_post_page_data(custom_data: Dict[str, Any]) -> Dict[str, An
 # Create Post with tags metadata and posts_count increment
 # -------------------------
 async def create_post(post_dto: PostDTO, user: User) -> Post:
+    verify_authorization(user, Permission.CREATE_POST)
+
     async def fn(table):
         now = utc_now_iso()
         post_id = str(uuid.uuid4())
@@ -1009,6 +1081,9 @@ async def get_tags(query_dto: TagQueryDTO) -> List[Tag]:
 
 
 async def create_contact_message(message_dto: ContactMessageDTO, user: User = None) -> None:
+    if user:
+        verify_authorization(user, Permission.CREATE_CONTACT_MESSAGE)
+
     async def fn(table):
         now = utc_now_iso()
         message_id = str(uuid.uuid4())

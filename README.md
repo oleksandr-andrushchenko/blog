@@ -38,10 +38,8 @@
 
 ## TODO
 
-- add deployment commands
-- create/update users on login
-- create/update posts
-- display posts
+- update posts
+- update users
 
 ## Links
 

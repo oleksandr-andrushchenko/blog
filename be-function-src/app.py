@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict, Union
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.exceptions import RequestValidationError
@@ -9,6 +9,7 @@ from starlette.status import (
     HTTP_302_FOUND,
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
+    HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
     HTTP_409_CONFLICT,
     HTTP_422_UNPROCESSABLE_ENTITY,
@@ -39,6 +40,7 @@ from utils import (
     InvalidTokenKidError,
     SlugDuplicationError,
     PostNotFound,
+    AuthorizationFailedError,
     # helpers
     logger,
     get_html_content,
@@ -79,9 +81,6 @@ async def get_user_token(request: Request) -> Optional[UserToken]:
         )
 
 
-UserToken = Annotated[Optional[UserToken], Depends(get_user_token)]
-
-
 async def get_user(request: Request) -> Optional[UserToken]:
     try:
         return await get_user_by_plain_token(
@@ -95,6 +94,7 @@ async def get_user(request: Request) -> Optional[UserToken]:
         )
 
 
+UserToken = Annotated[Optional[UserToken], Depends(get_user_token)]
 User = Annotated[Optional[User], Depends(get_user)]
 
 
@@ -276,7 +276,7 @@ async def _get_tags(query_dto: TagQueryDTO = Depends()):
 # -------------------------
 # Exception handlers
 # -------------------------
-async def get_error_response(request: Request, status_code: int, details):
+async def get_error_response(request: Request, status_code: int, details: Union[Dict, str]):
     status_enum = HTTPStatus(status_code)
     public_data = {
         "code": status_code,
@@ -285,12 +285,14 @@ async def get_error_response(request: Request, status_code: int, details):
         "details": details,
     }
     data = await get_error_page_data({})
-    content_type = request.headers.get("content-type", "")
-    if content_type.startswith("application/json"):
+    accept = request.headers.get("accept", "")
+
+    if "application/json" in accept:
         return JSONResponse(
             status_code=status_code,
             content=public_data,
         )
+
     data.update(public_data)
     data.update({"request": request})
     content = get_html_content("error.html", data)
@@ -302,7 +304,7 @@ async def get_error_response(request: Request, status_code: int, details):
 
 @app.exception_handler(StarletteHTTPException)
 async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
-    logger.debug(f"custom_http_exception_handler: {exc}")
+    logger.warning(f"HTTP exception: {exc}")
     return await get_error_response(
         request,
         exc.status_code,
@@ -312,7 +314,7 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.debug(f"validation_exception_handler: {exc}")
+    logger.warning(f"Validation failed: {exc}")
     details = {}
     for error in exc.errors():
         field = error["loc"][-1] if len(error["loc"]) > 1 else error["loc"][0]
@@ -320,7 +322,17 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return await get_error_response(
         request,
         HTTP_422_UNPROCESSABLE_ENTITY,
-        details
+        details,
+    )
+
+
+@app.exception_handler(AuthorizationFailedError)
+async def authorization_failed_handler(request: Request, exc: AuthorizationFailedError):
+    logger.warning(f"Authorization failed: {exc}")
+    return await get_error_response(
+        request,
+        HTTP_403_FORBIDDEN,
+        {"permission": exc.permission},
     )
 
 

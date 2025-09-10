@@ -25,9 +25,11 @@
         <h2>{{ index.latest_posts | default("Latest posts") }}</h2>
         {% if latest_posts %}
             {% for post in latest_posts %}
-                <a href="{{ url("post-page", post_id=post.id) }}">
-                    {{ post.title }}
-                </a>
+                <div>
+                    <a href="{{ url("post-page", post_id=post.id) }}">
+                        {{ post.title }}
+                    </a>
+                </div>
             {% endfor %}
         {% else %}
             {{ index.no_latest_posts | default("N/A") }}
