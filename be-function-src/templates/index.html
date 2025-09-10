@@ -1,15 +1,15 @@
 {% extends "layout.html" %}
 
-{% block title %}{{ index.title | default(site_name ~ " – " ~ site_about) }}{% endblock %}
+{% block title %}{{ index_title | default(site_name ~ " – " ~ site_about) }}{% endblock %}
 {% block canonical_url %}{{ full_url("index") }}{% endblock %}
 
 {% block content %}
-    <h1>{{ index.header | default(site_name) }}</h1>
-    <p class="small text-secondary">{{ index.sub_header | default(site_about) }}</p>
+    <h1>{{ index_header | default(site_name) }}</h1>
+    <p class="small text-secondary">{{ index_sub_header | default(site_about) }}</p>
     <img src="{{ static_url('pikachu.webp') }}" alt="test" class="w-25"/>
 
     <div>
-        <h2>{{ index.popular_tags | default("Popular tags") }}</h2>
+        <h2>{{ index_popular_tags | default("Popular tags") }}</h2>
         {% if popular_tags %}
             {% for tag in popular_tags %}
                 <a href="{{ url("index") }}" class="btn btn-outline-secondary btn-sm">
@@ -17,12 +17,12 @@
                 </a>
             {% endfor %}
         {% else %}
-            {{ index.no_popular_tags | default("N/A") }}
+            {{ index_no_popular_tags | default("N/A") }}
         {% endif %}
     </div>
 
     <div>
-        <h2>{{ index.latest_posts | default("Latest posts") }}</h2>
+        <h2>{{ index_latest_posts | default("Latest posts") }}</h2>
         {% if latest_posts %}
             {% for post in latest_posts %}
                 <div>
@@ -32,7 +32,7 @@
                 </div>
             {% endfor %}
         {% else %}
-            {{ index.no_latest_posts | default("N/A") }}
+            {{ index_no_latest_posts | default("N/A") }}
         {% endif %}
     </div>
 {% endblock %}

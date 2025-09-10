@@ -26,24 +26,24 @@
 
     <title>{% block title %}{% endblock %}</title>
 
-    {% if head.meta_name %}
-        {% for key, val in head.meta_name.items() %}
+    {% if head_meta_name %}
+        {% for key, val in head_meta_name.items() %}
             <meta name="{{ key }}" content="{{ val }}"/>
         {% endfor %}
     {% endif %}
 
-    {% if head.meta_property %}
-        {% for key, val in head.meta_property.items() %}
+    {% if head_meta_property %}
+        {% for key, val in head_meta_property.items() %}
             <meta property="{{ key }}" content="{{ val }}"/>
         {% endfor %}
     {% endif %}
 
-    {% if head.schema_org %}
-        <script type="application/ld+json">{{ head.schema_org | tojson | safe }}</script>
+    {% if head_schema_org %}
+        <script type="application/ld+json">{{ head_schema_org | tojson | safe }}</script>
     {% endif %}
 
-    {% if head.favicon and head.favicon.active %}
-        {% if head.favicon.generator == "realfavicongenerator" %}
+    {% if head_favicon and head_favicon.active %}
+        {% if head_favicon.generator == "realfavicongenerator" %}
             <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96"/>
             <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
             <link rel="shortcut icon" href="/favicon.ico"/>
@@ -64,8 +64,8 @@
 <body class="d-flex flex-column min-vh-100">
 
 <header class="d-print-none">
-    <nav class="navbar navbar-expand-md bg-{{ header.bg }}"
-         data-bs-theme="{{ header.bs }}">
+    <nav class="navbar navbar-expand-md bg-{{ header_bg }}"
+         data-bs-theme="{{ header_bs }}">
         <div class="container">
             <a class="navbar-brand link-secondary" style="outline:none" href="/">{{ site_name }}</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar"
@@ -73,42 +73,36 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbar">
-                {% if auth.active and user_token %}
+                {% if user %}
                     <a href="{{ url('create-post-page') }}" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-pencil-square"></i> {{ header.create_post_label | default("Create post") }}
+                        <i class="bi bi-pencil-square"></i> {{ header_create_post_label | default("Create post") }}
                     </a>
                 {% endif %}
                 <ul class="navbar-nav me-auto">
-                    {% if posts.nav_active and posts.active %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url('posts-page') }}">
-                                {{ posts.nav_label | default("Posts") }}
-                            </a>
-                        </li>
-                    {% endif %}
-                    {% if contacts.nav_active and contacts.active %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url('contacts-page') }}">
-                                {{ contacts.nav_label | default("Contacts") }}
-                            </a>
-                        </li>
-                    {% endif %}
-                </ul>
-                {% if auth.active %}
-                    {% if user_token %}
-                        <div>
-                            <i class="bi bi-person-circle"></i> {{ user_token.email }}
-                            <a href="{{ url('logout') }}" class="btn btn-secondary btn-sm">
-                                {{ header.logout_label | default("Sign out") }} <i
-                                    class="bi bi-box-arrow-right"></i>
-                            </a>
-                        </div>
-                    {% else %}
-                        <a href="{{ url('login') }}" class="btn btn-secondary">
-                            <i class="bi bi-box-arrow-in-right"></i>
-                            {{ header.login_label | default("Sign in") }}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url('posts-page') }}">
+                            {{ posts_nav_label | default("Posts") }}
                         </a>
-                    {% endif %}
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url('contacts-page') }}">
+                            {{ contacts_nav_label | default("Contacts") }}
+                        </a>
+                    </li>
+                </ul>
+                {% if user %}
+                    <div>
+                        <i class="bi bi-person-circle"></i> {{ user.email }}
+                        <a href="{{ url('logout') }}" class="btn btn-secondary btn-sm">
+                            {{ header_logout_label | default("Sign out") }} <i
+                                class="bi bi-box-arrow-right"></i>
+                        </a>
+                    </div>
+                {% else %}
+                    <a href="{{ url('login') }}" class="btn btn-secondary btn-sm">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        {{ header_login_label | default("Sign in") }}
+                    </a>
                 {% endif %}
             </div>
         </div>
@@ -136,7 +130,7 @@
 
 <footer class="mt-auto bg-light text-center text-md-start d-print-none">
     <div class="container py-3">
-        &copy; {{ footer.current_year | default("2025") }} {{ site_name }}
+        &copy; {{ footer_current_year | default("2025") }} {{ site_name }}
     </div>
 </footer>
 

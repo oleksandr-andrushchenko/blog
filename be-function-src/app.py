@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.status import (
     HTTP_201_CREATED,
+    HTTP_204_NO_CONTENT,
     HTTP_302_FOUND,
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
@@ -21,17 +22,15 @@ from http import HTTPStatus
 from contextlib import asynccontextmanager
 from utils import (
     # models
-    UserToken,
     User,
     ContactMessageDTO,
     PostDTO,
     Post,
     PublicPost,
-    PublicContactMessage,
+    Tag,
     TagQueryDTO,
     PublicTag,
     # config
-    get_feature,
     is_prod,
     # errors
     InvalidTokenError,
@@ -45,7 +44,6 @@ from utils import (
     logger,
     get_html_content,
     get_full_url,
-    get_user_token_by_plain_token,
     get_user_by_plain_token,
     configure_app_state,
     # services
@@ -62,16 +60,25 @@ from utils import (
     get_logout_redirect_url,
     get_tags,
     get_error_page_data,
+    create_dummy_fixtures,
+    approve_post,
 )
 
 
 # -------------------------
 # Dependencies
 # -------------------------
-async def get_user_token(request: Request) -> Optional[UserToken]:
+
+async def get_user(request: Request) -> User:
+    token = request.cookies.get("session_token")
+    if not token:
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+        )
+
     try:
-        return await get_user_token_by_plain_token(
-            plain_token=request.cookies.get("session_token"),
+        return await get_user_by_plain_token(
+            plain_token=token,
             app_state=request.app.state
         )
     except (InvalidTokenKidError, InvalidTokenError) as e:
@@ -81,7 +88,7 @@ async def get_user_token(request: Request) -> Optional[UserToken]:
         )
 
 
-async def get_user(request: Request) -> Optional[UserToken]:
+async def get_opt_user(request: Request) -> Optional[User]:
     try:
         return await get_user_by_plain_token(
             plain_token=request.cookies.get("session_token"),
@@ -94,8 +101,19 @@ async def get_user(request: Request) -> Optional[UserToken]:
         )
 
 
-UserToken = Annotated[Optional[UserToken], Depends(get_user_token)]
-User = Annotated[Optional[User], Depends(get_user)]
+async def get_post_by_id(post_id: str) -> Post:
+    try:
+        return await get_post(post_id)
+    except PostNotFound:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail="Post not found",
+        )
+
+
+UserDep = Annotated[User, Depends(get_user)]
+OptUserDep = Annotated[Optional[User], Depends(get_opt_user)]
+PostDep = Annotated[Post, Depends(get_post_by_id)]
 
 
 @asynccontextmanager
@@ -112,170 +130,165 @@ app = FastAPI(lifespan=lifespan)
 if not is_prod():
     app.mount("/static", StaticFiles(directory="static"), name="static")
 
+
 # TODO: add CORS middleware if needed (fastapi.middleware.cors.CORSMiddleware)
 
 # -------------------------
 # Routes
 # -------------------------
-index_page = get_feature("index")
-auth_feature = get_feature("auth")
-create_post_feature = get_feature("create_post")
-posts_feature = get_feature("posts")
-post_feature = get_feature("post")
-contacts_feature = get_feature("contacts")
 
-if index_page.get("active", True):
-    @app.get(index_page.get("path", "/"), name="index", response_class=HTMLResponse)
-    async def index(request: Request, user_token: UserToken = None):
-        data = await get_index_page_data({
-            "request": request,
-            "user_token": user_token
-        })
-        return get_html_content("index.html", data)
-
-if create_post_feature.get("active"):
-    @app.get(create_post_feature.get("path", "/create-post"), name="create-post-page", response_class=HTMLResponse)
-    async def create_post_page(request: Request, user_token: UserToken = None):
-        data = await get_create_post_page_data({
-            "request": request,
-            "user_token": user_token
-        })
-        return get_html_content("create-post.html", data)
+@app.get("/", name="index", response_class=HTMLResponse)
+async def index(request: Request, user: OptUserDep) -> str:
+    data = await get_index_page_data(
+        request=request,
+        user=user
+    )
+    return get_html_content("index.html", data)
 
 
-    @app.post(create_post_feature.get("path", "/post"), name="create-post", status_code=HTTP_201_CREATED,
-              response_model=PublicPost, response_class=JSONResponse)
-    async def _create_post(post_dto: PostDTO, user: User = None) -> Post:
-        if not user:
-            raise HTTPException(
-                status_code=HTTP_401_UNAUTHORIZED
-            )
-        try:
-            post = await create_post(post_dto, user)
-        except SlugDuplicationError as e:
-            raise HTTPException(
-                status_code=HTTP_409_CONFLICT,
-                detail=str(e)
-            )
-        return post
-
-if contacts_feature.get("active"):
-    @app.get(contacts_feature.get("path", "/contacts"), name="contacts-page", response_class=HTMLResponse)
-    async def contacts_page(request: Request, user_token: UserToken = None):
-        data = await get_contacts_page_data({
-            "request": request,
-            "user_token": user_token
-        })
-        return get_html_content("contacts.html", data)
+@app.get("/create-post", name="create-post-page", response_class=HTMLResponse)
+async def create_post_page(request: Request, user: OptUserDep) -> str:
+    data = await get_create_post_page_data(
+        request=request,
+        user=user
+    )
+    return get_html_content("create-post.html", data)
 
 
-    @app.post("/contacts/message", name="create-contact-message", status_code=HTTP_201_CREATED,
-              response_model=PublicContactMessage, response_class=JSONResponse)
-    async def _create_contact_message(message_dto: ContactMessageDTO, user: User = None):
-        return await create_contact_message(message_dto, user)
+@app.post("/posts", name="create-post", status_code=HTTP_204_NO_CONTENT)
+async def _create_post(post_dto: PostDTO, user: UserDep) -> None:
+    try:
+        await create_post(post_dto, user)
+    except SlugDuplicationError as e:
+        raise HTTPException(
+            status_code=HTTP_409_CONFLICT,
+            detail=str(e)
+        )
 
-if auth_feature.get("active"):
-    @app.get("/auth/login", name="login", response_class=RedirectResponse)
-    async def login(request: Request):
-        # todo: make sure referer belongs to the website
-        referer = request.headers.get('referer')
-        index_url = get_full_url(request, 'index')
-        callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={referer if referer else index_url}"
-        logger.info(f"login: callback_url: {callback_url}")
 
-        redirect_url = await get_login_redirect_url(
+@app.get("/contacts", name="contacts-page", response_class=HTMLResponse)
+async def contacts_page(request: Request, user: OptUserDep) -> str:
+    data = await get_contacts_page_data(
+        request=request,
+        user=user
+    )
+    return get_html_content("contacts.html", data)
+
+
+@app.post("/contacts/message", name="create-contact-message", status_code=HTTP_204_NO_CONTENT)
+async def _create_contact_message(message_dto: ContactMessageDTO, user: OptUserDep) -> None:
+    await create_contact_message(message_dto, user)
+
+
+@app.get("/auth/login", name="login", response_class=RedirectResponse)
+async def login(request: Request) -> str:
+    # todo: make sure referer belongs to the website
+    referer = request.headers.get('referer')
+    index_url = get_full_url(request, 'index')
+    callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={referer if referer else index_url}"
+    logger.info(f"login: callback_url: {callback_url}")
+
+    redirect_url = await get_login_redirect_url(
+        callback_url=callback_url
+    )
+    logger.info(f"login: redirect_url: {redirect_url}")
+
+    return redirect_url
+
+
+@app.get("/auth/callback", name="login-callback", response_class=RedirectResponse)
+async def login_callback(request: Request) -> RedirectResponse:
+    try:
+        redirect_url = request.query_params.get('redirect_url')
+        logger.info(f"login_callback: redirect_url: {redirect_url}")
+
+        callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={redirect_url}"
+        logger.info(f"login_callback: callback_url: {callback_url}")
+
+        user_token = await get_user_token_by_code(
+            code=request.query_params.get("code"),
             callback_url=callback_url
         )
-        logger.info(f"login: redirect_url: {redirect_url}")
-
-        return redirect_url
-
-
-    @app.get("/auth/callback", name="login-callback")
-    async def login_callback(request: Request):
-        try:
-            redirect_url = request.query_params.get('redirect_url')
-            logger.info(f"login_callback: redirect_url: {redirect_url}")
-
-            callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={redirect_url}"
-            logger.info(f"login_callback: callback_url: {callback_url}")
-
-            user_token = await get_user_token_by_code(
-                code=request.query_params.get("code"),
-                callback_url=callback_url
-            )
-            response = RedirectResponse(
-                url=redirect_url,
-                status_code=HTTP_302_FOUND
-            )
-            response.set_cookie(
-                key="session_token",
-                value=user_token.plain_token,
-                httponly=True,
-                secure=True,
-                samesite="lax",
-                max_age=user_token.max_age
-            )
-            return response
-        except (InvalidCodeError, CodeExchangeFailedError, InvalidTokenError) as e:
-            raise HTTPException(
-                status_code=HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
-
-
-    @app.get("/auth/logout", name="logout")
-    async def logout(request: Request):
-        # todo: make sure referer belongs to the website
-        referer = request.headers.get("referer")
-        callback_url = referer if referer else get_full_url(request, 'index')
-        logger.info(f"logout: callback_url: {callback_url}")
-
-        redirect_url = await get_logout_redirect_url(
-            callback_url=callback_url
-        )
-        logger.info(f"logout: redirect_url: {redirect_url}")
-
         response = RedirectResponse(
-            url=redirect_url
+            url=redirect_url,
+            status_code=HTTP_302_FOUND
         )
-        response.delete_cookie("session_token")
+        response.set_cookie(
+            key="session_token",
+            value=user_token.plain_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=user_token.max_age
+        )
         return response
+    except (InvalidCodeError, CodeExchangeFailedError, InvalidTokenError) as e:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
 
-@app.get(posts_feature.get("path", "/posts"), name="posts-page", response_class=HTMLResponse)
-async def posts_page(request: Request, user_token: UserToken = None):
-    data = await get_posts_page_data({
-        "request": request,
-        "user_token": user_token
-    })
+@app.get("/auth/logout", name="logout", response_class=RedirectResponse)
+async def logout(request: Request) -> RedirectResponse:
+    # todo: make sure referer belongs to the website
+    referer = request.headers.get("referer")
+    callback_url = referer if referer else get_full_url(request, 'index')
+    logger.info(f"logout: callback_url: {callback_url}")
+
+    redirect_url = await get_logout_redirect_url(
+        callback_url=callback_url
+    )
+    logger.info(f"logout: redirect_url: {redirect_url}")
+
+    response = RedirectResponse(
+        url=redirect_url
+    )
+    response.delete_cookie("session_token")
+    return response
+
+
+@app.get("/posts", name="posts-page", response_class=HTMLResponse)
+async def posts_page(request: Request, user: OptUserDep) -> str:
+    data = await get_posts_page_data(
+        request=request,
+        user=user
+    )
     return get_html_content("posts.html", data)
 
 
-@app.get(post_feature.get("path", "/posts/{post_id}"), name="post-page", response_class=HTMLResponse)
-async def post_page(post_id: str, request: Request, user_token: UserToken = None):
-    try:
-        post = await get_post(post_id)
-        data = await get_post_page_data(post, {
-            "request": request,
-            "user_token": user_token
-        })
-        return get_html_content("post.html", data)
-    except PostNotFound:
-        raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
-            detail="Post not found",
-        )
+@app.get("/posts/{post_id}", name="post-page", response_class=HTMLResponse)
+async def post_page(post: PostDep, request: Request, user: OptUserDep) -> str:
+    data = await get_post_page_data(
+        post=post,
+        request=request,
+        user=user
+    )
+    return get_html_content("post.html", data)
+
+
+@app.post("/posts/{post_id}/approve", name="approve-post", status_code=HTTP_204_NO_CONTENT)
+async def _approve_post(post: PostDep, user: UserDep) -> None:
+    await approve_post(
+        post=post,
+        user=user
+    )
 
 
 @app.get("/tags", name="get-tags", response_model=List[PublicTag], response_class=JSONResponse)
-async def _get_tags(query_dto: TagQueryDTO = Depends()):
+async def _get_tags(query_dto: TagQueryDTO = Depends()) -> List[Tag]:
     return await get_tags(query_dto)
+
+
+@app.post("/dummy-fixtures", name="create-dummy-fixtures")
+async def _create_dummy_fixtures() -> None:
+    return await create_dummy_fixtures()
 
 
 # -------------------------
 # Exception handlers
 # -------------------------
+
 async def get_error_response(request: Request, status_code: int, details: Union[Dict, str]):
     status_enum = HTTPStatus(status_code)
     public_data = {
@@ -284,21 +297,30 @@ async def get_error_response(request: Request, status_code: int, details: Union[
         "message": status_enum.description,
         "details": details,
     }
-    data = await get_error_page_data({})
+
+    data = await get_error_page_data()
     accept = request.headers.get("accept", "")
 
     if "application/json" in accept:
         return JSONResponse(
             status_code=status_code,
-            content=public_data,
+            content=public_data
         )
 
+    user = None
+    if status_code != HTTP_401_UNAUTHORIZED:
+        try:
+            user = await get_user(request)
+        except HTTPException:
+            pass
+
     data.update(public_data)
-    data.update({"request": request})
+    data.update({"request": request, "user": user})
     content = get_html_content("error.html", data)
+
     return HTMLResponse(
         status_code=status_code,
-        content=content,
+        content=content
     )
 
 

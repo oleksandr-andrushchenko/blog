@@ -79,7 +79,7 @@
 
             if (response.ok) {
               statusDiv.className = "alert alert-success d-flex align-items-center"
-              statusDiv.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i>{{ create_post.post_published | default("Post published!") }}`
+              statusDiv.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i>{{ create_post.post_published | default("Post created!") }}`
               form.reset()
               form.classList.remove("was-validated")
             } else if (response.status === 422) {

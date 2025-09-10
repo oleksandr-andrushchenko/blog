@@ -20,9 +20,10 @@ from jinja2 import Environment, FileSystemLoader, pass_context
 import dotenv
 import json
 from datetime import datetime, timezone
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, conlist, computed_field
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
+from itertools import combinations
 
 
 # -------------------------
@@ -72,7 +73,7 @@ class PostDTO(BaseModel):
     title: str
     slug: Optional[str] = None
     content: str
-    tags: List[str]
+    tags: conlist(str, min_length=1, max_length=3)
 
     @field_validator("slug", mode="before")
     @classmethod
@@ -107,6 +108,12 @@ class PublicTag(BaseModel):
     name: str
 
 
+class PostStatus(str, Enum):
+    UNPUBLISHED = "unpublished"
+    PUBLISHED = "published"
+    REJECTED = "rejected"
+
+
 class Post(BaseModel):
     id: str
     title: str
@@ -114,6 +121,7 @@ class Post(BaseModel):
     user_id: str
     content: str
     tags: List[Tag]
+    status: PostStatus = PostStatus.UNPUBLISHED
     created_at: str
     updated_at: Optional[str] = None
 
@@ -121,6 +129,10 @@ class Post(BaseModel):
 class PublicPost(BaseModel):
     id: str
     slug: str
+
+    @computed_field
+    def url(self) -> str:
+        return get_url()
 
 
 class PublicContactMessage(BaseModel):
@@ -133,6 +145,7 @@ class Permission(str, Enum):
     ALL = "*"
 
     CREATE_POST = "create_post"
+    APPROVE_POST = "approve_post"
     CREATE_CONTACT_MESSAGE = "create_contact_message"
 
 
@@ -213,18 +226,6 @@ def get_live_config(load_env=False):
                 Permission.ALL
             ],
         },
-        **{
-            "auth": {},
-            "head": {},
-            "header": {},
-            "index": {},
-            "create_post": {},
-            "post": {},
-            "posts": {},
-            "contacts": {},
-            "footer": {},
-            "error": {}
-        },
         **json.load(open("./data.json"))
     }
 
@@ -256,10 +257,6 @@ def get_dynamodb_endpoint():
 
 def get_dynamodb_table_name():
     return get_config().get("dynamodb_table")
-
-
-def get_feature(feature):
-    return get_config().get(feature)
 
 
 def get_contact_topic_arn():
@@ -689,6 +686,35 @@ def get_dummy_user_token() -> UserToken:
     )
 
 
+async def create_dummy_fixtures() -> None:
+    if is_prod():
+        return
+    user_token = get_dummy_user_token()
+    user = await upsert_user_by_user_token(user_token)
+    posts = [
+        PostDTO(
+            title="Post title #111111111111111111111111",
+            slug="post-title-111111111111111111111111",
+            content="Post content #111111111111111111111111" * 100,
+            tags=["tag1", "tag2", "tag3"]
+        ),
+        PostDTO(
+            title="Post title #22222222222222222222222",
+            slug="post-title-22222222222222222222222",
+            content="Post content #2222222222222222222222" * 100,
+            tags=["tag2", "tag3"]
+        ),
+        PostDTO(
+            title="Post title #3333333333333333333333333",
+            slug="post-title-3333333333333333333333333",
+            content="Post content #333333333333333333333" * 100,
+            tags=["tag1", "tag3"]
+        ),
+    ]
+    for post in posts:
+        await create_post(post, user, status=PostStatus.PUBLISHED)
+
+
 async def get_user_token_by_plain_token(plain_token: Optional[str], app_state: State) -> Optional[UserToken]:
     if not plain_token:
         return None
@@ -736,17 +762,17 @@ async def get_user_by_plain_token(plain_token: Optional[str], app_state: State) 
 # Services
 # -------------------------
 
-async def get_create_post_page_data(custom_data: Dict[str, Any]) -> Dict[str, Any]:
+async def get_create_post_page_data(**kwargs: Any) -> Dict[str, Any]:
     data = {
         **get_config(),
-        **custom_data
+        **kwargs
     }
 
     request = data.get("request")
     data.update({
         "breadcrumbs": {
-            data.get("index").get("breadcrumb", "Home"): get_url(request=request, name="index"),
-            data.get("create_post").get("breadcrumb", "Create post"): None,
+            data.get("index_breadcrumb", "Home"): get_url(request=request, name="index"),
+            data.get("create_post_breadcrumb", "Create post"): None,
         }
     })
 
@@ -756,7 +782,7 @@ async def get_create_post_page_data(custom_data: Dict[str, Any]) -> Dict[str, An
 # -------------------------
 # Create Post with tags metadata and posts_count increment
 # -------------------------
-async def create_post(post_dto: PostDTO, user: User) -> Post:
+async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISHED) -> Post:
     verify_authorization(user, Permission.CREATE_POST)
 
     async def fn(table):
@@ -773,9 +799,10 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
             "user_id": user.id,
             "content": post_dto.content,
             "tags": list(dict.fromkeys(post_dto.tags)),
+            "status": status,
             "created_at": now,
-            "updated_at": now,
             "gsi_post_pk": "POST",
+            "gsi_status_created_at": f"STATUS#{status.value}#CREATED_AT#{now}",
         }
 
         # Slug item for uniqueness
@@ -828,29 +855,6 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
                     }
                 }
             })
-
-        # ----------------------------
-        # Combo-key items (1–3 tags) with created_at in SK
-        # ----------------------------
-        from itertools import combinations
-        tags = post_item["tags"]
-        max_tags = min(len(tags), 3)
-        for r in range(1, max_tags + 1):
-            for combo in combinations(sorted(tags), r):
-                combo_pk = "TAG_COMBO#" + "#".join(combo)
-                combo_sk = f"CREATED_AT#{now}#POST#{post_id}"
-                transact_items.append({
-                    "Put": {
-                        "TableName": table.name,
-                        "Item": {
-                            "pk": combo_pk,
-                            "sk": combo_sk,
-                            "post_id": post_id,
-                            "title": post_dto.title,
-                            "slug": post_dto.slug,
-                        }
-                    }
-                })
 
         # Execute transaction
         try:
@@ -940,13 +944,20 @@ async def get_user(user_id: str) -> User:
 
 
 async def get_latest_posts(limit: int = 10, last_sk: Optional[str] = None) -> List[Post]:
+    """
+    Fetch latest posts.
+    Only returns published posts.
+    """
+
     async def fn(table):
-        key_cond = Key("gsi_post_pk").eq("POST")
+        status = PostStatus.PUBLISHED
+        key_cond = Key("gsi_post_pk").eq("POST") & Key("gsi_status_created_at").begins_with(
+            f"STATUS#{status.value}#")
         if last_sk:
-            key_cond &= Key("created_at").lt(last_sk)
+            key_cond &= Key("gsi_status_created_at").lt(last_sk)
 
         resp = await table.query(
-            IndexName="GSI_POST_CREATED_AT",
+            IndexName="GSI_POST_STATUS_CREATED_AT",
             KeyConditionExpression=key_cond,
             ScanIndexForward=False,
             Limit=limit
@@ -961,6 +972,7 @@ async def get_latest_posts(limit: int = 10, last_sk: Optional[str] = None) -> Li
                 user_id=item.get("user_id"),
                 content=item.get("content"),
                 tags=[Tag(name=t) for t in item.get("tags", [])],
+                status=item.get("status", status),
                 created_at=item.get("created_at"),
                 updated_at=item.get("updated_at"),
             )
@@ -980,10 +992,8 @@ async def get_latest_posts_by_tags(
 ) -> List[Post]:
     """
     Fetch latest posts that match all given tags (AND).
-    Supports 1-3 tags only.
+    Only returns published posts.
     """
-    if not tags or len(tags) > 3:
-        raise ValueError("Supports 1-3 tags only")
 
     async def fn(table):
         combo_pk = "TAG_COMBO#" + "#".join(sorted(tags))
@@ -991,6 +1001,7 @@ async def get_latest_posts_by_tags(
         if last_sk:
             key_cond &= Key("sk").lt(last_sk)
 
+        # Query combo-key table to get post IDs
         resp = await table.query(
             KeyConditionExpression=key_cond,
             ScanIndexForward=False,
@@ -1003,10 +1014,14 @@ async def get_latest_posts_by_tags(
         post_ids = [item["post_id"] for item in combo_items]
         keys = [{"pk": f"POST#{pid}", "sk": "METADATA"} for pid in post_ids]
 
+        # Batch get post metadata
         resp = await table.batch_get_item(RequestItems={table.name: {"Keys": keys}})
         post_items = resp["Responses"].get(table.name, [])
 
-        # Maintain order according to combo_items
+        # Filter out unpublished posts
+        post_items = [item for item in post_items if item.get("status") == PostStatus.PUBLISHED]
+
+        # Maintain original order
         post_items_map = {item["post_id"]: item for item in post_items}
         ordered_posts = [post_items_map[pid] for pid in post_ids if pid in post_items_map]
 
@@ -1023,6 +1038,62 @@ async def get_latest_posts_by_tags(
             )
             for item in ordered_posts
         ]
+
+    return await with_dynamodb_table(fn)
+
+
+async def approve_post(post: Post, user: User) -> None:
+    verify_authorization(user, Permission.APPROVE_POST)
+
+    async def fn(table):
+        now = utc_now_iso()
+        status = PostStatus.PUBLISHED
+
+        # 1. Update main post
+        await table.update_item(
+            Key={
+                "pk": f"POST#{post.id}",
+                "sk": "METADATA"
+            },
+            UpdateExpression="SET #status = :published, "
+                             "updated_at = if_not_exists(updated_at, :now), "
+                             "gsi_status_created_at = :gsi_val",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":published": status,
+                ":now": now,
+                ":gsi_val": f"STATUS#{status.value}#CREATED_AT#{now}"
+            }
+        )
+
+        # 2. Generate tag combos and create combo items
+        transact_items = []
+        tags = post.tags or []
+        title = post.title
+        slug = post.slug
+        post_id = post.id
+
+        for r in range(1, len(tags) + 1):
+            for combo in combinations(sorted([t.name for t in tags]), r):
+                combo_pk = "TAG_COMBO#" + "#".join(combo)
+                combo_sk = f"CREATED_AT#{now}#POST#{post_id}"
+                transact_items.append({
+                    "Put": {
+                        "TableName": table.name,
+                        "Item": {
+                            "pk": combo_pk,
+                            "sk": combo_sk,
+                            "post_id": post_id,
+                            "title": title,
+                            "slug": slug,
+                        }
+                    }
+                })
+
+        if transact_items:
+            await dynamodb_transact_write_or_raise(table, transact_items)
+
+        post.status = status
 
     return await with_dynamodb_table(fn)
 
@@ -1080,7 +1151,7 @@ async def get_tags(query_dto: TagQueryDTO) -> List[Tag]:
     )
 
 
-async def create_contact_message(message_dto: ContactMessageDTO, user: User = None) -> None:
+async def create_contact_message(message_dto: ContactMessageDTO, user: User = None) -> ContactMessage:
     if user:
         verify_authorization(user, Permission.CREATE_CONTACT_MESSAGE)
 
@@ -1132,37 +1203,37 @@ async def create_contact_message(message_dto: ContactMessageDTO, user: User = No
     return await with_dynamodb_table(fn)
 
 
-async def get_index_page_data(custom_data: Dict[str, Any]) -> Dict[str, Any]:
+async def get_index_page_data(**kwargs: Any) -> Dict[str, Any]:
     return {
         **get_config(),
-        **custom_data,
+        **kwargs,
         "popular_tags": await get_popular_tags(10),
         "latest_posts": await get_latest_posts(10)
     }
 
 
-async def get_posts_page_data(custom_data: Dict[str, Any]) -> Dict[str, Any]:
+async def get_posts_page_data(**kwargs: Any) -> Dict[str, Any]:
     data = {
         **get_config(),
-        **custom_data,
+        **kwargs,
         "post_items": await get_latest_posts(10)
     }
 
     request = data.get("request")
     data.update({
         "breadcrumbs": {
-            data.get("index").get("breadcrumb", "Home"): get_url(request=request, name="index"),
-            data.get("posts").get("breadcrumb", "Posts"): None,
+            data.get("index_breadcrumb", "Home"): get_url(request=request, name="index"),
+            data.get("posts_breadcrumb", "Posts"): None,
         }
     })
 
     return data
 
 
-async def get_post_page_data(post: Post, custom_data: Dict[str, Any]) -> Dict[str, Any]:
+async def get_post_page_data(post: Post, **kwargs: Any) -> Dict[str, Any]:
     data = {
         **get_config(),
-        **custom_data,
+        **kwargs,
         "post_item": post,
         "post_author": await find_user(post.user_id)
     }
@@ -1170,8 +1241,8 @@ async def get_post_page_data(post: Post, custom_data: Dict[str, Any]) -> Dict[st
     request = data.get("request")
     data.update({
         "breadcrumbs": {
-            data.get("index").get("breadcrumb", "Home"): get_url(request=request, name="index"),
-            data.get("posts").get("breadcrumb", "Posts"): get_url(request=request, name="posts-page"),
+            data.get("index_breadcrumb", "Home"): get_url(request=request, name="index"),
+            data.get("posts_breadcrumb", "Posts"): get_url(request=request, name="posts-page"),
             post.title: None,
         }
     })
@@ -1179,30 +1250,27 @@ async def get_post_page_data(post: Post, custom_data: Dict[str, Any]) -> Dict[st
     return data
 
 
-async def get_contacts_page_data(custom_data: Dict[str, Any]) -> Dict[str, Any]:
+async def get_contacts_page_data(**kwargs: Any) -> Dict[str, Any]:
     data = {
         **get_config(),
-        **custom_data
+        **kwargs
     }
 
     request = data.get("request")
     data.update({
         "breadcrumbs": {
-            data.get("index").get("breadcrumb", "Home"): get_url(request=request, name="index"),
-            data.get("contacts").get("breadcrumb", "Contacts"): None,
+            data.get("index_breadcrumb", "Home"): get_url(request=request, name="index"),
+            data.get("contacts_breadcrumb", "Contacts"): None,
         }
     })
 
     return data
 
 
-async def get_error_page_data(custom_data: Dict[str, Any]) -> Dict[str, Any]:
+async def get_error_page_data(**kwargs: Any) -> Dict[str, Any]:
     return {
         **get_config(),
-        "auth": {
-            "active": False
-        },
-        **custom_data
+        **kwargs
     }
 
 

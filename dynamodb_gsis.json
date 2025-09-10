@@ -24,14 +24,14 @@
     }
   },
   {
-    "IndexName": "GSI_POST_CREATED_AT",
+    "IndexName": "GSI_POST_STATUS_CREATED_AT",
     "KeySchema": [
       {
         "AttributeName": "gsi_post_pk",
         "KeyType": "HASH"
       },
       {
-        "AttributeName": "created_at",
+        "AttributeName": "gsi_status_created_at",
         "KeyType": "RANGE"
       }
     ],

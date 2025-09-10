@@ -1,64 +1,64 @@
 {% extends "layout.html" %}
 
-{% block title %}{{ contacts.title | default("Contacts | " ~ site_name) }}{% endblock %}
+{% block title %}{{ contacts_title | default("Contacts | " ~ site_name) }}{% endblock %}
 {% block canonical_url %}{{ full_url("contacts-page") }}{% endblock %}
 
 {% block content %}
-    <h1>{{ contacts.header | default("Contacts") }}</h1>
-    <p class="small text-secondary">{{ contacts.sub_header | default("Contact us") }}</p>
+    <h1>{{ contacts_header | default("Contacts") }}</h1>
+    <p class="small text-secondary">{{ contacts_sub_header | default("Contact us") }}</p>
     <div class="row">
         <div class="col-12 col-md-6">
             <form class="row g-3" id="contact-form" novalidate>
                 <div class="col-12">
                     <input type="text" class="form-control" id="name" name="name"
-                           placeholder="{{ contacts.name_label | default("Your Name") }}"
+                           placeholder="{{ contacts_name_label | default("Your Name") }}"
                            value="{{ user_token.name if user_token else '' }}"
                            required>
-                    <div class="invalid-feedback">{{ contacts.name_error_label | default("Please enter your name.") }}</div>
+                    <div class="invalid-feedback">{{ contacts_name_error_label | default("Please enter your name.") }}</div>
                 </div>
                 <div class="col-12">
                     <input type="email" class="form-control" id="email" name="email"
-                           placeholder="{{ contacts.email_label | default("Your Email") }}"
+                           placeholder="{{ contact_email_label | default("Your Email") }}"
                            value="{{ user_token.email if user_token else '' }}" required>
-                    <div class="invalid-feedback">{{ contacts.email_error_label | default("Please enter a valid email address.") }}</div>
+                    <div class="invalid-feedback">{{ contact_email_error_label | default("Please enter a valid email address.") }}</div>
                 </div>
                 <div class="col-12">
                     <textarea class="form-control" id="message" name="message"
-                              placeholder="{{ contacts.message_label | default("Your Message") }}"
+                              placeholder="{{ contacts_message_label | default("Your Message") }}"
                               rows="10"
                               required></textarea>
-                    <div class="invalid-feedback">{{ contacts.message_error_label | default("Please enter a message.") }}</div>
+                    <div class="invalid-feedback">{{ contacts_message_error_label | default("Please enter a message.") }}</div>
                 </div>
                 <div class="col-12">
                     <div id="form-status" class="alert d-none" role="alert"></div>
                     <button type="submit" class="btn btn-outline-secondary">
-                        {{ contacts.send_message_label | default("Send Message") }} <i class="bi bi-chevron-right"></i>
+                        {{ contacts_send_message_label | default("Send Message") }} <i class="bi bi-chevron-right"></i>
                     </button>
                 </div>
             </form>
         </div>
 
         <div class="col-12 col-md-6 mt-5 mt-md-0 text-center text-md-start">
-            <h3 class="mb-4">{{ contacts.contact_details_label | default("Contact details") }}</h3>
+            <h3 class="mb-4">{{ contacts_contact_details_label | default("Contact details") }}</h3>
             <div class="d-flex flex-column gap-3">
-                {% if contacts.phone and contacts.phone.active %}
+                {% if contact_phone_id %}
                     <div>
-                        <i class="bi bi-telephone-outbound"></i> {{ contacts.phone.label | default("Phone") }}
-                        <a class="d-block" href="tel:{{ contacts.phone.id }}">{{ contacts.phone.id }}</a>
+                        <i class="bi bi-telephone-outbound"></i> {{ contact_phone_label | default("Phone") }}
+                        <a class="d-block" href="tel:{{ contact_phone_id }}">{{ contact_phone_id }}</a>
                     </div>
                 {% endif %}
 
-                {% if contacts.email and contacts.email.active %}
+                {% if contact_email_id %}
                     <div>
-                        <i class="bi bi-envelope-at"></i> {{ contacts.email.label | default("Email") }}
-                        <a class="d-block" href="mailto:{{ contacts.email.id }}">{{ contacts.email.id }}</a>
+                        <i class="bi bi-envelope-at"></i> {{ contact_email_label | default("Email") }}
+                        <a class="d-block" href="mailto:{{ contact_email_id }}">{{ contact_email_id }}</a>
                     </div>
                 {% endif %}
 
-                {% if contacts.address and contacts.address.active %}
+                {% if contact_address_id %}
                     <div>
-                        <i class="bi bi-geo"></i> {{ contacts.address.label | default("Address") }}
-                        <div>{{ contacts.address.id }}</div>
+                        <i class="bi bi-geo"></i> {{ contact_address_label | default("Address") }}
+                        <div>{{ contact_address_id }}</div>
                     </div>
                 {% endif %}
             </div>
@@ -111,7 +111,7 @@
               })
 
               statusDiv.className = "alert alert-success d-flex align-items-center"
-              statusDiv.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i>{{ contacts.message_sent_label | default("Message sent!") }}`
+              statusDiv.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i>{{ contacts_message_sent_label | default("Message sent!") }}`
               form.reset()
               form.classList.remove("was-validated")
             } else if (response.status === 422) {
@@ -129,14 +129,14 @@
                 })
               }
               statusDiv.className = "alert alert-danger d-flex align-items-center"
-              statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>${data.message || "{{ contacts.message_failed_label | default("Something went wrong.") }}"}`
+              statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>${data.message || "{{ contacts_message_failed_label | default("Something went wrong.") }}"}`
             } else {
               statusDiv.className = "alert alert-danger d-flex align-items-center"
-              statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>{{ contacts.message_failed_label | default("Something went wrong.") }}`
+              statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>{{ contacts_message_failed_label | default("Something went wrong.") }}`
             }
           } catch (err) {
             statusDiv.className = "alert alert-danger d-flex align-items-center"
-            statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>{{ contacts.message_unknown_label | default("Network error. Please try again.") }}`
+            statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>{{ contacts_message_unknown_label | default("Network error. Please try again.") }}`
           }
 
           statusDiv.classList.remove("d-none")

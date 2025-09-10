@@ -330,7 +330,7 @@ create-local-dynamodb:
 				AttributeName=gsi_provider_sub,AttributeType=S \
 				AttributeName=gsi_email,AttributeType=S \
 				AttributeName=gsi_post_pk,AttributeType=S \
-				AttributeName=created_at,AttributeType=S \
+				AttributeName=gsi_status_created_at,AttributeType=S \
 				AttributeName=gsi_tag_pk,AttributeType=S \
 				AttributeName=posts_count,AttributeType=N \
 				AttributeName=gsi_tag_name_pk,AttributeType=S \
@@ -374,3 +374,11 @@ drop-local-dynamodb: ## Drop DynamoDB table in local DynamoDB
 	else \
 		echo "⚠️ Table $(DYNAMODB_TABLE) does not exist, skipping deletion."; \
 	fi
+
+.PHONY: create-local-dynamodb-dummy-fixtures
+create-local-dynamodb-dummy-fixtures: ## Populate local DynamoDB with dummy data
+	@echo "📦 Populating local DynamoDB table $(DYNAMODB_TABLE) with dummy data..."
+	@curl -sf -XPOST "http://localhost:$(BE_FUNCTION_PORT)/dummy-fixtures"
+
+.PHONY: recreate-local-dynamodb
+recreate-local-dynamodb: drop-local-dynamodb create-local-dynamodb create-local-dynamodb-dummy-fixtures ## Recreate DynamoDB table in local DynamoDB & populate dummy data
