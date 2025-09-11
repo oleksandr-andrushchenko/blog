@@ -41,8 +41,9 @@
 - update posts
 - update users
 - optimize Projections for DynamoDB indexes
-- PostDTO: remove snug attribute
 - upsert_user_by_user_token: remove updated_at for new ones, map providers attribute to objects
+- add popular posts
+- add popular authors
 
 ## Links
 
