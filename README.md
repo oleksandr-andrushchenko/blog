@@ -42,7 +42,7 @@
 - update users
 - optimize Projections for DynamoDB indexes
 - PostDTO: remove snug attribute
-- upsert_user_by_user_token: add transaction, remove updated_at for new ones, INTERNAL -> METADATA, map providers attribute to objects
+- upsert_user_by_user_token: remove updated_at for new ones, INTERNAL -> METADATA, map providers attribute to objects
 
 ## Links
 

@@ -599,6 +599,8 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
         # 2: Merge or add provider info
         providers[token.iss] = {"sub": token.sub, "username": token.username, "name": token.name}
 
+        transact_items = []
+
         # 3: Ensure internal record exists
         internal_item = {
             "pk": f"USER#{user_id}",
@@ -613,7 +615,12 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
             "gsi_user_pk": "USER",
             "gsi_status_created_at": f"STATUS#{status.value}#CREATED_AT#{now}",
         }
-        await table.put_item(Item=internal_item)
+        transact_items.append({
+            "Put": {
+                "TableName": table.name,
+                "Item": internal_item,
+            }
+        })
 
         # 4: Ensure provider record exists
         provider_item = {
@@ -625,7 +632,14 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
             "created_at": now,
             "updated_at": now
         }
-        await table.put_item(Item=provider_item)
+        transact_items.append({
+            "Put": {
+                "TableName": table.name,
+                "Item": provider_item,
+            }
+        })
+
+        await dynamodb_transact_write_or_raise(table, transact_items)
 
         # 5: Return User model
         return User(
