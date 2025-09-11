@@ -183,11 +183,11 @@ class SlugDuplicationError(BaseError):
     pass
 
 
-class PostNotFound(BaseError):
+class PostNotFoundError(BaseError):
     pass
 
 
-class UserNotFound(BaseError):
+class UserNotFoundError(BaseError):
     pass
 
 
@@ -595,7 +595,7 @@ async def get_user_by_user_token(token: UserToken) -> Optional[User]:
 
 async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserStatus.ACTIVE) -> User:
     async def fn(table):
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
 
         # 1: Lookup existing user
         existing_user = await get_user_by_user_token(token)
@@ -910,7 +910,7 @@ async def find_post(post_id: str) -> Optional[Post]:
 async def get_post(post_id: str) -> Post:
     post = await find_post(post_id)
     if post is None:
-        raise PostNotFound(f"Post '{post_id}' not found")
+        raise PostNotFoundError(f"Post '{post_id}' not found")
     return post
 
 
@@ -942,7 +942,7 @@ async def find_user(user_id: str) -> Optional[User]:
 async def get_user(user_id: str) -> User:
     user = await find_user(user_id)
     if user is None:
-        raise UserNotFound(f"User '{user_id}' not found")
+        raise UserNotFoundError(f"User '{user_id}' not found")
     return user
 
 

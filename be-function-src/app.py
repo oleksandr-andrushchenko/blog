@@ -37,9 +37,9 @@ from utils import (
     CodeExchangeFailedError,
     InvalidTokenKidError,
     SlugDuplicationError,
-    PostNotFound,
+    PostNotFoundError,
     AuthorizationFailedError,
-    UserNotFound,
+    UserNotFoundError,
     # helpers
     logger,
     get_html_content,
@@ -107,20 +107,20 @@ async def get_opt_cur_user(request: Request) -> Optional[User]:
 async def get_post_by_id(post_id: str) -> Post:
     try:
         return await get_post(post_id)
-    except PostNotFound:
+    except PostNotFoundError as e:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
-            detail="Post not found",
+            detail=str(e),
         )
 
 
 async def get_user_by_id(user_id: str) -> User:
     try:
         return await get_user(user_id)
-    except UserNotFound:
+    except UserNotFoundError as e:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
-            detail="User not found",
+            detail=str(e),
         )
 
 
