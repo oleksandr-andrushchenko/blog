@@ -15,6 +15,7 @@
         {% endfor %}
     </div>
     <div>
-        {{ post_author_label | default('Author') }}: {{ post_author.name }}
+        {{ post_author_label | default('Author') }}:
+        <a href="{{ url("user-page", user_id=post_item.user_id) }}">{{ post_author.name }}</a>
     </div>
 {% endblock %}

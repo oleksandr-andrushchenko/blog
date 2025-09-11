@@ -42,6 +42,11 @@ class UserToken(BaseModel):
     plain_token: Optional[str] = None  # plain token
 
 
+class UserStatus(str, Enum):
+    ACTIVE = "active"
+    BANNED = "banned"
+
+
 class User(BaseModel):
     id: str
     email: Optional[str] = None
@@ -49,6 +54,7 @@ class User(BaseModel):
     username: Optional[str] = None
     providers: Dict[str, Dict[str, Optional[str]]] = Field(default_factory=dict)  # noqa
     permissions: List[str] = Field(default_factory=lambda: [Permission.REGULAR])  # noqa
+    status: UserStatus = UserStatus.ACTIVE
     created_at: str
     updated_at: Optional[str] = None
 
@@ -587,7 +593,7 @@ async def get_user_by_user_token(token: UserToken) -> Optional[User]:
     return await with_dynamodb_table(fn)
 
 
-async def upsert_user_by_user_token(token: UserToken) -> User:
+async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserStatus.ACTIVE) -> User:
     async def fn(table):
         now = datetime.now(timezone.utc).isoformat()
 
@@ -613,7 +619,9 @@ async def upsert_user_by_user_token(token: UserToken) -> User:
             "username": token.username,
             "providers": providers,
             "created_at": now,
-            "updated_at": now
+            "updated_at": now,
+            "gsi_user_pk": "USER",
+            "gsi_status_created_at": f"STATUS#{status.value}#CREATED_AT#{now}",
         }
         await table.put_item(Item=internal_item)
 
@@ -1329,3 +1337,77 @@ async def get_logout_redirect_url(callback_url: str) -> str:
         )
 
     return callback_url
+
+
+async def get_latest_users(limit: int = 10, last_sk: Optional[str] = None) -> List[User]:
+    """
+    Fetch latest users.
+    Only returns active users.
+    """
+
+    async def fn(table):
+        status = UserStatus.ACTIVE
+        key_cond = Key("gsi_user_pk").eq("USER") & Key("gsi_status_created_at").begins_with(
+            f"STATUS#{status.value}#")
+        if last_sk:
+            key_cond &= Key("gsi_status_created_at").lt(last_sk)
+
+        resp = await table.query(
+            IndexName="GSI_USER_STATUS_CREATED_AT",
+            KeyConditionExpression=key_cond,
+            ScanIndexForward=False,
+            Limit=limit
+        )
+        items = resp.get("Items", [])
+        logger.debug(f"Latest users: {json.dumps(items,indent=4)}")
+        return [
+            User(
+                id=item["id"],
+                email=item.get("gsi_email"),
+                name=item.get("name"),
+                username=item.get("username"),
+                providers=item.get("providers", {}),
+                created_at=item.get("created_at"),
+                updated_at=item.get("updated_at")
+            )
+            for item in items
+        ]
+
+    return await with_dynamodb_table(fn)
+
+
+async def get_users_page_data(**kwargs: Any) -> Dict[str, Any]:
+    data = {
+        **get_config(),
+        **kwargs,
+        "users": await get_latest_users(10)
+    }
+
+    request = data.get("request")
+    data.update({
+        "breadcrumbs": {
+            data.get("index_breadcrumb", "Home"): get_url(request=request, name="index"),
+            data.get("users_breadcrumb", "Users"): None,
+        }
+    })
+
+    return data
+
+
+async def get_user_page_data(user: User, **kwargs: Any) -> Dict[str, Any]:
+    data = {
+        **get_config(),
+        **kwargs,
+        "user": user,
+    }
+
+    request = data.get("request")
+    data.update({
+        "breadcrumbs": {
+            data.get("index_breadcrumb", "Home"): get_url(request=request, name="index"),
+            data.get("users_breadcrumb", "Users"): get_url(request=request, name="users-page"),
+            user.name: None,
+        }
+    })
+
+    return data

@@ -85,6 +85,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link" href="{{ url('users-page') }}">
+                            {{ users_nav_label | default("Users") }}
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="{{ url('contacts-page') }}">
                             {{ contacts_nav_label | default("Contacts") }}
                         </a>

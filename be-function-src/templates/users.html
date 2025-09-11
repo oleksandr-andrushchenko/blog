@@ -1,0 +1,20 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ users_title | default("Users | " ~ site_name) }}{% endblock %}
+{% block canonical_url %}{{ full_url("users-page") }}{% endblock %}
+
+{% block content %}
+    <h1>{{ users_header | default("Users") }}</h1>
+    <p class="small text-secondary">{{ users_sub_header | default("Recently registered users") }}</p>
+    {% if users %}
+        {% for user in users %}
+            <div>
+                <a href="{{ url("user-page", user_id=user.id) }}">
+                    <h2>{{ user.name }}</h2>
+                </a>
+            </div>
+        {% endfor %}
+    {% else %}
+        {{ users_no_users | default("N/A") }}
+    {% endif %}
+{% endblock %}

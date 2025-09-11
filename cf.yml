@@ -138,6 +138,14 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
+        - IndexName: GSI_USER_STATUS_CREATED_AT
+          KeySchema:
+            - AttributeName: gsi_user_pk
+              KeyType: HASH
+            - AttributeName: gsi_status_created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
       Tags:
         - Key: Project
           Value: !Ref TagProject

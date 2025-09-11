@@ -39,6 +39,7 @@ from utils import (
     SlugDuplicationError,
     PostNotFound,
     AuthorizationFailedError,
+    UserNotFound,
     # helpers
     logger,
     get_html_content,
@@ -61,6 +62,9 @@ from utils import (
     get_error_page_data,
     create_dummy_fixtures,
     approve_post,
+    get_users_page_data,
+    get_user,
+    get_user_page_data,
 )
 
 
@@ -110,9 +114,20 @@ async def get_post_by_id(post_id: str) -> Post:
         )
 
 
+async def get_user_by_id(user_id: str) -> User:
+    try:
+        return await get_user(user_id)
+    except UserNotFound:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+
 CurUserDep = Annotated[User, Depends(get_cur_user)]
 OptCurUserDep = Annotated[Optional[User], Depends(get_opt_cur_user)]
 PostDep = Annotated[Post, Depends(get_post_by_id)]
+UserDep = Annotated[User, Depends(get_user_by_id)]
 
 
 @asynccontextmanager
@@ -282,6 +297,25 @@ async def _get_tags(query_dto: TagQueryDTO = Depends()) -> List[Tag]:
 @app.post("/dummy-fixtures", name="create-dummy-fixtures")
 async def _create_dummy_fixtures() -> None:
     return await create_dummy_fixtures()
+
+
+@app.get("/users", name="users-page", response_class=HTMLResponse)
+async def users_page(request: Request, cur_user: OptCurUserDep) -> str:
+    data = await get_users_page_data(
+        request=request,
+        cur_user=cur_user
+    )
+    return get_html_content("users.html", data)
+
+
+@app.get("/users/{user_id}", name="user-page", response_class=HTMLResponse)
+async def user_page(user: UserDep, request: Request, cur_user: OptCurUserDep) -> str:
+    data = await get_user_page_data(
+        user=user,
+        request=request,
+        cur_user=cur_user
+    )
+    return get_html_content("user.html", data)
 
 
 # -------------------------
