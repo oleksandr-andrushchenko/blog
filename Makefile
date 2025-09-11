@@ -219,7 +219,7 @@ get-contact-form-function-url: check-env check-aws ## Fetch Lambda function URL 
 .PHONY: deploy-code-files
 deploy-code-files: check-env check-aws generate-code-files ## Zip and upload Lambda code to S3
 	@echo "📤 Uploading Lambda code to s3://$(CODE_STACK_NAME)..."
-	@aws s3 sync ./$(CODE_BUILD_DIR) s3://$(CODE_STACK_NAME) \
+	aws s3 sync ./$(CODE_BUILD_DIR) s3://$(CODE_STACK_NAME) \
 		--delete \
 		--profile "$(AWS_PROFILE_NAME)" \
 		--region "$(AWS_REGION)"
@@ -228,7 +228,7 @@ deploy-code-files: check-env check-aws generate-code-files ## Zip and upload Lam
 .PHONY: deploy-site-files
 deploy-site-files: check-env check-aws generate-site-files ## Sync local site files to S3
 	@echo "📤 Uploading Site files to s3://$(STACK_NAME)-site..."
-	@aws s3 sync ./$(SITE_BUILD_DIR) s3://$(STACK_NAME)-site \
+	aws s3 sync ./$(SITE_BUILD_DIR) s3://$(STACK_NAME)-site \
 		--delete \
 		--profile "$(AWS_PROFILE_NAME)" \
 		--region "$(AWS_REGION)"
@@ -279,16 +279,16 @@ logs: ## Show logs of Docker container
 .PHONY: generate-site-files
 generate-site-files: ## Run content generator inside Docker container
 	@echo "📦 Generating Site files..."
-	@mkdir -p $(SITE_BUILD_DIR)
-	@rm -rf $(SITE_BUILD_DIR)/*
+	mkdir -p $(SITE_BUILD_DIR)
+	rm -rf $(SITE_BUILD_DIR)/*
 	docker exec -it $(APP_CONTAINER) python generate.py
 	@echo "✅ Site files saved to $(SITE_BUILD_DIR) successfully"
 
 .PHONY: generate-code-files
 generate-code-files: ## Build Lambda zips for all listed LAMBDAS
 	@echo "📦 Building Lambda zips for: $(LAMBDAS)..."
-	@mkdir -p $(CODE_BUILD_DIR)
-	@rm -rf $(CODE_BUILD_DIR)/*
+	mkdir -p $(CODE_BUILD_DIR)
+	rm -rf $(CODE_BUILD_DIR)/*
 
 	@for lambda_name in $(LAMBDAS); do \
 		echo "🛠 Building $$lambda_name..."; \
@@ -378,7 +378,7 @@ drop-local-dynamodb: ## Drop DynamoDB table in local DynamoDB
 .PHONY: create-local-dynamodb-dummy-fixtures
 create-local-dynamodb-dummy-fixtures: ## Populate local DynamoDB with dummy data
 	@echo "📦 Populating local DynamoDB table $(DYNAMODB_TABLE) with dummy data..."
-	@curl -sf -XPOST "http://localhost:$(BE_FUNCTION_PORT)/dummy-fixtures"
+	curl -sf -XPOST "http://localhost:$(BE_FUNCTION_PORT)/dummy-fixtures"
 
 .PHONY: recreate-local-dynamodb
 recreate-local-dynamodb: drop-local-dynamodb create-local-dynamodb create-local-dynamodb-dummy-fixtures ## Recreate DynamoDB table in local DynamoDB & populate dummy data
