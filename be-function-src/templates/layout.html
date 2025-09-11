@@ -136,6 +136,15 @@
 <footer class="mt-auto bg-light text-center text-md-start d-print-none">
     <div class="container py-3">
         &copy; {{ footer_current_year | default("2025") }} {{ site_name }}
+
+        {% if contact_socials %}
+            <div class="h3 mt-1">
+                {% for contact_social in contact_socials %}
+                    <a href="{{ contact_social.url }}" class="link-dark" target="_blank" rel="noopener noreferrer">
+                        <i class="bi bi-{{ contact_social.icon }}"></i></a>
+                {% endfor %}
+            </div>
+        {% endif %}
     </div>
 </footer>
 
