@@ -1,7 +1,6 @@
 import htmlmin
 import re
 import os
-import boto3
 import aioboto3
 import uuid
 import datetime
@@ -1160,22 +1159,20 @@ async def create_contact_message(message_dto: ContactMessageDTO, user: User = No
         message_id = str(uuid.uuid4())
 
         if is_prod():
-            sns_client = boto3.client("sns", region_name=get_aws_region())
-
-            text = (
-                f"New contact form submission:\n"
-                f"ID: {message_id}\n"
-                f"Name: {message_dto.name}\n"
-                f"Email: {message_dto.email}\n"
-                f"Message: {message_dto.message}\n"
-                f"User ID: {user.id if user else 'N/A'}"
-            )
-
-            sns_client.publish(
-                TopicArn=get_contact_topic_arn(),
-                Message=text,
-                Subject="New Contact Form Submission"
-            )
+            async with aioboto3_session().client("sns") as sns_client:
+                text = (
+                    f"New contact form submission:\n"
+                    f"ID: {message_id}\n"
+                    f"Name: {message_dto.name}\n"
+                    f"Email: {message_dto.email}\n"
+                    f"Message: {message_dto.message}\n"
+                    f"User ID: {user.id if user else 'N/A'}"
+                )
+                await sns_client.publish(
+                    TopicArn=get_contact_topic_arn(),
+                    Message=text,
+                    Subject="New Contact Form Submission"
+                )
 
         message_item = {
             "pk": f"CONTACT_MESSAGE#{message_id}",
