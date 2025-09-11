@@ -34,3 +34,5 @@ be-function-src/static/*
 !be-function-src/static/pikachu.webp
 !be-function-src/static/styles.css
 !be-function-src/static/scripts.js
+
+dynamodb-data/

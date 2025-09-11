@@ -2,7 +2,7 @@ services:
   be-function:
     build:
       context: ./
-      dockerfile: Dockerfile-be-function-src
+      dockerfile: Dockerfile-be-function
     container_name: "${DOCKER_NAME}-be-function"
     ports:
       - "${BE_FUNCTION_PORT}:5000"
@@ -24,12 +24,15 @@ services:
       - "${DYNAMODB_PORT}:8000"
     networks:
       - network
+    volumes:
+      - ./dynamodb-data:/home/dynamodblocal/data
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data"
 
   scripts:
     build:
       context: ./scripts
       dockerfile: Dockerfile
-    container_name: ${DOCKER_NAME}-scripts
+    container_name: "${DOCKER_NAME}-scripts"
     env_file:
       - .env
     volumes:
@@ -40,4 +43,4 @@ services:
 
 networks:
   network:
-    name: ${DOCKER_NAME}-network
+    name: "${DOCKER_NAME}-network"
