@@ -19,7 +19,7 @@ from jinja2 import Environment, FileSystemLoader, pass_context
 import dotenv
 import json
 from datetime import datetime, timezone
-from pydantic import BaseModel, EmailStr, Field, field_validator, conlist, computed_field
+from pydantic import BaseModel, EmailStr, Field, field_validator, conlist
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 from itertools import combinations
@@ -128,10 +128,6 @@ class Post(BaseModel):
 class PublicPost(BaseModel):
     id: str
     slug: str
-
-    @computed_field
-    def url(self) -> str:
-        return get_url()
 
 
 class PublicContactMessage(BaseModel):
