@@ -67,7 +67,7 @@
     <nav class="navbar navbar-expand-md bg-{{ header_bg }}"
          data-bs-theme="{{ header_bs }}">
         <div class="container">
-            <a class="navbar-brand link-secondary" style="outline:none" href="/">{{ site_name }}</a>
+            <a class="navbar-brand link-secondary" style="outline:none" href="/">{{ site_name | default("Blog") }}</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar"
                     aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
