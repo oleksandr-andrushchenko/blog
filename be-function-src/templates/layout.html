@@ -73,7 +73,7 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbar">
-                {% if user %}
+                {% if cur_user %}
                     <a href="{{ url('create-post-page') }}" class="btn btn-outline-secondary btn-sm">
                         <i class="bi bi-pencil-square"></i> {{ header_create_post_label | default("Create post") }}
                     </a>
@@ -90,9 +90,9 @@
                         </a>
                     </li>
                 </ul>
-                {% if user %}
+                {% if cur_user %}
                     <div>
-                        <i class="bi bi-person-circle"></i> {{ user.email }}
+                        <i class="bi bi-person-circle"></i> {{ cur_user.email }}
                         <a href="{{ url('logout') }}" class="btn btn-secondary btn-sm">
                             {{ header_logout_label | default("Sign out") }} <i
                                 class="bi bi-box-arrow-right"></i>

@@ -5,7 +5,6 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.status import (
-    HTTP_201_CREATED,
     HTTP_204_NO_CONTENT,
     HTTP_302_FOUND,
     HTTP_400_BAD_REQUEST,
@@ -69,7 +68,7 @@ from utils import (
 # Dependencies
 # -------------------------
 
-async def get_user(request: Request) -> User:
+async def get_cur_user(request: Request) -> User:
     token = request.cookies.get("session_token")
     if not token:
         raise HTTPException(
@@ -88,7 +87,7 @@ async def get_user(request: Request) -> User:
         )
 
 
-async def get_opt_user(request: Request) -> Optional[User]:
+async def get_opt_cur_user(request: Request) -> Optional[User]:
     try:
         return await get_user_by_plain_token(
             plain_token=request.cookies.get("session_token"),
@@ -111,8 +110,8 @@ async def get_post_by_id(post_id: str) -> Post:
         )
 
 
-UserDep = Annotated[User, Depends(get_user)]
-OptUserDep = Annotated[Optional[User], Depends(get_opt_user)]
+CurUserDep = Annotated[User, Depends(get_cur_user)]
+OptCurUserDep = Annotated[Optional[User], Depends(get_opt_cur_user)]
 PostDep = Annotated[Post, Depends(get_post_by_id)]
 
 
@@ -138,27 +137,27 @@ if not is_prod():
 # -------------------------
 
 @app.get("/", name="index", response_class=HTMLResponse)
-async def index(request: Request, user: OptUserDep) -> str:
+async def index(request: Request, cur_user: OptCurUserDep) -> str:
     data = await get_index_page_data(
         request=request,
-        user=user
+        cur_user=cur_user
     )
     return get_html_content("index.html", data)
 
 
 @app.get("/create-post", name="create-post-page", response_class=HTMLResponse)
-async def create_post_page(request: Request, user: OptUserDep) -> str:
+async def create_post_page(request: Request, cur_user: OptCurUserDep) -> str:
     data = await get_create_post_page_data(
         request=request,
-        user=user
+        cur_user=cur_user
     )
     return get_html_content("create-post.html", data)
 
 
 @app.post("/posts", name="create-post", status_code=HTTP_204_NO_CONTENT)
-async def _create_post(post_dto: PostDTO, user: UserDep) -> None:
+async def _create_post(post_dto: PostDTO, cur_user: CurUserDep) -> None:
     try:
-        await create_post(post_dto, user)
+        await create_post(post_dto, cur_user)
     except SlugDuplicationError as e:
         raise HTTPException(
             status_code=HTTP_409_CONFLICT,
@@ -167,17 +166,17 @@ async def _create_post(post_dto: PostDTO, user: UserDep) -> None:
 
 
 @app.get("/contacts", name="contacts-page", response_class=HTMLResponse)
-async def contacts_page(request: Request, user: OptUserDep) -> str:
+async def contacts_page(request: Request, cur_user: OptCurUserDep) -> str:
     data = await get_contacts_page_data(
         request=request,
-        user=user
+        cur_user=cur_user
     )
     return get_html_content("contacts.html", data)
 
 
 @app.post("/contacts/message", name="create-contact-message", status_code=HTTP_204_NO_CONTENT)
-async def _create_contact_message(message_dto: ContactMessageDTO, user: OptUserDep) -> None:
-    await create_contact_message(message_dto, user)
+async def _create_contact_message(message_dto: ContactMessageDTO, cur_user: OptCurUserDep) -> None:
+    await create_contact_message(message_dto, cur_user)
 
 
 @app.get("/auth/login", name="login", response_class=RedirectResponse)
@@ -249,29 +248,29 @@ async def logout(request: Request) -> RedirectResponse:
 
 
 @app.get("/posts", name="posts-page", response_class=HTMLResponse)
-async def posts_page(request: Request, user: OptUserDep) -> str:
+async def posts_page(request: Request, cur_user: OptCurUserDep) -> str:
     data = await get_posts_page_data(
         request=request,
-        user=user
+        cur_user=cur_user
     )
     return get_html_content("posts.html", data)
 
 
 @app.get("/posts/{post_id}", name="post-page", response_class=HTMLResponse)
-async def post_page(post: PostDep, request: Request, user: OptUserDep) -> str:
+async def post_page(post: PostDep, request: Request, cur_user: OptCurUserDep) -> str:
     data = await get_post_page_data(
         post=post,
         request=request,
-        user=user
+        cur_user=cur_user
     )
     return get_html_content("post.html", data)
 
 
 @app.post("/posts/{post_id}/approve", name="approve-post", status_code=HTTP_204_NO_CONTENT)
-async def _approve_post(post: PostDep, user: UserDep) -> None:
+async def _approve_post(post: PostDep, cur_user: CurUserDep) -> None:
     await approve_post(
         post=post,
-        user=user
+        user=cur_user
     )
 
 
@@ -307,15 +306,15 @@ async def get_error_response(request: Request, status_code: int, details: Union[
             content=public_data
         )
 
-    user = None
+    cur_user = None
     if status_code != HTTP_401_UNAUTHORIZED:
         try:
-            user = await get_user(request)
+            cur_user = await get_cur_user(request)
         except HTTPException:
             pass
 
     data.update(public_data)
-    data.update({"request": request, "user": user})
+    data.update({"request": request, "cur_user": cur_user})
     content = get_html_content("error.html", data)
 
     return HTMLResponse(
