@@ -17,15 +17,6 @@
                     <div class="invalid-feedback">{{ create_post_title_error | default("Please enter a title (20–500 chars).") }}</div>
                 </div>
 
-                <!-- Slug (optional, auto-generated if empty) -->
-                <div class="col-12">
-                    <input type="text" class="form-control" id="slug" name="slug"
-                           placeholder="{{ create_post_slug_label | default('Slug (optional)') }}"
-                           minlength="20" maxlength="500">
-                    <div class="form-text">{{ create_post_slug_help | default("Leave empty to auto-generate from title.") }}</div>
-                    <div class="invalid-feedback">{{ create_post_slug_error | default("Slug must be 20–500 chars.") }}</div>
-                </div>
-
                 <!-- Content -->
                 <div class="col-12">
           <textarea class="form-control" id="content" name="content"
@@ -66,7 +57,6 @@
           if (!form.checkValidity()) return
 
           const title = form.title.value.trim()
-          const slug = form.slug.value.trim()
           const content = form.content.value.trim()
           const tags = form.tags.value.split(",").map(t => t.trim()).filter(Boolean)
 
@@ -74,7 +64,7 @@
             const response = await fetch("{{ url('create-post') }}", {
               method: "POST",
               headers: {"Content-Type": "application/json"},
-              body: JSON.stringify({title, slug, content, tags})
+              body: JSON.stringify({title, content, tags})
             })
 
             if (response.ok) {

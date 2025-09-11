@@ -76,18 +76,8 @@ class ContactMessage(BaseModel):
 
 class PostDTO(BaseModel):
     title: str
-    slug: Optional[str] = None
     content: str
     tags: conlist(str, min_length=1, max_length=3)
-
-    @field_validator("slug", mode="before")
-    @classmethod
-    def build_slug_if_missing(cls, value, info):
-        if value:
-            return to_kebab_case(value)
-        # get title from other fields
-        title = info.data.get("title") if info.data else ""
-        return to_kebab_case(title) if title else None
 
     @field_validator("tags", mode="before")
     @classmethod
@@ -697,19 +687,16 @@ async def create_dummy_fixtures() -> None:
     posts = [
         PostDTO(
             title="Post title #111111111111111111111111",
-            slug="post-title-111111111111111111111111",
             content="Post content #111111111111111111111111" * 100,
             tags=["tag1", "tag2", "tag3"]
         ),
         PostDTO(
             title="Post title #22222222222222222222222",
-            slug="post-title-22222222222222222222222",
             content="Post content #2222222222222222222222" * 100,
             tags=["tag2", "tag3"]
         ),
         PostDTO(
             title="Post title #3333333333333333333333333",
-            slug="post-title-3333333333333333333333333",
             content="Post content #333333333333333333333" * 100,
             tags=["tag1", "tag3"]
         ),
@@ -791,6 +778,7 @@ async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISH
     async def fn(table):
         now = utc_now_iso()
         post_id = str(uuid.uuid4())
+        slug = to_kebab_case(post_dto.title)
 
         # Main post item
         post_item = {
@@ -798,7 +786,7 @@ async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISH
             "sk": "METADATA",
             "post_id": post_id,
             "title": post_dto.title,
-            "slug": post_dto.slug,
+            "slug": slug,
             "user_id": user.id,
             "content": post_dto.content,
             "tags": list(dict.fromkeys(post_dto.tags)),
@@ -810,7 +798,7 @@ async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISH
 
         # Slug item for uniqueness
         slug_item = {
-            "pk": f"SLUG#{post_dto.slug}",
+            "pk": f"SLUG#{slug}",
             "sk": "POST",
             "post_id": post_id,
             "created_at": now,
