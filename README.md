@@ -44,6 +44,11 @@
 - upsert_user_by_user_token: remove updated_at for new ones, map providers attribute to objects
 - add popular posts
 - add popular authors
+- generate default user names
+- edit user profile: photo, bio, links: website etc.
+- create post: add optional image input, add advanced editor
+- add manage users page
+- add manage posts page
 
 ## Links
 
