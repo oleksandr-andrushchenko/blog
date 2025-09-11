@@ -550,7 +550,7 @@ async def get_user_by_user_token(token: UserToken) -> Optional[User]:
                 resp2 = await table.get_item(
                     Key={
                         "pk": f"USER#{user_id}",
-                        "sk": "INTERNAL"
+                        "sk": "METADATA"
                     }
                 )
                 internal_item = resp2.get("Item") if "Item" in resp2 else None
@@ -604,7 +604,7 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
         # 3: Ensure internal record exists
         internal_item = {
             "pk": f"USER#{user_id}",
-            "sk": "INTERNAL",
+            "sk": "METADATA",
             "id": user_id,
             "gsi_email": token.email,
             "name": token.name,
@@ -921,7 +921,7 @@ async def find_user(user_id: str) -> Optional[User]:
         resp = await table.get_item(
             Key={
                 "pk": f"USER#{user_id}",
-                "sk": "INTERNAL"
+                "sk": "METADATA"
             }
         )
         item = resp.get("Item")
@@ -1361,7 +1361,7 @@ async def get_latest_users(limit: int = 10, last_sk: Optional[str] = None) -> Li
             Limit=limit
         )
         items = resp.get("Items", [])
-        logger.debug(f"Latest users: {json.dumps(items,indent=4)}")
+        logger.debug(f"Latest users: {json.dumps(items, indent=4)}")
         return [
             User(
                 id=item["id"],
