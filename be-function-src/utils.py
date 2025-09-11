@@ -1219,7 +1219,7 @@ async def get_posts_page_data(**kwargs: Any) -> Dict[str, Any]:
     data = {
         **get_config(),
         **kwargs,
-        "post_items": await get_latest_posts(10)
+        "posts": await get_latest_posts(10)
     }
 
     request = data.get("request")
@@ -1237,8 +1237,8 @@ async def get_post_page_data(post: Post, **kwargs: Any) -> Dict[str, Any]:
     data = {
         **get_config(),
         **kwargs,
-        "post_item": post,
-        "post_author": await find_user(post.user_id)
+        "post": post,
+        "author": await find_user(post.user_id)
     }
 
     request = data.get("request")

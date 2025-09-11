@@ -6,8 +6,8 @@
 {% block content %}
     <h1>{{ posts_header | default("Posts") }}</h1>
     <p class="small text-secondary">{{ posts_sub_header | default("Recent articles") }}</p>
-    {% if post_items %}
-        {% for post in post_items %}
+    {% if posts %}
+        {% for post in posts %}
             <div>
                 <a href="{{ url("post-page", post_id=post.id) }}">
                     <h2>{{ post.title }}</h2>
@@ -20,6 +20,6 @@
             </div>
         {% endfor %}
     {% else %}
-        {{ posts_no_post_items | default("N/A") }}
+        {{ posts_no_posts | default("N/A") }}
     {% endif %}
 {% endblock %}
