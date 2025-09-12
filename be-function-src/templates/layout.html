@@ -97,7 +97,7 @@
                 </ul>
                 {% if cur_user %}
                     <div>
-                        <i class="bi bi-person-circle"></i> {{ cur_user.email }}
+                        <i class="bi bi-person-circle"></i> <a href="{{ url("user-page", user_id=cur_user.id) }}">{{ cur_user.name }}</a>
                         <a href="{{ url('logout') }}" class="btn btn-secondary btn-sm">
                             {{ header_logout_label | default("Sign out") }} <i
                                 class="bi bi-box-arrow-right"></i>
