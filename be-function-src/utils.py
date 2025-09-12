@@ -23,6 +23,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator, conlist
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 from itertools import combinations
+import time
 
 
 # -------------------------
@@ -55,8 +56,8 @@ class User(BaseModel):
     providers: Dict[str, Dict[str, Optional[str]]] = Field(default_factory=dict)  # noqa
     permissions: List[str] = Field(default_factory=lambda: [Permission.REGULAR])  # noqa
     status: UserStatus = UserStatus.ACTIVE
-    created_at: str
-    updated_at: Optional[str] = None
+    created_at: int
+    updated_at: Optional[int] = None
 
 
 class ContactMessageDTO(BaseModel):
@@ -71,7 +72,7 @@ class ContactMessage(BaseModel):
     email: str
     message: str
     user_id: Optional[str] = None
-    created_at: str
+    created_at: int
 
 
 class PostDTO(BaseModel):
@@ -117,8 +118,8 @@ class Post(BaseModel):
     content: str
     tags: List[Tag]
     status: PostStatus = PostStatus.UNPUBLISHED
-    created_at: str
-    updated_at: Optional[str] = None
+    created_at: int
+    updated_at: Optional[int] = None
 
 
 class PublicPost(BaseModel):
@@ -340,8 +341,8 @@ def to_kebab_case(s: str) -> str:
     return s
 
 
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+def utc_now() -> int:
+    return int(time.time())
 
 
 async def dynamodb_transact_write_or_raise(table, transact_items: List[Dict[str, Any]]):
@@ -585,7 +586,7 @@ async def get_user_by_user_token(token: UserToken) -> Optional[User]:
 
 async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserStatus.ACTIVE) -> User:
     async def fn(table):
-        now = utc_now_iso()
+        now = utc_now()
 
         # 1: Lookup existing user
         existing_user = await get_user_by_user_token(token)
@@ -790,7 +791,7 @@ async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISH
     verify_authorization(user, Permission.CREATE_POST)
 
     async def fn(table):
-        now = utc_now_iso()
+        now = utc_now()
         post_id = str(uuid.uuid4())
         slug = to_kebab_case(post_dto.title)
 
@@ -1050,7 +1051,7 @@ async def approve_post(post: Post, user: User) -> None:
     verify_authorization(user, Permission.APPROVE_POST)
 
     async def fn(table):
-        now = utc_now_iso()
+        now = utc_now()
         status = PostStatus.PUBLISHED
 
         # 1. Update main post
@@ -1160,7 +1161,7 @@ async def create_contact_message(message_dto: ContactMessageDTO, user: User = No
         verify_authorization(user, Permission.CREATE_CONTACT_MESSAGE)
 
     async def fn(table):
-        now = utc_now_iso()
+        now = utc_now()
         message_id = str(uuid.uuid4())
 
         if is_prod():
@@ -1360,7 +1361,7 @@ async def get_latest_users(limit: int = 10, last_sk: Optional[str] = None) -> Li
             Limit=limit
         )
         items = resp.get("Items", [])
-        logger.debug(f"Latest users: {json.dumps(items, indent=4)}")
+        # logger.debug(f"Latest users: {json.dumps(items, indent=4)}")
         return [
             User(
                 id=item["id"],
