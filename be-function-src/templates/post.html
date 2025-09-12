@@ -4,20 +4,7 @@
 {% block canonical_url %}{{ full_url("post-page", post_id=post.id) }}{% endblock %}
 
 {% block content %}
-    <h1>{{ post_header | default(post.title) }}</h1>
-    <p class="small text-secondary">{{ post_sub_header | default(post.created_at) }}</p>
+    <h1>{{ post.title }}</h1>
+    {% include "fragments/post-meta.html" %}
     <div>{{ post.content }}</div>
-    <div>
-        {% for tag in post.tags %}
-            <a href="{{ url("index") }}" class="btn btn-outline-secondary btn-sm">
-                {{ tag.name }}
-            </a>
-        {% endfor %}
-    </div>
-    <div class="w-25">
-        {{ post_author_label | default('Author') }}:
-        {% with user=author %}
-            {% include "fragments/user-card.html" %}
-        {% endwith %}
-    </div>
 {% endblock %}

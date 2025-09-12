@@ -1,0 +1,28 @@
+<div class="d-flex gap-2 align-items-center">
+    {% if author %}
+        {% with user=author %}
+            {% include "fragments/user-inline.html" %}
+        {% endwith %}
+    {% endif %}
+
+    {% if post.tags %}
+        <div>
+            <span class="small text-secondary">
+                {{ post_tags_label | default("Tags") }}:
+            </span>
+
+            {% for tag in post.tags %}
+                <a href="{{ url("index") }}" class="btn btn-outline-secondary btn-sm">
+                    {{ tag.name }}
+                </a>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div>
+        <span class="small text-secondary">
+            {{ post_created_at | default("Created") }}:
+            {{ post.created_at | unix_to_full_date }}
+        </span>
+    </div>
+</div>

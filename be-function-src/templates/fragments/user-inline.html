@@ -1,0 +1,12 @@
+<div class="d-flex gap-1 align-items-center">
+    <div style="width:30px">
+        {% include "fragments/avatar.html" %}
+    </div>
+    <div>
+        <a href="{{ url("user-page", user_id=user.id) }}">
+            <h3 class="h4 card-title mb-0">
+                {{ user.name }}
+            </h3>
+        </a>
+    </div>
+</div>
