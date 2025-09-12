@@ -794,6 +794,8 @@ async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISH
         post_id = str(uuid.uuid4())
         slug = to_kebab_case(post_dto.title)
 
+        transact_items = []
+
         # Main post item
         post_item = {
             "pk": f"POST#{post_id}",
@@ -809,6 +811,13 @@ async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISH
             "gsi_post_pk": "POST",
             "gsi_status_created_at": f"STATUS#{status.value}#CREATED_AT#{now}",
         }
+        transact_items.append({
+            "Put": {
+                "TableName": table.name,
+                "Item": post_item,
+                "ConditionExpression": "attribute_not_exists(pk)"
+            }
+        })
 
         # Slug item for uniqueness
         slug_item = {
@@ -817,23 +826,13 @@ async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISH
             "post_id": post_id,
             "created_at": now,
         }
-
-        transact_items = [
-            {
-                "Put": {
-                    "TableName": table.name,
-                    "Item": slug_item,
-                    "ConditionExpression": "attribute_not_exists(pk)"
-                }
-            },
-            {
-                "Put": {
-                    "TableName": table.name,
-                    "Item": post_item,
-                    "ConditionExpression": "attribute_not_exists(pk)"
-                }
+        transact_items.append({
+            "Put": {
+                "TableName": table.name,
+                "Item": slug_item,
+                "ConditionExpression": "attribute_not_exists(pk)"
             }
-        ]
+        })
 
         # ----------------------------
         # Tag metadata (increment posts_count)
