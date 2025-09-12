@@ -24,6 +24,7 @@ from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 from itertools import combinations
 import time
+from zoneinfo import ZoneInfo
 
 
 # -------------------------
@@ -431,6 +432,8 @@ def get_jinja2_env():
         loader=FileSystemLoader(templates_dir),
         auto_reload=not is_prod()
     )
+    jinja2_env.filters['unix_to_month_year'] = unix_to_month_year
+    jinja2_env.filters['unix_to_full_date'] = unix_to_full_date
     jinja2_env.globals.update({
         "static_url": static_url,
         "url": url_for,
@@ -1413,3 +1416,23 @@ async def get_user_page_data(user: User, **kwargs: Any) -> Dict[str, Any]:
     })
 
     return data
+
+
+def unix_to_month_year(timestamp: int, tz: str | None = None) -> str:
+    """
+    Convert Unix timestamp to 'Feb 2024' format, optional timezone.
+    """
+    dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+    if tz:
+        dt = dt.astimezone(ZoneInfo(tz))
+    return dt.strftime("%b %Y")
+
+
+def unix_to_full_date(timestamp: int, tz: str | None = None) -> str:
+    """
+    Convert Unix timestamp to 'May 29, 2024' format, optional timezone.
+    """
+    dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+    if tz:
+        dt = dt.astimezone(ZoneInfo(tz))
+    return dt.strftime("%b %d, %Y")
