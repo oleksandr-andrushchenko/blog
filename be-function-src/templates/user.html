@@ -4,13 +4,61 @@
 {% block canonical_url %}{{ full_url("user-page", user_id=user.id) }}{% endblock %}
 
 {% block content %}
-    <h1>{{ user_header | default(user.name) }}</h1>
-    <p class="small text-secondary">{{ user_sub_header | default(user.created_at) }}</p>
-    <div>{{ user_email_label | default("Email") }}: {{ user.email }}</div>
-    <div>{{ user_name_label | default("Name") }}: {{ user.name }}</div>
-    <div>{{ user_username_label | default("Username") }}: {{ user.username }}</div>
-    <div>{{ user_providers_label | default("Providers") }}: {{ user.providers }}</div>
-    <div>{{ user_permissions_label | default("Permissions") }}: {{ user.permissions }}</div>
-    <div>{{ user_created_at_label | default("Created At") }}: {{ user.created_at }}</div>
-    <div>{{ user_updated_at_label | default("Updated At") }}: {{ user.updated_at }}</div>
+    <div class="row">
+        <div class="col offset-4 col-4 offset-sm-4 col-sm-4 offset-md-0 col-md-2 col-lg-1">
+            {% include "fragments/avatar.html" %}
+        </div>
+        <div class="col col-12 text-center mt-3 col-sm-12 col-md-10 mt-md-0 text-md-start col-lg-11 text-dark">
+            <h1 class="m-0">{{ user.name }}</h1>
+
+            {% if user.headline %}
+                <h2 class="h5">{{ user.headline }}</h2>
+            {% endif %}
+
+            <div>
+                {% if user.website %}
+                    <a class="link-dark d-inline-block me-2" href="{{ user.website }}" target="_blank"
+                       rel="noopener noreferrer">
+                        <i class="bi bi-link"></i> {{ user.website }}
+                    </a>
+                {% endif %}
+
+                {% if user.phone %}
+                    <a class="link-dark d-inline-block me-2" href="tel{{ user.phone }}">
+                        {{ user.phone }}
+                    </a>
+                {% endif %}
+
+                {% if user.email %}
+                    <a class="link-dark d-inline-block me-2" href="mailto:{{ user.email }}">
+                        {{ user.email }}
+                    </a>
+                {% endif %}
+
+                {% if user.address %}
+                    <span class="d-inline-block me-2">
+                        <i class="bi bi-geo"></i>
+                        {{ user.address }}
+                    </span>
+                {% endif %}
+            </div>
+
+            <div class="small text-secondary">
+                {{ user_joined_at | default("Joined") }}:
+                {{ user.created_at | unix_to_full_date() }}
+            </div>
+        </div>
+    </div>
+    {% if user.about %}
+        <section class="container">
+            <h2 class="mb-2 text-center mb-sm-2 mb-md-2 mb-lg-2 text-lg-start mb-xl-3 mb-xxl-3">
+                <i class="bi bi-info-circle-fill"></i> {{ user_about_label | default("About Me") }}
+            </h2>
+            <div class="card text-bg-light">
+                <div class="card-body">
+                    <div class="card-text">{{ user.about }}</div>
+                </div>
+            </div>
+        </section>
+    {% endif %}
 {% endblock %}

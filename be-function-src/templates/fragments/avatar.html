@@ -1,0 +1,24 @@
+{% set name = user.name %}
+
+<div class="avatar-wrapper" style="width:100%; aspect-ratio:1 / 1;">
+    {% if user.avatar_filename %}
+        <img src="/{{ user.avatar_filename }}"
+             class="rounded-circle img-fluid d-block"
+             style="width:100%; height:100%; object-fit:cover;"
+             alt="{{ name }}">
+    {% else %}
+        {% set first_letter = name[0].upper() %}
+        {% set color = default_avatar_colors[name|length % default_avatar_colors|length] %}
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="width:100%; height:100%;">
+            <!-- Circle background -->
+            <circle cx="50" cy="50" r="50" fill="{{ color }}"/>
+            <!-- First letter -->
+            <text x="50" y="55"
+                  class="avatar-letter"
+                  text-anchor="middle"
+                  font-size="50"
+                  fill="#ffffff"
+                  dy=".3em">{{ first_letter }}</text>
+        </svg>
+    {% endif %}
+</div>
