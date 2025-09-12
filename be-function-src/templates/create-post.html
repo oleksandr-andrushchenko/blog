@@ -72,6 +72,10 @@
               statusDiv.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i>{{ create_post_post_published | default("Post created!") }}`
               form.reset()
               form.classList.remove("was-validated")
+              const responseBody = await response.json()
+              if ("url" in responseBody) {
+                window.location.href = responseBody.url
+              }
             } else if (response.status === 422) {
               const data = await response.json()
               if (data.details) {

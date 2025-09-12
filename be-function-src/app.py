@@ -1,4 +1,4 @@
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Any
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.exceptions import RequestValidationError
@@ -46,6 +46,7 @@ from utils import (
     get_full_url,
     get_user_by_plain_token,
     configure_app_state,
+    get_url,
     # services
     get_posts_page_data,
     get_post,
@@ -169,10 +170,11 @@ async def create_post_page(request: Request, cur_user: OptCurUserDep) -> str:
     return get_html_content("create-post.html", data)
 
 
-@app.post("/posts", name="create-post", status_code=HTTP_204_NO_CONTENT)
-async def _create_post(post_dto: PostDTO, cur_user: CurUserDep) -> None:
+@app.post("/posts", name="create-post", response_class=JSONResponse)
+async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request) -> Dict[str, Any]:
     try:
-        await create_post(post_dto, cur_user)
+        post = await create_post(post_dto, cur_user)
+        return {"url": get_url(request, "post-page", post_id=post.id)}
     except SlugDuplicationError as e:
         raise HTTPException(
             status_code=HTTP_409_CONFLICT,
