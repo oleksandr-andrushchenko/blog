@@ -688,13 +688,20 @@ def map_jwt_claims_to_user_token(claims: dict[str, Any], plain_token: str = None
     )
 
 
-def get_dummy_user_token() -> UserToken:
+def get_dummy_user_token(
+        *,
+        sub: str = "test-sub",
+        iss: str = "test-iss",
+        username: str = "Test username",
+        email: str = "test@example.com",
+        name: str = "Test User"
+) -> UserToken:
     return UserToken(
-        sub="test-sub",
-        iss="test-iss",
-        username="Test username",
-        email="test@example.com",
-        name="Test User",
+        sub=sub,
+        iss=iss,
+        username=username,
+        email=email,
+        name=name,
         iat=None,
         exp=None,
         max_age=None,
@@ -727,6 +734,31 @@ async def create_dummy_fixtures() -> None:
     ]
     for post in posts:
         await create_post(post, user, status=PostStatus.PUBLISHED)
+    user_token2 = get_dummy_user_token(sub="p2", email="test2@example.com", name="Some test user")
+    user2 = await upsert_user_by_user_token(user_token2)
+    posts = [
+        PostDTO(
+            title="Post title #111111111111111111111111 for user 2",
+            content="Post content #111111111111111111111111" * 100,
+            tags=["tag3"]
+        ),
+        PostDTO(
+            title="Post title #22222222222222222222222 for user 2",
+            content="Post content #2222222222222222222222" * 100,
+            tags=["tag2"]
+        ),
+        PostDTO(
+            title="Post title #3333333333333333333333333 for user 2",
+            content="Post content #333333333333333333333" * 100,
+            tags=["tag4"]
+        ),
+    ]
+    for post in posts:
+        await create_post(post, user2, status=PostStatus.PUBLISHED)
+    user_token3 = get_dummy_user_token(sub="p3", email="test3@example.com", name="Another user")
+    await upsert_user_by_user_token(user_token3)
+    user_token4 = get_dummy_user_token(sub="p4", email="test4@example.com", name="Vanilla user")
+    await upsert_user_by_user_token(user_token4)
 
 
 async def get_user_token_by_plain_token(plain_token: Optional[str], app_state: State) -> Optional[UserToken]:
