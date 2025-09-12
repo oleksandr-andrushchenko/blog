@@ -63,12 +63,15 @@
                 {% endif %}
 
                 {% if contact_socials %}
-                    <div class="h3">
-                        {% for contact_social in contact_socials %}
-                            <a href="{{ contact_social.url }}" class="link-dark" target="_blank"
-                               rel="noopener noreferrer">
-                                <i class="bi bi-{{ contact_social.icon }}"></i></a>
-                        {% endfor %}
+                    <div>
+                        <i class="bi bi-people"></i> {{ contact_socials_label | default("Socials") }}
+                        <div class="h3">
+                            {% for contact_social in contact_socials %}
+                                <a href="{{ contact_social.url }}" class="link-dark" target="_blank"
+                                   rel="noopener noreferrer">
+                                    <i class="bi bi-{{ contact_social.icon }}"></i></a>
+                            {% endfor %}
+                        </div>
                     </div>
                 {% endif %}
             </div>
