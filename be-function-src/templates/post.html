@@ -14,8 +14,10 @@
             </a>
         {% endfor %}
     </div>
-    <div>
+    <div class="w-25">
         {{ post_author_label | default('Author') }}:
-        <a href="{{ url("user-page", user_id=post.user_id) }}">{{ author.name }}</a>
+        {% with user=author %}
+            {% include "fragments/user-card.html" %}
+        {% endwith %}
     </div>
 {% endblock %}

@@ -1,0 +1,25 @@
+<div class="card bg-light">
+    <div class="card-body d-flex flex-column gap-2 gap-sm-2 gap-md-2 gap-xl-2 gap-xxl-2">
+        <div class="row g-2 g-sm-2 g-md-3 g-xl-3 g-xxl-3">
+            <div class="col col-2 col-sm-2 col-md-2 col-xl-2 col-xxl-2">
+                {% include "fragments/avatar.html" %}
+            </div>
+            <div class="col col-10 col-sm-10 col-md-10 col-xl-10 col-xxl-10">
+                <a href="{{ url("user-page", user_id=user.id) }}">
+                    <h3 class="h4 card-title mb-0">
+                        {{ user.name }}
+                    </h3>
+                </a>
+                <div class="card-text">
+                    {% if user.headline %}
+                        <h4 class="h5">{{ user.headline }}</h4>
+                    {% endif %}
+                    <small class="text-body-secondary">
+                        {{ user_joined_at | default("Joined") }}:
+                        {{ user.created_at | unix_to_full_date() }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
