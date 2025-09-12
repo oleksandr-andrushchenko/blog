@@ -12,14 +12,14 @@
                 <div class="col-12">
                     <input type="text" class="form-control" id="name" name="name"
                            placeholder="{{ contacts_name_label | default("Your Name") }}"
-                           value="{{ user_token.name if user_token else '' }}"
+                           value="{{ cur_user.name if cur_user else '' }}"
                            required>
                     <div class="invalid-feedback">{{ contacts_name_error_label | default("Please enter your name.") }}</div>
                 </div>
                 <div class="col-12">
                     <input type="email" class="form-control" id="email" name="email"
                            placeholder="{{ contact_email_label | default("Your Email") }}"
-                           value="{{ user_token.email if user_token else '' }}" required>
+                           value="{{ cur_user.email if cur_user else '' }}" required>
                     <div class="invalid-feedback">{{ contact_email_error_label | default("Please enter a valid email address.") }}</div>
                 </div>
                 <div class="col-12">
