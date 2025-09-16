@@ -73,11 +73,6 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbar">
-                {% if cur_user %}
-                    <a href="{{ url('create-post-page') }}" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-pencil-square"></i> {{ header_create_post_label | default("Create post") }}
-                    </a>
-                {% endif %}
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url('posts-page') }}">
@@ -97,8 +92,12 @@
                 </ul>
                 {% if cur_user %}
                     <div>
-                        <i class="bi bi-person-circle"></i> <a href="{{ url("user-page", user_id=cur_user.id) }}">{{ cur_user.name }}</a>
-                        <a href="{{ url('logout') }}" class="btn btn-secondary btn-sm">
+                        <a href="{{ url('create-post-page') }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-pencil-square"></i> {{ header_create_post_label | default("Create post") }}
+                        </a>
+                        <i class="bi bi-person-circle"></i> <a
+                            href="{{ url("user-page", user_id=cur_user.id) }}">{{ cur_user.name }}</a>
+                        <a href="{{ url('logout') }}" class="btn btn-outline-secondary btn-sm">
                             {{ header_logout_label | default("Sign out") }} <i
                                 class="bi bi-box-arrow-right"></i>
                         </a>
