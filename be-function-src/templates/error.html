@@ -9,4 +9,10 @@
         <i class="bi bi-arrow-left-short"></i>
         {{ error_back_home_label | default("Back home") }}
     </a>
+    {% if code == 401 %}
+        <a href="{{ url('login') }}" class="btn btn-dark">
+            <i class="bi bi-box-arrow-in-right"></i>
+            {{ header_login_label | default("Sign in") }}
+        </a>
+    {% endif %}
 {% endblock %}
