@@ -334,9 +334,9 @@ async def get_error_response(request: Request, status_code: int, details: Union[
     }
 
     data = await get_error_page_data()
-    accept = request.headers.get("accept", "")
+    content_type = request.headers.get("content-type", "")
 
-    if "application/json" in accept:
+    if "application/json" in content_type:
         return JSONResponse(
             status_code=status_code,
             content=public_data
