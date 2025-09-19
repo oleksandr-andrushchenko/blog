@@ -219,12 +219,34 @@ def get_live_config(load_env=False):
                 Permission.ALL
             ],
         },
-        "default_avatar_colors": [
-            "#F44336", "#E91E63", "#9C27B0", "#673AB7",
-            "#3F51B5", "#2196F3", "#03A9F4", "#00BCD4",
-            "#009688", "#4CAF50", "#8BC34A", "#CDDC39",
-            "#FFEB3B", "#FFC107", "#FF9800", "#FF5722"
-        ],
+        "default_avatar_colors": {
+            "A": "#F44336",  # Red
+            "B": "#E91E63",  # Pink
+            "C": "#9C27B0",  # Purple
+            "D": "#673AB7",  # Deep Purple
+            "E": "#3F51B5",  # Indigo
+            "F": "#2196F3",  # Blue
+            "G": "#03A9F4",  # Light Blue
+            "H": "#00BCD4",  # Cyan
+            "I": "#009688",  # Teal
+            "J": "#4CAF50",  # Green
+            "K": "#8BC34A",  # Light Green
+            "L": "#CDDC39",  # Lime
+            "M": "#FFEB3B",  # Yellow
+            "N": "#FFC107",  # Amber
+            "O": "#FF9800",  # Orange
+            "P": "#FF5722",  # Deep Orange
+            "Q": "#795548",  # Brown
+            "R": "#9E9E9E",  # Grey
+            "S": "#607D8B",  # Blue Grey
+            "T": "#FF1744",  # Bright Red
+            "U": "#D500F9",  # Bright Purple
+            "V": "#00E676",  # Bright Green
+            "W": "#00B0FF",  # Bright Cyan
+            "X": "#FFD600",  # Bright Yellow
+            "Y": "#FF6D00",  # Bright Orange
+            "Z": "#C51162"  # Bright Pink
+        },
         **json.load(open("./data.json"))
     }
 
