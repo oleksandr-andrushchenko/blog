@@ -9,35 +9,28 @@
     <div class="row">
         <div class="col-12 col-md-8">
             <form class="row g-3" id="post-form" novalidate>
-                <!-- Title -->
-                <div class="col-12">
+                <label class="col-12">
                     <input type="text" class="form-control" id="title" name="title"
                            placeholder="{{ create_post_title_label | default('Title') }}"
                            required minlength="20" maxlength="500">
-                    <div class="invalid-feedback">{{ create_post_title_error | default("Please enter a title (20–500 chars).") }}</div>
-                </div>
+                </label>
 
-                <!-- Content -->
-                <div class="col-12">
-          <textarea class="form-control" id="content" name="content"
-                    placeholder="{{ create_post_content_label | default('Content') }}"
-                    rows="12" required minlength="1000" maxlength="10000"></textarea>
-                    <div class="invalid-feedback">{{ create_post_content_error | default("Please enter content (1000–10000 chars).") }}</div>
-                </div>
+                <label class="col-12">
+                    <textarea class="form-control" id="content" name="content"
+                              placeholder="{{ create_post_content_label | default('Content') }}"
+                              rows="12" required minlength="1000" maxlength="10000"></textarea>
+                </label>
 
-                <!-- Tags -->
-                <div class="col-12">
+                <label class="col-12">
                     <input type="text" class="form-control" id="tags" name="tags"
-                           placeholder="{{ create_post_tags_label | default('Tags (comma-separated)') }}">
-                    <div class="form-text">{{ create_post_tags_help | default("Enter tags separated by commas.") }}</div>
-                    <div class="invalid-feedback">{{ create_post_tags_error | default("Please enter valid tags.") }}</div>
-                </div>
+                           placeholder="{{ create_post_tags_label | default('Tags (comma-separated)') }}" required>
+                    <span class="form-text">{{ create_post_tags_help | default("Enter tags separated by commas.") }}</span>
+                </label>
 
-                <!-- Submit -->
                 <div class="col-12">
-                    <div id="form-status" class="alert d-none" role="alert"></div>
                     <button type="submit" class="btn btn-outline-secondary">
-                        {{ create_post_publish_label | default("Publish Post") }} <i class="bi bi-chevron-right"></i>
+                        {{ create_post_submit_button_label | default("Create Post") }} <i
+                            class="bi bi-chevron-right"></i>
                     </button>
                 </div>
             </form>
@@ -46,61 +39,37 @@
 
     <script>
       document.addEventListener("DOMContentLoaded", () => {
-        const form = document.querySelector("#post-form")
-        const statusDiv = document.getElementById("form-status")
-
-        form.addEventListener("submit", async (event) => {
-          event.preventDefault()
-          event.stopPropagation()
-          form.classList.add("was-validated")
-
-          if (!form.checkValidity()) return
-
-          const title = form.title.value.trim()
-          const content = form.content.value.trim()
-          const tags = form.tags.value.split(",").map(t => t.trim()).filter(Boolean)
-
-          try {
-            const response = await fetch("{{ url('create-post') }}", {
-              method: "POST",
-              headers: {"Content-Type": "application/json"},
-              body: JSON.stringify({title, content, tags})
-            })
-
-            if (response.ok) {
-              statusDiv.className = "alert alert-success d-flex align-items-center"
-              statusDiv.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i>{{ create_post_post_published | default("Post created!") }}`
-              form.reset()
-              form.classList.remove("was-validated")
-              const responseBody = await response.json()
-              if ("url" in responseBody) {
-                window.location.href = responseBody.url
+        handleFormSubmit("#post-form", "{{ url('create-post') }}", {
+          rules: {
+            title: [
+              {rule: "required"},
+              {rule: "minLength", value: 20},
+              {rule: "maxLength", value: 500}
+            ],
+            content: [
+              {rule: "required"},
+              {rule: "minLength", value: 1000},
+              {rule: "maxLength", value: 10000}
+            ],
+            tags: [
+              {rule: "required"},
+              {
+                validator: (value) => {
+                  const items = value.split(",").map(t => t.trim()).filter(Boolean)
+                  return items.length >= 1 && items.length <= 3 && items.every(t => t.length >= 2 && t.length <= 20)
+                },
+                errorMessage: "{{ create_post_tags_validation_error | default('Tags must be 1–3 items, 2–20 chars each') }}"
               }
-            } else if (response.status === 422) {
-              const data = await response.json()
-              if (data.details) {
-                Object.entries(data.details).forEach(([field, msg]) => {
-                  const input = form.querySelector(`[name="${field}"]`)
-                  if (input) {
-                    input.setCustomValidity(msg)
-                    input.classList.add("is-invalid")
-                    const feedback = input.parentElement.querySelector(".invalid-feedback")
-                    if (feedback) feedback.textContent = msg
-                  }
-                })
-              }
-              statusDiv.className = "alert alert-danger d-flex align-items-center"
-              statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>${data.message || "{{ create_post_post_failed | default('Something went wrong.') }}"}`
-            } else {
-              statusDiv.className = "alert alert-danger d-flex align-items-center"
-              statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>{{ create_post_post_failed | default("Something went wrong.") }}`
-            }
-          } catch (err) {
-            statusDiv.className = "alert alert-danger d-flex align-items-center"
-            statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>{{ create_post_post_unknown | default("Network error. Please try again.") }}`
-          }
-
-          statusDiv.classList.remove("d-none")
+            ]
+          },
+          preparePayload: (data, form) => {
+            data.tags = form.tags.value.split(",").map(t => t.trim()).filter(Boolean)
+            return data
+          },
+          onSuccess: (res) => {
+            if (res.url) window.location.href = res.url
+          },
+          successMessage: "{{ create_post_created | default('Post created!') }}"
         })
       })
     </script>
