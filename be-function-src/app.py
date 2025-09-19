@@ -162,7 +162,7 @@ async def index(request: Request, cur_user: OptCurUserDep) -> str:
 
 
 @app.get("/create-post", name="create-post-page", response_class=HTMLResponse)
-async def create_post_page(request: Request, cur_user: OptCurUserDep) -> str:
+async def create_post_page(request: Request, cur_user: CurUserDep) -> str:
     data = await get_create_post_page_data(
         request=request,
         cur_user=cur_user
