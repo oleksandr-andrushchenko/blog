@@ -19,7 +19,7 @@ from jinja2 import Environment, FileSystemLoader, pass_context
 import dotenv
 import json
 from datetime import datetime, timezone
-from pydantic import BaseModel, EmailStr, Field, field_validator, conlist
+from pydantic import BaseModel, EmailStr, Field, field_validator, conlist, constr
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 from itertools import combinations
@@ -77,9 +77,9 @@ class ContactMessage(BaseModel):
 
 
 class PostDTO(BaseModel):
-    title: str
-    content: str
-    tags: conlist(str, min_length=1, max_length=3)
+    title: str = Field(..., min_length=20, max_length=500)
+    content: str = Field(..., min_length=1000, max_length=10000)
+    tags: conlist(constr(min_length=2, max_length=20), min_length=1, max_length=3)
 
     @field_validator("tags", mode="before")
     @classmethod
