@@ -20,18 +20,14 @@ from mangum import Mangum
 from http import HTTPStatus
 from contextlib import asynccontextmanager
 from utils import (
-    # models
     User,
     ContactMessageDTO,
     PostDTO,
     Post,
-    PublicPost,
     Tag,
     TagQueryDTO,
     PublicTag,
-    # config
     is_prod,
-    # errors
     InvalidTokenError,
     InvalidCodeError,
     CodeExchangeFailedError,
@@ -40,14 +36,12 @@ from utils import (
     PostNotFoundError,
     AuthorizationFailedError,
     UserNotFoundError,
-    # helpers
     logger,
     get_html_content,
     get_full_url,
     get_user_by_plain_token,
     configure_app_state,
     get_url,
-    # services
     get_posts_page_data,
     get_post,
     get_post_page_data,

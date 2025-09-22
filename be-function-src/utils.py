@@ -27,10 +27,6 @@ import time
 from zoneinfo import ZoneInfo
 
 
-# -------------------------
-# Models
-# -------------------------
-
 class UserToken(BaseModel):
     sub: str
     iss: str  # "cognito", "google", etc.
@@ -142,10 +138,6 @@ class Permission(str, Enum):
     CREATE_CONTACT_MESSAGE = "create_contact_message"
 
 
-# -------------------------
-# Errors
-# -------------------------
-
 class BaseError(Exception):
     pass
 
@@ -188,10 +180,6 @@ class AuthorizationFailedError(BaseError):
         self.permission = permission
         super().__init__(f"User lacks required permission: {permission}")
 
-
-# -------------------------
-# Config
-# -------------------------
 
 def get_live_config(load_env=False):
     if load_env:
@@ -308,10 +296,6 @@ def get_permission_hierarchy() -> Dict[str, List[str]]:
     return get_config().get("permission_hierarchy")
 
 
-# -------------------------
-# Helpers
-# -------------------------
-
 class Lazy:
     def __init__(self, factory: Callable):
         self._factory = factory
@@ -374,7 +358,7 @@ def utc_now() -> int:
     return int(time.time())
 
 
-async def dynamodb_transact_write_or_raise(table, transact_items: List[Dict[str, Any]]):
+async def dynamodb_transact_write(table, transact_items: List[Dict[str, Any]]):
     """
     Executes a DynamoDB TransactWriteItems call and raises a
     DynamoTransactionError with detailed reasons if it fails.
@@ -602,15 +586,13 @@ async def get_user_by_user_token(token: UserToken) -> Optional[User]:
         if not internal_item:
             return None
 
-        return User(
-            id=user_id,
-            email=internal_item.get("gsi_email", token.email),
-            name=internal_item.get("name", token.name),
-            username=internal_item.get("username", token.username),
-            providers=internal_item.get("providers", {}),
-            created_at=internal_item.get("created_at"),
-            updated_at=internal_item.get("updated_at")
-        )
+        return user_from_dynamodb({
+            "id": user_id,
+            **internal_item,
+            "email": internal_item.get("gsi_email", token.email),
+            "name": internal_item.get("name", token.name),
+            "username": internal_item.get("username", token.username)
+        })
 
     return await with_dynamodb_table(fn)
 
@@ -671,23 +653,15 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
             }
         })
 
-        await dynamodb_transact_write_or_raise(table, transact_items)
+        await dynamodb_transact_write(table, transact_items)
 
         # 5: Return User model
-        return User(
-            id=user_id,
-            email=token.email,
-            name=token.name,
-            username=token.username,
-            providers=providers,
-            created_at=internal_item.get("created_at"),
-            updated_at=internal_item.get("updated_at")
-        )
+        return user_from_dynamodb(internal_item)
 
     return await with_dynamodb_table(fn)
 
 
-def map_jwt_claims_to_user_token(claims: dict[str, Any], plain_token: str = None) -> UserToken:
+def user_token_from_jwt_claims(claims: dict[str, Any], plain_token: str = None) -> UserToken:
     exp = to_datetime(claims.get("exp"))
     max_age = None
 
@@ -807,7 +781,7 @@ async def get_user_token_by_plain_token(plain_token: Optional[str], app_state: S
             audience=get_cognito_client_id(),
             issuer=issuer,
         )
-        return map_jwt_claims_to_user_token(claims, plain_token)
+        return user_token_from_jwt_claims(claims, plain_token)
     except JWTError:
         raise InvalidTokenError("Invalid token")
 
@@ -826,10 +800,6 @@ async def get_user_by_plain_token(plain_token: Optional[str], app_state: State) 
     return user
 
 
-# -------------------------
-# Services
-# -------------------------
-
 async def get_create_post_page_data(**kwargs: Any) -> Dict[str, Any]:
     data = {
         **get_config(),
@@ -847,9 +817,20 @@ async def get_create_post_page_data(**kwargs: Any) -> Dict[str, Any]:
     return data
 
 
-# -------------------------
-# Create Post with tags metadata and posts_count increment
-# -------------------------
+def post_from_dynamodb(d_item: Dict[str, Any]) -> Post:
+    return Post(
+        id=d_item["id"],
+        title=d_item["title"],
+        slug=d_item["slug"],
+        user_id=d_item["user_id"],
+        content=d_item["content"],
+        tags=[Tag(name=t) for t in d_item.get("tags", [])],
+        status=d_item["status"],
+        created_at=d_item["created_at"],
+        updated_at=d_item.get("updated_at"),
+    )
+
+
 async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISHED) -> Post:
     verify_authorization(user, Permission.CREATE_POST)
 
@@ -864,7 +845,7 @@ async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISH
         post_item = {
             "pk": f"POST#{post_id}",
             "sk": "METADATA",
-            "post_id": post_id,
+            "id": post_id,
             "title": post_dto.title,
             "slug": slug,
             "user_id": user.id,
@@ -927,22 +908,13 @@ async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISH
 
         # Execute transaction
         try:
-            await dynamodb_transact_write_or_raise(table, transact_items)
+            await dynamodb_transact_write(table, transact_items)
         except DynamoDBTransactionError as e:
             if e.is_conditional():
                 raise SlugDuplicationError("Duplicate slug")
             raise
 
-        return Post(
-            id=post_id,
-            title=post_item["title"],
-            slug=post_item["slug"],
-            user_id=post_item["user_id"],
-            content=post_item["content"],
-            tags=[Tag(name=t) for t in post_item["tags"]],
-            created_at=now,
-            updated_at=now,
-        )
+        return post_from_dynamodb(post_item)
 
     return await with_dynamodb_table(fn)
 
@@ -959,16 +931,7 @@ async def find_post(post_id: str) -> Optional[Post]:
         if not item:
             return None
 
-        return Post(
-            id=item["post_id"],
-            title=item["title"],
-            slug=item["slug"],
-            user_id=item["user_id"],
-            content=item["content"],
-            tags=[Tag(name=t) for t in item.get("tags", [])],
-            created_at=item.get("created_at"),
-            updated_at=item.get("updated_at"),
-        )
+        return post_from_dynamodb(item)
 
     return await with_dynamodb_table(fn)
 
@@ -978,6 +941,18 @@ async def get_post(post_id: str) -> Post:
     if post is None:
         raise PostNotFoundError(f"Post '{post_id}' not found")
     return post
+
+
+def user_from_dynamodb(d_item: Dict[str, Any]) -> User:
+    return User(
+        id=d_item["id"],
+        email=d_item.get("gsi_email"),
+        name=d_item.get("name"),
+        username=d_item.get("username"),
+        providers=d_item.get("providers", {}),
+        created_at=d_item["created_at"],
+        updated_at=d_item.get("updated_at")
+    )
 
 
 async def find_user(user_id: str) -> Optional[User]:
@@ -992,15 +967,7 @@ async def find_user(user_id: str) -> Optional[User]:
         if not item:
             return None
         # logger.debug(f"User: {item}")
-        return User(
-            id=user_id,
-            email=item.get("gsi_email"),
-            name=item.get("name"),
-            username=item.get("username"),
-            providers=item.get("providers", {}),
-            created_at=item.get("created_at"),
-            updated_at=item.get("updated_at")
-        )
+        return user_from_dynamodb(item)
 
     return await with_dynamodb_table(fn)
 
@@ -1033,27 +1000,11 @@ async def get_latest_posts(limit: int = 10, last_sk: Optional[str] = None) -> Li
         )
         items = resp.get("Items", [])
         # logger.debug(json.dumps(items,indent=4))
-        return [
-            Post(
-                id=item["post_id"],
-                title=item["title"],
-                slug=item["slug"],
-                user_id=item.get("user_id"),
-                content=item.get("content"),
-                tags=[Tag(name=t) for t in item.get("tags", [])],
-                status=item.get("status", status),
-                created_at=item.get("created_at"),
-                updated_at=item.get("updated_at"),
-            )
-            for item in items
-        ]
+        return [post_from_dynamodb(item) for item in items]
 
     return await with_dynamodb_table(fn)
 
 
-# -------------------------
-# Latest Posts by Tag (cursor-based)
-# -------------------------
 async def get_latest_posts_by_tags(
         tags: List[str],
         limit: int = 10,
@@ -1094,19 +1045,7 @@ async def get_latest_posts_by_tags(
         post_items_map = {item["post_id"]: item for item in post_items}
         ordered_posts = [post_items_map[pid] for pid in post_ids if pid in post_items_map]
 
-        return [
-            Post(
-                id=item["post_id"],
-                title=item["title"],
-                slug=item["slug"],
-                user_id=item.get("user_id"),
-                content=item.get("content"),
-                tags=[Tag(name=t) for t in item.get("tags", [])],
-                created_at=item.get("created_at"),
-                updated_at=item.get("updated_at"),
-            )
-            for item in ordered_posts
-        ]
+        return [post_from_dynamodb(item) for item in ordered_posts]
 
     return await with_dynamodb_table(fn)
 
@@ -1160,7 +1099,7 @@ async def approve_post(post: Post, user: User) -> None:
                 })
 
         if transact_items:
-            await dynamodb_transact_write_or_raise(table, transact_items)
+            await dynamodb_transact_write(table, transact_items)
 
         post.status = status
 
@@ -1274,8 +1213,8 @@ async def get_index_page_data(**kwargs: Any) -> Dict[str, Any]:
     return {
         **get_config(),
         **kwargs,
-        "popular_tags": await get_popular_tags(10),
-        "latest_posts": await get_latest_posts(10)
+        "popular_tags": await get_popular_tags(),
+        "latest_posts": await get_latest_posts()
     }
 
 
@@ -1283,7 +1222,7 @@ async def get_posts_page_data(**kwargs: Any) -> Dict[str, Any]:
     data = {
         **get_config(),
         **kwargs,
-        "posts": await get_latest_posts(10)
+        "latest_posts": await get_latest_posts()
     }
 
     request = data.get("request")
@@ -1386,7 +1325,7 @@ async def get_user_token_by_code(code: str, callback_url: str) -> UserToken:
             raise InvalidTokenError("Missing token")
 
         claims = jwt.get_unverified_claims(token)
-        user_token = map_jwt_claims_to_user_token(claims, token)
+        user_token = user_token_from_jwt_claims(claims, token)
     else:
         user_token = get_dummy_user_token()
 
@@ -1423,18 +1362,7 @@ async def get_latest_users(limit: int = 10, last_sk: Optional[str] = None) -> Li
         )
         items = resp.get("Items", [])
         # logger.debug(f"Latest users: {json.dumps(items, indent=4)}")
-        return [
-            User(
-                id=item["id"],
-                email=item.get("gsi_email"),
-                name=item.get("name"),
-                username=item.get("username"),
-                providers=item.get("providers", {}),
-                created_at=item.get("created_at"),
-                updated_at=item.get("updated_at")
-            )
-            for item in items
-        ]
+        return [user_from_dynamodb(item) for item in items]
 
     return await with_dynamodb_table(fn)
 
@@ -1516,19 +1444,6 @@ async def get_latest_posts_by_user(user: User, limit: int = 10, last_sk: Optiona
             Limit=limit
         )
         items = resp.get("Items", [])
-        return [
-            Post(
-                id=item["post_id"],
-                title=item["title"],
-                slug=item["slug"],
-                user_id=item.get("user_id"),
-                content=item.get("content"),
-                tags=[Tag(name=t) for t in item.get("tags", [])],
-                status=item.get("status", status),
-                created_at=item.get("created_at"),
-                updated_at=item.get("updated_at"),
-            )
-            for item in items
-        ]
+        return [post_from_dynamodb(item) for item in items]
 
     return await with_dynamodb_table(fn)

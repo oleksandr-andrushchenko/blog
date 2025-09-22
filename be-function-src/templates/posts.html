@@ -6,8 +6,8 @@
 {% block content %}
     <h1>{{ posts_header | default("Posts") }}</h1>
     <p class="small text-secondary">{{ posts_sub_header | default("Recent articles") }}</p>
-    {% if posts %}
-        {% for post in posts %}
+    {% if latest_posts %}
+        {% for post in latest_posts %}
             <div>
                 <a href="{{ url("post-page", post_id=post.id) }}">
                     <h2>{{ post.title }}</h2>
