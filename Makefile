@@ -336,6 +336,7 @@ create-local-dynamodb:
 				AttributeName=gsi_tag_name_pk,AttributeType=S \
 				AttributeName=tag_name,AttributeType=S \
 				AttributeName=gsi_user_pk,AttributeType=S \
+				AttributeName=gsi_post_user_pk,AttributeType=S \
 			--key-schema \
 				AttributeName=pk,KeyType=HASH \
 				AttributeName=sk,KeyType=RANGE \

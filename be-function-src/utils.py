@@ -644,7 +644,7 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
             "providers": providers,
             "created_at": now,
             "updated_at": now,
-            "gsi_user_pk": f"USER#{user_id}",
+            "gsi_user_pk": f"USER",
             "gsi_status_created_at": f"STATUS#{status.value}#CREATED_AT#{now}",
         }
         transact_items.append({
@@ -873,7 +873,7 @@ async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISH
             "status": status,
             "created_at": now,
             "gsi_post_pk": "POST",
-            "gsi_user_pk": f"USER#{user.id}",
+            "gsi_post_user_pk": f"USER#{user.id}",
             "gsi_status_created_at": f"STATUS#{status.value}#CREATED_AT#{now}"
         }
         transact_items.append({
@@ -1413,10 +1413,7 @@ async def get_latest_users(limit: int = 10, last_sk: Optional[str] = None) -> Li
 
     async def fn(table):
         status = UserStatus.ACTIVE
-        key_cond = Key("gsi_user_pk").eq("USER") & Key("gsi_status_created_at").begins_with(
-            f"STATUS#{status.value}#")
-        if last_sk:
-            key_cond &= Key("gsi_status_created_at").lt(last_sk)
+        key_cond = Key("gsi_user_pk").eq("USER")
 
         resp = await table.query(
             IndexName="GSI_USER_STATUS_CREATED_AT",
@@ -1503,21 +1500,19 @@ def unix_to_full_date(timestamp: int, tz: str | None = None) -> str:
 async def get_latest_posts_by_user(user: User, limit: int = 10, last_sk: Optional[str] = None) -> List[Post]:
     """
     Fetch latest published posts for a specific user.
-    Supports pagination with last_sk (gsi_status_created_at of the last item).
     """
 
     async def fn(table):
         status = PostStatus.PUBLISHED
-        user_pk = f"USER#{user.id}"
-        key_cond = Key("gsi_user_pk").eq(user_pk) & Key("gsi_status_created_at").begins_with(f"STATUS#{status.value}#")
-
+        key_cond = Key("gsi_post_user_pk").eq(f"USER#{user.id}") & Key("gsi_status_created_at").begins_with(
+            f"STATUS#{status.value}#")
         if last_sk:
             key_cond &= Key("gsi_status_created_at").lt(last_sk)
 
         resp = await table.query(
-            IndexName="GSI_USER_STATUS_CREATED_AT",
+            IndexName="GSI_USER_POSTS",
             KeyConditionExpression=key_cond,
-            ScanIndexForward=False,  # latest first
+            ScanIndexForward=False,
             Limit=limit
         )
         items = resp.get("Items", [])

@@ -86,5 +86,21 @@
     "Projection": {
       "ProjectionType": "ALL"
     }
+  },
+  {
+    "IndexName": "GSI_USER_POSTS",
+    "KeySchema": [
+      {
+        "AttributeName": "gsi_post_user_pk",
+        "KeyType": "HASH"
+      },
+      {
+        "AttributeName": "gsi_status_created_at",
+        "KeyType": "RANGE"
+      }
+    ],
+    "Projection": {
+      "ProjectionType": "ALL"
+    }
   }
 ]
