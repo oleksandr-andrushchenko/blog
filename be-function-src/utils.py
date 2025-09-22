@@ -644,7 +644,7 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
             "providers": providers,
             "created_at": now,
             "updated_at": now,
-            "gsi_user_pk": "USER",
+            "gsi_user_pk": f"USER#{user_id}",
             "gsi_status_created_at": f"STATUS#{status.value}#CREATED_AT#{now}",
         }
         transact_items.append({
@@ -873,7 +873,8 @@ async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISH
             "status": status,
             "created_at": now,
             "gsi_post_pk": "POST",
-            "gsi_status_created_at": f"STATUS#{status.value}#CREATED_AT#{now}",
+            "gsi_user_pk": f"USER#{user.id}",
+            "gsi_status_created_at": f"STATUS#{status.value}#CREATED_AT#{now}"
         }
         transact_items.append({
             "Put": {
@@ -1464,6 +1465,7 @@ async def get_user_page_data(user: User, **kwargs: Any) -> Dict[str, Any]:
         **get_config(),
         **kwargs,
         "user": user,
+        "latest_posts": await get_latest_posts_by_user(user)
     }
 
     request = data.get("request")
@@ -1496,3 +1498,42 @@ def unix_to_full_date(timestamp: int, tz: str | None = None) -> str:
     if tz:
         dt = dt.astimezone(ZoneInfo(tz))
     return dt.strftime("%b %d, %Y")
+
+
+async def get_latest_posts_by_user(user: User, limit: int = 10, last_sk: Optional[str] = None) -> List[Post]:
+    """
+    Fetch latest published posts for a specific user.
+    Supports pagination with last_sk (gsi_status_created_at of the last item).
+    """
+
+    async def fn(table):
+        status = PostStatus.PUBLISHED
+        user_pk = f"USER#{user.id}"
+        key_cond = Key("gsi_user_pk").eq(user_pk) & Key("gsi_status_created_at").begins_with(f"STATUS#{status.value}#")
+
+        if last_sk:
+            key_cond &= Key("gsi_status_created_at").lt(last_sk)
+
+        resp = await table.query(
+            IndexName="GSI_USER_STATUS_CREATED_AT",
+            KeyConditionExpression=key_cond,
+            ScanIndexForward=False,  # latest first
+            Limit=limit
+        )
+        items = resp.get("Items", [])
+        return [
+            Post(
+                id=item["post_id"],
+                title=item["title"],
+                slug=item["slug"],
+                user_id=item.get("user_id"),
+                content=item.get("content"),
+                tags=[Tag(name=t) for t in item.get("tags", [])],
+                status=item.get("status", status),
+                created_at=item.get("created_at"),
+                updated_at=item.get("updated_at"),
+            )
+            for item in items
+        ]
+
+    return await with_dynamodb_table(fn)

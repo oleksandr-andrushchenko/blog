@@ -49,6 +49,7 @@
             </div>
         </div>
     </div>
+
     {% if user.about %}
         <section class="container">
             <h2 class="mb-2 text-center mb-sm-2 mb-md-2 mb-lg-2 text-lg-start mb-xl-3 mb-xxl-3">
@@ -61,4 +62,19 @@
             </div>
         </section>
     {% endif %}
+
+    <div>
+        <h2>{{ user_latest_posts | default("Latest posts") }}</h2>
+        {% if latest_posts %}
+            {% for post in latest_posts %}
+                <div>
+                    <a href="{{ url("post-page", post_id=post.id) }}">
+                        {{ post.title }}
+                    </a>
+                </div>
+            {% endfor %}
+        {% else %}
+            {{ user_no_latest_posts | default("N/A") }}
+        {% endif %}
+    </div>
 {% endblock %}
