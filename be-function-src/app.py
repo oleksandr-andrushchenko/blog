@@ -125,6 +125,7 @@ PostDep = Annotated[Post, Depends(get_post_by_id)]
 UserDep = Annotated[User, Depends(get_user_by_id)]
 UserQueryDep = Annotated[UserQueryDTO, Depends()]
 PostQueryDep = Annotated[PostQueryDTO, Depends()]
+TagQueryDep = Annotated[TagQueryDTO, Depends()]
 
 
 @asynccontextmanager
@@ -174,94 +175,12 @@ async def create_post_page(cur_user: CurUserDep) -> str:
 async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request) -> Dict[str, Any]:
     try:
         post = await create_post(post_dto, cur_user)
-        return {
-            "url": get_url(request, "post-page", post_id=post.id)
-        }
+        return {"url": get_url(request, "post-page", post_id=post.id)}
     except SlugDuplicationError as e:
         raise HTTPException(
             status_code=HTTP_409_CONFLICT,
             detail=str(e)
         )
-
-
-@app.get("/contacts", name="contacts-page", response_class=HTMLResponse)
-async def contacts_page(cur_user: OptCurUserDep) -> str:
-    return get_html_content("contacts.html", {
-        "cur_user": cur_user
-    })
-
-
-@app.post("/contacts/message", name="create-contact-message", status_code=HTTP_204_NO_CONTENT)
-async def _create_contact_message(message_dto: ContactMessageDTO, cur_user: OptCurUserDep) -> None:
-    await create_contact_message(message_dto, cur_user)
-
-
-@app.get("/auth/login", name="login", response_class=RedirectResponse)
-async def login(request: Request) -> str:
-    # todo: make sure referer belongs to the website
-    referer = request.headers.get('referer')
-    index_url = get_full_url(request, 'index')
-    callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={referer if referer else index_url}"
-    logger.info(f"login: callback_url: {callback_url}")
-
-    redirect_url = await get_login_redirect_url(
-        callback_url=callback_url
-    )
-    logger.info(f"login: redirect_url: {redirect_url}")
-
-    return redirect_url
-
-
-@app.get("/auth/callback", name="login-callback", response_class=RedirectResponse)
-async def login_callback(request: Request) -> RedirectResponse:
-    try:
-        redirect_url = request.query_params.get('redirect_url')
-        logger.info(f"login_callback: redirect_url: {redirect_url}")
-
-        callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={redirect_url}"
-        logger.info(f"login_callback: callback_url: {callback_url}")
-
-        user_token = await get_user_token_by_code(
-            code=request.query_params.get("code"),
-            callback_url=callback_url
-        )
-        response = RedirectResponse(
-            url=redirect_url,
-            status_code=HTTP_302_FOUND
-        )
-        response.set_cookie(
-            key="session_token",
-            value=user_token.plain_token,
-            httponly=True,
-            secure=True,
-            samesite="lax",
-            max_age=user_token.max_age
-        )
-        return response
-    except (InvalidCodeError, CodeExchangeFailedError, InvalidTokenError) as e:
-        raise HTTPException(
-            status_code=HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-
-
-@app.get("/auth/logout", name="logout", response_class=RedirectResponse)
-async def logout(request: Request) -> RedirectResponse:
-    # todo: make sure referer belongs to the website
-    referer = request.headers.get("referer")
-    callback_url = referer if referer else get_full_url(request, 'index')
-    logger.info(f"logout: callback_url: {callback_url}")
-
-    redirect_url = await get_logout_redirect_url(
-        callback_url=callback_url
-    )
-    logger.info(f"logout: redirect_url: {redirect_url}")
-
-    response = RedirectResponse(
-        url=redirect_url
-    )
-    response.delete_cookie("session_token")
-    return response
 
 
 @app.get("/posts", name="posts-page", response_class=HTMLResponse)
@@ -289,14 +208,21 @@ async def _approve_post(post: PostDep, cur_user: CurUserDep) -> None:
     )
 
 
+@app.get("/contacts", name="contacts-page", response_class=HTMLResponse)
+async def contacts_page(cur_user: OptCurUserDep) -> str:
+    return get_html_content("contacts.html", {
+        "cur_user": cur_user
+    })
+
+
+@app.post("/contacts/message", name="create-contact-message", status_code=HTTP_204_NO_CONTENT)
+async def _create_contact_message(message_dto: ContactMessageDTO, cur_user: OptCurUserDep) -> None:
+    await create_contact_message(message_dto, cur_user)
+
+
 @app.get("/tags", name="get-tags", response_model=List[PublicTag], response_class=JSONResponse)
-async def _get_tags(query_dto: TagQueryDTO = Depends()) -> List[Tag]:
+async def _get_tags(query_dto: TagQueryDep) -> List[Tag]:
     return await get_tags(query_dto)
-
-
-@app.post("/dummy-fixtures", name="create-dummy-fixtures")
-async def _create_dummy_fixtures() -> None:
-    return await create_dummy_fixtures()
 
 
 @app.get("/users", name="users-page", response_class=HTMLResponse)
@@ -316,6 +242,59 @@ async def user_page(user: UserDep, cur_user: OptCurUserDep) -> str:
     })
 
 
+@app.get("/auth/login", name="login", response_class=RedirectResponse)
+async def login(request: Request) -> str:
+    # todo: make sure referer belongs to the website
+    referer = request.headers.get('referer')
+    index_url = get_full_url(request, 'index')
+    callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={referer if referer else index_url}"
+    redirect_url = await get_login_redirect_url(callback_url)
+    return redirect_url
+
+
+@app.get("/auth/callback", name="login-callback", response_class=RedirectResponse)
+async def login_callback(request: Request) -> RedirectResponse:
+    try:
+        redirect_url = request.query_params.get('redirect_url')
+        callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={redirect_url}"
+
+        user_token = await get_user_token_by_code(
+            code=request.query_params.get("code"),
+            callback_url=callback_url
+        )
+        response = RedirectResponse(redirect_url, HTTP_302_FOUND)
+        response.set_cookie(
+            key="session_token",
+            value=user_token.plain_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=user_token.max_age
+        )
+        return response
+    except (InvalidCodeError, CodeExchangeFailedError, InvalidTokenError) as e:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@app.get("/auth/logout", name="logout", response_class=RedirectResponse)
+async def logout(request: Request) -> RedirectResponse:
+    # todo: make sure referer belongs to the website
+    referer = request.headers.get("referer")
+    callback_url = referer if referer else get_full_url(request, 'index')
+    redirect_url = await get_logout_redirect_url(callback_url)
+    response = RedirectResponse(redirect_url)
+    response.delete_cookie("session_token")
+    return response
+
+
+@app.post("/dummy-fixtures", name="create-dummy-fixtures")
+async def _create_dummy_fixtures() -> None:
+    return await create_dummy_fixtures()
+
+
 # -------------------------
 # Exception handlers
 # -------------------------
@@ -330,7 +309,6 @@ async def get_error_response(request: Request, status_code: int, details: Union[
     }
 
     content_type = request.headers.get("content-type", "")
-
     if "application/json" in content_type:
         return JSONResponse(
             status_code=status_code,
