@@ -3,6 +3,16 @@
 {% block title %}{{ post_title | default(post.title ~ " | " ~ site_name) }}{% endblock %}
 {% block canonical_url %}{{ full_url("post-page", post_id=post.id) }}{% endblock %}
 
+{% block breadcrumbs %}
+    {% with breadcrumbs = {
+        (index_breadcrumb | default("Home")): url("index"),
+        (posts_breadcrumb | default("Posts")): url("posts-page"),
+        (post.title): None
+    } %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
+{% endblock %}
+
 {% block content %}
     <h1>{{ post.title }}</h1>
     {% include "fragments/post-meta.html" %}

@@ -23,10 +23,12 @@ from utils import (
     User,
     ContactMessageDTO,
     PostDTO,
+    PostQueryDTO,
     Post,
     Tag,
     TagQueryDTO,
     PublicTag,
+    UserQueryDTO,
     is_prod,
     InvalidTokenError,
     InvalidCodeError,
@@ -42,24 +44,22 @@ from utils import (
     get_user_by_plain_token,
     configure_app_state,
     get_url,
-    get_posts_page_data,
     get_post,
-    get_post_page_data,
-    get_create_post_page_data,
     create_post,
     create_contact_message,
-    get_index_page_data,
-    get_contacts_page_data,
     get_user_token_by_code,
     get_login_redirect_url,
     get_logout_redirect_url,
     get_tags,
-    get_error_page_data,
     create_dummy_fixtures,
     approve_post,
-    get_users_page_data,
     get_user,
-    get_user_page_data,
+    get_latest_posts,
+    get_config,
+    get_latest_users,
+    get_latest_posts_by_user,
+    get_popular_tags,
+    find_user,
 )
 
 
@@ -123,6 +123,8 @@ CurUserDep = Annotated[User, Depends(get_cur_user)]
 OptCurUserDep = Annotated[Optional[User], Depends(get_opt_cur_user)]
 PostDep = Annotated[Post, Depends(get_post_by_id)]
 UserDep = Annotated[User, Depends(get_user_by_id)]
+UserQueryDep = Annotated[UserQueryDTO, Depends()]
+PostQueryDep = Annotated[PostQueryDTO, Depends()]
 
 
 @asynccontextmanager
@@ -148,27 +150,31 @@ if not is_prod():
 
 @app.get("/", name="index", response_class=HTMLResponse)
 async def index(request: Request, cur_user: OptCurUserDep) -> str:
-    data = await get_index_page_data(
-        request=request,
-        cur_user=cur_user
-    )
-    return get_html_content("index.html", data)
+    return get_html_content("index.html", {
+        **get_config(),
+        "cur_user": cur_user,
+        "request": request,
+        "popular_tags": await get_popular_tags(),
+        "latest_posts": await get_latest_posts()
+    })
 
 
 @app.get("/create-post", name="create-post-page", response_class=HTMLResponse)
 async def create_post_page(request: Request, cur_user: CurUserDep) -> str:
-    data = await get_create_post_page_data(
-        request=request,
-        cur_user=cur_user
-    )
-    return get_html_content("create-post.html", data)
+    return get_html_content("create-post.html", {
+        **get_config(),
+        "cur_user": cur_user,
+        "request": request
+    })
 
 
 @app.post("/posts", name="create-post", response_class=JSONResponse)
 async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request) -> Dict[str, Any]:
     try:
         post = await create_post(post_dto, cur_user)
-        return {"url": get_url(request, "post-page", post_id=post.id)}
+        return {
+            "url": get_url(request, "post-page", post_id=post.id)
+        }
     except SlugDuplicationError as e:
         raise HTTPException(
             status_code=HTTP_409_CONFLICT,
@@ -178,11 +184,11 @@ async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request
 
 @app.get("/contacts", name="contacts-page", response_class=HTMLResponse)
 async def contacts_page(request: Request, cur_user: OptCurUserDep) -> str:
-    data = await get_contacts_page_data(
-        request=request,
-        cur_user=cur_user
-    )
-    return get_html_content("contacts.html", data)
+    return get_html_content("contacts.html", {
+        **get_config(),
+        "request": request,
+        "cur_user": cur_user
+    })
 
 
 @app.post("/contacts/message", name="create-contact-message", status_code=HTTP_204_NO_CONTENT)
@@ -259,22 +265,24 @@ async def logout(request: Request) -> RedirectResponse:
 
 
 @app.get("/posts", name="posts-page", response_class=HTMLResponse)
-async def posts_page(request: Request, cur_user: OptCurUserDep) -> str:
-    data = await get_posts_page_data(
-        request=request,
-        cur_user=cur_user
-    )
-    return get_html_content("posts.html", data)
+async def posts_page(request: Request, query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
+    return get_html_content("fragments/posts.html" if query_dto.fragment else "posts.html", {
+        **get_config(),
+        "cur_user": cur_user,
+        "latest_posts": await get_latest_posts(query_dto),
+        "request": request
+    })
 
 
 @app.get("/posts/{post_id}", name="post-page", response_class=HTMLResponse)
-async def post_page(post: PostDep, request: Request, cur_user: OptCurUserDep) -> str:
-    data = await get_post_page_data(
-        post=post,
-        request=request,
-        cur_user=cur_user
-    )
-    return get_html_content("post.html", data)
+async def post_page(request: Request, post: PostDep, cur_user: OptCurUserDep) -> str:
+    return get_html_content("post.html", {
+        **get_config(),
+        "cur_user": cur_user,
+        "request": request,
+        "post": post,
+        "author": await find_user(post.user_id)
+    })
 
 
 @app.post("/posts/{post_id}/approve", name="approve-post", status_code=HTTP_204_NO_CONTENT)
@@ -296,22 +304,24 @@ async def _create_dummy_fixtures() -> None:
 
 
 @app.get("/users", name="users-page", response_class=HTMLResponse)
-async def users_page(request: Request, cur_user: OptCurUserDep) -> str:
-    data = await get_users_page_data(
-        request=request,
-        cur_user=cur_user
-    )
-    return get_html_content("users.html", data)
+async def users_page(request: Request, query_dto: UserQueryDep, cur_user: OptCurUserDep) -> str:
+    return get_html_content("fragments/users.html" if query_dto.fragment else "users.html", {
+        **get_config(),
+        "cur_user": cur_user,
+        "latest_users": await get_latest_users(query_dto),
+        "request": request
+    })
 
 
 @app.get("/users/{user_id}", name="user-page", response_class=HTMLResponse)
-async def user_page(user: UserDep, request: Request, cur_user: OptCurUserDep) -> str:
-    data = await get_user_page_data(
-        user=user,
-        request=request,
-        cur_user=cur_user
-    )
-    return get_html_content("user.html", data)
+async def user_page(request: Request, user: UserDep, cur_user: OptCurUserDep) -> str:
+    return get_html_content("user.html", {
+        **get_config(),
+        "cur_user": cur_user,
+        "request": request,
+        "user": user,
+        "latest_posts": await get_latest_posts_by_user(user)
+    })
 
 
 # -------------------------
@@ -327,7 +337,10 @@ async def get_error_response(request: Request, status_code: int, details: Union[
         "details": details,
     }
 
-    data = await get_error_page_data()
+    data = {
+        **get_config(),
+        "request": request,
+    }
     content_type = request.headers.get("content-type", "")
 
     if "application/json" in content_type:

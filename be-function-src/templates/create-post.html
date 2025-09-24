@@ -3,6 +3,15 @@
 {% block title %}{{ create_post_title | default("Create post | " ~ site_name) }}{% endblock %}
 {% block canonical_url %}{{ full_url("create-post") }}{% endblock %}
 
+{% block breadcrumbs %}
+    {% with breadcrumbs = {
+        (index_breadcrumb | default("Home")): url("index"),
+        (create_post_breadcrumb | default("Create post")): None,
+    } %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
+{% endblock %}
+
 {% block content %}
     <h1>{{ create_post_header | default("Create post") }}</h1>
     <p class="small text-secondary">{{ create_post_sub_header | default("Publish a new article") }}</p>

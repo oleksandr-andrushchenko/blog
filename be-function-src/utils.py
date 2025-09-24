@@ -87,6 +87,18 @@ class PostDTO(BaseModel):
         return list(dict.fromkeys(normalized))
 
 
+class PostQueryDTO(BaseModel):
+    fragment: Optional[bool] = Field(None)
+    last_sk: Optional[str] = Field(None)
+    limit: int = Field(default=10, ge=1)
+
+
+class UserQueryDTO(BaseModel):
+    fragment: Optional[bool] = Field(None)
+    last_sk: Optional[str] = Field(None)
+    limit: int = Field(default=10, ge=1)
+
+
 class TagQueryDTO(BaseModel):
     prefix: Optional[str] = Field(None, min_length=2, max_length=100)
     limit: int = Field(default=10, ge=1)
@@ -117,15 +129,6 @@ class Post(BaseModel):
     status: PostStatus = PostStatus.UNPUBLISHED
     created_at: int
     updated_at: Optional[int] = None
-
-
-class PublicPost(BaseModel):
-    id: str
-    slug: str
-
-
-class PublicContactMessage(BaseModel):
-    id: str
 
 
 class Permission(str, Enum):
@@ -800,23 +803,6 @@ async def get_user_by_plain_token(plain_token: Optional[str], app_state: State) 
     return user
 
 
-async def get_create_post_page_data(**kwargs: Any) -> Dict[str, Any]:
-    data = {
-        **get_config(),
-        **kwargs
-    }
-
-    request = data.get("request")
-    data.update({
-        "breadcrumbs": {
-            data.get("index_breadcrumb", "Home"): get_url(request=request, name="index"),
-            data.get("create_post_breadcrumb", "Create post"): None,
-        }
-    })
-
-    return data
-
-
 def post_from_dynamodb(d_item: Dict[str, Any]) -> Post:
     return Post(
         id=d_item["id"],
@@ -979,24 +965,26 @@ async def get_user(user_id: str) -> User:
     return user
 
 
-async def get_latest_posts(limit: int = 10, last_sk: Optional[str] = None) -> List[Post]:
+async def get_latest_posts(query_dto: PostQueryDTO = None) -> List[Post]:
     """
     Fetch latest posts.
     Only returns published posts.
     """
+    if query_dto is None:
+        query_dto = PostQueryDTO()
 
     async def fn(table):
         status = PostStatus.PUBLISHED
-        key_cond = Key("gsi_post_pk").eq("POST") & Key("gsi_status_created_at").begins_with(
-            f"STATUS#{status.value}#")
-        if last_sk:
-            key_cond &= Key("gsi_status_created_at").lt(last_sk)
+        key_cond = Key("gsi_post_pk").eq("POST")
+        key_cond &= Key("gsi_status_created_at").begins_with(f"STATUS#{status.value}#")
+        if query_dto.last_sk:
+            key_cond &= Key("gsi_status_created_at").lt(query_dto.last_sk)
 
         resp = await table.query(
             IndexName="GSI_POST_STATUS_CREATED_AT",
             KeyConditionExpression=key_cond,
             ScanIndexForward=False,
-            Limit=limit
+            Limit=query_dto.limit
         )
         items = resp.get("Items", [])
         # logger.debug(json.dumps(items,indent=4))
@@ -1209,77 +1197,6 @@ async def create_contact_message(message_dto: ContactMessageDTO, user: User = No
     return await with_dynamodb_table(fn)
 
 
-async def get_index_page_data(**kwargs: Any) -> Dict[str, Any]:
-    return {
-        **get_config(),
-        **kwargs,
-        "popular_tags": await get_popular_tags(),
-        "latest_posts": await get_latest_posts()
-    }
-
-
-async def get_posts_page_data(**kwargs: Any) -> Dict[str, Any]:
-    data = {
-        **get_config(),
-        **kwargs,
-        "latest_posts": await get_latest_posts()
-    }
-
-    request = data.get("request")
-    data.update({
-        "breadcrumbs": {
-            data.get("index_breadcrumb", "Home"): get_url(request=request, name="index"),
-            data.get("posts_breadcrumb", "Posts"): None,
-        }
-    })
-
-    return data
-
-
-async def get_post_page_data(post: Post, **kwargs: Any) -> Dict[str, Any]:
-    data = {
-        **get_config(),
-        **kwargs,
-        "post": post,
-        "author": await find_user(post.user_id)
-    }
-
-    request = data.get("request")
-    data.update({
-        "breadcrumbs": {
-            data.get("index_breadcrumb", "Home"): get_url(request=request, name="index"),
-            data.get("posts_breadcrumb", "Posts"): get_url(request=request, name="posts-page"),
-            post.title: None,
-        }
-    })
-
-    return data
-
-
-async def get_contacts_page_data(**kwargs: Any) -> Dict[str, Any]:
-    data = {
-        **get_config(),
-        **kwargs
-    }
-
-    request = data.get("request")
-    data.update({
-        "breadcrumbs": {
-            data.get("index_breadcrumb", "Home"): get_url(request=request, name="index"),
-            data.get("contacts_breadcrumb", "Contacts"): None,
-        }
-    })
-
-    return data
-
-
-async def get_error_page_data(**kwargs: Any) -> Dict[str, Any]:
-    return {
-        **get_config(),
-        **kwargs
-    }
-
-
 async def get_login_redirect_url(callback_url: str) -> str:
     if is_prod():
         return (
@@ -1344,11 +1261,14 @@ async def get_logout_redirect_url(callback_url: str) -> str:
     return callback_url
 
 
-async def get_latest_users(limit: int = 10, last_sk: Optional[str] = None) -> List[User]:
+async def get_latest_users(query_dto: UserQueryDTO = None) -> List[User]:
     """
     Fetch latest users.
     Only returns active users.
     """
+
+    if query_dto is None:
+        query_dto = UserQueryDTO()
 
     async def fn(table):
         status = UserStatus.ACTIVE
@@ -1358,51 +1278,13 @@ async def get_latest_users(limit: int = 10, last_sk: Optional[str] = None) -> Li
             IndexName="GSI_USER_STATUS_CREATED_AT",
             KeyConditionExpression=key_cond,
             ScanIndexForward=False,
-            Limit=limit
+            Limit=query_dto.limit
         )
         items = resp.get("Items", [])
         # logger.debug(f"Latest users: {json.dumps(items, indent=4)}")
         return [user_from_dynamodb(item) for item in items]
 
     return await with_dynamodb_table(fn)
-
-
-async def get_users_page_data(**kwargs: Any) -> Dict[str, Any]:
-    data = {
-        **get_config(),
-        **kwargs,
-        "users": await get_latest_users(10)
-    }
-
-    request = data.get("request")
-    data.update({
-        "breadcrumbs": {
-            data.get("index_breadcrumb", "Home"): get_url(request=request, name="index"),
-            data.get("users_breadcrumb", "Users"): None,
-        }
-    })
-
-    return data
-
-
-async def get_user_page_data(user: User, **kwargs: Any) -> Dict[str, Any]:
-    data = {
-        **get_config(),
-        **kwargs,
-        "user": user,
-        "latest_posts": await get_latest_posts_by_user(user)
-    }
-
-    request = data.get("request")
-    data.update({
-        "breadcrumbs": {
-            data.get("index_breadcrumb", "Home"): get_url(request=request, name="index"),
-            data.get("users_breadcrumb", "Users"): get_url(request=request, name="users-page"),
-            user.name: None,
-        }
-    })
-
-    return data
 
 
 def unix_to_month_year(timestamp: int, tz: str | None = None) -> str:

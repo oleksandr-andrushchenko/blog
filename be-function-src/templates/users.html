@@ -3,18 +3,17 @@
 {% block title %}{{ users_title | default("Users | " ~ site_name) }}{% endblock %}
 {% block canonical_url %}{{ full_url("users-page") }}{% endblock %}
 
+{% block breadcrumbs %}
+    {% with breadcrumbs = {
+        (index_breadcrumb | default("Home")): url("index"),
+        (users_breadcrumb | default("Users")): None
+    } %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
+{% endblock %}
+
 {% block content %}
     <h1>{{ users_header | default("Users") }}</h1>
     <p class="small text-secondary">{{ users_sub_header | default("Recently registered users") }}</p>
-    {% if users %}
-        <div class="row">
-            {% for user in users %}
-                <div class="col col-3">
-                    {% include "fragments/user-card.html" %}
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        {{ users_no_users | default("N/A") }}
-    {% endif %}
+    {% include "fragments/users.html" %}
 {% endblock %}

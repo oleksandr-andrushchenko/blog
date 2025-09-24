@@ -3,19 +3,17 @@
 {% block title %}{{ posts_title | default("Posts | " ~ site_name) }}{% endblock %}
 {% block canonical_url %}{{ full_url("posts-page") }}{% endblock %}
 
+{% block breadcrumbs %}
+    {% with breadcrumbs = {
+        (index_breadcrumb | default("Home")): url("index"),
+        (posts_breadcrumb | default("Posts")): None
+    } %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
+{% endblock %}
+
 {% block content %}
     <h1>{{ posts_header | default("Posts") }}</h1>
     <p class="small text-secondary">{{ posts_sub_header | default("Recent articles") }}</p>
-    {% if latest_posts %}
-        {% for post in latest_posts %}
-            <div>
-                <a href="{{ url("post-page", post_id=post.id) }}">
-                    <h2>{{ post.title }}</h2>
-                </a>
-                {% include "fragments/post-meta.html" %}
-            </div>
-        {% endfor %}
-    {% else %}
-        {{ posts_no_posts | default("N/A") }}
-    {% endif %}
+    {% include "fragments/posts.html" %}
 {% endblock %}

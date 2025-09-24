@@ -3,6 +3,15 @@
 {% block title %}{{ contacts_title | default("Contacts | " ~ site_name) }}{% endblock %}
 {% block canonical_url %}{{ full_url("contacts-page") }}{% endblock %}
 
+{% block breadcrumbs %}
+    {% with breadcrumbs = {
+        (index_breadcrumb | default("Home")): url("index"),
+        (contacts_breadcrumb | default("Contacts")): None
+    } %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
+{% endblock %}
+
 {% block content %}
     <h1>{{ contacts_header | default("Contacts") }}</h1>
     <p class="small text-secondary">{{ contacts_sub_header | default("Contact us") }}</p>

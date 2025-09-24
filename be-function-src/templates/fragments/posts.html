@@ -1,0 +1,7 @@
+{% if latest_posts %}
+    {% for post in latest_posts %}
+        {% include "fragments/post.html" %}
+    {% endfor %}
+{% else %}
+    {{ posts_no_posts | default("N/A") }}
+{% endif %}
