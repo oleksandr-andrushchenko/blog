@@ -447,8 +447,11 @@ def get_jinja2_env():
         loader=FileSystemLoader(templates_dir),
         auto_reload=not is_prod()
     )
-    jinja2_env.filters['unix_to_month_year'] = unix_to_month_year
-    jinja2_env.filters['unix_to_full_date'] = unix_to_full_date
+    jinja2_env.filters.update({
+        "unix_to_month_year": unix_to_month_year,
+        "unix_to_full_date": unix_to_full_date
+    })
+    jinja2_env.globals.update(get_config())
     jinja2_env.globals.update({
         "static_url": static_url,
         "url": url_for,
