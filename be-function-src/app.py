@@ -187,7 +187,7 @@ async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request
 async def posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("fragments/posts.html" if query_dto.fragment else "posts.html", {
         "cur_user": cur_user,
-        "latest_posts": await get_latest_posts(query_dto)
+        "posts": await get_latest_posts(query_dto)
     })
 
 
@@ -229,7 +229,7 @@ async def _get_tags(query_dto: TagQueryDep) -> List[Tag]:
 async def users_page(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("fragments/users.html" if query_dto.fragment else "users.html", {
         "cur_user": cur_user,
-        "latest_users": await get_latest_users(query_dto)
+        "users": await get_latest_users(query_dto)
     })
 
 

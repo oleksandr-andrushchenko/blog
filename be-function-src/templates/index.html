@@ -32,7 +32,7 @@
                 </div>
             {% endfor %}
         {% else %}
-            {{ index_no_latest_posts | default("N/A") }}
+            {{ no_posts_label | default("N/A") }}
         {% endif %}
     </div>
 {% endblock %}
