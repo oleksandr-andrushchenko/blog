@@ -55,7 +55,7 @@
 
             <div class="small text-secondary">
                 {{ user_joined_at | default("Joined") }}:
-                {{ user.created_at | unix_to_full_date() }}
+                {{ (user.created_at / 1000) | unix_to_full_date() }}
             </div>
         </div>
     </div>
@@ -75,14 +75,17 @@
 
     <div>
         <h2>{{ user_latest_posts | default("Latest posts") }}</h2>
-        {% if latest_posts %}
-            {% for post in latest_posts %}
-                <div>
-                    <a href="{{ url("post-page", post_id=post.id) }}">
-                        {{ post.title }}
-                    </a>
-                </div>
-            {% endfor %}
+        {% if posts %}
+            <div id="posts">
+                {% include "fragments/posts.html" %}
+            </div>
+            {% with limit=posts_query.limit,
+                offset=posts[-1].offset,
+                count=posts|length,
+                url=url("user-page-posts-fragment", user_id=user.id),
+                container="#posts" %}
+                {% include "fragments/pagination.html" %}
+            {% endwith %}
         {% else %}
             {{ no_posts | default("N/A") }}
         {% endif %}

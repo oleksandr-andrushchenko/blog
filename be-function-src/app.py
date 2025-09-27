@@ -54,9 +54,9 @@ from utils import (
     create_dummy_fixtures,
     approve_post,
     get_user,
-    get_latest_posts,
-    get_latest_users,
-    get_latest_posts_by_user,
+    get_latest_published_posts,
+    get_latest_active_users,
+    get_latest_published_posts_by_user,
     get_popular_tags,
     find_user,
     jinja2_env,
@@ -160,7 +160,7 @@ async def index(cur_user: OptCurUserDep) -> str:
     return get_html_content("index.html", {
         "cur_user": cur_user,
         "popular_tags": await get_popular_tags(),
-        "latest_posts": await get_latest_posts()
+        "latest_posts": await get_latest_published_posts()
     })
 
 
@@ -185,9 +185,17 @@ async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request
 
 @app.get("/posts", name="posts-page", response_class=HTMLResponse)
 async def posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
-    return get_html_content("fragments/posts.html" if query_dto.fragment else "posts.html", {
+    return get_html_content("posts.html", {
         "cur_user": cur_user,
-        "posts": await get_latest_posts(query_dto)
+        "posts_query": query_dto,
+        "posts": await get_latest_published_posts(query_dto),
+    })
+
+
+@app.get("/posts-fragment", name="posts-page-fragment", response_class=HTMLResponse)
+async def posts_page_fragment(query_dto: PostQueryDep) -> str:
+    return get_html_content("fragments/posts.html", {
+        "posts": await get_latest_published_posts(query_dto)
     })
 
 
@@ -227,18 +235,36 @@ async def _get_tags(query_dto: TagQueryDep) -> List[Tag]:
 
 @app.get("/users", name="users-page", response_class=HTMLResponse)
 async def users_page(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> str:
-    return get_html_content("fragments/users.html" if query_dto.fragment else "users.html", {
+    return get_html_content("users.html", {
         "cur_user": cur_user,
-        "users": await get_latest_users(query_dto)
+        "users_query": query_dto,
+        "users": await get_latest_active_users(query_dto)
+    })
+
+
+@app.get("/users-fragment", name="users-page-fragment", response_class=HTMLResponse)
+async def users_page_fragment(query_dto: UserQueryDep) -> str:
+    return get_html_content("fragments/users.html", {
+        "users": await get_latest_active_users(query_dto)
     })
 
 
 @app.get("/users/{user_id}", name="user-page", response_class=HTMLResponse)
 async def user_page(user: UserDep, cur_user: OptCurUserDep) -> str:
+    posts_query_dto = PostQueryDTO()
     return get_html_content("user.html", {
         "cur_user": cur_user,
         "user": user,
-        "latest_posts": await get_latest_posts_by_user(user)
+        "posts_query": posts_query_dto,
+        "posts": await get_latest_published_posts_by_user(user)
+    })
+
+
+@app.get("/users/{user_id}/posts-fragment", name="user-page-posts-fragment", response_class=HTMLResponse)
+async def user_page_posts(user: UserDep, query_dto: PostQueryDep) -> str:
+    return get_html_content("fragments/posts.html", {
+        "query": query_dto,
+        "posts": await get_latest_published_posts_by_user(user, query_dto)
     })
 
 

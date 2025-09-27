@@ -24,14 +24,14 @@
     }
   },
   {
-    "IndexName": "GSI_POST_STATUS_CREATED_AT",
+    "IndexName": "GSI_POSTS",
     "KeySchema": [
       {
-        "AttributeName": "gsi_post_pk",
+        "AttributeName": "gsi_post_status_pk",
         "KeyType": "HASH"
       },
       {
-        "AttributeName": "gsi_status_created_at",
+        "AttributeName": "created_at",
         "KeyType": "RANGE"
       }
     ],
@@ -72,14 +72,14 @@
     }
   },
   {
-    "IndexName": "GSI_USER_STATUS_CREATED_AT",
+    "IndexName": "GSI_USERS",
     "KeySchema": [
       {
-        "AttributeName": "gsi_user_pk",
+        "AttributeName": "gsi_user_status_pk",
         "KeyType": "HASH"
       },
       {
-        "AttributeName": "gsi_status_created_at",
+        "AttributeName": "created_at",
         "KeyType": "RANGE"
       }
     ],
@@ -91,11 +91,11 @@
     "IndexName": "GSI_USER_POSTS",
     "KeySchema": [
       {
-        "AttributeName": "gsi_post_user_pk",
+        "AttributeName": "gsi_post_user_status_pk",
         "KeyType": "HASH"
       },
       {
-        "AttributeName": "gsi_status_created_at",
+        "AttributeName": "created_at",
         "KeyType": "RANGE"
       }
     ],

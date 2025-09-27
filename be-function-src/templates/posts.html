@@ -15,5 +15,18 @@
 {% block content %}
     <h1>{{ posts_header | default("Posts") }}</h1>
     <p class="small text-secondary">{{ posts_sub_header | default("Recent articles") }}</p>
-    {% include "fragments/posts.html" %}
+    {% if posts %}
+        <div id="posts">
+            {% include "fragments/posts.html" %}
+        </div>
+        {% with limit=posts_query.limit,
+            offset=posts[-1].offset,
+            count=posts|length,
+            url=url("posts-page-fragment"),
+            container="#posts" %}
+            {% include "fragments/pagination.html" %}
+        {% endwith %}
+    {% else %}
+        {{ no_posts | default("N/A") }}
+    {% endif %}
 {% endblock %}

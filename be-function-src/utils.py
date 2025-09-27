@@ -55,6 +55,7 @@ class User(BaseModel):
     status: UserStatus = UserStatus.ACTIVE
     created_at: int
     updated_at: Optional[int] = None
+    offset: Optional[str | int] = None
 
 
 class ContactMessageDTO(BaseModel):
@@ -87,21 +88,21 @@ class PostDTO(BaseModel):
         return list(dict.fromkeys(normalized))
 
 
-class PostQueryDTO(BaseModel):
-    fragment: Optional[bool] = Field(None)
-    last_sk: Optional[str] = Field(None)
+class BaseQueryDTO(BaseModel):
+    offset: Optional[int] = Field(None)
     limit: int = Field(default=10, ge=1)
 
 
-class UserQueryDTO(BaseModel):
-    fragment: Optional[bool] = Field(None)
-    last_sk: Optional[str] = Field(None)
-    limit: int = Field(default=10, ge=1)
+class PostQueryDTO(BaseQueryDTO):
+    pass
 
 
-class TagQueryDTO(BaseModel):
+class UserQueryDTO(BaseQueryDTO):
+    pass
+
+
+class TagQueryDTO(BaseQueryDTO):
     prefix: Optional[str] = Field(None, min_length=2, max_length=100)
-    limit: int = Field(default=10, ge=1)
 
 
 class Tag(BaseModel):
@@ -129,6 +130,7 @@ class Post(BaseModel):
     status: PostStatus = PostStatus.UNPUBLISHED
     created_at: int
     updated_at: Optional[int] = None
+    offset: Optional[str | int] = None
 
 
 class Permission(str, Enum):
@@ -358,7 +360,7 @@ def to_kebab_case(s: str) -> str:
 
 
 def utc_now() -> int:
-    return int(time.time())
+    return int(time.time() * 1000)
 
 
 async def dynamodb_transact_write(table, transact_items: List[Dict[str, Any]]):
@@ -632,8 +634,7 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
             "providers": providers,
             "created_at": now,
             "updated_at": now,
-            "gsi_user_pk": f"USER",
-            "gsi_status_created_at": f"STATUS#{status.value}#CREATED_AT#{now}",
+            "gsi_user_status_pk": f"USER#STATUS#{status.value}",
         }
         transact_items.append({
             "Put": {
@@ -842,9 +843,8 @@ async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISH
             "tags": list(dict.fromkeys(post_dto.tags)),
             "status": status,
             "created_at": now,
-            "gsi_post_pk": "POST",
-            "gsi_post_user_pk": f"USER#{user.id}",
-            "gsi_status_created_at": f"STATUS#{status.value}#CREATED_AT#{now}"
+            "gsi_post_status_pk": f"POST#STATUS#{status.value}",
+            "gsi_post_user_status_pk": f"POST#USER#{user.id}#STATUS#{status.value}",
         }
         transact_items.append({
             "Put": {
@@ -968,7 +968,7 @@ async def get_user(user_id: str) -> User:
     return user
 
 
-async def get_latest_posts(query_dto: PostQueryDTO = None) -> List[Post]:
+async def get_latest_published_posts(query_dto: PostQueryDTO = None) -> List[Post]:
     """
     Fetch latest posts.
     Only returns published posts.
@@ -978,29 +978,27 @@ async def get_latest_posts(query_dto: PostQueryDTO = None) -> List[Post]:
 
     async def fn(table):
         status = PostStatus.PUBLISHED
-        key_cond = Key("gsi_post_pk").eq("POST")
-        key_cond &= Key("gsi_status_created_at").begins_with(f"STATUS#{status.value}#")
-        if query_dto.last_sk:
-            key_cond &= Key("gsi_status_created_at").lt(query_dto.last_sk)
+        key_cond = Key("gsi_post_status_pk").eq(f"POST#STATUS#{status.value}")
+        if query_dto.offset:
+            key_cond &= Key("created_at").lt(query_dto.offset)
 
         resp = await table.query(
-            IndexName="GSI_POST_STATUS_CREATED_AT",
+            IndexName="GSI_POSTS",
             KeyConditionExpression=key_cond,
             ScanIndexForward=False,
             Limit=query_dto.limit
         )
         items = resp.get("Items", [])
         # logger.debug(json.dumps(items,indent=4))
-        return [post_from_dynamodb(item) for item in items]
+        posts = [post_from_dynamodb(item) for item in items]
+        if len(posts) == query_dto.limit:
+            posts[-1].offset = posts[-1].created_at
+        return posts
 
     return await with_dynamodb_table(fn)
 
 
-async def get_latest_posts_by_tags(
-        tags: List[str],
-        limit: int = 10,
-        last_sk: Optional[str] = None
-) -> List[Post]:
+async def get_latest_posts_by_tags(tags: List[str], limit: int = 10, last_sk: Optional[str] = None) -> List[Post]:
     """
     Fetch latest posts that match all given tags (AND).
     Only returns published posts.
@@ -1056,12 +1054,12 @@ async def approve_post(post: Post, user: User) -> None:
             },
             UpdateExpression="SET #status = :published, "
                              "updated_at = if_not_exists(updated_at, :now), "
-                             "gsi_status_created_at = :gsi_val",
+                             "created_at = :gsi_val",
             ExpressionAttributeNames={"#status": "status"},
             ExpressionAttributeValues={
                 ":published": status,
                 ":now": now,
-                ":gsi_val": f"STATUS#{status.value}#CREATED_AT#{now}"
+                # todo: update GSI
             }
         )
 
@@ -1264,7 +1262,7 @@ async def get_logout_redirect_url(callback_url: str) -> str:
     return callback_url
 
 
-async def get_latest_users(query_dto: UserQueryDTO = None) -> List[User]:
+async def get_latest_active_users(query_dto: UserQueryDTO = None) -> List[User]:
     """
     Fetch latest users.
     Only returns active users.
@@ -1275,17 +1273,22 @@ async def get_latest_users(query_dto: UserQueryDTO = None) -> List[User]:
 
     async def fn(table):
         status = UserStatus.ACTIVE
-        key_cond = Key("gsi_user_pk").eq("USER")
+        key_cond = Key("gsi_user_status_pk").eq(f"USER#STATUS#{status.value}")
+        if query_dto.offset:
+            key_cond &= Key("created_at").lt(query_dto.offset)
 
         resp = await table.query(
-            IndexName="GSI_USER_STATUS_CREATED_AT",
+            IndexName="GSI_USERS",
             KeyConditionExpression=key_cond,
             ScanIndexForward=False,
             Limit=query_dto.limit
         )
         items = resp.get("Items", [])
         # logger.debug(f"Latest users: {json.dumps(items, indent=4)}")
-        return [user_from_dynamodb(item) for item in items]
+        users = [user_from_dynamodb(item) for item in items]
+        if len(users) == query_dto.limit:
+            users[-1].offset = users[-1].created_at
+        return users
 
     return await with_dynamodb_table(fn)
 
@@ -1310,25 +1313,29 @@ def unix_to_full_date(timestamp: int, tz: str | None = None) -> str:
     return dt.strftime("%b %d, %Y")
 
 
-async def get_latest_posts_by_user(user: User, limit: int = 10, last_sk: Optional[str] = None) -> List[Post]:
+async def get_latest_published_posts_by_user(user: User, query_dto: PostQueryDTO = None) -> List[Post]:
     """
     Fetch latest published posts for a specific user.
     """
+    if query_dto is None:
+        query_dto = PostQueryDTO()
 
     async def fn(table):
         status = PostStatus.PUBLISHED
-        key_cond = Key("gsi_post_user_pk").eq(f"USER#{user.id}") & Key("gsi_status_created_at").begins_with(
-            f"STATUS#{status.value}#")
-        if last_sk:
-            key_cond &= Key("gsi_status_created_at").lt(last_sk)
+        key_cond = Key("gsi_post_user_status_pk").eq(f"POST#USER#{user.id}#STATUS#{status.value}")
+        if query_dto.offset:
+            key_cond &= Key("created_at").lt(query_dto.offset)
 
         resp = await table.query(
             IndexName="GSI_USER_POSTS",
             KeyConditionExpression=key_cond,
             ScanIndexForward=False,
-            Limit=limit
+            Limit=query_dto.limit
         )
         items = resp.get("Items", [])
-        return [post_from_dynamodb(item) for item in items]
+        posts = [post_from_dynamodb(item) for item in items]
+        if len(posts) == query_dto.limit:
+            posts[-1].offset = posts[-1].created_at
+        return posts
 
     return await with_dynamodb_table(fn)

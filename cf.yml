@@ -84,10 +84,10 @@ Resources:
           AttributeType: S
         - AttributeName: gsi_email
           AttributeType: S
-        - AttributeName: gsi_post_pk
+        - AttributeName: gsi_post_status_pk
           AttributeType: S
-        - AttributeName: gsi_status_created_at
-          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: N
         - AttributeName: gsi_tag_pk
           AttributeType: S
         - AttributeName: posts_count
@@ -96,9 +96,9 @@ Resources:
           AttributeType: S
         - AttributeName: tag_name
           AttributeType: S
-        - AttributeName: gsi_user_pk
+        - AttributeName: gsi_user_status_pk
           AttributeType: S
-        - AttributeName: gsi_post_user_pk
+        - AttributeName: gsi_post_user_status_pk
           AttributeType: S
       KeySchema:
         - AttributeName: pk
@@ -118,11 +118,11 @@ Resources:
               KeyType: HASH
           Projection:
             ProjectionType: ALL
-        - IndexName: GSI_POST_STATUS_CREATED_AT
+        - IndexName: GSI_POSTS
           KeySchema:
-            - AttributeName: gsi_post_pk
+            - AttributeName: gsi_post_status_pk
               KeyType: HASH
-            - AttributeName: gsi_status_created_at
+            - AttributeName: created_at
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
@@ -142,19 +142,19 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
-        - IndexName: GSI_USER_STATUS_CREATED_AT
+        - IndexName: GSI_USERS
           KeySchema:
-            - AttributeName: gsi_user_pk
+            - AttributeName: gsi_user_status_pk
               KeyType: HASH
-            - AttributeName: gsi_status_created_at
+            - AttributeName: created_at
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
         - IndexName: GSI_USER_POSTS
           KeySchema:
-            - AttributeName: gsi_post_user_pk
+            - AttributeName: gsi_post_user_status_pk
               KeyType: HASH
-            - AttributeName: gsi_status_created_at
+            - AttributeName: created_at
               KeyType: RANGE
           Projection:
             ProjectionType: ALL

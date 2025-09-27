@@ -15,5 +15,18 @@
 {% block content %}
     <h1>{{ users_header | default("Users") }}</h1>
     <p class="small text-secondary">{{ users_sub_header | default("Recently registered users") }}</p>
-    {% include "fragments/users.html" %}
+    {% if users %}
+        <div class="row" id="users">
+            {% include "fragments/users.html" %}
+        </div>
+        {% with limit=users_query.limit,
+            offset=users[-1].offset,
+            count=users|length,
+            url=url("users-page-fragment"),
+            container="#users" %}
+            {% include "fragments/pagination.html" %}
+        {% endwith %}
+    {% else %}
+        {{ no_users | default("N/A") }}
+    {% endif %}
 {% endblock %}

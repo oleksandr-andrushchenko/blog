@@ -1,7 +1,3 @@
-{% if posts %}
-    {% for post in posts %}
-        {% include "fragments/post.html" %}
-    {% endfor %}
-{% else %}
-    {{ no_posts_label | default("N/A") }}
-{% endif %}
+{% for post in posts %}
+    {% include "fragments/post.html" %}
+{% endfor %}

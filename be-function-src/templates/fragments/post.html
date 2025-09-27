@@ -1,4 +1,4 @@
-<div>
+<div {% if post.offset %}data-offset="{{ post.offset }}"{% endif %}>
     <a href="{{ url("post-page", post_id=post.id) }}">
         <h2>{{ post.title }}</h2>
     </a>

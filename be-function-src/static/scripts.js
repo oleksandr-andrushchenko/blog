@@ -160,3 +160,51 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
     }
   }
 }
+
+document.addEventListener("click", async function (e) {
+  const btn = e.target.closest(".btn-load-more")
+  if (!btn) return
+
+  const container = document.querySelector(btn.dataset.container)
+  if (!container) return console.error("Container not found:", btn.dataset.container)
+
+  const limit = btn.dataset.limit
+  const url = btn.dataset.url
+  const offset = btn.dataset.offset
+
+  btn.disabled = true
+  const originalText = btn.textContent
+  btn.textContent = "Loading..."
+
+  try {
+    const resp = await fetch(`${url}?offset=${offset}&limit=${limit}`)
+    if (!resp.ok) {
+      console.log(`Request failed with status ${resp.status}`)
+      btn.remove()
+      return
+    }
+
+    const content = await resp.text()
+    if (content === "") {
+      btn.remove()
+      return
+    }
+
+    container.insertAdjacentHTML("beforeend", content)
+
+    const lastElement = container.lastElementChild
+    const newOffset = lastElement.dataset.offset
+
+    if (!newOffset || newOffset === offset) {
+      btn.remove()
+      return
+    }
+
+    btn.dataset.offset = newOffset
+  } catch (err) {
+    console.error(err)
+  } finally {
+    btn.disabled = false
+    btn.textContent = originalText
+  }
+})
