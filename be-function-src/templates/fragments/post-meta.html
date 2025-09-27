@@ -8,7 +8,7 @@
     {% if post.tags %}
         <div>
             <span class="small text-secondary">
-                {{ post_tags_label | default("Tags") }}:
+                {{ post_tags | default("Tags") }}:
             </span>
 
             {% for tag in post.tags %}

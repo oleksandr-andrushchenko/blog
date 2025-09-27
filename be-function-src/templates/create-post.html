@@ -20,25 +20,25 @@
             <form class="row g-3" id="post-form" novalidate>
                 <label class="col-12">
                     <input type="text" class="form-control" id="title" name="title"
-                           placeholder="{{ create_post_title_label | default('Title') }}"
+                           placeholder="{{ create_post_title | default('Title') }}"
                            required minlength="20" maxlength="500">
                 </label>
 
                 <label class="col-12">
                     <textarea class="form-control" id="content" name="content"
-                              placeholder="{{ create_post_content_label | default('Content') }}"
+                              placeholder="{{ create_post_content | default('Content') }}"
                               rows="12" required minlength="1000" maxlength="10000"></textarea>
                 </label>
 
                 <label class="col-12">
                     <input type="text" class="form-control" id="tags" name="tags"
-                           placeholder="{{ create_post_tags_label | default('Tags (comma-separated)') }}" required>
+                           placeholder="{{ create_post_tags | default('Tags (comma-separated)') }}" required>
                     <span class="form-text">{{ create_post_tags_help | default("Enter tags separated by commas.") }}</span>
                 </label>
 
                 <div class="col-12">
                     <button type="submit" class="btn btn-outline-secondary">
-                        {{ create_post_submit_button_label | default("Create Post") }} <i
+                        {{ create_post_submit_button | default("Create Post") }} <i
                             class="bi bi-chevron-right"></i>
                     </button>
                 </div>

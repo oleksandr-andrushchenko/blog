@@ -73,37 +73,37 @@
             <div class="collapse navbar-collapse" id="navbar">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url('posts-page') }}">
-                            {{ posts_nav_label | default("Posts") }}
+                        <a class="nav-link" href="{{ url("posts-page") }}">
+                            {{ posts_nav | default("Posts") }}
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url('users-page') }}">
-                            {{ users_nav_label | default("Users") }}
+                        <a class="nav-link" href="{{ url("users-page") }}">
+                            {{ users_nav | default("Users") }}
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url('contacts-page') }}">
-                            {{ contacts_nav_label | default("Contacts") }}
+                        <a class="nav-link" href="{{ url("contacts-page") }}">
+                            {{ contacts_nav | default("Contacts") }}
                         </a>
                     </li>
                 </ul>
                 {% if cur_user %}
                     <div>
-                        <a href="{{ url('create-post-page') }}" class="btn btn-outline-secondary btn-sm">
-                            <i class="bi bi-pencil-square"></i> {{ header_create_post_label | default("Create post") }}
+                        <a href="{{ url("create-post-page") }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-pencil-square"></i> {{ header_create_post | default("Create post") }}
                         </a>
                         <i class="bi bi-person-circle"></i> <a
                             href="{{ url("user-page", user_id=cur_user.id) }}">{{ cur_user.name }}</a>
-                        <a href="{{ url('logout') }}" class="btn btn-outline-secondary btn-sm">
-                            {{ header_logout_label | default("Sign out") }} <i
+                        <a href="{{ url("logout") }}" class="btn btn-outline-secondary btn-sm">
+                            {{ header_logout | default("Sign out") }} <i
                                 class="bi bi-box-arrow-right"></i>
                         </a>
                     </div>
                 {% else %}
                     <a href="{{ url('login') }}" class="btn btn-secondary btn-sm">
                         <i class="bi bi-box-arrow-in-right"></i>
-                        {{ header_login_label | default("Sign in") }}
+                        {{ header_login | default("Sign in") }}
                     </a>
                 {% endif %}
             </div>

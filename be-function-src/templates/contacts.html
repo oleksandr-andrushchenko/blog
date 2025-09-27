@@ -21,54 +21,54 @@
             <form class="row g-3" id="contact-form" novalidate>
                 <label class="col-12">
                     <input type="text" class="form-control" id="name" name="name"
-                           placeholder="{{ contacts_name_label | default('Your Name') }}"
+                           placeholder="{{ contacts_name | default('Your Name') }}"
                            value="{{ cur_user.name if cur_user else '' }}" required>
                 </label>
                 <label class="col-12">
                     <input type="email" class="form-control" id="email" name="email"
-                           placeholder="{{ contact_email_label | default('Your Email') }}"
+                           placeholder="{{ contact_email | default('Your Email') }}"
                            value="{{ cur_user.email if cur_user else '' }}" required>
                 </label>
                 <label class="col-12">
                         <textarea class="form-control" id="message" name="message"
-                                  placeholder="{{ contacts_message_label | default('Your Message') }}" rows="10"
+                                  placeholder="{{ contacts_message | default('Your Message') }}" rows="10"
                                   required></textarea>
                 </label>
                 <div class="col-12">
                     <button type="submit" class="btn btn-outline-secondary">
-                        {{ contacts_send_message_label | default("Send Message") }} <i class="bi bi-chevron-right"></i>
+                        {{ contacts_send_message | default("Send Message") }} <i class="bi bi-chevron-right"></i>
                     </button>
                 </div>
             </form>
         </div>
 
         <div class="col-12 col-md-6 mt-5 mt-md-0 text-center text-md-start">
-            <h3 class="mb-4">{{ contacts_contact_details_label | default("Contact details") }}</h3>
+            <h3 class="mb-4">{{ contacts_contact_details | default("Contact details") }}</h3>
             <div class="d-flex flex-column gap-3">
                 {% if contact_phone_id %}
                     <div>
-                        <i class="bi bi-telephone-outbound"></i> {{ contact_phone_label | default("Phone") }}
+                        <i class="bi bi-telephone-outbound"></i> {{ contact_phone | default("Phone") }}
                         <a class="d-block" href="tel:{{ contact_phone_id }}">{{ contact_phone_id }}</a>
                     </div>
                 {% endif %}
 
                 {% if contact_email_id %}
                     <div>
-                        <i class="bi bi-envelope-at"></i> {{ contact_email_label | default("Email") }}
+                        <i class="bi bi-envelope-at"></i> {{ contact_email | default("Email") }}
                         <a class="d-block" href="mailto:{{ contact_email_id }}">{{ contact_email_id }}</a>
                     </div>
                 {% endif %}
 
                 {% if contact_address_id %}
                     <div>
-                        <i class="bi bi-geo"></i> {{ contact_address_label | default("Address") }}
+                        <i class="bi bi-geo"></i> {{ contact_address | default("Address") }}
                         <div>{{ contact_address_id }}</div>
                     </div>
                 {% endif %}
 
                 {% if contact_socials %}
                     <div>
-                        <i class="bi bi-people"></i> {{ contact_socials_label | default("Socials") }}
+                        <i class="bi bi-people"></i> {{ contact_socials | default("Socials") }}
                         <div class="h3">
                             {% for contact_social in contact_socials %}
                                 <a href="{{ contact_social.url }}" class="link-dark" target="_blank"

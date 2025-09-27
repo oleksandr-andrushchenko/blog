@@ -63,7 +63,7 @@
     {% if user.about %}
         <section class="container">
             <h2 class="mb-2 text-center mb-sm-2 mb-md-2 mb-lg-2 text-lg-start mb-xl-3 mb-xxl-3">
-                <i class="bi bi-info-circle-fill"></i> {{ user_about_label | default("About Me") }}
+                <i class="bi bi-info-circle-fill"></i> {{ user_about | default("About Me") }}
             </h2>
             <div class="card text-bg-light">
                 <div class="card-body">
@@ -84,7 +84,7 @@
                 </div>
             {% endfor %}
         {% else %}
-            {{ user_no_latest_posts | default("N/A") }}
+            {{ no_posts | default("N/A") }}
         {% endif %}
     </div>
 {% endblock %}
