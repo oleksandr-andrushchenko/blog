@@ -1095,13 +1095,16 @@ async def approve_post(post: Post, user: User) -> None:
     return await with_dynamodb_table(fn)
 
 
-async def get_popular_tags(limit: int = 10) -> List[Tag]:
+async def get_popular_tags(query_dto: TagQueryDTO = None) -> List[Tag]:
+    if query_dto is None:
+        query_dto = TagQueryDTO()
+
     async def fn(table):
         resp = await table.query(
             IndexName="GSI_TAG_POPULARITY",
             KeyConditionExpression=Key("gsi_tag_pk").eq("TAG"),
             ScanIndexForward=False,
-            Limit=limit
+            Limit=query_dto.limit
         )
         items = resp.get("Items", [])
         # logger.debug(items)
@@ -1116,12 +1119,15 @@ async def get_popular_tags(limit: int = 10) -> List[Tag]:
     return await with_dynamodb_table(fn)
 
 
-async def search_tags_by_prefix(prefix: str, limit: int = 10) -> List[Tag]:
+async def get_tags_by_prefix(query_dto: TagQueryDTO = None) -> List[Tag]:
+    if query_dto is None:
+        query_dto = TagQueryDTO()
+
     async def fn(table):
         resp = await table.query(
             IndexName="GSI_TAG_NAME",
-            KeyConditionExpression=Key("gsi_tag_name_pk").eq("TAG") & Key("tag_name").begins_with(prefix),
-            Limit=limit,
+            KeyConditionExpression=Key("gsi_tag_name_pk").eq("TAG") & Key("tag_name").begins_with(query_dto.prefix),
+            Limit=query_dto.limit,
             ScanIndexForward=True  # ascending alphabetical order
         )
         items = resp.get("Items", [])
@@ -1137,15 +1143,10 @@ async def search_tags_by_prefix(prefix: str, limit: int = 10) -> List[Tag]:
     return await with_dynamodb_table(fn)
 
 
-async def get_tags(query_dto: TagQueryDTO) -> List[Tag]:
+async def get_tags(query_dto: TagQueryDTO = None) -> List[Tag]:
     if query_dto.prefix:
-        return await search_tags_by_prefix(
-            prefix=query_dto.prefix,
-            limit=query_dto.limit
-        )
-    return await get_popular_tags(
-        limit=query_dto.limit
-    )
+        return await get_tags_by_prefix(query_dto)
+    return await get_popular_tags(query_dto)
 
 
 async def create_contact_message(message_dto: ContactMessageDTO, user: User = None) -> ContactMessage:
