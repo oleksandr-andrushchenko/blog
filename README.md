@@ -49,6 +49,7 @@
 - create post: add optional image input, add advanced editor
 - add manage users page
 - add manage posts page
+- popular posts
 
 ## Links
 
