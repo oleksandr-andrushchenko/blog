@@ -25,11 +25,9 @@
                               minlength="1000" maxlength="10000"></textarea>
                 </label>
 
-                <label class="col-12">
-                    <input type="text" class="form-control" id="tags" name="tags" placeholder="Tags (comma-separated)"
-                           required>
-                    <span class="form-text">Enter tags separated by commas.</span>
-                </label>
+                <div class="col-12">
+                    {% include "fragments/tags-input.html" %}
+                </div>
 
                 <div class="col-12">
                     <button type="submit" class="btn btn-outline-secondary">
@@ -56,18 +54,8 @@
             ],
             tags: [
               {rule: "required"},
-              {
-                validator: (value) => {
-                  const items = value.split(",").map(t => t.trim()).filter(Boolean)
-                  return items.length >= 1 && items.length <= 3 && items.every(t => t.length >= 2 && t.length <= 20)
-                },
-                errorMessage: "Tags must be 1–3 items, 2–20 chars each"
-              }
+              {rule: "tags", minCnt: 1, maxCnt: 3, minLen: 2, maxLen: 20}
             ]
-          },
-          preparePayload: (data, form) => {
-            data.tags = form.tags.value.split(",").map(t => t.trim()).filter(Boolean)
-            return data
           },
           onSuccess: (res) => {
             if (res.url) window.location.href = res.url

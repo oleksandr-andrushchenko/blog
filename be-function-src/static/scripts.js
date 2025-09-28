@@ -1,3 +1,4 @@
+// Form validation & submission
 function handleFormSubmit(formSelector, submitUrl, options = {}) {
   const {
     successMessage = "Success!",
@@ -24,6 +25,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
   let originalBtnContent = submitBtn.innerHTML
 
   let validator = null
+  let hasTags = false
 
   if (typeof window.JustValidate !== "undefined") {
     validator = new window.JustValidate(formSelector, {
@@ -36,6 +38,23 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
     })
 
     Object.entries(rules).forEach(([field, fieldRules]) => {
+      for (const fieldRuleId in fieldRules) {
+        if (fieldRules[fieldRuleId].rule === "tags") {
+          const {minCnt, maxCnt, minLen, maxLen} = fieldRules[fieldRuleId]
+          fieldRules[fieldRuleId] = {
+            validator: (value) => {
+              if (!value) return true
+              const values = JSON.parse(value)
+              if (!Array.isArray(values)) return true
+              const items = values.map(item => item.value.trim()).filter(Boolean)
+              return items.length >= minCnt && items.length <= maxCnt && items.every(t => t.length >= minLen && t.length <= maxLen)
+            },
+            errorMessage: `Tags must be ${minCnt}–${maxCnt} items, ${minLen}–${maxLen} chars each`
+          }
+          hasTags = true
+        }
+      }
+
       validator.addField(`[name="${field}"]`, fieldRules)
     })
 
@@ -62,6 +81,10 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
       input.classList.remove("is-invalid") // reset invalid states
     })
     data = preparePayload(data, form)
+    if (hasTags) {
+      const values = JSON.parse(form.tags.value)
+      data.tags = values.map(item => item.value.trim()).filter(Boolean)
+    }
 
     try {
       if (!validator) {
@@ -161,6 +184,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
   }
 }
 
+// Load more
 document.addEventListener("click", async function (e) {
   const btn = e.target.closest(".btn-load-more")
   if (!btn) return
@@ -207,4 +231,98 @@ document.addEventListener("click", async function (e) {
     btn.disabled = false
     btn.textContent = originalText
   }
-})
+});
+
+
+// Tags input
+(() => {
+  const input = document.getElementById("tags-input")
+  const tagify = new Tagify(input, {
+    whitelist: [],
+    // maxTags: 10,
+    enforceWhitelist: false,
+    // validate: tag => /^[0-9A-Za-z-.#]{2,20}$/.test(tag.value) || "Invalid tag",
+    dropdown: {
+      // enabled: 1,
+      // maxItems: 10,
+      closeOnSelect: true
+    }
+  })
+
+  let controller // for aborting the previous fetch
+
+  // normalize tags: lowercase + kebab-case
+  const toKebabCase = str => str.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+
+  // event fired when user types
+  tagify.on("input", onInput)
+
+  function onInput(e) {
+    const value = e.detail.value
+    tagify.whitelist = []
+    tagify.dropdown.hide()
+
+    controller && controller.abort()
+    controller = new AbortController()
+
+    tagify.loading(true)
+
+    fetch(`/tags?prefix=${encodeURIComponent(value)}`, {
+      headers: {"Content-Type": "application/json"},
+      signal: controller.signal
+    })
+      .then(async res => {
+        if (!res.ok) {
+          if (res.status === 422) {
+            // handle 422 like form validation errors
+            const json = await res.json().catch(() => null)
+            if (json?.details) {
+              Object.entries(json.details).forEach(([field, msg]) => {
+                input.classList.add("is-invalid")
+                let feedback = input.nextElementSibling
+                if (!feedback || !feedback.classList.contains("invalid-feedback")) {
+                  feedback = document.createElement("div")
+                  feedback.className = "invalid-feedback"
+                  input.insertAdjacentElement("afterend", feedback)
+                }
+                feedback.textContent = msg
+              })
+            }
+          } else {
+            console.error(`Tags fetch failed with status ${res.status}`)
+          }
+          tagify.loading(false)
+          return null
+        }
+
+        // success: clear any previous error state
+        input.classList.remove("is-invalid")
+        const feedback = input.nextElementSibling
+        if (feedback && feedback.classList.contains("invalid-feedback")) {
+          feedback.remove()
+        }
+
+        // parse JSON
+        return await res.json()
+      })
+      .then(data => {
+        if (!data) return
+        tagify.whitelist = data.map(d => (typeof d === "string" ? d : d.name)).filter(Boolean)
+        tagify.loading(false)
+        tagify.dropdown.show(value)
+      })
+      .catch(err => {
+        if (err.name !== "AbortError") console.error(err)
+        tagify.loading(false)
+      })
+  }
+
+  // event fired when a tag is added
+  tagify.on("add", (e) => {
+    const normalized = toKebabCase(e.detail.data.value)
+    if (normalized !== e.detail.data.value) {
+      tagify.removeTag(e.detail.data.value, true) // remove old
+      tagify.addTags([normalized], true) // add normalized
+    }
+  })
+})()

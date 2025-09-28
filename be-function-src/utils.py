@@ -102,7 +102,7 @@ class UserQueryDTO(BaseQueryDTO):
 
 
 class TagQueryDTO(BaseQueryDTO):
-    prefix: Optional[str] = Field(None, min_length=2, max_length=100)
+    prefix: Optional[str] = Field(None, min_length=1, max_length=10)
 
 
 class Tag(BaseModel):
