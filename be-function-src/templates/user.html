@@ -1,14 +1,10 @@
 {% extends "layout.html" %}
 
-{% block title %}{{ user_title | default(user.name ~ " | " ~ site_name) }}{% endblock %}
+{% block title %}{{ user.name }} | {{ site_name }}{% endblock %}
 {% block canonical_url %}{{ full_url("user-page", user_id=user.id) }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {
-        (index_breadcrumb | default("Home")): url("index"),
-        (users_breadcrumb | default("Users")): url("users-page"),
-        (user.name): None
-    } %}
+    {% with breadcrumbs = {"Home": url("index"), "Users": url("users-page"), (user.name): None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
@@ -54,8 +50,7 @@
             </div>
 
             <div class="small text-secondary">
-                {{ user_joined_at | default("Joined") }}:
-                {{ (user.created_at / 1000) | unix_to_full_date() }}
+                Joined: {{ (user.created_at / 1000) | unix_to_full_date() }}
             </div>
         </div>
     </div>
@@ -63,7 +58,7 @@
     {% if user.about %}
         <section class="container">
             <h2 class="mb-2 text-center mb-sm-2 mb-md-2 mb-lg-2 text-lg-start mb-xl-3 mb-xxl-3">
-                <i class="bi bi-info-circle-fill"></i> {{ user_about | default("About Me") }}
+                <i class="bi bi-info-circle-fill"></i> About Me
             </h2>
             <div class="card text-bg-light">
                 <div class="card-body">
@@ -74,7 +69,7 @@
     {% endif %}
 
     <div>
-        <h2>{{ user_latest_posts | default("Latest posts") }}</h2>
+        <h2>Latest posts</h2>
         {% if posts %}
             <div id="posts">
                 {% include "fragments/posts.html" %}
@@ -87,7 +82,7 @@
                 {% include "fragments/pagination.html" %}
             {% endwith %}
         {% else %}
-            {{ no_posts | default("N/A") }}
+            N/A
         {% endif %}
     </div>
 {% endblock %}

@@ -1,45 +1,39 @@
 {% extends "layout.html" %}
 
-{% block title %}{{ create_post_title | default("Create post | " ~ site_name) }}{% endblock %}
+{% block title %}Create post | {{ site_name }}{% endblock %}
 {% block canonical_url %}{{ full_url("create-post") }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {
-        (index_breadcrumb | default("Home")): url("index"),
-        (create_post_breadcrumb | default("Create post")): None,
-    } %}
+    {% with breadcrumbs = {"Home": url("index"), "Create post": None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
 
 {% block content %}
-    <h1>{{ create_post_header | default("Create post") }}</h1>
-    <p class="small text-secondary">{{ create_post_sub_header | default("Publish a new article") }}</p>
+    <h1>Create post</h1>
+    <p class="small text-secondary">Publish a new article</p>
     <div class="row">
         <div class="col-12 col-md-8">
             <form class="row g-3" id="post-form" novalidate>
                 <label class="col-12">
-                    <input type="text" class="form-control" id="title" name="title"
-                           placeholder="{{ create_post_title | default('Title') }}"
-                           required minlength="20" maxlength="500">
+                    <input type="text" class="form-control" id="title" name="title" placeholder="Title" required
+                           minlength="20" maxlength="500">
                 </label>
 
                 <label class="col-12">
-                    <textarea class="form-control" id="content" name="content"
-                              placeholder="{{ create_post_content | default('Content') }}"
-                              rows="12" required minlength="1000" maxlength="10000"></textarea>
+                    <textarea class="form-control" id="content" name="content" placeholder="Content" rows="12" required
+                              minlength="1000" maxlength="10000"></textarea>
                 </label>
 
                 <label class="col-12">
-                    <input type="text" class="form-control" id="tags" name="tags"
-                           placeholder="{{ create_post_tags | default('Tags (comma-separated)') }}" required>
-                    <span class="form-text">{{ create_post_tags_help | default("Enter tags separated by commas.") }}</span>
+                    <input type="text" class="form-control" id="tags" name="tags" placeholder="Tags (comma-separated)"
+                           required>
+                    <span class="form-text">Enter tags separated by commas.</span>
                 </label>
 
                 <div class="col-12">
                     <button type="submit" class="btn btn-outline-secondary">
-                        {{ create_post_submit_button | default("Create Post") }} <i
-                            class="bi bi-chevron-right"></i>
+                        Create Post <i class="bi bi-chevron-right"></i>
                     </button>
                 </div>
             </form>
@@ -67,7 +61,7 @@
                   const items = value.split(",").map(t => t.trim()).filter(Boolean)
                   return items.length >= 1 && items.length <= 3 && items.every(t => t.length >= 2 && t.length <= 20)
                 },
-                errorMessage: "{{ create_post_tags_validation_error | default('Tags must be 1–3 items, 2–20 chars each') }}"
+                errorMessage: "Tags must be 1–3 items, 2–20 chars each"
               }
             ]
           },
@@ -78,7 +72,7 @@
           onSuccess: (res) => {
             if (res.url) window.location.href = res.url
           },
-          successMessage: "{{ create_post_created | default('Post created!') }}"
+          successMessage: "Post created!"
         })
       })
     </script>

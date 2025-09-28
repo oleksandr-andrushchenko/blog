@@ -1,20 +1,17 @@
 {% extends "layout.html" %}
 
-{% block title %}{{ posts_title | default("Posts | " ~ site_name) }}{% endblock %}
+{% block title %}Posts | {{ site_name }}{% endblock %}
 {% block canonical_url %}{{ full_url("posts-page") }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {
-        (index_breadcrumb | default("Home")): url("index"),
-        (posts_breadcrumb | default("Posts")): None
-    } %}
+    {% with breadcrumbs = {"Home": url("index"), "Posts": None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
 
 {% block content %}
-    <h1>{{ posts_header | default("Posts") }}</h1>
-    <p class="small text-secondary">{{ posts_sub_header | default("Recent articles") }}</p>
+    <h1>Posts</h1>
+    <p class="small text-secondary">Recent articles</p>
     {% if posts %}
         <div id="posts">
             {% include "fragments/posts.html" %}
@@ -27,6 +24,6 @@
             {% include "fragments/pagination.html" %}
         {% endwith %}
     {% else %}
-        {{ no_posts | default("N/A") }}
+        N/A
     {% endif %}
 {% endblock %}

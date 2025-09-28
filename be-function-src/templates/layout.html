@@ -58,7 +58,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css"
           integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;700&family=Cal+Sans&display=swap">
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;700&family=Cal+Sans&display=swap">
     <link rel="stylesheet" href="{{ static_url('styles.css') }}">
 </head>
 
@@ -68,7 +69,7 @@
     <nav class="navbar navbar-expand-md bg-{{ header_bg }}"
          data-bs-theme="{{ header_bs }}">
         <div class="container">
-            <a class="navbar-brand link-secondary" style="outline:none" href="/">{{ site_name | default("Blog") }}</a>
+            <a class="navbar-brand link-secondary" style="outline:none" href="/">{{ site_name }}</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar"
                     aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
@@ -76,37 +77,29 @@
             <div class="collapse navbar-collapse" id="navbar">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url("posts-page") }}">
-                            {{ posts_nav | default("Posts") }}
-                        </a>
+                        <a class="nav-link" href="{{ url("posts-page") }}">Posts</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url("users-page") }}">
-                            {{ users_nav | default("Users") }}
-                        </a>
+                        <a class="nav-link" href="{{ url("users-page") }}">Users</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url("contacts-page") }}">
-                            {{ contacts_nav | default("Contacts") }}
-                        </a>
+                        <a class="nav-link" href="{{ url("contacts-page") }}">Contacts</a>
                     </li>
                 </ul>
                 {% if cur_user %}
                     <div>
                         <a href="{{ url("create-post-page") }}" class="btn btn-outline-secondary btn-sm">
-                            <i class="bi bi-pencil-square"></i> {{ header_create_post | default("Create post") }}
+                            <i class="bi bi-pencil-square"></i> Create post
                         </a>
                         <i class="bi bi-person-circle"></i> <a
                             href="{{ url("user-page", user_id=cur_user.id) }}">{{ cur_user.name }}</a>
                         <a href="{{ url("logout") }}" class="btn btn-outline-secondary btn-sm">
-                            {{ header_logout | default("Sign out") }} <i
-                                class="bi bi-box-arrow-right"></i>
+                            Sign out <i class="bi bi-box-arrow-right"></i>
                         </a>
                     </div>
                 {% else %}
                     <a href="{{ url('login') }}" class="btn btn-secondary btn-sm">
-                        <i class="bi bi-box-arrow-in-right"></i>
-                        {{ header_login | default("Sign in") }}
+                        <i class="bi bi-box-arrow-in-right"></i> Sign in
                     </a>
                 {% endif %}
             </div>
@@ -123,7 +116,7 @@
 
 <footer class="mt-auto bg-light text-center text-md-start d-print-none">
     <div class="container py-3">
-        &copy; {{ footer_current_year | default("2025") }} {{ site_name }}
+        &copy; {{ footer_current_year }} {{ site_name }}
 
         {% if contact_socials %}
             <div class="h3 mt-1">

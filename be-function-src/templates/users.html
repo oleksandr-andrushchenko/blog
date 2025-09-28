@@ -1,20 +1,17 @@
 {% extends "layout.html" %}
 
-{% block title %}{{ users_title | default("Users | " ~ site_name) }}{% endblock %}
+{% block title %}Users |  {{ site_name }}{% endblock %}
 {% block canonical_url %}{{ full_url("users-page") }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {
-        (index_breadcrumb | default("Home")): url("index"),
-        (users_breadcrumb | default("Users")): None
-    } %}
+    {% with breadcrumbs = {"Home": url("index"), "Users": None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
 
 {% block content %}
-    <h1>{{ users_header | default("Users") }}</h1>
-    <p class="small text-secondary">{{ users_sub_header | default("Recently registered users") }}</p>
+    <h1>Users</h1>
+    <p class="small text-secondary">Recently registered users</p>
     {% if users %}
         <div class="row" id="users">
             {% include "fragments/users.html" %}
@@ -27,6 +24,6 @@
             {% include "fragments/pagination.html" %}
         {% endwith %}
     {% else %}
-        {{ no_users | default("N/A") }}
+        N/A
     {% endif %}
 {% endblock %}

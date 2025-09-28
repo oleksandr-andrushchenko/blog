@@ -1,74 +1,68 @@
 {% extends "layout.html" %}
 
-{% block title %}{{ contacts_title | default("Contacts | " ~ site_name) }}{% endblock %}
+{% block title %}Contacts | {{ site_name }}{% endblock %}
 {% block canonical_url %}{{ full_url("contacts-page") }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {
-        (index_breadcrumb | default("Home")): url("index"),
-        (contacts_breadcrumb | default("Contacts")): None
-    } %}
+    {% with breadcrumbs = {"Home": url("index"), "Contacts": None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
 
 {% block content %}
-    <h1>{{ contacts_header | default("Contacts") }}</h1>
-    <p class="small text-secondary">{{ contacts_sub_header | default("Contact us") }}</p>
+    <h1>Contacts</h1>
+    <p class="small text-secondary">Contact us</p>
 
     <div class="row">
         <div class="col-12 col-md-6">
             <form class="row g-3" id="contact-form" novalidate>
                 <label class="col-12">
-                    <input type="text" class="form-control" id="name" name="name"
-                           placeholder="{{ contacts_name | default('Your Name') }}"
+                    <input type="text" class="form-control" id="name" name="name" placeholder="Your Name"
                            value="{{ cur_user.name if cur_user else '' }}" required>
                 </label>
                 <label class="col-12">
-                    <input type="email" class="form-control" id="email" name="email"
-                           placeholder="{{ contact_email | default('Your Email') }}"
+                    <input type="email" class="form-control" id="email" name="email" placeholder="Your Email"
                            value="{{ cur_user.email if cur_user else '' }}" required>
                 </label>
                 <label class="col-12">
-                        <textarea class="form-control" id="message" name="message"
-                                  placeholder="{{ contacts_message | default('Your Message') }}" rows="10"
-                                  required></textarea>
+                    <textarea class="form-control" id="message" name="message" placeholder="Your Message" rows="10"
+                              required></textarea>
                 </label>
                 <div class="col-12">
                     <button type="submit" class="btn btn-outline-secondary">
-                        {{ contacts_send_message | default("Send Message") }} <i class="bi bi-chevron-right"></i>
+                        Send Message <i class="bi bi-chevron-right"></i>
                     </button>
                 </div>
             </form>
         </div>
 
         <div class="col-12 col-md-6 mt-5 mt-md-0 text-center text-md-start">
-            <h3 class="mb-4">{{ contacts_contact_details | default("Contact details") }}</h3>
+            <h3 class="mb-4">Contact details</h3>
             <div class="d-flex flex-column gap-3">
                 {% if contact_phone_id %}
                     <div>
-                        <i class="bi bi-telephone-outbound"></i> {{ contact_phone | default("Phone") }}
+                        <i class="bi bi-telephone-outbound"></i> Phone
                         <a class="d-block" href="tel:{{ contact_phone_id }}">{{ contact_phone_id }}</a>
                     </div>
                 {% endif %}
 
                 {% if contact_email_id %}
                     <div>
-                        <i class="bi bi-envelope-at"></i> {{ contact_email | default("Email") }}
+                        <i class="bi bi-envelope-at"></i> Email
                         <a class="d-block" href="mailto:{{ contact_email_id }}">{{ contact_email_id }}</a>
                     </div>
                 {% endif %}
 
                 {% if contact_address_id %}
                     <div>
-                        <i class="bi bi-geo"></i> {{ contact_address | default("Address") }}
+                        <i class="bi bi-geo"></i> Address
                         <div>{{ contact_address_id }}</div>
                     </div>
                 {% endif %}
 
                 {% if contact_social_ids %}
                     <div>
-                        <i class="bi bi-people"></i> {{ contact_socials | default("Socials") }}
+                        <i class="bi bi-people"></i> Socials
                         <div class="h3">
                             {% for contact_social_id in contact_social_ids %}
                                 <a href="{{ contact_social_id.url }}" class="link-dark" target="_blank"
@@ -102,7 +96,7 @@
               {rule: "maxLength", value: 1000}
             ]
           },
-          successMessage: "{{ create_contact_message_created | default('Message sent!') }}"
+          successMessage: "Message sent!"
         })
       })
     </script>
