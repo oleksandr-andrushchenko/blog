@@ -4,6 +4,8 @@
 <head>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
 
     {% if google_analytics_id %}
         <!-- Google tag (gtag.js) -->
@@ -56,6 +58,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css"
           integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;700&family=Cal+Sans&display=swap">
     <link rel="stylesheet" href="{{ static_url('styles.css') }}">
 </head>
 
@@ -65,7 +68,7 @@
     <nav class="navbar navbar-expand-md bg-{{ header_bg }}"
          data-bs-theme="{{ header_bs }}">
         <div class="container">
-            <a class="navbar-brand" style="outline:none" href="/">{{ site_name | default("Blog") }}</a>
+            <a class="navbar-brand link-secondary" style="outline:none" href="/">{{ site_name | default("Blog") }}</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar"
                     aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
