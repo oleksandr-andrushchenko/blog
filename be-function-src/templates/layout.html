@@ -86,23 +86,31 @@
                         <a class="nav-link" href="{{ url("contacts-page") }}">Contacts</a>
                     </li>
                 </ul>
-                {% if cur_user %}
-                    <div>
-                        <a href="{{ url("create-post-page") }}" class="btn btn-outline-secondary btn-sm">
-                            <i class="bi bi-pencil-square"></i> Create post
-                        </a>
-                        <a href="{{ url("user-page", user_id=cur_user.id) }}" class="btn btn-outline-secondary">
-                            <i class="bi bi-person-circle"></i> {{ cur_user.name }}
-                        </a>
-                        <a href="{{ url("logout") }}" class="btn btn-outline-secondary btn-sm">
-                            Sign out <i class="bi bi-box-arrow-right"></i>
-                        </a>
-                    </div>
-                {% else %}
-                    <a href="{{ url('login') }}" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-box-arrow-in-right"></i> Sign in
-                    </a>
-                {% endif %}
+                <ul class="navbar-nav">
+                    {% if cur_user %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url("create-post-page") }}">
+                                <i class="bi bi-pencil-square"></i> Create post
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url("user-page", user_id=cur_user.id) }}">
+                                <i class="bi bi-person-circle"></i> {{ cur_user.name }}
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url("logout") }}">
+                                Sign out <i class="bi bi-box-arrow-right"></i>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url('login') }}">
+                                <i class="bi bi-box-arrow-in-right"></i> Sign in
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
             </div>
         </div>
     </nav>
