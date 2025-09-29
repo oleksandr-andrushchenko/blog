@@ -6,44 +6,49 @@
 {% block content %}
     <h1>{{ site_name }}</h1>
     <p class="small text-secondary">{{ site_about }}</p>
-    <img src="{{ static_url('pikachu.webp') }}" alt="test" class="w-25"/>
 
-    <div>
-        <h2>Popular tags</h2>
-        {% if popular_tags %}
-            {% for tag in popular_tags %}
-                <a href="{{ url("posts-page", tags=tag.name) }}" class="btn btn-outline-secondary btn-sm">
-                    {{ tag.name }}
-                </a>
-            {% endfor %}
-        {% else %}
-            N/A
-        {% endif %}
-    </div>
+    <div class="row">
+        <div class="col-8">
+            <img src="{{ static_url('pikachu.webp') }}" alt="test" class="w-50"/>
+            <div>
+                <h2>Popular posts</h2>
+                {% if popular_posts %}
+                    {% for post in popular_posts %}
+                        <div>
+                            <a href="{{ url("post-page", post_id=post.id) }}">
+                                {{ post.title }}
+                            </a>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    N/A
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-4">
+            <div>
+                <h2>Popular tags</h2>
+                {% if popular_tags %}
+                    {% for tag in popular_tags %}
+                        <a href="{{ url("posts-page", tags=tag.name) }}" class="btn btn-outline-secondary btn-sm">
+                            {{ tag.name }}
+                        </a>
+                    {% endfor %}
+                {% else %}
+                    N/A
+                {% endif %}
+            </div>
 
-    <div>
-        <h2>Popular posts</h2>
-        {% if popular_posts %}
-            {% for post in popular_posts %}
-                <div>
-                    <a href="{{ url("post-page", post_id=post.id) }}">
-                        {{ post.title }}
-                    </a>
-                </div>
-            {% endfor %}
-        {% else %}
-            N/A
-        {% endif %}
-    </div>
-
-    <div>
-        <h2>Popular users</h2>
-        {% if popular_users %}
-            {% for user in popular_users %}
-                {% include "fragments/user-inline.html" %}
-            {% endfor %}
-        {% else %}
-            N/A
-        {% endif %}
+            <div>
+                <h2>Popular users</h2>
+                {% if popular_users %}
+                    {% for user in popular_users %}
+                        {% include "fragments/user-inline.html" %}
+                    {% endfor %}
+                {% else %}
+                    N/A
+                {% endif %}
+            </div>
+        </div>
     </div>
 {% endblock %}
