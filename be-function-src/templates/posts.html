@@ -3,7 +3,8 @@
 {% set latest_title = "Latest posts" %}
 {% set popular_title = "Popular posts" %}
 
-{% set title = popular_title if posts_query.popular else latest_title %}
+{% set tags_title = " ".join(posts_query.tags) %}
+{% set title = (tags_title ~ " " ~ (popular_title if posts_query.popular else latest_title)) | trim %}
 {% set sub_title = "Most rated articles" if posts_query.popular else "Recent articles" %}
 
 {% block title %}{{ title }} | {{ site_name }}{% endblock %}
@@ -16,10 +17,6 @@
 {% endblock %}
 
 {% block content %}
-    <a href="{{ url("posts-page") }}"
-       class="btn btn-outline-secondary btn-sm {% if not posts_query.popular %}active{% endif %}">{{ latest_title }}</a>
-    <a href="{{ url("posts-page") }}?popular=1"
-       class="btn btn-outline-secondary btn-sm {% if posts_query.popular %}active{% endif %}">{{ popular_title }}</a>
     <h1>{{ title }}</h1>
     <p class="small text-secondary">{{ sub_title }}</p>
     <form action="{{ url("posts-page") }}" method="get">
@@ -27,14 +24,30 @@
             <input type="hidden" name="popular" value="1">
         {% endif %}
         <div class="d-flex justify-content-start align-items-center gap-1">
-            <div>Search by tags:</div>
+            <div>Search by:</div>
             {% with url=url("get-post-tags"),
                 value=posts_query.tags,
                 class_name="w-50",
+                auto_submit=True,
                 inject_hidden=True %}
                 {% include "fragments/tags-input.html" %}
             {% endwith %}
-            <button class="btn btn-outline-secondary" type="submit">Search</button>
+            <div>Show:</div>
+            <div class="btn-group">
+                <a href="{{ url("posts-page", **posts_query.get_dict({"popular": None})) }}"
+                   class="btn btn-outline-secondary btn-sm {% if not posts_query.popular %}active{% endif %}">
+                    <i class="bi bi-clock"></i> {{ latest_title }}
+                </a>
+                <a href="{{ url("posts-page", **posts_query.get_dict({"popular": 1})) }}"
+                   class="btn btn-outline-secondary btn-sm {% if posts_query.popular %}active{% endif %}">
+                    <i class="bi bi-star-fill"></i> {{ popular_title }}
+                </a>
+            </div>
+            {% if posts_query.has_params() %}
+                <a href="{{ url("posts-page") }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-x-lg"></i> Reset
+                </a>
+            {% endif %}
         </div>
     </form>
     {% if posts %}
