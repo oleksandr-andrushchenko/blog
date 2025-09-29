@@ -35,4 +35,15 @@
             N/A
         {% endif %}
     </div>
+
+    <div>
+        <h2>Popular users</h2>
+        {% if popular_users %}
+            {% for user in popular_users %}
+                {% include "fragments/user-inline.html" %}
+            {% endfor %}
+        {% else %}
+            N/A
+        {% endif %}
+    </div>
 {% endblock %}

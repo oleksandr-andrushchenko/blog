@@ -61,6 +61,7 @@ from utils import (
     get_popular_published_posts,
     find_user,
     jinja2_env,
+    get_popular_active_users
 )
 
 
@@ -169,7 +170,8 @@ async def index(cur_user: OptCurUserDep) -> str:
     return get_html_content("index.html", {
         "cur_user": cur_user,
         "popular_tags": await get_popular_post_tags(),
-        "popular_posts": await get_popular_published_posts()
+        "popular_posts": await get_popular_published_posts(),
+        "popular_users": await get_popular_active_users(),
     })
 
 

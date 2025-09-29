@@ -1446,3 +1446,15 @@ async def get_latest_published_posts_by_user(user: User, query_dto: PostQueryDTO
         return posts
 
     return await with_dynamodb_table(fn)
+
+
+# todo: complete
+async def get_popular_active_users(query_dto: UserQueryDTO = None) -> List[User]:
+    if query_dto is None:
+        query_dto = UserQueryDTO()
+    status = UserStatus.ACTIVE
+
+    async def fn(table):
+        return []
+
+    return await with_dynamodb_table(fn)
