@@ -91,14 +91,15 @@
                         <a href="{{ url("create-post-page") }}" class="btn btn-outline-secondary btn-sm">
                             <i class="bi bi-pencil-square"></i> Create post
                         </a>
-                        <i class="bi bi-person-circle"></i> <a
-                            href="{{ url("user-page", user_id=cur_user.id) }}">{{ cur_user.name }}</a>
+                        <a href="{{ url("user-page", user_id=cur_user.id) }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-person-circle"></i> {{ cur_user.name }}
+                        </a>
                         <a href="{{ url("logout") }}" class="btn btn-outline-secondary btn-sm">
                             Sign out <i class="bi bi-box-arrow-right"></i>
                         </a>
                     </div>
                 {% else %}
-                    <a href="{{ url('login') }}" class="btn btn-secondary btn-sm">
+                    <a href="{{ url('login') }}" class="btn btn-outline-secondary btn-sm">
                         <i class="bi bi-box-arrow-in-right"></i> Sign in
                     </a>
                 {% endif %}
