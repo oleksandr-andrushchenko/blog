@@ -95,6 +95,31 @@ class BaseQueryDTO(BaseModel):
     offset: Optional[str] = Field(None)
     limit: int = Field(default=20, ge=1)
 
+    def get_dict(self, rewrite: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Return a dictionary representation of the model."""
+        data = self.model_dump()
+        if rewrite:
+            data.update(rewrite)
+        return data
+
+    def has_params(self) -> bool:
+        """Return True if any field differs from its default value."""
+        for name, info in self.model_fields.items():
+            value = getattr(self, name)
+
+            # skip fields that are None or empty lists/dicts
+            if value in (None, [], {}):
+                continue
+
+            # compare with default if it exists
+            if info.default is not None:
+                if value != info.default:
+                    return True
+            else:
+                # field has no default, any non-empty value counts
+                return True
+        return False
+
 
 class PostQueryDTO(BaseQueryDTO):
     tags: Optional[List[str]] = Field(default_factory=list)  # noqa
