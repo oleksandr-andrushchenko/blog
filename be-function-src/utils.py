@@ -27,6 +27,7 @@ import time
 from zoneinfo import ZoneInfo
 import decimal
 from urllib.parse import urlencode
+import copy
 
 
 class UserToken(BaseModel):
@@ -1137,9 +1138,10 @@ async def get_popular_published_posts_by_tags(query_dto: PostQueryDTO = None) ->
         query_dto = PostQueryDTO()
 
     # Increase limit to fetch more posts before filtering
-    query_dto.limit = max(query_dto.limit * 5, 100)
+    query_dto_copy = copy.copy(query_dto)
+    query_dto_copy.limit = max(query_dto.limit * 5, 100)
 
-    posts = await get_popular_published_posts(query_dto)
+    posts = await get_popular_published_posts(query_dto_copy)
 
     if not query_dto.tags:
         return posts
