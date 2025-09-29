@@ -17,6 +17,12 @@
         </div>
     {% endif %}
 
+    {% if post.status == "rejected" %}
+        <span class="badge text-bg-dange fs-5">Rejected</span>
+    {% elif post.status == "unpublished" %}
+        <span class="badge text-bg-warning fs-6">Unpublished (Pending)</span>
+    {% endif %}
+
     <div>
         <span class="small text-secondary">
             Created: {{ (post.created_at / 1000) | unix_to_full_date }}
