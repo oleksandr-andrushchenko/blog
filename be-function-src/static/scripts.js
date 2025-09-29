@@ -243,6 +243,7 @@ document.addEventListener("click", async function (e) {
   if (!input) return
   const url = input.dataset.url
   const injectHidden = input.dataset.injectHidden
+  const autoSubmit = input.dataset.autoSubmit
   const form = input.closest("form")
 
   const tagify = new Tagify(input, {
@@ -362,4 +363,8 @@ document.addEventListener("click", async function (e) {
       tagify.addTags([normalized], true) // add normalized
     }
   })
+
+  if (autoSubmit) {
+    tagify.on("change", () => form.requestSubmit())
+  }
 })()
