@@ -1,17 +1,42 @@
 {% extends "layout.html" %}
 
-{% block title %}Posts | {{ site_name }}{% endblock %}
+{% set latest_title = "Latest posts" %}
+{% set popular_title = "Popular posts" %}
+
+{% set title = popular_title if posts_query.popular else latest_title %}
+{% set sub_title = "Most rated articles" if posts_query.popular else "Recent articles" %}
+
+{% block title %}{{ title }} | {{ site_name }}{% endblock %}
 {% block canonical_url %}{{ full_url("posts-page") }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), "Posts": None} %}
+    {% with breadcrumbs = {"Home": url("index"), (popular_title if posts_query.popular else "Posts"): None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
 
 {% block content %}
-    <h1>Posts</h1>
-    <p class="small text-secondary">Recent articles</p>
+    <a href="{{ url("posts-page") }}"
+       class="btn btn-outline-secondary btn-sm {% if not posts_query.popular %}active{% endif %}">{{ latest_title }}</a>
+    <a href="{{ url("posts-page") }}?popular=1"
+       class="btn btn-outline-secondary btn-sm {% if posts_query.popular %}active{% endif %}">{{ popular_title }}</a>
+    <h1>{{ title }}</h1>
+    <p class="small text-secondary">{{ sub_title }}</p>
+    <form action="{{ url("posts-page") }}" method="get">
+        {% if posts_query.popular %}
+            <input type="hidden" name="popular" value="1">
+        {% endif %}
+        <div class="d-flex justify-content-start align-items-center gap-1">
+            <div>Search by tags:</div>
+            {% with url=url("get-post-tags"),
+                value=posts_query.tags,
+                class_name="w-50",
+                inject_hidden=True %}
+                {% include "fragments/tags-input.html" %}
+            {% endwith %}
+            <button class="btn btn-outline-secondary" type="submit">Search</button>
+        </div>
+    </form>
     {% if posts %}
         <div id="posts">
             {% include "fragments/posts.html" %}
@@ -19,7 +44,7 @@
         {% with limit=posts_query.limit,
             offset=posts[-1].offset,
             count=posts|length,
-            url=url("posts-page-fragment"),
+            url=url("posts-page-fragment", **dict(posts_query)),
             container="#posts" %}
             {% include "fragments/pagination.html" %}
         {% endwith %}

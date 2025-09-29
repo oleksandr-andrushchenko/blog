@@ -1,7 +1,9 @@
 <input id="tags-input"
        name="tags"
        type="text"
-       class="form-control"
+       class="form-control {{ class_name }}"
        placeholder="Tags"
-       required
+       value="{{ ",".join(value) if value else "" }}"
+       data-url="{{ url }}"
+       data-inject-hidden="{{ inject_hidden }}"
 />

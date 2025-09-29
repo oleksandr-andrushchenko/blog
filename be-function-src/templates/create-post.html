@@ -26,7 +26,9 @@
                 </label>
 
                 <div class="col-12">
-                    {% include "fragments/tags-input.html" %}
+                    {% with url=url("get-post-tags") %}
+                        {% include "fragments/tags-input.html" %}
+                    {% endwith %}
                 </div>
 
                 <div class="col-12">

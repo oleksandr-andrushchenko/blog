@@ -1,9 +1,9 @@
 [
   {
-    "IndexName": "GSI_PROVIDER_SUB",
+    "IndexName": "USERS_BY_EMAIL",
     "KeySchema": [
       {
-        "AttributeName": "gsi_provider_sub",
+        "AttributeName": "user_email_pk",
         "KeyType": "HASH"
       }
     ],
@@ -12,26 +12,14 @@
     }
   },
   {
-    "IndexName": "GSI_EMAIL",
+    "IndexName": "POSTS_BY_STATUS_CREATED_AT",
     "KeySchema": [
       {
-        "AttributeName": "gsi_email",
-        "KeyType": "HASH"
-      }
-    ],
-    "Projection": {
-      "ProjectionType": "ALL"
-    }
-  },
-  {
-    "IndexName": "GSI_POSTS",
-    "KeySchema": [
-      {
-        "AttributeName": "gsi_post_status_pk",
+        "AttributeName": "post_status_pk",
         "KeyType": "HASH"
       },
       {
-        "AttributeName": "created_at",
+        "AttributeName": "created_at_sk",
         "KeyType": "RANGE"
       }
     ],
@@ -40,14 +28,14 @@
     }
   },
   {
-    "IndexName": "GSI_TAG_POPULARITY",
+    "IndexName": "TAGS_BY_TYPE_RATING",
     "KeySchema": [
       {
-        "AttributeName": "gsi_tag_pk",
+        "AttributeName": "tag_type_pk",
         "KeyType": "HASH"
       },
       {
-        "AttributeName": "posts_count",
+        "AttributeName": "rating_sk",
         "KeyType": "RANGE"
       }
     ],
@@ -56,14 +44,14 @@
     }
   },
   {
-    "IndexName": "GSI_TAG_NAME",
+    "IndexName": "POSTS_BY_STATUS_RATING",
     "KeySchema": [
       {
-        "AttributeName": "gsi_tag_name_pk",
+        "AttributeName": "post_status_pk",
         "KeyType": "HASH"
       },
       {
-        "AttributeName": "tag_name",
+        "AttributeName": "rating_sk",
         "KeyType": "RANGE"
       }
     ],
@@ -72,14 +60,14 @@
     }
   },
   {
-    "IndexName": "GSI_USERS",
+    "IndexName": "TAGS_BY_TYPE_NAME",
     "KeySchema": [
       {
-        "AttributeName": "gsi_user_status_pk",
+        "AttributeName": "tag_type_pk",
         "KeyType": "HASH"
       },
       {
-        "AttributeName": "created_at",
+        "AttributeName": "tag_name_sk",
         "KeyType": "RANGE"
       }
     ],
@@ -88,14 +76,30 @@
     }
   },
   {
-    "IndexName": "GSI_USER_POSTS",
+    "IndexName": "USERS_BY_STATUS_CREATED_AT",
     "KeySchema": [
       {
-        "AttributeName": "gsi_post_user_status_pk",
+        "AttributeName": "user_status_pk",
         "KeyType": "HASH"
       },
       {
-        "AttributeName": "created_at",
+        "AttributeName": "created_at_sk",
+        "KeyType": "RANGE"
+      }
+    ],
+    "Projection": {
+      "ProjectionType": "ALL"
+    }
+  },
+  {
+    "IndexName": "POSTS_BY_USER_STATUS_CREATED_AT",
+    "KeySchema": [
+      {
+        "AttributeName": "post_user_status_pk",
+        "KeyType": "HASH"
+      },
+      {
+        "AttributeName": "created_at_sk",
         "KeyType": "RANGE"
       }
     ],

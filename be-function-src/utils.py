@@ -25,6 +25,8 @@ from botocore.exceptions import ClientError
 from itertools import combinations
 import time
 from zoneinfo import ZoneInfo
+import decimal
+from urllib.parse import urlencode
 
 
 class UserToken(BaseModel):
@@ -55,7 +57,7 @@ class User(BaseModel):
     status: UserStatus = UserStatus.ACTIVE
     created_at: int
     updated_at: Optional[int] = None
-    offset: Optional[str | int] = None
+    offset: Optional[str] = None
 
 
 class ContactMessageDTO(BaseModel):
@@ -89,12 +91,13 @@ class PostDTO(BaseModel):
 
 
 class BaseQueryDTO(BaseModel):
-    offset: Optional[int] = Field(None)
-    limit: int = Field(default=10, ge=1)
+    offset: Optional[str] = Field(None)
+    limit: int = Field(default=20, ge=1)
 
 
 class PostQueryDTO(BaseQueryDTO):
-    pass
+    tags: Optional[List[str]] = Field(default_factory=list)  # noqa
+    popular: Optional[bool] = None
 
 
 class UserQueryDTO(BaseQueryDTO):
@@ -107,7 +110,8 @@ class TagQueryDTO(BaseQueryDTO):
 
 class Tag(BaseModel):
     name: str
-    posts_count: Optional[int] = None
+    rating: int = Field(default_factory=int)
+    offset: Optional[str] = None
 
 
 class PublicTag(BaseModel):
@@ -126,11 +130,12 @@ class Post(BaseModel):
     slug: str
     user_id: str
     content: str
-    tags: List[Tag]
+    tags: List[str]
     status: PostStatus = PostStatus.UNPUBLISHED
+    rating: int = Field(default_factory=int)
     created_at: int
     updated_at: Optional[int] = None
-    offset: Optional[str | int] = None
+    offset: Optional[str] = None
 
 
 class Permission(str, Enum):
@@ -418,7 +423,31 @@ logger = get_logger()
 @pass_context
 def url_for(ctx, name: str, **params) -> str:
     request = ctx.get("request")
-    return get_url(request, name, **params)
+    if not request:
+        raise ValueError("Request not found in context")
+
+    # find the route
+    route = next(r for r in request.app.routes if getattr(r, "name", None) == name)
+    path_param_names = getattr(route, "param_convertors", {}).keys()
+
+    # split params into path vs query, skipping None
+    path_params = {k: v for k, v in params.items() if k in path_param_names and v is not None}
+    query_params = {k: v for k, v in params.items() if k not in path_param_names and v is not None}
+
+    url = str(request.url_for(name, **path_params))
+
+    if query_params:
+        items = []
+        for k, v in query_params.items():
+            if isinstance(v, bool):
+                v = int(v)  # True -> 1, False -> 0
+            if isinstance(v, (list, tuple)):
+                items.extend((k, int(i) if isinstance(i, bool) else i) for i in v)
+            else:
+                items.append((k, v))
+        url = f"{url}?{urlencode(items)}"
+
+    return url
 
 
 def get_url(request, name: str, **params) -> str:
@@ -552,54 +581,53 @@ def to_datetime(ts: Any) -> Optional[datetime]:
 
 async def get_user_by_user_token(token: UserToken) -> Optional[User]:
     async def fn(table):
-        provider_item = None
-        internal_item = None
+        provider_user_item = None
+        user_item = None
         user_id = None
 
-        # 1: Lookup provider record by GSI_PROVIDER_SUB
+        # 1: Lookup provider user record
         if token.sub:
-            provider_sub = f"{token.iss}#{token.sub}"
-            logger.debug(f"Querying GSI_PROVIDER_SUB with value: {provider_sub}")
-
-            resp = await table.query(
-                IndexName="GSI_PROVIDER_SUB",
-                KeyConditionExpression=Key("gsi_provider_sub").eq(provider_sub)
+            resp = await table.get_item(
+                Key={
+                    "pk": f"PROVIDER_USER#{token.iss}#{token.sub}",
+                    "sk": 0
+                }
             )
-            items = resp.get("Items", [])
-            if items:
-                provider_item = items[0]
-                user_id = provider_item["user_id"]
+            provider_user_item = resp.get("Item")
+            if provider_user_item:
+                user_id = provider_user_item["user_id"]
 
-                # Fetch internal record
-                resp2 = await table.get_item(
+                # Fetch user record
+                resp = await table.get_item(
                     Key={
                         "pk": f"USER#{user_id}",
-                        "sk": "METADATA"
+                        "sk": 0
                     }
                 )
-                internal_item = resp2.get("Item") if "Item" in resp2 else None
+                user_item = resp.get("Item")
 
-        # 2: Fallback: lookup internal user by GSI_EMAIL
-        if not provider_item and token.email:
+        # 2: Fallback: lookup user by email
+        # todo: user_item instead of provider_user_item (?)
+        if not provider_user_item and token.email:
             resp = await table.query(
-                IndexName="GSI_EMAIL",
-                KeyConditionExpression=Key("gsi_email").eq(token.email)
+                IndexName="USERS_BY_EMAIL",
+                KeyConditionExpression=Key("user_email_pk").eq(token.email)
             )
             items = resp.get("Items", [])
             if items:
-                internal_item = items[0]
-                user_id = internal_item["id"]
+                user_item = items[0]
+                user_id = user_item["id"]
 
         # 3: Not found
-        if not internal_item:
+        if not user_item:
             return None
 
         return user_from_dynamodb({
             "id": user_id,
-            **internal_item,
-            "email": internal_item.get("gsi_email", token.email),
-            "name": internal_item.get("name", token.name),
-            "username": internal_item.get("username", token.username)
+            **user_item,
+            "user_email_pk": user_item.get("user_email_pk") or token.email,
+            "name": user_item.get("name") or token.name,
+            "username": user_item.get("username") or token.username
         })
 
     return await with_dynamodb_table(fn)
@@ -623,47 +651,47 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
 
         transact_items = []
 
-        # 3: Ensure internal record exists
-        internal_item = {
+        # 3: Ensure user record exists
+        user_item = {
             "pk": f"USER#{user_id}",
-            "sk": "METADATA",
+            "sk": 0,
             "id": user_id,
-            "gsi_email": token.email,
+            "user_email_pk": token.email,
             "name": token.name,
             "username": token.username,
             "providers": providers,
-            "created_at": now,
+            "status": status,
+            "created_at_sk": now,
             "updated_at": now,
-            "gsi_user_status_pk": f"USER#STATUS#{status.value}",
+            "user_status_pk": f"USER#STATUS#{status.value}",
         }
         transact_items.append({
             "Put": {
                 "TableName": table.name,
-                "Item": internal_item,
+                "Item": user_item,
             }
         })
 
         # 4: Ensure provider record exists
-        provider_item = {
-            "pk": f"USER#{token.iss}#{token.sub}",
-            "sk": "PROFILE",
+        provider_user_item = {
+            "pk": f"PROVIDER_USER#{token.iss}#{token.sub}",
+            "sk": now,
             "user_id": user_id,
-            "gsi_provider_sub": f"{token.iss}#{token.sub}",
             "email": token.email,
-            "created_at": now,
+            "created_at_sk": now,
             "updated_at": now
         }
         transact_items.append({
             "Put": {
                 "TableName": table.name,
-                "Item": provider_item,
+                "Item": provider_user_item,
             }
         })
 
         await dynamodb_transact_write(table, transact_items)
 
         # 5: Return User model
-        return user_from_dynamodb(internal_item)
+        return user_from_dynamodb(user_item)
 
     return await with_dynamodb_table(fn)
 
@@ -814,11 +842,16 @@ def post_from_dynamodb(d_item: Dict[str, Any]) -> Post:
         slug=d_item["slug"],
         user_id=d_item["user_id"],
         content=d_item["content"],
-        tags=[Tag(name=t) for t in d_item.get("tags", [])],
+        tags=d_item.get("tags", []),
         status=d_item["status"],
-        created_at=d_item["created_at"],
+        rating=int(d_item.get("rating_sk", 0)),
+        created_at=d_item["created_at_sk"],
         updated_at=d_item.get("updated_at"),
     )
+
+
+def compute_rating_sk(rating: int, created_at: int) -> int:
+    return rating * 1_000_000_000 + created_at
 
 
 async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISHED) -> Post:
@@ -834,17 +867,18 @@ async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISH
         # Main post item
         post_item = {
             "pk": f"POST#{post_id}",
-            "sk": "METADATA",
+            "sk": 0,
             "id": post_id,
             "title": post_dto.title,
             "slug": slug,
             "user_id": user.id,
             "content": post_dto.content,
             "tags": list(dict.fromkeys(post_dto.tags)),
+            "rating_sk": compute_rating_sk(0, now),
             "status": status,
-            "created_at": now,
-            "gsi_post_status_pk": f"POST#STATUS#{status.value}",
-            "gsi_post_user_status_pk": f"POST#USER#{user.id}#STATUS#{status.value}",
+            "created_at_sk": now,
+            "post_status_pk": f"POST#STATUS#{status.value}",
+            "post_user_status_pk": f"POST#USER#{user.id}#STATUS#{status.value}",
         }
         transact_items.append({
             "Put": {
@@ -856,10 +890,9 @@ async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISH
 
         # Slug item for uniqueness
         slug_item = {
-            "pk": f"SLUG#{slug}",
-            "sk": "POST",
+            "pk": f"POST_SLUG#{slug}",
+            "sk": 0,
             "post_id": post_id,
-            "created_at": now,
         }
         transact_items.append({
             "Put": {
@@ -870,32 +903,37 @@ async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISH
         })
 
         # ----------------------------
-        # Tag metadata (increment posts_count)
+        # Tag metadata (increment post_count)
         # ----------------------------
+        # todo: move to post approval (?)
         for tag in post_item["tags"]:
-            tag_pk = f"TAG#{tag}"
             transact_items.append({
                 "Update": {
                     "TableName": table.name,
-                    "Key": {"pk": tag_pk, "sk": "METADATA"},
+                    "Key": {
+                        "pk": f"POST_TAG#{tag}",
+                        "sk": 0
+                    },
                     "UpdateExpression": (
-                        "SET tag_name = :tag, "
-                        "created_at = if_not_exists(created_at, :now), "
-                        "posts_count = if_not_exists(posts_count, :zero) + :inc, "
-                        "gsi_tag_pk = :gsi_tag_pk, "
-                        "gsi_tag_name_pk = :gsi_tag_pk"
+                        "SET tag_name_sk = if_not_exists(tag_name_sk, :tag_name_sk), "
+                        "    tag_type_pk = if_not_exists(tag_type_pk, :tag_type_pk), "
+                        "    rating_sk = if_not_exists(rating_sk, :def_rating_sk) + :rating_sk_inc, "
+                        "    created_at = if_not_exists(created_at, :now), "
+                        "    updated_at = :now "
                     ),
                     "ExpressionAttributeValues": {
-                        ":tag": tag,
+                        ":tag_name_sk": tag,
+                        ":tag_type_pk": "POST_TAG",
                         ":now": now,
-                        ":inc": 1,
-                        ":zero": 0,
-                        ":gsi_tag_pk": "TAG"
+                        ":def_rating_sk": compute_rating_sk(0, now),
+                        ":rating_sk_inc": compute_rating_sk(1, now)
                     }
                 }
             })
 
-        # Execute transaction
+        if status == PostStatus.PUBLISHED:
+            transact_items += generate_post_tag_combos_transact_items(post_id, post_item["tags"], table, now)
+
         try:
             await dynamodb_transact_write(table, transact_items)
         except DynamoDBTransactionError as e:
@@ -913,7 +951,7 @@ async def find_post(post_id: str) -> Optional[Post]:
         resp = await table.get_item(
             Key={
                 "pk": f"POST#{post_id}",
-                "sk": "METADATA"
+                "sk": 0
             }
         )
         item = resp.get("Item")
@@ -935,11 +973,11 @@ async def get_post(post_id: str) -> Post:
 def user_from_dynamodb(d_item: Dict[str, Any]) -> User:
     return User(
         id=d_item["id"],
-        email=d_item.get("gsi_email"),
+        email=d_item.get("user_email_pk"),
         name=d_item.get("name"),
         username=d_item.get("username"),
         providers=d_item.get("providers", {}),
-        created_at=d_item["created_at"],
+        created_at=d_item["created_at_sk"],
         updated_at=d_item.get("updated_at")
     )
 
@@ -949,7 +987,7 @@ async def find_user(user_id: str) -> Optional[User]:
         resp = await table.get_item(
             Key={
                 "pk": f"USER#{user_id}",
-                "sk": "METADATA"
+                "sk": 0
             }
         )
         item = resp.get("Item")
@@ -968,75 +1006,172 @@ async def get_user(user_id: str) -> User:
     return user
 
 
-async def get_latest_published_posts(query_dto: PostQueryDTO = None) -> List[Post]:
-    """
-    Fetch latest posts.
-    Only returns published posts.
-    """
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, decimal.Decimal):
+            # you can cast to int if you know it’s always an integer
+            if o % 1 == 0:
+                return int(o)
+            return float(o)
+        return super().default(o)
+
+
+def encode_offset(offset: dict) -> Optional[str]:
+    if not offset:
+        return None
+    return base64.urlsafe_b64encode(
+        json.dumps(offset, cls=DecimalEncoder).encode()
+    ).decode()
+
+
+def decode_offset(token: str) -> Optional[dict]:
+    if not token:
+        return None
+    return json.loads(
+        base64.urlsafe_b64decode(token.encode()).decode()
+    )
+
+
+async def get_published_posts(query_dto: PostQueryDTO = None) -> List[Post]:
     if query_dto is None:
         query_dto = PostQueryDTO()
+    if query_dto.popular:
+        if query_dto.tags:
+            return await get_popular_published_posts_by_tags(query_dto)
+        return await get_popular_published_posts(query_dto)
+    if query_dto.tags:
+        return await get_latest_published_posts_by_tags(query_dto)
+    return await get_latest_published_posts(query_dto)
+
+
+async def get_latest_published_posts(query_dto: PostQueryDTO = None) -> List[Post]:
+    if query_dto is None:
+        query_dto = PostQueryDTO()
+    status = PostStatus.PUBLISHED
 
     async def fn(table):
-        status = PostStatus.PUBLISHED
-        key_cond = Key("gsi_post_status_pk").eq(f"POST#STATUS#{status.value}")
+        query_args = {
+            "IndexName": "POSTS_BY_STATUS_CREATED_AT",
+            "KeyConditionExpression": Key("post_status_pk").eq(f"POST#STATUS#{status.value}"),
+            "ScanIndexForward": False,
+            "Limit": query_dto.limit,
+        }
         if query_dto.offset:
-            key_cond &= Key("created_at").lt(query_dto.offset)
-
-        resp = await table.query(
-            IndexName="GSI_POSTS",
-            KeyConditionExpression=key_cond,
-            ScanIndexForward=False,
-            Limit=query_dto.limit
-        )
+            query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
+        resp = await table.query(**query_args)
         items = resp.get("Items", [])
         # logger.debug(json.dumps(items,indent=4))
         posts = [post_from_dynamodb(item) for item in items]
         if len(posts) == query_dto.limit:
-            posts[-1].offset = posts[-1].created_at
+            posts[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
         return posts
 
     return await with_dynamodb_table(fn)
 
 
-async def get_latest_posts_by_tags(tags: List[str], limit: int = 10, last_sk: Optional[str] = None) -> List[Post]:
-    """
-    Fetch latest posts that match all given tags (AND).
-    Only returns published posts.
-    """
+async def get_popular_published_posts(query_dto: PostQueryDTO = None) -> List[Post]:
+    if query_dto is None:
+        query_dto = PostQueryDTO()
+    status = PostStatus.PUBLISHED
 
     async def fn(table):
-        combo_pk = "TAG_COMBO#" + "#".join(sorted(tags))
-        key_cond = Key("pk").eq(combo_pk)
-        if last_sk:
-            key_cond &= Key("sk").lt(last_sk)
+        query_args = {
+            "IndexName": "POSTS_BY_STATUS_RATING",
+            "KeyConditionExpression": Key("post_status_pk").eq(f"POST#STATUS#{status.value}"),
+            "ScanIndexForward": False,
+            "Limit": query_dto.limit,
+        }
+        if query_dto.offset:
+            query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
+        resp = await table.query(**query_args)
+        items = resp.get("Items", [])
+        # logger.debug(json.dumps(items,indent=4))
+        posts = [post_from_dynamodb(item) for item in items]
+        if len(posts) == query_dto.limit:
+            posts[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
+        return posts
 
-        # Query combo-key table to get post IDs
-        resp = await table.query(
-            KeyConditionExpression=key_cond,
-            ScanIndexForward=False,
-            Limit=limit
-        )
+    return await with_dynamodb_table(fn)
+
+
+async def get_latest_published_posts_by_tags(query_dto: PostQueryDTO = None) -> List[Post]:
+    if query_dto is None:
+        query_dto = PostQueryDTO()
+    if not query_dto.tags:
+        return await get_latest_published_posts(query_dto)
+
+    async def fn(table):
+        query_args = {
+            "KeyConditionExpression": Key("pk").eq("POST_TAG_COMBO#" + "#".join(sorted(query_dto.tags))),
+            "ScanIndexForward": False,
+            "Limit": query_dto.limit,
+        }
+        if query_dto.offset:
+            query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
+        resp = await table.query(**query_args)
         combo_items = resp.get("Items", [])
+        logger.debug(combo_items)
         if not combo_items:
             return []
 
-        post_ids = [item["post_id"] for item in combo_items]
-        keys = [{"pk": f"POST#{pid}", "sk": "METADATA"} for pid in post_ids]
-
         # Batch get post metadata
-        resp = await table.batch_get_item(RequestItems={table.name: {"Keys": keys}})
+        post_ids = [item["post_id"] for item in combo_items]
+        keys = [{"pk": f"POST#{post_id}", "sk": 0} for post_id in post_ids]
+        resp = await table.meta.client.batch_get_item(RequestItems={table.name: {"Keys": keys}})
         post_items = resp["Responses"].get(table.name, [])
 
-        # Filter out unpublished posts
-        post_items = [item for item in post_items if item.get("status") == PostStatus.PUBLISHED]
-
         # Maintain original order
-        post_items_map = {item["post_id"]: item for item in post_items}
+        post_items_map = {item["id"]: item for item in post_items}
         ordered_posts = [post_items_map[pid] for pid in post_ids if pid in post_items_map]
 
-        return [post_from_dynamodb(item) for item in ordered_posts]
+        posts = [post_from_dynamodb(item) for item in ordered_posts]
+        if len(posts) == query_dto.limit:
+            posts[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
+        return posts
 
     return await with_dynamodb_table(fn)
+
+
+async def get_popular_published_posts_by_tags(query_dto: PostQueryDTO = None) -> List[Post]:
+    if query_dto is None:
+        query_dto = PostQueryDTO()
+
+    # Increase limit to fetch more posts before filtering
+    query_dto.limit = max(query_dto.limit * 5, 100)
+
+    posts = await get_popular_published_posts(query_dto)
+
+    if not query_dto.tags:
+        return posts
+
+    offset = posts[-1].offset if posts else None
+
+    # Filter by tags
+    filtered_posts = [post for post in posts if set(query_dto.tags).issubset(set(post.tags))]
+    if filtered_posts:
+        filtered_posts[-1].offset = offset
+
+    return filtered_posts
+
+
+def generate_post_tag_combos_transact_items(post_id, post_tags, table, now=None):
+    now = now if now else utc_now()
+
+    transact_items = []
+
+    for r in range(1, len(post_tags) + 1):
+        for combo in combinations(sorted([t for t in post_tags]), r):
+            transact_items.append({
+                "Put": {
+                    "TableName": table.name,
+                    "Item": {
+                        "pk": "POST_TAG_COMBO#" + "#".join(combo),
+                        "sk": now,
+                        "post_id": post_id
+                    }
+                }
+            })
+    return transact_items
 
 
 async def approve_post(post: Post, user: User) -> None:
@@ -1050,42 +1185,21 @@ async def approve_post(post: Post, user: User) -> None:
         await table.update_item(
             Key={
                 "pk": f"POST#{post.id}",
-                "sk": "METADATA"
+                "sk": 0
             },
-            UpdateExpression="SET #status = :published, "
-                             "updated_at = if_not_exists(updated_at, :now), "
-                             "created_at = :gsi_val",
+            UpdateExpression="""
+                SET #status = :published,
+                    updated_at = if_not_exists(updated_at, :now)
+            """,
             ExpressionAttributeNames={"#status": "status"},
             ExpressionAttributeValues={
                 ":published": status,
                 ":now": now,
-                # todo: update GSI
             }
         )
 
         # 2. Generate tag combos and create combo items
-        transact_items = []
-        tags = post.tags or []
-        title = post.title
-        slug = post.slug
-        post_id = post.id
-
-        for r in range(1, len(tags) + 1):
-            for combo in combinations(sorted([t.name for t in tags]), r):
-                combo_pk = "TAG_COMBO#" + "#".join(combo)
-                combo_sk = f"CREATED_AT#{now}#POST#{post_id}"
-                transact_items.append({
-                    "Put": {
-                        "TableName": table.name,
-                        "Item": {
-                            "pk": combo_pk,
-                            "sk": combo_sk,
-                            "post_id": post_id,
-                            "title": title,
-                            "slug": slug,
-                        }
-                    }
-                })
+        transact_items = generate_post_tag_combos_transact_items(post.id, post.tags, table, now)
 
         if transact_items:
             await dynamodb_transact_write(table, transact_items)
@@ -1095,58 +1209,60 @@ async def approve_post(post: Post, user: User) -> None:
     return await with_dynamodb_table(fn)
 
 
-async def get_popular_tags(query_dto: TagQueryDTO = None) -> List[Tag]:
+def tag_from_dynamodb(d_item: Dict[str, Any]) -> Tag:
+    # logger.debug(d_item)
+    return Tag(
+        name=d_item["tag_name_sk"],
+        rating=int(d_item.get("rating_sk", 0)),
+    )
+
+
+async def get_popular_post_tags(query_dto: TagQueryDTO = None) -> List[Tag]:
     if query_dto is None:
         query_dto = TagQueryDTO()
 
     async def fn(table):
-        resp = await table.query(
-            IndexName="GSI_TAG_POPULARITY",
-            KeyConditionExpression=Key("gsi_tag_pk").eq("TAG"),
-            ScanIndexForward=False,
-            Limit=query_dto.limit
-        )
+        query_args = {
+            "IndexName": "TAGS_BY_TYPE_RATING",
+            "KeyConditionExpression": Key("tag_type_pk").eq("POST_TAG"),
+            "ScanIndexForward": False,
+            "Limit": query_dto.limit,
+        }
+        if query_dto.offset:
+            query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
+        resp = await table.query(**query_args)
         items = resp.get("Items", [])
         # logger.debug(items)
         # logger.debug(json.dumps(items, indent=4))
-        return [
-            Tag(
-                name=item["tag_name"],
-                posts_count=int(item["posts_count"]),
-            ) for item in items
-        ]
+        tags = [tag_from_dynamodb(item) for item in items]
+        if len(tags) == query_dto.limit:
+            tags[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
+        return tags
 
     return await with_dynamodb_table(fn)
 
 
-async def get_tags_by_prefix(query_dto: TagQueryDTO = None) -> List[Tag]:
+async def get_post_tags_by_prefix(query_dto: TagQueryDTO = None) -> List[Tag]:
     if query_dto is None:
         query_dto = TagQueryDTO()
 
     async def fn(table):
         resp = await table.query(
-            IndexName="GSI_TAG_NAME",
-            KeyConditionExpression=Key("gsi_tag_name_pk").eq("TAG") & Key("tag_name").begins_with(query_dto.prefix),
-            Limit=query_dto.limit,
-            ScanIndexForward=True  # ascending alphabetical order
+            IndexName="TAGS_BY_TYPE_NAME",
+            KeyConditionExpression=Key("tag_type_pk").eq("POST_TAG") & Key("tag_name_sk").begins_with(query_dto.prefix),
+            Limit=query_dto.limit
         )
         items = resp.get("Items", [])
-        logger.debug(f"Tags: {items}")
-        return [
-            Tag(
-                name=item["tag_name"],
-                posts_count=int(item.get("posts_count", 0))
-            )
-            for item in items
-        ]
+        # logger.debug(f"Tags: {items}")
+        return [tag_from_dynamodb(item) for item in items]
 
     return await with_dynamodb_table(fn)
 
 
-async def get_tags(query_dto: TagQueryDTO = None) -> List[Tag]:
+async def get_post_tags(query_dto: TagQueryDTO = None) -> List[Tag]:
     if query_dto.prefix:
-        return await get_tags_by_prefix(query_dto)
-    return await get_popular_tags(query_dto)
+        return await get_post_tags_by_prefix(query_dto)
+    return await get_popular_post_tags(query_dto)
 
 
 async def create_contact_message(message_dto: ContactMessageDTO, user: User = None) -> ContactMessage:
@@ -1175,12 +1291,12 @@ async def create_contact_message(message_dto: ContactMessageDTO, user: User = No
 
         message_item = {
             "pk": f"CONTACT_MESSAGE#{message_id}",
-            "sk": "METADATA",
+            "sk": 0,
             "message_id": message_id,
             "name": message_dto.name,
             "email": message_dto.email,
             "message": message_dto.message,
-            "created_at": now,
+            "created_at_sk": now,
         }
         if user:
             message_item["user_id"] = user.id
@@ -1264,31 +1380,25 @@ async def get_logout_redirect_url(callback_url: str) -> str:
 
 
 async def get_latest_active_users(query_dto: UserQueryDTO = None) -> List[User]:
-    """
-    Fetch latest users.
-    Only returns active users.
-    """
-
     if query_dto is None:
         query_dto = UserQueryDTO()
+    status = UserStatus.ACTIVE
 
     async def fn(table):
-        status = UserStatus.ACTIVE
-        key_cond = Key("gsi_user_status_pk").eq(f"USER#STATUS#{status.value}")
+        query_args = {
+            "IndexName": "USERS_BY_STATUS_CREATED_AT",
+            "KeyConditionExpression": Key("user_status_pk").eq(f"USER#STATUS#{status.value}"),
+            "ScanIndexForward": False,
+            "Limit": query_dto.limit,
+        }
         if query_dto.offset:
-            key_cond &= Key("created_at").lt(query_dto.offset)
-
-        resp = await table.query(
-            IndexName="GSI_USERS",
-            KeyConditionExpression=key_cond,
-            ScanIndexForward=False,
-            Limit=query_dto.limit
-        )
+            query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
+        resp = await table.query(**query_args)
         items = resp.get("Items", [])
         # logger.debug(f"Latest users: {json.dumps(items, indent=4)}")
         users = [user_from_dynamodb(item) for item in items]
         if len(users) == query_dto.limit:
-            users[-1].offset = users[-1].created_at
+            users[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
         return users
 
     return await with_dynamodb_table(fn)
@@ -1315,28 +1425,24 @@ def unix_to_full_date(timestamp: int, tz: str | None = None) -> str:
 
 
 async def get_latest_published_posts_by_user(user: User, query_dto: PostQueryDTO = None) -> List[Post]:
-    """
-    Fetch latest published posts for a specific user.
-    """
     if query_dto is None:
         query_dto = PostQueryDTO()
+    status = PostStatus.PUBLISHED
 
     async def fn(table):
-        status = PostStatus.PUBLISHED
-        key_cond = Key("gsi_post_user_status_pk").eq(f"POST#USER#{user.id}#STATUS#{status.value}")
+        query_args = {
+            "IndexName": "POSTS_BY_USER_STATUS_CREATED_AT",
+            "KeyConditionExpression": Key("post_user_status_pk").eq(f"POST#USER#{user.id}#STATUS#{status.value}"),
+            "ScanIndexForward": False,
+            "Limit": query_dto.limit,
+        }
         if query_dto.offset:
-            key_cond &= Key("created_at").lt(query_dto.offset)
-
-        resp = await table.query(
-            IndexName="GSI_USER_POSTS",
-            KeyConditionExpression=key_cond,
-            ScanIndexForward=False,
-            Limit=query_dto.limit
-        )
+            query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
+        resp = await table.query(**query_args)
         items = resp.get("Items", [])
         posts = [post_from_dynamodb(item) for item in items]
         if len(posts) == query_dto.limit:
-            posts[-1].offset = posts[-1].created_at
+            posts[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
         return posts
 
     return await with_dynamodb_table(fn)

@@ -12,8 +12,8 @@
         <h2>Popular tags</h2>
         {% if popular_tags %}
             {% for tag in popular_tags %}
-                <a href="{{ url("index") }}" class="btn btn-outline-secondary btn-sm">
-                    {{ tag.name }} ({{ tag.posts_count }})
+                <a href="{{ url("posts-page", tags=tag.name) }}" class="btn btn-outline-secondary btn-sm">
+                    {{ tag.name }}
                 </a>
             {% endfor %}
         {% else %}
@@ -22,9 +22,9 @@
     </div>
 
     <div>
-        <h2>Latest posts</h2>
-        {% if latest_posts %}
-            {% for post in latest_posts %}
+        <h2>Popular posts</h2>
+        {% if popular_posts %}
+            {% for post in popular_posts %}
                 <div>
                     <a href="{{ url("post-page", post_id=post.id) }}">
                         {{ post.title }}

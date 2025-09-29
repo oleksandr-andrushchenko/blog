@@ -326,17 +326,15 @@ create-local-dynamodb:
 			--billing-mode PAY_PER_REQUEST \
 			--attribute-definitions \
 				AttributeName=pk,AttributeType=S \
-				AttributeName=sk,AttributeType=S \
-				AttributeName=gsi_provider_sub,AttributeType=S \
-				AttributeName=gsi_email,AttributeType=S \
-				AttributeName=gsi_post_status_pk,AttributeType=S \
-				AttributeName=created_at,AttributeType=N \
-				AttributeName=gsi_tag_pk,AttributeType=S \
-				AttributeName=posts_count,AttributeType=N \
-				AttributeName=gsi_tag_name_pk,AttributeType=S \
-				AttributeName=tag_name,AttributeType=S \
-				AttributeName=gsi_user_status_pk,AttributeType=S \
-				AttributeName=gsi_post_user_status_pk,AttributeType=S \
+				AttributeName=sk,AttributeType=N \
+				AttributeName=user_email_pk,AttributeType=S \
+				AttributeName=post_status_pk,AttributeType=S \
+				AttributeName=tag_type_pk,AttributeType=S \
+				AttributeName=rating_sk,AttributeType=N \
+				AttributeName=tag_name_sk,AttributeType=S \
+				AttributeName=user_status_pk,AttributeType=S \
+				AttributeName=post_user_status_pk,AttributeType=S \
+				AttributeName=created_at_sk,AttributeType=N \
 			--key-schema \
 				AttributeName=pk,KeyType=HASH \
 				AttributeName=sk,KeyType=RANGE \

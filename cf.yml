@@ -79,82 +79,80 @@ Resources:
         - AttributeName: pk
           AttributeType: S
         - AttributeName: sk
-          AttributeType: S
-        - AttributeName: gsi_provider_sub
-          AttributeType: S
-        - AttributeName: gsi_email
-          AttributeType: S
-        - AttributeName: gsi_post_status_pk
-          AttributeType: S
-        - AttributeName: created_at
           AttributeType: N
-        - AttributeName: gsi_tag_pk
+        - AttributeName: user_email_pk
           AttributeType: S
-        - AttributeName: posts_count
+        - AttributeName: post_status_pk
+          AttributeType: S
+        - AttributeName: tag_type_pk
+          AttributeType: S
+        - AttributeName: rating_sk
           AttributeType: N
-        - AttributeName: gsi_tag_name_pk
+        - AttributeName: tag_name_sk
           AttributeType: S
-        - AttributeName: tag_name
+        - AttributeName: user_status_pk
           AttributeType: S
-        - AttributeName: gsi_user_status_pk
+        - AttributeName: post_user_status_pk
           AttributeType: S
-        - AttributeName: gsi_post_user_status_pk
-          AttributeType: S
+        - AttributeName: created_at_sk
+          AttributeType: N
       KeySchema:
-        - AttributeName: pk
+        - AttributeName: pk # e.g. "PROVIDER_USER#cognito#1", "USER#1", "POST#1", "POST_SLUG#slug1", "POST_TAG#tag1", "POST_TAG_COMBO#tag1#tag2", "CONTACT_MESSAGE#1"
           KeyType: HASH
-        - AttributeName: sk
+        - AttributeName: sk # e.g. 0, 1759086095241
           KeyType: RANGE
       GlobalSecondaryIndexes:
-        - IndexName: GSI_PROVIDER_SUB
+        - IndexName: USERS_BY_EMAIL # get_user_by_user_token (get user by email)
           KeySchema:
-            - AttributeName: gsi_provider_sub
+            - AttributeName: user_email_pk # e.g. "me@example.com"
               KeyType: HASH
           Projection:
             ProjectionType: ALL
-        - IndexName: GSI_EMAIL
+        - IndexName: POSTS_BY_STATUS_CREATED_AT # get_latest_published_posts
           KeySchema:
-            - AttributeName: gsi_email
+            - AttributeName: post_status_pk # e.g. "POST#STATUS#published"
               KeyType: HASH
-          Projection:
-            ProjectionType: ALL
-        - IndexName: GSI_POSTS
-          KeySchema:
-            - AttributeName: gsi_post_status_pk
-              KeyType: HASH
-            - AttributeName: created_at
+            - AttributeName: created_at_sk # e.g. 1759086095241
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
-        - IndexName: GSI_TAG_POPULARITY
+        - IndexName: TAGS_BY_TYPE_RATING # get_popular_post_tags
           KeySchema:
-            - AttributeName: gsi_tag_pk
+            - AttributeName: tag_type_pk # e.g. "POST_TAG"
               KeyType: HASH
-            - AttributeName: posts_count
+            - AttributeName: rating_sk # e.g. 10000001759086095241
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
-        - IndexName: GSI_TAG_NAME
+        - IndexName: POSTS_BY_STATUS_RATING # get_popular_published_posts
           KeySchema:
-            - AttributeName: gsi_tag_name_pk
+            - AttributeName: post_status_pk # e.g. "POST#STATUS#published"
               KeyType: HASH
-            - AttributeName: tag_name
+            - AttributeName: rating_sk # e.g. 10000001759086095241
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
-        - IndexName: GSI_USERS
+        - IndexName: TAGS_BY_TYPE_NAME # get_post_tags_by_prefix
           KeySchema:
-            - AttributeName: gsi_user_status_pk
+            - AttributeName: tag_type_pk # e.g. "POST_TAG"
               KeyType: HASH
-            - AttributeName: created_at
+            - AttributeName: tag_name_sk # e.g. "tag1"
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
-        - IndexName: GSI_USER_POSTS
+        - IndexName: USERS_BY_STATUS_CREATED_AT # get_latest_active_users
           KeySchema:
-            - AttributeName: gsi_post_user_status_pk
+            - AttributeName: user_status_pk # e.g. "USER#STATUS#active"
               KeyType: HASH
-            - AttributeName: created_at
+            - AttributeName: created_at_sk # e.g. 1759086095241
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: POSTS_BY_USER_STATUS_CREATED_AT # get_latest_published_posts_by_user
+          KeySchema:
+            - AttributeName: post_user_status_pk # e.g. "POST#USER#1#STATUS#published"
+              KeyType: HASH
+            - AttributeName: created_at_sk # e.g. 1759086095241
               KeyType: RANGE
           Projection:
             ProjectionType: ALL

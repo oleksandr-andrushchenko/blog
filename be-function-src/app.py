@@ -1,5 +1,5 @@
 from typing import List, Dict, Union, Any
-from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi import FastAPI, Request, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
@@ -50,14 +50,15 @@ from utils import (
     get_user_token_by_code,
     get_login_redirect_url,
     get_logout_redirect_url,
-    get_tags,
+    get_post_tags,
     create_dummy_fixtures,
     approve_post,
     get_user,
-    get_latest_published_posts,
     get_latest_active_users,
     get_latest_published_posts_by_user,
-    get_popular_tags,
+    get_published_posts,
+    get_popular_post_tags,
+    get_popular_published_posts,
     find_user,
     jinja2_env,
 )
@@ -124,7 +125,15 @@ OptCurUserDep = Annotated[Optional[User], Depends(get_opt_cur_user)]
 PostDep = Annotated[Post, Depends(get_post_by_id)]
 UserDep = Annotated[User, Depends(get_user_by_id)]
 UserQueryDep = Annotated[UserQueryDTO, Depends()]
-PostQueryDep = Annotated[PostQueryDTO, Depends()]
+
+
+async def get_post_query(request: Request, tags: List[str] = Query([])) -> PostQueryDTO:
+    data = dict(request.query_params)
+    data['tags'] = tags
+    return PostQueryDTO(**data)
+
+
+PostQueryDep = Annotated[PostQueryDTO, Depends(get_post_query)]
 TagQueryDep = Annotated[TagQueryDTO, Depends()]
 
 
@@ -159,8 +168,8 @@ async def inject_template_global_vars(request: Request, call_next):
 async def index(cur_user: OptCurUserDep) -> str:
     return get_html_content("index.html", {
         "cur_user": cur_user,
-        "popular_tags": await get_popular_tags(),
-        "latest_posts": await get_latest_published_posts()
+        "popular_tags": await get_popular_post_tags(),
+        "popular_posts": await get_popular_published_posts()
     })
 
 
@@ -188,14 +197,14 @@ async def posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("posts.html", {
         "cur_user": cur_user,
         "posts_query": query_dto,
-        "posts": await get_latest_published_posts(query_dto),
+        "posts": await get_published_posts(query_dto),
     })
 
 
 @app.get("/posts-fragment", name="posts-page-fragment", response_class=HTMLResponse)
 async def posts_page_fragment(query_dto: PostQueryDep) -> str:
     return get_html_content("fragments/posts.html", {
-        "posts": await get_latest_published_posts(query_dto)
+        "posts": await get_published_posts(query_dto)
     })
 
 
@@ -228,9 +237,9 @@ async def _create_contact_message(message_dto: ContactMessageDTO, cur_user: OptC
     await create_contact_message(message_dto, cur_user)
 
 
-@app.get("/tags", name="get-tags", response_model=List[PublicTag], response_class=JSONResponse)
-async def _get_tags(query_dto: TagQueryDep) -> List[Tag]:
-    return await get_tags(query_dto)
+@app.get("/post-tags", name="get-post-tags", response_model=List[PublicTag], response_class=JSONResponse)
+async def _get_post_tags(query_dto: TagQueryDep) -> List[Tag]:
+    return await get_post_tags(query_dto)
 
 
 @app.get("/users", name="users-page", response_class=HTMLResponse)

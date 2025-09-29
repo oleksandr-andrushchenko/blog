@@ -201,7 +201,10 @@ document.addEventListener("click", async function (e) {
   btn.textContent = "Loading..."
 
   try {
-    const resp = await fetch(`${url}?offset=${offset}&limit=${limit}`)
+    const u = new URL(url, window.location.origin)
+    u.searchParams.set("offset", offset)
+    u.searchParams.set("limit", limit)
+    const resp = await fetch(u.toString())
     if (!resp.ok) {
       console.log(`Request failed with status ${resp.status}`)
       btn.remove()
@@ -237,9 +240,14 @@ document.addEventListener("click", async function (e) {
 // Tags input
 (() => {
   const input = document.getElementById("tags-input")
+  if (!input) return
+  const url = input.dataset.url
+  const injectHidden = input.dataset.injectHidden
+  const form = input.closest("form")
+
   const tagify = new Tagify(input, {
     whitelist: [],
-    // maxTags: 10,
+    // maxTags: 3,
     enforceWhitelist: false,
     // validate: tag => /^[0-9A-Za-z-.#]{2,20}$/.test(tag.value) || "Invalid tag",
     dropdown: {
@@ -254,6 +262,33 @@ document.addEventListener("click", async function (e) {
   // normalize tags: lowercase + kebab-case
   const toKebabCase = str => str.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
 
+  if (injectHidden) {
+    input.removeAttribute("name")
+    // container for hidden inputs
+    let hiddenContainer = document.createElement("div")
+    hiddenContainer.style.display = "none"
+    form.appendChild(hiddenContainer)
+
+    // rebuild hidden inputs on change
+    function syncHiddenInputs() {
+      hiddenContainer.innerHTML = ""
+      tagify.value.forEach(tag => {
+        const hidden = document.createElement("input")
+        hidden.type = "hidden"
+        hidden.name = "tags"  // use "tags" so backend maps correctly
+        hidden.value = tag.value
+        hiddenContainer.appendChild(hidden)
+      })
+    }
+
+    tagify.on("change", syncHiddenInputs)
+
+    // Immediately sync hidden inputs for any preloaded tags
+    if (tagify.value.length) {
+      syncHiddenInputs()
+    }
+  }
+
   // event fired when user types
   tagify.on("input", onInput)
 
@@ -267,7 +302,9 @@ document.addEventListener("click", async function (e) {
 
     tagify.loading(true)
 
-    fetch(`/tags?prefix=${encodeURIComponent(value)}`, {
+    const u = new URL(url, window.location.origin)
+    u.searchParams.set("prefix", value)
+    fetch(u.toString(), {
       headers: {"Content-Type": "application/json"},
       signal: controller.signal
     })
