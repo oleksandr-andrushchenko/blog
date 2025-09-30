@@ -11,6 +11,25 @@
         <div class="col-8">
             <img src="{{ static_url('pikachu.webp') }}" alt="test" class="w-50"/>
             <div>
+                <h2>Latest posts</h2>
+                {% if posts_query %}
+                    <div id="posts">
+                        {% include "fragments/posts.html" %}
+                    </div>
+                    {% with limit=posts_query.limit,
+                        offset=posts[-1].offset,
+                        count=posts|length,
+                        url=url("posts-page-fragment", **dict(posts_query)),
+                        container="#posts" %}
+                        {% include "fragments/pagination.html" %}
+                    {% endwith %}
+                {% else %}
+                    N/A
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-4">
+            <div>
                 <h2>Popular posts</h2>
                 {% if popular_posts %}
                     {% for post in popular_posts %}
@@ -24,8 +43,7 @@
                     N/A
                 {% endif %}
             </div>
-        </div>
-        <div class="col-4">
+
             <div>
                 <h2>Popular tags</h2>
                 {% if popular_tags %}

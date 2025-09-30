@@ -167,9 +167,12 @@ async def inject_template_global_vars(request: Request, call_next):
 
 @app.get("/", name="index", response_class=HTMLResponse)
 async def index(cur_user: OptCurUserDep) -> str:
+    posts_query = PostQueryDTO()
     return get_html_content("index.html", {
         "cur_user": cur_user,
         "popular_tags": await get_popular_post_tags(),
+        "posts_query": posts_query,
+        "posts": await get_published_posts(posts_query),
         "popular_posts": await get_popular_published_posts(),
         "popular_users": await get_popular_active_users(),
     })
