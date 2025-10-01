@@ -49,7 +49,7 @@
                 <h2>Popular tags</h2>
                 {% if popular_tags %}
                     {% for tag in popular_tags %}
-                        <a href="{{ url("posts-page", tags=tag.name) }}" class="btn btn-outline-secondary btn-sm">
+                        <a href="{{ url("posts-page", tags=tag.name) }}" class="btn btn-light btn-sm">
                             {{ tag.name }}
                         </a>
                     {% endfor %}

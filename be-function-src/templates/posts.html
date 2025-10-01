@@ -35,16 +35,16 @@
             <div>Show:</div>
             <div class="btn-group">
                 <a href="{{ url("posts-page", **posts_query.get_dict({"popular": None})) }}"
-                   class="btn btn-outline-secondary btn-sm {% if not posts_query.popular %}active{% endif %}">
+                   class="btn btn-light btn-sm {% if not posts_query.popular %}active{% endif %}">
                     <i class="bi bi-clock"></i> {{ latest_title }}
                 </a>
                 <a href="{{ url("posts-page", **posts_query.get_dict({"popular": 1})) }}"
-                   class="btn btn-outline-secondary btn-sm {% if posts_query.popular %}active{% endif %}">
+                   class="btn btn-light btn-sm {% if posts_query.popular %}active{% endif %}">
                     <i class="bi bi-star-fill"></i> {{ popular_title }}
                 </a>
             </div>
             {% if posts_query.has_params() %}
-                <a href="{{ url("posts-page") }}" class="btn btn-outline-secondary btn-sm">
+                <a href="{{ url("posts-page") }}" class="btn btn-light btn-sm">
                     <i class="bi bi-x-lg"></i> Reset
                 </a>
             {% endif %}
