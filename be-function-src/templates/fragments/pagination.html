@@ -4,6 +4,7 @@
             data-offset="{{ offset }}"
             data-url="{{ url }}"
             data-container="{{ container }}"
+            {% if auto_click %}data-auto-click{% endif %}
     >Load more
     </button>
 {% endif %}

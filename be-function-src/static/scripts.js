@@ -236,6 +236,22 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
       btn.textContent = originalText
     }
   })
+
+  // --- Auto-load support only for [data-auto-load] buttons ---
+  const observer = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        entry.target.click() // Trigger the same handler
+      }
+    }
+  }, {
+    rootMargin: "200px" // start loading earlier than fully visible
+  })
+
+// Attach observer only to buttons with data-auto-load
+  document.querySelectorAll(".btn-load-more[data-auto-click]").forEach(btn => {
+    observer.observe(btn)
+  })
 })();
 
 

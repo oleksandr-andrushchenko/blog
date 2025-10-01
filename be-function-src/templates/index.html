@@ -20,7 +20,8 @@
                         offset=posts[-1].offset,
                         count=posts|length,
                         url=url("posts-page-fragment", **dict(posts_query)),
-                        container="#posts" %}
+                        container="#posts",
+                        auto_click=True %}
                         {% include "fragments/pagination.html" %}
                     {% endwith %}
                 {% else %}
