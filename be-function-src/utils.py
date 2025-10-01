@@ -50,6 +50,7 @@ class UserStatus(str, Enum):
 
 class User(BaseModel):
     id: str
+    owner_id: str
     email: Optional[str] = None
     name: Optional[str] = None
     username: Optional[str] = None
@@ -152,6 +153,7 @@ class PostStatus(str, Enum):
 
 class Post(BaseModel):
     id: str
+    owner_id: str
     title: str
     slug: str
     user_id: str
@@ -358,7 +360,7 @@ def verify_authorization(
     # Owner check
     if resource:
         data = resource.model_dump()
-        owner_id = data.get("owner_id") or data.get("user_id")
+        owner_id = data.get("owner_id")
         if owner_id and str(owner_id) == str(user.id):
             return True
 
@@ -862,11 +864,13 @@ async def get_user_by_plain_token(plain_token: Optional[str], app_state: State) 
 
 
 def post_from_dynamodb(d_item: Dict[str, Any]) -> Post:
+    owner_id = d_item["user_id"]
     return Post(
         id=d_item["id"],
+        owner_id=owner_id,
         title=d_item["title"],
         slug=d_item["slug"],
-        user_id=d_item["user_id"],
+        user_id=owner_id,
         content=d_item["content"],
         tags=d_item.get("tags", []),
         status=d_item["status"],
@@ -997,8 +1001,10 @@ async def get_post(post_id: str) -> Post:
 
 
 def user_from_dynamodb(d_item: Dict[str, Any]) -> User:
+    owner_id = d_item["id"]
     return User(
-        id=d_item["id"],
+        id=owner_id,
+        owner_id=owner_id,
         email=d_item.get("user_email_pk"),
         name=d_item.get("name"),
         username=d_item.get("username"),
