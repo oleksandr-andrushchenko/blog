@@ -1,6 +1,7 @@
 // Form validation & submission
 function handleFormSubmit(formSelector, submitUrl, options = {}) {
   const {
+    method = "POST",
     successMessage = "Success!",
     errorMessage = "Something went wrong.",
     networkErrorMessage = "Network error. Please try again.",
@@ -117,7 +118,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
 
       // Submit via fetch
       const response = await fetch(submitUrl, {
-        method: "POST",
+        method,
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify(data)
       })
