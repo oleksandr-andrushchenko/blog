@@ -260,8 +260,8 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
   const input = document.getElementById("tags-input")
   if (!input) return
   const url = input.dataset.url
-  const injectHidden = input.dataset.injectHidden
-  const autoSubmit = input.dataset.autoSubmit
+  const injectHidden = input.dataset.hasOwnProperty("injectHidden")
+  const autoSubmit = input.dataset.hasOwnProperty("autoSubmit")
   const form = input.closest("form")
 
   const tagify = new Tagify(input, {

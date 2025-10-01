@@ -5,6 +5,6 @@
        placeholder="Tags"
        value="{{ ",".join(value) if value else "" }}"
        data-url="{{ url }}"
-       data-inject-hidden="{{ inject_hidden }}"
-       data-auto-submit="{{ auto_submit }}"
+       {% if inject_hidden %}data-inject-hidden{% endif %}
+       {% if auto_submit %}data-auto-submit{% endif %}
 />
