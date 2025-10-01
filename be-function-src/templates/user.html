@@ -79,7 +79,7 @@
                 count=posts|length,
                 url=url("user-page-posts-fragment", user_id=user.id),
                 container="#posts" %}
-                {% include "fragments/pagination.html" %}
+                {% include "fragments/load-more-button.html" %}
             {% endwith %}
         {% else %}
             N/A

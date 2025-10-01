@@ -59,7 +59,7 @@
             count=posts|length,
             url=url("posts-page-fragment", **dict(posts_query)),
             container="#posts" %}
-            {% include "fragments/pagination.html" %}
+            {% include "fragments/load-more-button.html" %}
         {% endwith %}
     {% else %}
         N/A
