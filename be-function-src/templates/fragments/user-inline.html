@@ -3,7 +3,7 @@
         {% include "fragments/avatar.html" %}
     </div>
     <div>
-        <a href="{{ url("user-page", user_id=user.id) }}">
+        <a href="{{ url("view-user", user_id=user.id) }}">
             <h3 class="h4 card-title mb-0">
                 {{ user.name }}
             </h3>

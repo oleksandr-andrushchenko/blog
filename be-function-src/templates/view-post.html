@@ -1,10 +1,10 @@
 {% extends "layout.html" %}
 
 {% block title %}{{ post.title }} | {{ site_name }}{% endblock %}
-{% block canonical_url %}{{ full_url("post-page", post_id=post.id) }}{% endblock %}
+{% block canonical_url %}{{ full_url("view-post", post_id=post.id) }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), "Posts": url("posts-page"), (post.title): None} %}
+    {% with breadcrumbs = {"Home": url("index"), "Posts": url("view-posts"), (post.title): None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
@@ -13,7 +13,7 @@
     <h1>{{ post.title }}</h1>
 
     {% if cur_user and check_auth(cur_user, Permission.UPDATE_POST, post) %}
-        <a href="{{ url("update-post-page", post_id=post.id) }}" class="btn btn-light btn-sm">
+        <a href="{{ url("edit-post", post_id=post.id) }}" class="btn btn-light btn-sm">
             <i class="bi bi-pencil-square"></i> Edit post
         </a>
     {% endif %}

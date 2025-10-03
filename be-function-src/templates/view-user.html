@@ -1,10 +1,10 @@
 {% extends "layout.html" %}
 
 {% block title %}{{ user.name }} | {{ site_name }}{% endblock %}
-{% block canonical_url %}{{ full_url("user-page", user_id=user.id) }}{% endblock %}
+{% block canonical_url %}{{ full_url("view-user", user_id=user.id) }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), "Users": url("users-page"), (user.name): None} %}
+    {% with breadcrumbs = {"Home": url("index"), "Users": url("view-users"), (user.name): None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
@@ -18,7 +18,7 @@
             <h1 class="m-0">{{ user.name }}</h1>
 
             {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
-                <a href="{{ url("update-user-page", user_id=user.id) }}" class="btn btn-light btn-sm">
+                <a href="{{ url("edit-user", user_id=user.id) }}" class="btn btn-light btn-sm">
                     <i class="bi bi-pencil-square"></i> Edit profile
                 </a>
             {% endif %}
@@ -84,7 +84,7 @@
             {% with limit=posts_query.limit,
                 offset=posts[-1].offset,
                 count=posts|length,
-                url=url("user-page-posts-fragment", user_id=user.id),
+                url=url("view-user-posts-fragment", user_id=user.id),
                 container="#posts" %}
                 {% include "fragments/load-more-button.html" %}
             {% endwith %}

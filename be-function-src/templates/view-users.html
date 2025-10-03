@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 
 {% block title %}Users |  {{ site_name }}{% endblock %}
-{% block canonical_url %}{{ full_url("users-page") }}{% endblock %}
+{% block canonical_url %}{{ full_url("view-users") }}{% endblock %}
 
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), "Users": None} %}
@@ -19,7 +19,7 @@
         {% with limit=users_query.limit,
             offset=users[-1].offset,
             count=users|length,
-            url=url("users-page-fragment"),
+            url=url("view-users-fragment"),
             container="#users" %}
             {% include "fragments/load-more-button.html" %}
         {% endwith %}

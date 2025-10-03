@@ -10,7 +10,7 @@
             <span class="small text-secondary">Tags:</span>
 
             {% for tag in post.tags %}
-                <a href="{{ url("posts-page", tags=tag) }}" class="btn btn-light btn-sm">
+                <a href="{{ url("view-posts", tags=tag) }}" class="btn btn-light btn-sm">
                     {{ tag }}
                 </a>
             {% endfor %}

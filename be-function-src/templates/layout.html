@@ -77,24 +77,24 @@
             <div class="collapse navbar-collapse" id="navbar">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url("posts-page") }}">Posts</a>
+                        <a class="nav-link" href="{{ url("view-posts") }}">Posts</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url("users-page") }}">Users</a>
+                        <a class="nav-link" href="{{ url("view-users") }}">Users</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url("contacts-page") }}">Contacts</a>
+                        <a class="nav-link" href="{{ url("view-contacts") }}">Contacts</a>
                     </li>
                 </ul>
                 <ul class="navbar-nav">
                     {% if cur_user %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url("create-post-page") }}">
+                            <a class="nav-link" href="{{ url("new-post") }}">
                                 <i class="bi bi-pencil-square"></i> Create post
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url("user-page", user_id=cur_user.id) }}">
+                            <a class="nav-link" href="{{ url("view-user", user_id=cur_user.id) }}">
                                 <i class="bi bi-person-circle"></i> {{ cur_user.name }}
                             </a>
                         </li>
