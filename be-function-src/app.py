@@ -208,7 +208,7 @@ async def upload_file(file_dto: FileDTODep) -> str:
     return await save_public_file(file_dto)
 
 
-@app.get("/create-post", name="create-post-page", response_class=HTMLResponse)
+@app.get("/posts/create", name="create-post-page", response_class=HTMLResponse)
 async def create_post_page(cur_user: CurUserDep) -> str:
     return get_html_content("create-post.html", {
         "cur_user": cur_user
@@ -216,10 +216,10 @@ async def create_post_page(cur_user: CurUserDep) -> str:
 
 
 @app.post("/posts", name="create-post", response_class=JSONResponse)
-async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request) -> Dict[str, Any]:
+async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request) -> str:
     try:
         post = await create_post(post_dto, cur_user)
-        return {"url": get_url(request, "post-page", post_id=post.id)}
+        return get_url(request, "post-page", post_id=post.id)
     except SlugDuplicationError as e:
         raise HTTPException(
             status_code=HTTP_409_CONFLICT,

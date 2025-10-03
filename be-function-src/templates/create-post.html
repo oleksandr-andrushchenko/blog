@@ -60,7 +60,7 @@
             ]
           },
           onSuccess: (res) => {
-            if (res.url) window.location.href = res.url
+            if (res) window.location.href = res
           },
           successMessage: "Post created!"
         })
