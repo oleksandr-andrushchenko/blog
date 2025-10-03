@@ -11,10 +11,10 @@
 
 {% block content %}
     <div class="row">
-        <div class="col offset-4 col-4 offset-sm-4 col-sm-4 offset-md-0 col-md-2 col-lg-1">
+        <div class="col col-2">
             {% include "fragments/avatar.html" %}
         </div>
-        <div class="col col-12 text-center mt-3 col-sm-12 col-md-10 mt-md-0 text-md-start col-lg-11 text-dark">
+        <div class="col col-10">
             <h1 class="m-0">{{ user.name }}</h1>
 
             {% if user.headline %}
@@ -23,9 +23,10 @@
 
             <div>
                 {% if user.website %}
+                    <i class="bi bi-box-arrow-up-right"></i>
                     <a class="link-dark d-inline-block me-2" href="{{ user.website }}" target="_blank"
                        rel="noopener noreferrer">
-                        <i class="bi bi-link"></i> {{ user.website }}
+                        {{ user.website }}
                     </a>
                 {% endif %}
 
@@ -56,7 +57,7 @@
     </div>
 
     {% if user.about %}
-        <section class="container">
+        <section>
             <h2 class="mb-2 text-center mb-sm-2 mb-md-2 mb-lg-2 text-lg-start mb-xl-3 mb-xxl-3">
                 <i class="bi bi-info-circle-fill"></i> About Me
             </h2>

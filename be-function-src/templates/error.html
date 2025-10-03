@@ -5,11 +5,11 @@
 {% block content %}
     <h1>{{ code }} - {{ title }}</h1>
     <p class="small text-secondary">{{ message }}</p>
-    <a href="{{ url('index') }}" class="btn btn-sm btn-secondary">
+    <a href="{{ url('index') }}" class="btn btn-sm btn-light">
         <i class="bi bi-arrow-left-short"></i> Back home
     </a>
     {% if code == 401 %}
-        <a href="{{ url('login') }}" class="btn btn-dark">
+        <a href="{{ url('login') }}" class="btn btn-light">
             <i class="bi bi-box-arrow-in-right"></i> Sign in
         </a>
     {% endif %}
