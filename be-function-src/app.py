@@ -1,5 +1,5 @@
-from typing import List, Dict, Union, Any
-from fastapi import FastAPI, Request, Depends, HTTPException, Query
+from typing import List, Dict, Union
+from fastapi import FastAPI, Request, Depends, HTTPException, Query, UploadFile, File, Body
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
@@ -61,7 +61,13 @@ from utils import (
     get_popular_published_posts,
     find_user,
     jinja2_env,
-    get_popular_active_users
+    get_popular_active_users,
+    Permission,
+    verify_authorization,
+    update_user,
+    UpdateUserDTO,
+    FileDTO,
+    save_public_file,
 )
 
 
@@ -138,6 +144,25 @@ PostQueryDep = Annotated[PostQueryDTO, Depends(get_post_query)]
 TagQueryDep = Annotated[TagQueryDTO, Depends()]
 
 
+async def get_file(file: UploadFile = File(...)):
+    return FileDTO(
+        content=await file.read(),
+        filename=file.filename,
+    )
+
+
+FileDTODep = Annotated[FileDTO, Depends(get_file)]
+
+
+def get_update_user_dto(
+        update_user_dto: UpdateUserDTO = Body(...)
+) -> UpdateUserDTO:
+    return update_user_dto
+
+
+UpdateUserDTODep = Annotated[UpdateUserDTO, Depends(get_update_user_dto)]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await configure_app_state(app.state)
@@ -176,6 +201,11 @@ async def index(cur_user: OptCurUserDep) -> str:
         "popular_posts": await get_popular_published_posts(),
         "popular_users": await get_popular_active_users(),
     })
+
+
+@app.post("/public-file", name="upload-public-file", response_class=JSONResponse)
+async def upload_file(file_dto: FileDTODep) -> str:
+    return await save_public_file(file_dto)
 
 
 @app.get("/create-post", name="create-post-page", response_class=HTMLResponse)
@@ -272,6 +302,21 @@ async def user_page(user: UserDep, cur_user: OptCurUserDep) -> str:
         "posts_query": posts_query_dto,
         "posts": await get_latest_published_posts_by_user(user)
     })
+
+
+@app.get("/users/{user_id}/edit", name="update-user-page", response_class=HTMLResponse)
+async def user_update_page(user: UserDep, cur_user: CurUserDep) -> str:
+    verify_authorization(cur_user, Permission.UPDATE_USER, user)
+    return get_html_content("user-edit.html", {
+        "cur_user": cur_user,
+        "user": user
+    })
+
+
+@app.patch("/users/{user_id}", name="update-user", response_class=JSONResponse)
+async def _user_update(update_user_dto: UpdateUserDTODep, user: UserDep, cur_user: CurUserDep, request: Request) -> str:
+    await update_user(user, update_user_dto, cur_user)
+    return get_url(request, "user-page", user_id=user.id)
 
 
 @app.get("/users/{user_id}/posts-fragment", name="user-page-posts-fragment", response_class=HTMLResponse)

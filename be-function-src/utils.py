@@ -12,14 +12,14 @@ from urllib.parse import quote
 from jose import jwt
 from jose.exceptions import JWTError
 import base64
-from typing import Callable, Optional, Dict, Any, Union, List
+from typing import Callable, Optional, Dict, Any, Union, List, Awaitable, Tuple, ClassVar, Set, Literal
 from starlette.datastructures import State
 from starlette.status import HTTP_200_OK
 from jinja2 import Environment, FileSystemLoader, pass_context
 import dotenv
 import json
 from datetime import datetime, timezone
-from pydantic import BaseModel, EmailStr, Field, field_validator, conlist, constr
+from pydantic import BaseModel, EmailStr, Field, field_validator, conlist, constr, HttpUrl, computed_field
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 from itertools import combinations
@@ -28,6 +28,9 @@ from zoneinfo import ZoneInfo
 import decimal
 from urllib.parse import urlencode
 import copy
+import imghdr
+from io import BytesIO
+import struct
 
 
 class UserToken(BaseModel):
@@ -52,14 +55,55 @@ class User(BaseModel):
     id: str
     owner_id: str
     email: Optional[str] = None
+    avatar_filename: Optional[str] = None
     name: Optional[str] = None
     username: Optional[str] = None
+    headline: Optional[str] = None
+    website: Optional[str] = None
+    address: Optional[str] = None
+    about: Optional[str] = None
     providers: Dict[str, Dict[str, Optional[str]]] = Field(default_factory=dict)  # noqa
     permissions: List[str] = Field(default_factory=lambda: [Permission.REGULAR])  # noqa
     status: UserStatus = UserStatus.ACTIVE
     created_at: int
     updated_at: Optional[int] = None
     offset: Optional[str] = None
+
+
+class FileDTO(BaseModel):
+    content: bytes
+    filename: str
+
+    MAX_IMAGE_SIZE: ClassVar[int] = 2 * 1024 * 1024  # 2 MB
+    ALLOWED_IMAGE_TYPES: ClassVar[Set[str]] = {"jpeg", "png", "gif"}
+
+    @computed_field
+    @property
+    def size(self) -> int:
+        size = len(self.content)
+        if size > self.MAX_IMAGE_SIZE:
+            raise ValueError(f"File too large: {size} bytes, max {self.MAX_IMAGE_SIZE}")
+        return size
+
+    @computed_field
+    @property
+    def type(self) -> str:
+        image_type = imghdr.what(None, h=self.content)
+        if image_type not in self.ALLOWED_IMAGE_TYPES:
+            raise ValueError(f"Invalid image type: {image_type}")
+        return image_type
+
+
+class UpdateUserDTO(BaseModel):
+    avatar_action: Optional[Literal["delete", "replace", "keep"]] = None
+    # todo: check if file exists
+    avatar_filename: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    username: Optional[str] = Field(None, min_length=3, max_length=30)
+    headline: Optional[str] = Field(None, max_length=150)
+    about: Optional[str] = Field(None, max_length=2000)
+    website: Optional[HttpUrl] = None
+    address: Optional[str] = Field(None, max_length=255)
 
 
 class ContactMessageDTO(BaseModel):
@@ -171,6 +215,8 @@ class Permission(str, Enum):
     ROOT = "root"
     ALL = "*"
 
+    UPDATE_USER = "update_user"
+
     CREATE_POST = "create_post"
     APPROVE_POST = "approve_post"
     CREATE_CONTACT_MESSAGE = "create_contact_message"
@@ -236,6 +282,7 @@ def get_live_config(load_env=False):
         "cognito_client_id": os.getenv("COGNITO_CLIENT_ID"),
         "cognito_client_secret": os.getenv("COGNITO_CLIENT_SECRET"),
         "cognito_user_pool_id": os.getenv("COGNITO_USER_POOL_ID"),
+        "public_s3_bucket": os.getenv("PUBLIC_S3_BUCKET"),
         "permission_hierarchy": {
             Permission.REGULAR: [
                 Permission.CREATE_POST,
@@ -288,6 +335,10 @@ def get_config():
     if is_prod():
         return config
     return get_live_config(True)
+
+
+def get_public_s3_bucket() -> str:
+    return config.get("public_s3_bucket")
 
 
 def get_base_url():
@@ -383,6 +434,20 @@ def verify_authorization(
 
     # No match → fail
     raise AuthorizationFailedError(permission)
+
+
+def check_authorization(
+        user: User,
+        permission: str,
+        resource: BaseModel = None,
+        permissions: Optional[List[str]] = None,
+        hierarchy: Optional[Dict[str, List[str]]] = None,
+) -> bool:
+    try:
+        verify_authorization(user, permission, resource, permissions, hierarchy)
+        return True
+    except AuthorizationFailedError:
+        return False
 
 
 def to_kebab_case(s: str) -> str:
@@ -514,7 +579,9 @@ def get_jinja2_env():
     jinja2_env.globals.update({
         "static_url": static_url,
         "url": url_for,
-        "full_url": full_url_for
+        "full_url": full_url_for,
+        "Permission": Permission,
+        "check_auth": check_authorization
     })
     return jinja2_env
 
@@ -568,14 +635,26 @@ def get_dynamodb_resource_kwargs():
     }
 
 
+def get_s3_client_kwargs():
+    return {
+        "region_name": get_aws_region()
+    }
+
+
 aioboto3_session = Lazy(get_aioboto3_session)
 
 
 async def with_dynamodb_table(fn: Callable):
     session = aioboto3_session()
     async with session.resource("dynamodb", **get_dynamodb_resource_kwargs()) as dynamodb:
-        table = await dynamodb.Table(get_dynamodb_table_name())
-        return await fn(table)
+        dynamodb_table = await dynamodb.Table(get_dynamodb_table_name())
+        return await fn(dynamodb_table)
+
+
+async def with_s3_client(fn: Callable[[Any], Awaitable[Any]]):
+    session = aioboto3_session()
+    async with session.client("s3", **get_s3_client_kwargs()) as s3_client:
+        return await fn(s3_client)
 
 
 def get_html_content(template: str, data: Dict[str, Any]) -> str:
@@ -592,6 +671,90 @@ async def get_cognito_jwks() -> dict:
         resp = await client.get(jwks_url)
         resp.raise_for_status()
         return resp.json()
+
+
+def get_image_dimensions(data: bytes) -> tuple[int, int]:
+    """Return (width, height) for JPEG, PNG, GIF images from raw bytes."""
+
+    # PNG
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        if len(data) < 24:
+            raise ValueError("PNG file too short")
+        width, height = struct.unpack(">II", data[16:24])
+        return width, height
+
+    # GIF
+    elif data[:6] in (b"GIF87a", b"GIF89a"):
+        if len(data) < 10:
+            raise ValueError("GIF file too short")
+        width, height = struct.unpack("<HH", data[6:10])
+        return width, height
+
+    # JPEG
+    elif data[:2] == b"\xff\xd8":
+        offset = 2
+        while offset + 1 < len(data):
+            if data[offset] != 0xFF:
+                raise ValueError("Invalid JPEG marker")
+            marker = data[offset + 1]
+
+            if 0xC0 <= marker <= 0xC3:
+                # need at least 5 bytes for >xHH
+                segment = data[offset + 5:offset + 10]
+                if len(segment) < 5:
+                    raise ValueError("JPEG SOF segment too short")
+                _, height, width = struct.unpack(">xHH", segment)
+                return width, height
+            else:
+                if offset + 4 > len(data):
+                    raise ValueError("Truncated JPEG")
+                seg_len = struct.unpack(">H", data[offset + 2:offset + 4])[0]
+                if seg_len < 2:
+                    raise ValueError("Invalid segment length")
+                offset += 2 + seg_len
+
+        raise ValueError("No SOF marker found in JPEG")
+
+    raise ValueError("Unsupported image type")
+
+
+async def save_public_file(file_dto: FileDTO) -> str:
+    file_ext = file_dto.type
+    filename = str(uuid.uuid4())
+    if file_ext in FileDTO.ALLOWED_IMAGE_TYPES:
+        try:
+            width, height = get_image_dimensions(file_dto.content)
+            filename += f"_{width}x{height}"
+        except ValueError:
+            pass
+    filename += f".{file_ext}"
+
+    if not is_prod():
+        with open(f"./static/{filename}", "wb") as f:
+            f.write(file_dto.content)
+        return filename
+
+    async def fn(s3_client):
+        stream = BytesIO(file_dto.content)
+        stream.seek(0)
+
+        await s3_client.upload_fileobj(stream, get_public_s3_bucket(), filename)
+        return filename
+
+    return await with_s3_client(fn)
+
+
+async def drop_public_file(filename: str) -> None:
+    if not is_prod():
+        path = os.path.join("./static", filename)
+        if os.path.exists(path):
+            os.remove(path)
+        return
+
+    async def fn(s3_client):
+        await s3_client.delete_object(Bucket=get_public_s3_bucket(), Key=filename)
+
+    await with_s3_client(fn)
 
 
 async def configure_app_state(app_state: State) -> None:
@@ -1006,8 +1169,13 @@ def user_from_dynamodb(d_item: Dict[str, Any]) -> User:
         id=owner_id,
         owner_id=owner_id,
         email=d_item.get("user_email_pk"),
+        avatar_filename=d_item.get("avatar_filename"),
         name=d_item.get("name"),
         username=d_item.get("username"),
+        headline=d_item.get("headline"),
+        website=d_item.get("website"),
+        address=d_item.get("address"),
+        about=d_item.get("about"),
         providers=d_item.get("providers", {}),
         created_at=d_item["created_at_sk"],
         updated_at=d_item.get("updated_at")
@@ -1029,6 +1197,81 @@ async def find_user(user_id: str) -> Optional[User]:
         return user_from_dynamodb(item)
 
     return await with_dynamodb_table(fn)
+
+
+async def update_dynamodb_item(key: Tuple[str, int], changes: Dict[str, Any]) -> None:
+    async def fn(table) -> None:
+        now = utc_now()
+
+        set_parts = []
+        remove_parts = []
+        expr_attr_names = {}
+        expr_attr_values = {}
+
+        for field, value in changes.items():
+            alias = f"#{field}"
+
+            if value is None:
+                remove_parts.append(alias)
+                expr_attr_names[alias] = field
+            else:
+                placeholder = f":{field}"
+                set_parts.append(f"{alias} = {placeholder}")
+                expr_attr_names[alias] = field
+                expr_attr_values[placeholder] = value
+
+        set_parts.append("updated_at = :now")
+        expr_attr_values[":now"] = now
+
+        parts = []
+        if set_parts:
+            parts.append("SET " + ", ".join(set_parts))
+        if remove_parts:
+            parts.append("REMOVE " + ", ".join(remove_parts))
+
+        update_expr = " ".join(parts)
+
+        logger.debug(update_expr)
+
+        pk, sk = key
+        await table.update_item(
+            Key={"pk": pk, "sk": sk},
+            UpdateExpression=update_expr,
+            ExpressionAttributeNames=expr_attr_names if expr_attr_names else None,
+            ExpressionAttributeValues=expr_attr_values if expr_attr_values else None,
+        )
+
+    return await with_dynamodb_table(fn)
+
+
+async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User) -> None:
+    verify_authorization(cur_user, Permission.UPDATE_USER, user)
+
+    changes = update_user_dto.model_dump(exclude_unset=True)
+    if changes.get("website"):
+        changes["website"] = str(changes["website"])
+
+    # logger.debug("Changes:")
+    # logger.debug(changes)
+
+    avatar_action = changes.pop("avatar_action", "keep")
+
+    if avatar_action == "delete":
+        changes["avatar_filename"] = None
+    elif avatar_action == "replace":
+        pass
+    elif avatar_action == "keep":
+        changes.pop("avatar_filename", None)
+
+    old_avatar = user.avatar_filename
+
+    await update_dynamodb_item((f"USER#{user.id}", 0), changes)
+
+    if old_avatar and avatar_action in {"delete", "replace"}:
+        await drop_public_file(old_avatar)
+
+    for key, value in changes.items():
+        setattr(user, key, value)
 
 
 async def get_user(user_id: str) -> User:

@@ -1,0 +1,188 @@
+{% extends "layout.html" %}
+
+{% set title = ("Edit " ~ user.name) | trim %}
+
+{% block title %}{{ title }} | {{ site_name }}{% endblock %}
+{% block canonical_url %}{{ full_url("update-user-page", user_id=user.id) }}{% endblock %}
+
+{% block breadcrumbs %}
+    {% with breadcrumbs = {"Home": url("index"), "Users": url("users-page"), (user.name): url("user-page", user_id=user.id), "Edit": None} %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
+{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    <p class="small text-secondary">Update profile</p>
+    <div class="row">
+        <div class="col-12 col-md-8">
+            <form class="row align-items-center g-3" id="user-form" novalidate>
+
+                <div class="col-2">
+                    {% include "fragments/avatar.html" %}
+                </div>
+
+                <div class="col-2">
+                    <div class="form-check text-decoration-underline">
+                        Avatar action
+                    </div>
+
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="avatar_action" id="keep-avatar" value="keep"
+                               checked>
+                        <label class="form-check-label" for="keep-avatar">Keep current</label>
+                    </div>
+
+                    {% if user.avatar_filename %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="avatar_action" id="delete-avatar"
+                                   value="delete">
+                            <label class="form-check-label" for="delete-avatar">Delete current</label>
+                        </div>
+                    {% endif %}
+
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="avatar_action" id="replace-avatar"
+                               value="replace">
+                        <label class="form-check-label" for="replace-avatar">Upload new</label>
+                    </div>
+                </div>
+
+                <div class="col-8" id="upload-avatar" style="display:none">
+                    <input type="file" class="form-control" id="avatar_file" name="avatar_file"
+                           placeholder="Avatar" data-public-file>
+                </div>
+
+                <div class="col-12">
+                    <label class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person-circle"></i></span>
+                        <input type="text" class="form-control" id="name" name="name" placeholder="Name"
+                               value="{{ user.name if user.name else "" }}">
+                    </label>
+                </div>
+
+                <div class="col-12">
+                    <label class="input-group">
+                        <span class="input-group-text"><i class="bi bi-at"></i></span>
+                        <input type="text" class="form-control" id="username" name="username" placeholder="Username"
+                               value="{{ user.username if user.username else "" }}">
+                    </label>
+                </div>
+
+                <div class="col-12">
+                    <label class="input-group">
+                        <span class="input-group-text"><i class="bi bi-chat"></i></span>
+                        <input type="text" class="form-control" id="headline" name="headline" placeholder="Headline"
+                               value="{{ user.headline if user.headline else "" }}">
+                    </label>
+                </div>
+
+                <div class="col-12">
+                    <label class="input-group">
+                        <span class="input-group-text"><i class="bi bi-pencil-square"></i></span>
+                        <textarea class="form-control" id="about" name="about" placeholder="About"
+                                  rows="6">{{ user.about if user.about else "" }}</textarea>
+                    </label>
+                </div>
+
+                <div class="col-12">
+                    <label class="input-group">
+                        <span class="input-group-text"><i class="bi bi-box-arrow-up-right"></i></span>
+                        <input type="text" class="form-control" id="website" name="website" placeholder="Website"
+                               value="{{ user.website if user.website else "" }}">
+                    </label>
+                </div>
+
+                <div class="col-12">
+                    <label class="input-group">
+                        <span class="input-group-text"><i class="bi bi-geo"></i></span>
+                        <input type="text" class="form-control" id="address" name="address" placeholder="Address"
+                               value="{{ user.address if user.address else "" }}">
+                    </label>
+                </div>
+
+                <div class="col-12">
+                    <button type="submit" class="btn btn-light">
+                        Update profile <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const uploadDiv = document.getElementById("upload-avatar")
+        const avatarRadios = document.querySelectorAll("input[name=\"avatar_action\"]")
+
+        // Initially hide the upload div
+        uploadDiv.style.display = "none"
+
+        avatarRadios.forEach(radio => {
+          radio.addEventListener("change", () => {
+            if (radio.value === "replace" && radio.checked) {
+              uploadDiv.style.display = "block"
+            } else if (radio.checked) {
+              uploadDiv.style.display = "none"
+            }
+          })
+        })
+
+        handleFormSubmit("#user-form", "{{ url('update-user', user_id=user.id) }}", {
+          method: "PATCH",
+          rules: {
+            avatar_file: [
+              {
+                rule: "required",
+                errorMessage: "Avatar is required"
+              },
+              {
+                rule: "files",
+                value: {
+                  files: {
+                    extensions: ["jpeg", "jpg", "png"],
+                    maxSize: 10000000,
+                    minSize: 1000,
+                    types: ["image/jpeg", "image/jpg", "image/png"]
+                  }
+                }
+              }
+            ],
+            name: [
+              {rule: "required"},
+              {rule: "minLength", value: 1},
+              {rule: "maxLength", value: 100}
+            ],
+            username: [
+              {rule: "minLength", value: 3},
+              {rule: "maxLength", value: 30}
+            ],
+            headline: [
+              {rule: "minLength", value: 1},
+              {rule: "maxLength", value: 150}
+            ],
+            about: [
+              {rule: "minLength", value: 1},
+              {rule: "maxLength", value: 2000}
+            ],
+            website: [
+              {
+                rule: "customRegexp",
+                value: /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/,
+                errorMessage: "Website must be a valid URL"
+              }
+            ],
+            address: [
+              {rule: "minLength", value: 1},
+              {rule: "maxLength", value: 255}
+            ]
+          },
+          onSuccess: (res) => {
+            if (res) window.location.href = res
+          },
+          successMessage: "Profile updated!"
+        })
+      })
+    </script>
+{% endblock %}

@@ -17,6 +17,12 @@
         <div class="col col-10">
             <h1 class="m-0">{{ user.name }}</h1>
 
+            {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
+                <a href="{{ url("update-user-page", user_id=user.id) }}" class="btn btn-light btn-sm">
+                    <i class="bi bi-pencil-square"></i> Edit profile
+                </a>
+            {% endif %}
+
             {% if user.headline %}
                 <h2 class="h5">{{ user.headline }}</h2>
             {% endif %}

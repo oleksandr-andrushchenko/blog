@@ -7,7 +7,6 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
     networkErrorMessage = "Network error. Please try again.",
     validationFailedMessage = "Please fix the highlighted fields.",
     rules = {},
-    preparePayload = (data) => data,
     onSuccess = () => {
     },
     loadingText = "Submitting..."
@@ -78,10 +77,18 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
 
     let data = {}
     form.querySelectorAll("[name]").forEach(input => {
-      data[input.name] = input.value.trim()
+      // handle radio buttons separately
+      if (input.type === "radio") {
+        if (input.checked) data[input.name] = input.value
+      } else {
+        const value = input.value.trim()
+        if (value !== "") {
+          data[input.name] = value
+        }
+      }
       input.classList.remove("is-invalid") // reset invalid states
     })
-    data = preparePayload(data, form)
+
     if (hasTags) {
       const values = JSON.parse(form.tags.value)
       data.tags = values.map(item => item.value.trim()).filter(Boolean)
@@ -116,7 +123,28 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
         }
       }
 
-      // Submit via fetch
+      // Upload all file inputs separately
+      const fileInputs = form.querySelectorAll("input[type=\"file\"]")
+      for (const input of fileInputs) {
+        if (input.files.length === 0) continue
+
+        const publicFile = input.dataset.hasOwnProperty("publicFile")
+
+        const formData = new FormData()
+        formData.append("file", input.files[0])
+
+        const uploadResponse = await fetch(publicFile ? "/public-file" : "/private-file", {
+          method: "POST",
+          body: formData
+        })
+
+        if (!uploadResponse.ok) throw new Error("File upload failed")
+
+        delete data[input.name]
+        data[input.name + "name"] = await uploadResponse.json()
+      }
+
+      // Submit the JSON payload
       const response = await fetch(submitUrl, {
         method,
         headers: {"Content-Type": "application/json"},
