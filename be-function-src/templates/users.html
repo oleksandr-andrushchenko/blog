@@ -13,7 +13,7 @@
     <h1>Users</h1>
     <p class="small text-secondary">Recently registered users</p>
     {% if users %}
-        <div class="row" id="users">
+        <div class="row g-3" id="users">
             {% include "fragments/users.html" %}
         </div>
         {% with limit=users_query.limit,
