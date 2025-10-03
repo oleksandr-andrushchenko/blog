@@ -2,7 +2,7 @@
 
 <div class="avatar-wrapper" style="width:100%; aspect-ratio:1 / 1;">
     {% if user.avatar_filename %}
-        <img src="/{{ user.avatar_filename }}"
+        <img src="{{ static_url(user.avatar_filename) }}"
              class="rounded-circle img-fluid d-block"
              style="width:100%; height:100%; object-fit:cover;"
              alt="{{ name }}">
