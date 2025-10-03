@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+
+{% set title = ("Edit " ~ post.title) | trim %}
+
+{% block title %}{{ title }} | {{ site_name }}{% endblock %}
+{% block canonical_url %}{{ full_url("update-post-page", post_id=post.id) }}{% endblock %}
+
+{% block breadcrumbs %}
+    {% with breadcrumbs = {"Home": url("index"), "Posts": url("posts-page"), (post.title): url("post-page", post_id=post.id), "Edit": None} %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
+{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    <p class="small text-secondary">Update post</p>
+
+    {% include "fragments/post-form.html" %}
+{% endblock %}
