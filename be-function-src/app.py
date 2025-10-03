@@ -51,6 +51,7 @@ from utils import (
     verify_authorization,
     update_user,
     save_public_file,
+    update_post,
 )
 
 from deps import (
@@ -63,7 +64,8 @@ from deps import (
     UserQueryDep,
     UserDep,
     UpdateUserDTODep,
-    get_error_response
+    get_error_response,
+    UpdatePostDTODep,
 )
 
 
@@ -150,6 +152,27 @@ async def post_page(post: PostDep, cur_user: OptCurUserDep) -> str:
         "post": post,
         "author": await find_user(post.user_id)
     })
+
+
+@app.get("/posts/{post_id}/edit", name="update-post-page", response_class=HTMLResponse)
+async def update_post_page(post: PostDep, cur_user: CurUserDep) -> str:
+    verify_authorization(cur_user, Permission.UPDATE_USER, post)
+    return get_html_content("update-post.html", {
+        "cur_user": cur_user,
+        "post": post
+    })
+
+
+@app.patch("/posts/{post_id}", name="update-post", response_class=JSONResponse)
+async def _update_post(post: PostDep, update_post_dto: UpdatePostDTODep, cur_user: CurUserDep, request: Request) -> str:
+    try:
+        await update_post(post, update_post_dto, cur_user)
+        return get_url(request, "post-page", post_id=post.id)
+    except SlugDuplicationError as e:
+        raise HTTPException(
+            status_code=HTTP_409_CONFLICT,
+            detail=str(e)
+        )
 
 
 @app.post("/posts/{post_id}/approve", name="approve-post", status_code=HTTP_204_NO_CONTENT)

@@ -136,6 +136,11 @@ class PostDTO(BaseModel):
         return list(dict.fromkeys(normalized))
 
 
+# todo:
+class UpdatePostDTO(PostDTO):
+    pass
+
+
 class BaseQueryDTO(BaseModel):
     offset: Optional[str] = Field(None)
     limit: int = Field(default=20, ge=1)
@@ -218,6 +223,7 @@ class Permission(str, Enum):
     UPDATE_USER = "update_user"
 
     CREATE_POST = "create_post"
+    UPDATE_POST = "update_post"
     APPROVE_POST = "approve_post"
     CREATE_CONTACT_MESSAGE = "create_contact_message"
 
@@ -1148,6 +1154,17 @@ async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISH
         return post_from_dynamodb(post_item)
 
     return await with_dynamodb_table(fn)
+
+
+async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User) -> None:
+    verify_authorization(cur_user, Permission.UPDATE_POST, post)
+
+    changes = update_post_dto.model_dump(exclude_unset=True)
+
+    await update_dynamodb_item((f"POST#{post.id}", 0), changes)
+
+    for key, value in changes.items():
+        setattr(post, key, value)
 
 
 async def find_post(post_id: str) -> Optional[Post]:

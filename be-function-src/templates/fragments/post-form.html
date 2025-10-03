@@ -1,0 +1,55 @@
+<div class="row">
+    <div class="col-12 col-md-8">
+        <form class="row g-3" id="post-form" novalidate>
+            <label class="col-12">
+                <input type="text" class="form-control" id="title" name="title" placeholder="Title" required
+                       minlength="20" maxlength="500" value="{{ post.title if post else "" }}">
+            </label>
+
+            <label class="col-12">
+                    <textarea class="form-control" id="content" name="content" placeholder="Content" rows="12" required
+                              minlength="1000" maxlength="10000">{{ post.content if post else "" }}</textarea>
+            </label>
+
+            <div class="col-12">
+                {% with url=url("get-post-tags"), value=post.tags if post else [] %}
+                    {% include "fragments/tags-input.html" %}
+                {% endwith %}
+            </div>
+
+            <div class="col-12">
+                <button type="submit" class="btn btn-light">
+                    {% if post %}Update{% else %}Create{% endif %} Post <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    handleFormSubmit("#post-form", "{{ url('update-post', post_id=post.id) if post else url('create-post') }}", {
+      method: "{{ 'PATCH' if post else 'POST' }}",
+      rules: {
+        title: [
+          {rule: "required"},
+          {rule: "minLength", value: 20},
+          {rule: "maxLength", value: 500}
+        ],
+        content: [
+          {rule: "required"},
+          {rule: "minLength", value: 1000},
+          {rule: "maxLength", value: 10000}
+        ],
+        tags: [
+          {rule: "required"},
+          {rule: "tags", minCnt: 1, maxCnt: 3, minLen: 2, maxLen: 20}
+        ]
+      },
+      onSuccess: (res) => {
+        if (res) window.location.href = res
+      },
+      successMessage: "Post created!"
+    })
+  })
+</script>

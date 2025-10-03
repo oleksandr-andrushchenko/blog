@@ -24,6 +24,7 @@ from utils import (
     get_user,
     UpdateUserDTO,
     FileDTO,
+    UpdatePostDTO,
 )
 
 
@@ -113,6 +114,15 @@ def get_update_user_dto(
 
 
 UpdateUserDTODep = Annotated[UpdateUserDTO, Depends(get_update_user_dto)]
+
+
+def get_update_post_dto(
+        update_post_dto: UpdatePostDTO = Body(...)
+) -> UpdateUserDTO:
+    return update_post_dto
+
+
+UpdatePostDTODep = Annotated[UpdateUserDTO, Depends(get_update_post_dto)]
 
 
 async def get_error_response(request: Request, status_code: int, details: Union[Dict, str]):
