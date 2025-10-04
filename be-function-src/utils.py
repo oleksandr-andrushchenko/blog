@@ -1580,21 +1580,7 @@ async def approve_post(post: Post, user: User) -> None:
         status = PostStatus.PUBLISHED
 
         # 1. Update main post
-        await table.update_item(
-            Key={
-                "pk": f"POST#{post.id}",
-                "sk": 0
-            },
-            UpdateExpression="""
-                SET #status = :published,
-                    updated_at = if_not_exists(updated_at, :now)
-            """,
-            ExpressionAttributeNames={"#status": "status"},
-            ExpressionAttributeValues={
-                ":published": status,
-                ":now": now,
-            }
-        )
+        await update_dynamodb_item((f"POST#{post.id}", 0), {"status": status})
 
         # 2. Generate tag combos and create combo items
         transact_items = generate_post_tag_combos_transact_items(post.id, post.tags, table, now)
