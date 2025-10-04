@@ -171,7 +171,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
         return
       }
 
-      if (response.status === 422) {
+      if ([409, 422].includes(response.status)) {
         const json = await response.json()
         statusDiv.className = "form-status alert alert-warning d-flex align-items-center"
         statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i> ${validationFailedMessage}`
@@ -358,8 +358,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
     })
       .then(async res => {
         if (!res.ok) {
-          if (res.status === 422) {
-            // handle 422 like form validation errors
+          if ([409, 422].includes(res.status)) {
             const json = await res.json().catch(() => null)
             if (json?.details) {
               Object.entries(json.details).forEach(([field, msg]) => {
