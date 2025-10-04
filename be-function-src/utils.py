@@ -1160,11 +1160,105 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
     verify_authorization(cur_user, Permission.UPDATE_POST, post)
 
     changes = update_post_dto.model_dump(exclude_unset=True)
+    if not changes:
+        return
 
-    await update_dynamodb_item((f"POST#{post.id}", 0), changes)
+    async def fn(table):
+        now = utc_now()
+        transact_items = []
 
-    for key, value in changes.items():
-        setattr(post, key, value)
+        # Slug update if title changed
+        if "title" in changes:
+            new_slug = to_kebab_case(changes["title"])
+            old_slug = post.slug
+
+            if old_slug != new_slug:
+                # Delete old slug mapping
+                transact_items.append({
+                    "Delete": {
+                        "TableName": table.name,
+                        "Key": {
+                            "pk": f"POST_SLUG#{old_slug}",
+                            "sk": 0
+                        }
+                    }
+                })
+
+                # Insert new slug mapping
+                transact_items.append({
+                    "Put": {
+                        "TableName": table.name,
+                        "Item": {
+                            "pk": f"POST_SLUG#{new_slug}",
+                            "sk": 0,
+                            "post_id": post.id,
+                        },
+                        "ConditionExpression": "attribute_not_exists(pk)"
+                    }
+                })
+
+                changes["slug"] = new_slug
+
+        # Tag combos update if tags changed
+        if "tags" in changes:
+            old_tags = post.tags or []
+            new_tags = changes["tags"]
+
+            if old_tags != new_tags:
+                # Delete old combos
+                for r in range(1, len(old_tags) + 1):
+                    for combo in combinations(sorted(old_tags), r):
+                        transact_items.append({
+                            "Delete": {
+                                "TableName": table.name,
+                                "Key": {
+                                    "pk": "POST_TAG_COMBO#" + "#".join(combo),
+                                    "sk": post.created_at
+                                }
+                            }
+                        })
+
+                # Insert new combos
+                transact_items += generate_post_tag_combos_transact_items(post.id, new_tags, table, now)
+
+                changes["tags"] = new_tags
+
+        # Update main post item
+        update_expr_parts = []
+        expr_values = {}
+        expr_names = {}
+
+        for i, (key, value) in enumerate(changes.items()):
+            placeholder = f":val{i}"
+            name_placeholder = f"#k{i}"
+            update_expr_parts.append(f"{name_placeholder} = {placeholder}")
+            expr_values[placeholder] = value
+            expr_names[name_placeholder] = key
+
+        transact_items.append({
+            "Update": {
+                "TableName": table.name,
+                "Key": {
+                    "pk": f"POST#{post.id}",
+                    "sk": 0
+                },
+                "UpdateExpression": "SET " + ", ".join(update_expr_parts),
+                "ExpressionAttributeValues": expr_values,
+                "ExpressionAttributeNames": expr_names
+            }
+        })
+
+        try:
+            await dynamodb_transact_write(table, transact_items)
+        except DynamoDBTransactionError as e:
+            if e.is_conditional():
+                raise SlugDuplicationError("Duplicate slug")
+            raise
+
+        for key, value in changes.items():
+            setattr(post, key, value)
+
+    return await with_dynamodb_table(fn)
 
 
 async def find_post(post_id: str) -> Optional[Post]:
