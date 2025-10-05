@@ -12,11 +12,14 @@
 {% block content %}
     <h1>{{ post.title }}</h1>
 
-    {% if cur_user and check_auth(cur_user, Permission.UPDATE_POST, post) %}
+    {% if post.status != PostStatus.PUBLISHED and cur_user and check_auth(cur_user, Permission.UPDATE_POST, post) %}
         <a href="{{ url("edit-post", post_id=post.id) }}" class="btn btn-light btn-sm">
             <i class="bi bi-pencil-square"></i> Edit post
         </a>
     {% endif %}
+
+    {% include "fragments/publish-post-form.html" %}
+    {% include "fragments/reject-post-form.html" %}
 
     {% include "fragments/post-meta.html" %}
 

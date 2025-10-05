@@ -1,0 +1,20 @@
+{% if post.status != PostStatus.PUBLISHED and cur_user and check_auth(cur_user, Permission.CHANGE_POST_STATUS, post) %}
+    <form id="publish-post-form" class="d-inline-block" novalidate>
+        <input type="hidden" name="status" value="{{ PostStatus.PUBLISHED.value }}">
+        <button type="submit" class="btn btn-success btn-sm">
+            <i class="bi bi-check-circle"></i> Publish post
+        </button>
+    </form>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        handleFormSubmit("#publish-post-form", "{{ url("update-post-status", post_id=post.id) }}", {
+          method: "POST",
+          onSuccess: (res) => {
+            if (res) window.location.href = res
+          },
+          successMessage: "Post published!"
+        })
+      })
+    </script>
+{% endif %}

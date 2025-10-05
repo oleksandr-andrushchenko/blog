@@ -200,6 +200,21 @@ class PostStatus(str, Enum):
     REJECTED = "rejected"
 
 
+class UpdatePostStatusDTO(BaseModel):
+    status: PostStatus = Field(...)
+    comment: str = Field(None)
+
+    @field_validator("comment")
+    @classmethod
+    def validate_comment(cls, value, info):
+        status = info.data.get("status")
+        if status == PostStatus.REJECTED and not value:
+            raise ValueError("Comment is required when rejecting a post")
+        if status != PostStatus.REJECTED and value:
+            raise ValueError("Comment is only allowed when rejecting a post")
+        return value
+
+
 class Post(BaseModel):
     id: str
     owner_id: str
@@ -209,6 +224,7 @@ class Post(BaseModel):
     content: str
     tags: List[str]
     status: PostStatus = PostStatus.UNPUBLISHED
+    comment: Optional[str] = None
     rating: int = Field(default_factory=int)
     created_at: int
     updated_at: Optional[int] = None
@@ -224,7 +240,7 @@ class Permission(str, Enum):
 
     CREATE_POST = "create_post"
     UPDATE_POST = "update_post"
-    APPROVE_POST = "approve_post"
+    UPDATE_POST_STATUS = "update_post_status"
     CREATE_CONTACT_MESSAGE = "create_contact_message"
 
 
@@ -268,6 +284,11 @@ class SlugDuplicationError(BaseError):
 
 class PostNotFoundError(BaseError):
     pass
+
+
+class PostAlreadyPublishedError(BaseError):
+    def __init__(self, message: str = "Post already published", field: str = "title"):
+        super().__init__(message=message, field=field)
 
 
 class UserNotFoundError(BaseError):
@@ -596,7 +617,8 @@ def get_jinja2_env():
         "url": url_for,
         "full_url": full_url_for,
         "Permission": Permission,
-        "check_auth": check_authorization
+        "check_auth": check_authorization,
+        "PostStatus": PostStatus,
     })
     return jinja2_env
 
@@ -951,18 +973,23 @@ async def create_dummy_fixtures() -> None:
     if is_prod():
         return
     user_token = get_dummy_user_token()
-    user = await upsert_user_by_user_token(user_token)
-    user.name = "John Doe"
-    user.username = "j_doe"
-    user.headline = "Software Engineer"
-    user.website = "https://example.com"
-    user.about = ("Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the "
-                  "industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type "
-                  "and scrambled it to make a type specimen book. It has survived not only five centuries, but also the "
-                  "leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s "
-                  "with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop "
-                  "publishing software like Aldus PageMaker including versions of Lorem Ipsum.")
-    user.address = "1600 Pennsylvania Ave NW, Washington, DC 20500"
+    root_user = await upsert_user_by_user_token(user_token)
+    await update_dynamodb_item((f"USER#{root_user.id}", 0), {"permissions": [Permission.ROOT]})
+    root_user.permissions = [Permission.ROOT]
+    update_user_dto = UpdateUserDTO(
+        name="John Doe",
+        username="j_doe",
+        headline="Software Engineer",
+        website=HttpUrl("https://example.com"),
+        about=("Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the "
+               "industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type "
+               "and scrambled it to make a type specimen book. It has survived not only five centuries, but also the "
+               "leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s "
+               "with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop "
+               "publishing software like Aldus PageMaker including versions of Lorem Ipsum."),
+        address="1600 Pennsylvania Ave NW, Washington, DC 20500"
+    )
+    await update_user(root_user, update_user_dto, root_user)
     posts = [
         PostDTO(
             title="Post title #111111111111111111111111",
@@ -981,7 +1008,8 @@ async def create_dummy_fixtures() -> None:
         ),
     ]
     for post in posts:
-        await create_post(post, user, status=PostStatus.PUBLISHED)
+        created_post = await create_post(post, root_user)
+        await update_post_status(created_post, UpdatePostStatusDTO(status=PostStatus.PUBLISHED), root_user)
     user_token2 = get_dummy_user_token(sub="p2", email="test2@example.com", name="Some test user")
     user2 = await upsert_user_by_user_token(user_token2)
     posts = [
@@ -1002,7 +1030,8 @@ async def create_dummy_fixtures() -> None:
         ),
     ]
     for post in posts:
-        await create_post(post, user2, status=PostStatus.PUBLISHED)
+        created_post = await create_post(post, user2)
+        await update_post_status(created_post, UpdatePostStatusDTO(status=PostStatus.PUBLISHED), root_user)
     user_token3 = get_dummy_user_token(sub="p3", email="test3@example.com", name="Another user")
     await upsert_user_by_user_token(user_token3)
     user_token4 = get_dummy_user_token(sub="p4", email="test4@example.com", name="Vanilla user")
@@ -1063,6 +1092,7 @@ def post_from_dynamodb(d_item: Dict[str, Any]) -> Post:
         content=d_item["content"],
         tags=d_item.get("tags", []),
         status=d_item["status"],
+        comment=d_item.get("comment"),
         rating=int(d_item.get("rating_sk", 0)),
         created_at=d_item["created_at_sk"],
         updated_at=d_item.get("updated_at"),
@@ -1073,11 +1103,12 @@ def compute_rating_sk(rating: int, created_at: int) -> int:
     return rating * 1_000_000_000 + created_at
 
 
-async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISHED) -> Post:
+async def create_post(post_dto: PostDTO, user: User) -> Post:
     verify_authorization(user, Permission.CREATE_POST)
 
     async def fn(table):
         now = utc_now()
+        status = PostStatus.UNPUBLISHED
         post_id = str(uuid.uuid4())
         slug = to_kebab_case(post_dto.title)
 
@@ -1121,38 +1152,6 @@ async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISH
             }
         })
 
-        # ----------------------------
-        # Tag metadata (increment post_count)
-        # ----------------------------
-        # todo: move to post approval (?)
-        for tag in post_item["tags"]:
-            transact_items.append({
-                "Update": {
-                    "TableName": table.name,
-                    "Key": {
-                        "pk": f"POST_TAG#{tag}",
-                        "sk": 0
-                    },
-                    "UpdateExpression": (
-                        "SET tag_name_sk = if_not_exists(tag_name_sk, :tag_name_sk), "
-                        "    tag_type_pk = if_not_exists(tag_type_pk, :tag_type_pk), "
-                        "    rating_sk = if_not_exists(rating_sk, :def_rating_sk) + :rating_sk_inc, "
-                        "    created_at = if_not_exists(created_at, :now), "
-                        "    updated_at = :now "
-                    ),
-                    "ExpressionAttributeValues": {
-                        ":tag_name_sk": tag,
-                        ":tag_type_pk": "POST_TAG",
-                        ":now": now,
-                        ":def_rating_sk": compute_rating_sk(0, now),
-                        ":rating_sk_inc": compute_rating_sk(1, now)
-                    }
-                }
-            })
-
-        if status == PostStatus.PUBLISHED:
-            transact_items += generate_post_tag_combos_transact_items(post_id, post_item["tags"], table, now)
-
         try:
             await dynamodb_transact_write(table, transact_items)
         except DynamoDBTransactionError as e:
@@ -1168,12 +1167,14 @@ async def create_post(post_dto: PostDTO, user: User, status=PostStatus.UNPUBLISH
 async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User) -> None:
     verify_authorization(cur_user, Permission.UPDATE_POST, post)
 
+    if post.status == PostStatus.PUBLISHED:
+        raise PostAlreadyPublishedError()
+
     changes = update_post_dto.model_dump(exclude_unset=True)
     if not changes:
         return
 
     async def fn(table):
-        now = utc_now()
         transact_items = []
 
         # Slug update if title changed
@@ -1208,53 +1209,8 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
 
                 changes["slug"] = new_slug
 
-        # Tag combos update if tags changed
-        if "tags" in changes:
-            old_tags = post.tags or []
-            new_tags = changes["tags"]
-
-            if old_tags != new_tags:
-                # Delete old combos
-                for r in range(1, len(old_tags) + 1):
-                    for combo in combinations(sorted(old_tags), r):
-                        transact_items.append({
-                            "Delete": {
-                                "TableName": table.name,
-                                "Key": {
-                                    "pk": "POST_TAG_COMBO#" + "#".join(combo),
-                                    "sk": post.created_at
-                                }
-                            }
-                        })
-
-                # Insert new combos
-                transact_items += generate_post_tag_combos_transact_items(post.id, new_tags, table, now)
-
-                changes["tags"] = new_tags
-
-        # Update main post item
-        update_expr_parts = []
-        expr_values = {}
-        expr_names = {}
-
-        for i, (key, value) in enumerate(changes.items()):
-            placeholder = f":val{i}"
-            name_placeholder = f"#k{i}"
-            update_expr_parts.append(f"{name_placeholder} = {placeholder}")
-            expr_values[placeholder] = value
-            expr_names[name_placeholder] = key
-
         transact_items.append({
-            "Update": {
-                "TableName": table.name,
-                "Key": {
-                    "pk": f"POST#{post.id}",
-                    "sk": 0
-                },
-                "UpdateExpression": "SET " + ", ".join(update_expr_parts),
-                "ExpressionAttributeValues": expr_values,
-                "ExpressionAttributeNames": expr_names
-            }
+            "Update": build_dynamodb_update_item_params(table, (f"POST#{post.id}", 0), changes)
         })
 
         try:
@@ -1330,47 +1286,60 @@ async def find_user(user_id: str) -> Optional[User]:
     return await with_dynamodb_table(fn)
 
 
-async def update_dynamodb_item(key: Tuple[str, int], changes: Dict[str, Any]) -> None:
-    async def fn(table) -> None:
-        now = utc_now()
+def build_dynamodb_update_item_params(table, key: Tuple[str, int], changes: Dict[str, Any]) -> Dict[str, Any]:
+    now = utc_now()
 
-        set_parts = []
-        remove_parts = []
-        expr_attr_names = {}
-        expr_attr_values = {}
+    set_parts = []
+    remove_parts = []
+    expr_attr_names = {}
+    expr_attr_values = {}
 
-        for field, value in changes.items():
-            alias = f"#{field}"
+    for field, value in changes.items():
+        # Always alias and prefix to avoid reserved keywords
+        name_alias = f"#new_{field}"
+        value_alias = f":new_{field}"
 
-            if value is None:
-                remove_parts.append(alias)
-                expr_attr_names[alias] = field
-            else:
-                placeholder = f":{field}"
-                set_parts.append(f"{alias} = {placeholder}")
-                expr_attr_names[alias] = field
-                expr_attr_values[placeholder] = value
+        expr_attr_names[name_alias] = field
 
-        set_parts.append("updated_at = :now")
-        expr_attr_values[":now"] = now
+        if value is None:
+            remove_parts.append(name_alias)
+        else:
+            set_parts.append(f"{name_alias} = {value_alias}")
+            expr_attr_values[value_alias] = value
 
-        parts = []
-        if set_parts:
-            parts.append("SET " + ", ".join(set_parts))
-        if remove_parts:
-            parts.append("REMOVE " + ", ".join(remove_parts))
+    # Always set updated_at
+    expr_attr_names["#new_updated_at"] = "updated_at"
+    expr_attr_values[":new_now"] = now
+    set_parts.append("#new_updated_at = :new_now")
 
-        update_expr = " ".join(parts)
+    # Combine expressions
+    update_expr_parts = []
+    if set_parts:
+        update_expr_parts.append("SET " + ", ".join(set_parts))
+    if remove_parts:
+        update_expr_parts.append("REMOVE " + ", ".join(remove_parts))
 
-        logger.debug(update_expr)
+    update_expr = " ".join(update_expr_parts)
 
-        pk, sk = key
-        await table.update_item(
-            Key={"pk": pk, "sk": sk},
-            UpdateExpression=update_expr,
-            ExpressionAttributeNames=expr_attr_names if expr_attr_names else None,
-            ExpressionAttributeValues=expr_attr_values if expr_attr_values else None,
-        )
+    pk, sk = key
+    # logger.debug(f"DynamoDB UpdateExpression: {update_expr}")
+
+    params = {
+        "TableName": table.name,
+        "Key": {"pk": pk, "sk": sk},
+        "UpdateExpression": update_expr,
+        "ExpressionAttributeNames": expr_attr_names,
+        "ExpressionAttributeValues": expr_attr_values,
+    }
+
+    return params
+
+
+async def update_dynamodb_item(key: Tuple[str, int], updates: Dict[str, Any]) -> None:
+    async def fn(table):
+        update_item_params = build_dynamodb_update_item_params(table, key, updates)
+        res = await table.update_item(**update_item_params)
+        # logger.debug(f"update_dynamodb_item: key: {key}, updates: {updates}, res: {res}")
 
     return await with_dynamodb_table(fn)
 
@@ -1581,22 +1550,84 @@ def generate_post_tag_combos_transact_items(post_id, post_tags, table, now=None)
     return transact_items
 
 
-async def approve_post(post: Post, user: User) -> None:
-    verify_authorization(user, Permission.APPROVE_POST)
+async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, user: User) -> None:
+    # logger.debug(f"update_post_status: user: {user}")
+    verify_authorization(user, Permission.UPDATE_POST_STATUS)
+
+    if post.status == PostStatus.PUBLISHED:
+        raise PostAlreadyPublishedError()
+
+    changes = update_post_status_dto.model_dump(exclude_unset=True)
+    if not changes:
+        return
+
+    status = PostStatus(changes.get("status"))
 
     async def fn(table):
         now = utc_now()
-        status = PostStatus.PUBLISHED
 
-        # 1. Update main post
-        await update_dynamodb_item((f"POST#{post.id}", 0), {"status": status})
+        transact_items = []
 
-        # 2. Generate tag combos and create combo items
-        transact_items = generate_post_tag_combos_transact_items(post.id, post.tags, table, now)
+        # Update post
+        transact_items.append({
+            "Update": build_dynamodb_update_item_params(table, (f"POST#{post.id}", 0), {
+                **changes,
+                "post_status_pk": f"POST#STATUS#{status.value}",
+                "post_user_status_pk": f"# POST#USER#{post.user_id}#STATUS#{status.value}",
+            })
+        })
 
-        if transact_items:
-            await dynamodb_transact_write(table, transact_items)
+        if status == PostStatus.PUBLISHED:
+            # Upsert tags
+            for tag in post.tags:
+                transact_items.append({
+                    "Update": {
+                        "TableName": table.name,
+                        "Key": {
+                            "pk": f"POST_TAG#{tag}",
+                            "sk": 0
+                        },
+                        "UpdateExpression": (
+                            "SET #new_tag_name_sk = if_not_exists(#new_tag_name_sk, :tag_name_sk), "
+                            "    #new_tag_type_pk = if_not_exists(#new_tag_type_pk, :tag_type_pk), "
+                            "    #new_rating_sk = if_not_exists(#new_rating_sk, :def_rating_sk) + :rating_sk_inc, "
+                            "    #new_created_at = if_not_exists(#new_created_at, :now), "
+                            "    #new_updated_at = :now "
+                        ),
+                        "ExpressionAttributeNames": {
+                            "#new_tag_name_sk": "tag_name_sk",
+                            "#new_tag_type_pk": "tag_type_pk",
+                            "#new_rating_sk": "rating_sk",
+                            "#new_created_at": "created_at",
+                            "#new_updated_at": "updated_at",
+                        },
+                        "ExpressionAttributeValues": {
+                            ":tag_name_sk": tag,
+                            ":tag_type_pk": "POST_TAG",
+                            ":now": now,
+                            ":def_rating_sk": compute_rating_sk(0, now),
+                            ":rating_sk_inc": compute_rating_sk(1, now)
+                        }
+                    }
+                })
 
+            # Create post tag combos
+            for r in range(1, len(post.tags) + 1):
+                for combo in combinations(sorted(post.tags), r):
+                    transact_items.append({
+                        "Put": {
+                            "TableName": table.name,
+                            "Item": {
+                                "pk": "POST_TAG_COMBO#" + "#".join(combo),
+                                "sk": now,
+                                "post_id": post.id
+                            }
+                        }
+                    })
+
+        # logger.debug(transact_items)
+
+        await dynamodb_transact_write(table, transact_items)
         post.status = status
 
     return await with_dynamodb_table(fn)

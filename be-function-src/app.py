@@ -38,7 +38,7 @@ from utils import (
     get_logout_redirect_url,
     get_post_tags,
     create_dummy_fixtures,
-    approve_post,
+    update_post_status,
     get_latest_active_users,
     get_latest_published_posts_by_user,
     get_published_posts,
@@ -66,6 +66,7 @@ from deps import (
     UpdateUserDTODep,
     get_error_response,
     UpdatePostDTODep,
+    UpdatePostStatusDTODep,
 )
 
 
@@ -175,12 +176,11 @@ async def _update_post(post: PostDep, update_post_dto: UpdatePostDTODep, cur_use
         )
 
 
-@app.post("/posts/{post_id}/approve", name="approve-post", status_code=HTTP_204_NO_CONTENT)
-async def _approve_post(post: PostDep, cur_user: CurUserDep) -> None:
-    await approve_post(
-        post=post,
-        user=cur_user
-    )
+@app.post("/posts/{post_id}/status", name="update-post-status", response_class=JSONResponse)
+async def _update_post_status(post: PostDep, update_post_status_dto: UpdatePostStatusDTODep,
+                              cur_user: CurUserDep, request: Request) -> str:
+    await update_post_status(post, update_post_status_dto, cur_user)
+    return get_url(request, "view-post", post_id=post.id)
 
 
 @app.get("/contacts", name="view-contacts", response_class=HTMLResponse)
