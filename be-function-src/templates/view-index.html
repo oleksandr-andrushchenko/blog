@@ -12,7 +12,7 @@
             <img src="{{ static_url('pikachu.webp') }}" alt="test" class="w-50"/>
             <div>
                 <h2>Latest posts</h2>
-                {% if posts_query %}
+                {% if posts %}
                     <div id="posts">
                         {% include "fragments/posts.html" %}
                     </div>
