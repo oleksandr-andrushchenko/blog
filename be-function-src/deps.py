@@ -118,7 +118,7 @@ UpdateUserDTODep = Annotated[UpdateUserDTO, Depends(get_update_user_dto)]
 
 def get_update_post_dto(
         update_post_dto: UpdatePostDTO = Body(...)
-) -> UpdateUserDTO:
+) -> UpdatePostDTO:
     return update_post_dto
 
 
