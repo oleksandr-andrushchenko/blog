@@ -53,7 +53,7 @@ class UserStatus(str, Enum):
 
 class User(BaseModel):
     id: str
-    owner_id: str
+    owner_id: Optional[str] = None
     email: Optional[str] = None
     avatar_filename: Optional[str] = None
     name: Optional[str] = None
@@ -880,6 +880,7 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
         transact_items = []
 
         # 3: Ensure user record exists
+        # todo: fix bug here, it rewrites existing object!
         user_item = {
             "pk": f"USER#{user_id}",
             "sk": 0,
@@ -1123,7 +1124,7 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
             "slug": slug,
             "user_id": user.id,
             "content": post_dto.content,
-            "tags": list(dict.fromkeys(post_dto.tags)),
+            "tags": post_dto.tags,
             "rating_sk": compute_rating_sk(0, now),
             "status": status,
             "created_at_sk": now,
@@ -1156,7 +1157,7 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
             await dynamodb_transact_write(table, transact_items)
         except DynamoDBTransactionError as e:
             if e.is_conditional():
-                raise SlugDuplicationError("Duplicate slug")
+                raise SlugDuplicationError(field="title")
             raise
 
         return post_from_dynamodb(post_item)
@@ -1217,7 +1218,7 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
             await dynamodb_transact_write(table, transact_items)
         except DynamoDBTransactionError as e:
             if e.is_conditional():
-                raise SlugDuplicationError("Duplicate slug")
+                raise SlugDuplicationError(field="title")
             raise
 
         for key, value in changes.items():
@@ -1264,6 +1265,8 @@ def user_from_dynamodb(d_item: Dict[str, Any]) -> User:
         address=d_item.get("address"),
         about=d_item.get("about"),
         providers=d_item.get("providers", {}),
+        permissions=d_item.get("permissions", [Permission.REGULAR]),
+        status=d_item.get("status", UserStatus.ACTIVE),
         created_at=d_item["created_at_sk"],
         updated_at=d_item.get("updated_at")
     )
@@ -1485,7 +1488,7 @@ async def get_latest_published_posts_by_tags(query_dto: PostQueryDTO = None) -> 
             query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
         resp = await table.query(**query_args)
         combo_items = resp.get("Items", [])
-        logger.debug(combo_items)
+        # logger.debug(combo_items)
         if not combo_items:
             return []
 
