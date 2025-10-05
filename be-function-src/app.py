@@ -125,7 +125,7 @@ async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request
     except SlugDuplicationError as e:
         raise HTTPException(
             status_code=HTTP_409_CONFLICT,
-            detail={"title": str(e)}
+            detail=e.to_dict()
         )
 
 
@@ -171,7 +171,7 @@ async def _update_post(post: PostDep, update_post_dto: UpdatePostDTODep, cur_use
     except SlugDuplicationError as e:
         raise HTTPException(
             status_code=HTTP_409_CONFLICT,
-            detail={"title": str(e)}
+            detail=e.to_dict()
         )
 
 

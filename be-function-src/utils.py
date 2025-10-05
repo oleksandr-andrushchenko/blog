@@ -229,7 +229,15 @@ class Permission(str, Enum):
 
 
 class BaseError(Exception):
-    pass
+    def __init__(self, message: str = "An error occurred", field: str = None):
+        self.message = message
+        self.field = field
+        super().__init__(self.message)
+
+    def to_dict(self):
+        if self.field:
+            return {self.field: self.message}
+        return {"error": self.message}
 
 
 class InvalidTokenError(BaseError):
@@ -254,7 +262,8 @@ class DynamoDBTransactionError(BaseError):
 
 
 class SlugDuplicationError(BaseError):
-    pass
+    def __init__(self, message: str = "Slug already exists", field: str = "title"):
+        super().__init__(message=message, field=field)
 
 
 class PostNotFoundError(BaseError):
@@ -266,9 +275,9 @@ class UserNotFoundError(BaseError):
 
 
 class AuthorizationFailedError(BaseError):
-    def __init__(self, permission: str):
+    def __init__(self, permission: str, message: str = None):
         self.permission = permission
-        super().__init__(f"User lacks required permission: {permission}")
+        super().__init__(message=message if message else f"User lacks required permission: {permission}")
 
 
 def get_live_config(load_env=False):
