@@ -872,7 +872,7 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
         # 4: Ensure provider record exists
         provider_user_item = {
             "pk": f"PROVIDER_USER#{token.iss}#{token.sub}",
-            "sk": now,
+            "sk": 0,
             "user_id": user_id,
             "email": token.email,
             "created_at_sk": now,
