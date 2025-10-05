@@ -141,16 +141,16 @@ async def get_error_response(request: Request, status_code: int, details: Union[
             content=public_data
         )
 
-    cur_user = None
-    if status_code != HTTP_401_UNAUTHORIZED:
-        try:
-            cur_user = await get_cur_user(request)
-        except HTTPException:
-            pass
+    # cur_user = None
+    # if status_code != HTTP_401_UNAUTHORIZED:
+    #     try:
+    #         cur_user = await get_cur_user(request)
+    #     except HTTPException:
+    #         pass
 
     content = get_html_content("error.html", {
         **public_data,
-        "cur_user": cur_user
+        # "cur_user": cur_user
     })
 
     return HTMLResponse(
