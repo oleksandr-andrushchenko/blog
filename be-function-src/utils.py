@@ -12,7 +12,7 @@ from urllib.parse import quote
 from jose import jwt
 from jose.exceptions import JWTError
 import base64
-from typing import Callable, Optional, Dict, Any, Union, List, Awaitable, Tuple, ClassVar, Set, Literal
+from typing import Callable, Optional, Dict, Any, Union, List, Awaitable, Tuple, ClassVar, Set, Literal, TypeVar
 from starlette.datastructures import State
 from starlette.status import HTTP_200_OK
 from jinja2 import Environment, FileSystemLoader, pass_context
@@ -1428,29 +1428,52 @@ async def get_published_posts(query_dto: PostQueryDTO = None) -> List[Post]:
     return await get_latest_published_posts(query_dto)
 
 
+T = TypeVar("T")
+
+
+async def query_dynamodb_items(
+        query_dto: BaseQueryDTO,
+        index_name: str,
+        key_condition_expr: Any,
+        map_fn: Callable[[dict], T],
+) -> List[T]:
+    """Generic DynamoDB query executor with pagination and mapping."""
+
+    async def fn(table):
+        query_args = {
+            "IndexName": index_name,
+            "KeyConditionExpression": key_condition_expr,
+            "ScanIndexForward": False,
+            "Limit": query_dto.limit,
+        }
+
+        if query_dto.offset:
+            query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
+
+        resp = await table.query(**query_args)
+        items = resp.get("Items", [])
+        results = [map_fn(item) for item in items]
+
+        # Handle pagination
+        if len(results) == query_dto.limit:
+            results[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
+
+        return results
+
+    return await with_dynamodb_table(fn)
+
+
 async def get_latest_published_posts(query_dto: PostQueryDTO = None) -> List[Post]:
     if query_dto is None:
         query_dto = PostQueryDTO()
     status = PostStatus.PUBLISHED
 
-    async def fn(table):
-        query_args = {
-            "IndexName": "POSTS_BY_STATUS_CREATED_AT",
-            "KeyConditionExpression": Key("post_status_pk").eq(f"POST#STATUS#{status.value}"),
-            "ScanIndexForward": False,
-            "Limit": query_dto.limit,
-        }
-        if query_dto.offset:
-            query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
-        resp = await table.query(**query_args)
-        items = resp.get("Items", [])
-        # logger.debug(json.dumps(items,indent=4))
-        posts = [post_from_dynamodb(item) for item in items]
-        if len(posts) == query_dto.limit:
-            posts[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
-        return posts
-
-    return await with_dynamodb_table(fn)
+    return await query_dynamodb_items(
+        query_dto=query_dto,
+        index_name="POSTS_BY_STATUS_CREATED_AT",
+        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{status.value}"),
+        map_fn=post_from_dynamodb,
+    )
 
 
 async def get_popular_published_posts(query_dto: PostQueryDTO = None) -> List[Post]:
@@ -1458,24 +1481,12 @@ async def get_popular_published_posts(query_dto: PostQueryDTO = None) -> List[Po
         query_dto = PostQueryDTO()
     status = PostStatus.PUBLISHED
 
-    async def fn(table):
-        query_args = {
-            "IndexName": "POSTS_BY_STATUS_RATING",
-            "KeyConditionExpression": Key("post_status_pk").eq(f"POST#STATUS#{status.value}"),
-            "ScanIndexForward": False,
-            "Limit": query_dto.limit,
-        }
-        if query_dto.offset:
-            query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
-        resp = await table.query(**query_args)
-        items = resp.get("Items", [])
-        # logger.debug(json.dumps(items,indent=4))
-        posts = [post_from_dynamodb(item) for item in items]
-        if len(posts) == query_dto.limit:
-            posts[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
-        return posts
-
-    return await with_dynamodb_table(fn)
+    return await query_dynamodb_items(
+        query_dto=query_dto,
+        index_name="POSTS_BY_STATUS_RATING",
+        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{status.value}"),
+        map_fn=post_from_dynamodb,
+    )
 
 
 async def get_latest_published_posts_by_tags(query_dto: PostQueryDTO = None) -> List[Post]:
@@ -1642,25 +1653,12 @@ async def get_popular_post_tags(query_dto: TagQueryDTO = None) -> List[Tag]:
     if query_dto is None:
         query_dto = TagQueryDTO()
 
-    async def fn(table):
-        query_args = {
-            "IndexName": "TAGS_BY_TYPE_RATING",
-            "KeyConditionExpression": Key("tag_type_pk").eq("POST_TAG"),
-            "ScanIndexForward": False,
-            "Limit": query_dto.limit,
-        }
-        if query_dto.offset:
-            query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
-        resp = await table.query(**query_args)
-        items = resp.get("Items", [])
-        # logger.debug(items)
-        # logger.debug(json.dumps(items, indent=4))
-        tags = [tag_from_dynamodb(item) for item in items]
-        if len(tags) == query_dto.limit:
-            tags[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
-        return tags
-
-    return await with_dynamodb_table(fn)
+    return await query_dynamodb_items(
+        query_dto=query_dto,
+        index_name="TAGS_BY_TYPE_RATING",
+        key_condition_expr=Key("tag_type_pk").eq("POST_TAG"),
+        map_fn=tag_from_dynamodb,
+    )
 
 
 async def get_post_tags_by_prefix(query_dto: TagQueryDTO = None) -> List[Tag]:
@@ -1805,24 +1803,12 @@ async def get_latest_active_users(query_dto: UserQueryDTO = None) -> List[User]:
         query_dto = UserQueryDTO()
     status = UserStatus.ACTIVE
 
-    async def fn(table):
-        query_args = {
-            "IndexName": "USERS_BY_STATUS_CREATED_AT",
-            "KeyConditionExpression": Key("user_status_pk").eq(f"USER#STATUS#{status.value}"),
-            "ScanIndexForward": False,
-            "Limit": query_dto.limit,
-        }
-        if query_dto.offset:
-            query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
-        resp = await table.query(**query_args)
-        items = resp.get("Items", [])
-        # logger.debug(f"Latest users: {json.dumps(items, indent=4)}")
-        users = [user_from_dynamodb(item) for item in items]
-        if len(users) == query_dto.limit:
-            users[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
-        return users
-
-    return await with_dynamodb_table(fn)
+    return await query_dynamodb_items(
+        query_dto=query_dto,
+        index_name="USERS_BY_STATUS_CREATED_AT",
+        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{status.value}"),
+        map_fn=user_from_dynamodb,
+    )
 
 
 def unix_to_month_year(timestamp: int, tz: str | None = None) -> str:
@@ -1852,46 +1838,22 @@ async def get_latest_published_posts_by_user(user: User, query_dto: PostQueryDTO
         query_dto = PostQueryDTO()
     status = PostStatus.PUBLISHED
 
-    async def fn(table):
-        query_args = {
-            "IndexName": "POSTS_BY_USER_STATUS_CREATED_AT",
-            "KeyConditionExpression": Key("post_user_status_pk").eq(f"POST#USER#{user.id}#STATUS#{status.value}"),
-            "ScanIndexForward": False,
-            "Limit": query_dto.limit,
-        }
-        if query_dto.offset:
-            query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
-        resp = await table.query(**query_args)
-        items = resp.get("Items", [])
-        posts = [post_from_dynamodb(item) for item in items]
-        if len(posts) == query_dto.limit:
-            posts[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
-        return posts
-
-    return await with_dynamodb_table(fn)
+    return await query_dynamodb_items(
+        query_dto=query_dto,
+        index_name="POSTS_BY_USER_STATUS_CREATED_AT",
+        key_condition_expr=Key("post_user_status_pk").eq(f"POST#USER#{user.id}#STATUS#{status.value}"),
+        map_fn=post_from_dynamodb,
+    )
 
 
-# todo: complete
 async def get_popular_active_users(query_dto: UserQueryDTO = None) -> List[User]:
     if query_dto is None:
         query_dto = UserQueryDTO()
     status = UserStatus.ACTIVE
 
-    async def fn(table):
-        query_args = {
-            "IndexName": "USERS_BY_STATUS_RATING",
-            "KeyConditionExpression": Key("user_status_pk").eq(f"USER#STATUS#{status.value}"),
-            "ScanIndexForward": False,
-            "Limit": query_dto.limit,
-        }
-        if query_dto.offset:
-            query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
-        resp = await table.query(**query_args)
-        items = resp.get("Items", [])
-        # logger.debug(json.dumps(items,indent=4))
-        posts = [user_from_dynamodb(item) for item in items]
-        if len(posts) == query_dto.limit:
-            posts[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
-        return posts
-
-    return await with_dynamodb_table(fn)
+    return await query_dynamodb_items(
+        query_dto=query_dto,
+        index_name="USERS_BY_STATUS_RATING",
+        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{status.value}"),
+        map_fn=user_from_dynamodb,
+    )
