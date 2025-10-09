@@ -12,7 +12,7 @@
                 </a>
                 <div class="card-text">
                     {% if user.headline %}
-                        <h4 class="h5">{{ user.headline }}</h4>
+                        <h4 class="h5 mb-0">{{ user.headline }}</h4>
                     {% endif %}
                     <small class="text-body-secondary">
                         Joined: {{ (user.created_at / 1000) | unix_to_full_date() }}

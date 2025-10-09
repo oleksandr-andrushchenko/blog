@@ -17,10 +17,10 @@
         <div class="col col-10">
             <h1 class="m-0">{{ user.name }}</h1>
 
-            {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
-                <a href="{{ url("edit-user", user_id=user.id) }}" class="btn btn-light btn-sm">
-                    <i class="bi bi-pencil-square"></i> Edit profile
-                </a>
+            {% if user.username %}
+                <div>
+                    @{{ user.username }}
+                </div>
             {% endif %}
 
             {% if user.headline %}
@@ -59,13 +59,19 @@
             <div class="small text-secondary">
                 Joined: {{ (user.created_at / 1000) | unix_to_full_date() }}
             </div>
+
+            {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
+                <a href="{{ url("edit-user", user_id=user.id) }}" class="btn btn-light btn-sm">
+                    <i class="bi bi-pencil-square"></i> Edit profile
+                </a>
+            {% endif %}
         </div>
     </div>
 
     {% if user.about %}
         <section>
             <h2 class="mb-2 text-center mb-sm-2 mb-md-2 mb-lg-2 text-lg-start mb-xl-3 mb-xxl-3">
-                <i class="bi bi-info-circle-fill"></i> About Me
+                <i class="bi bi-info-circle-fill"></i> About
             </h2>
             <div class="card text-bg-light">
                 <div class="card-body">
