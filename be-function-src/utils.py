@@ -1542,7 +1542,7 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
         post_item = {
             **changes,
             "post_status_pk": f"POST#STATUS#{status.value}",
-            "post_user_status_pk": f"# POST#USER#{post.user_id}#STATUS#{status.value}",
+            "post_user_status_pk": f"POST#USER#{post.user_id}#STATUS#{status.value}",
         }
         transact_items.append(build_dynamodb_update_item_params(table, post_key, post_item))
 
