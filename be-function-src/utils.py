@@ -189,7 +189,7 @@ class TagQueryDTO(BaseQueryDTO):
 
 class Tag(BaseModel):
     name: str
-    rating: int = Field(default_factory=int)
+    rating: int
     offset: Optional[str] = None
 
 
@@ -228,7 +228,7 @@ class Post(BaseModel):
     tags: List[str]
     status: PostStatus = PostStatus.UNPUBLISHED
     comment: Optional[str] = None
-    rating: int = Field(default_factory=int)
+    rating: int
     created_at: int
     updated_at: Optional[int] = None
     offset: Optional[str] = None
@@ -1085,7 +1085,7 @@ def post_from_dynamodb(d_item: Dict[str, Any]) -> Post:
         tags=d_item.get("tags", []),
         status=d_item["status"],
         comment=d_item.get("comment"),
-        rating=int(d_item.get("rating_sk", 0)),
+        rating=d_item["rating_sk"],
         created_at=d_item["created_at_sk"],
         updated_at=d_item.get("updated_at"),
     )
@@ -1631,7 +1631,7 @@ def tag_from_dynamodb(d_item: Dict[str, Any]) -> Tag:
     # logger.debug(d_item)
     return Tag(
         name=d_item["tag_name_sk"],
-        rating=int(d_item.get("rating_sk", 0)),
+        rating=d_item["rating_sk"],
     )
 
 
