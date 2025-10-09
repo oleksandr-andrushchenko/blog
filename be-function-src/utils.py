@@ -1091,8 +1091,8 @@ def post_from_dynamodb(d_item: Dict[str, Any]) -> Post:
     )
 
 
-def compute_rating_sk(rating: int, created_at: int) -> int:
-    return rating * 1_000_000_000 + created_at
+def compute_rating_sk(rating: int, created_at: int = 0) -> int:
+    return rating * 10_000_000_000_000 + created_at
 
 
 async def create_post(post_dto: PostDTO, user: User) -> Post:
@@ -1607,7 +1607,7 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
                             ":tag_type_pk": "POST_TAG",
                             ":now": now,
                             ":def_rating_sk": compute_rating_sk(0, now),
-                            ":rating_sk_inc": compute_rating_sk(1, now)
+                            ":rating_sk_inc": compute_rating_sk(1)
                         }
                     }
                 })
