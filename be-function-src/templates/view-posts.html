@@ -24,20 +24,23 @@
             <input type="hidden" name="popular" value="1">
         {% endif %}
         <div class="d-flex justify-content-start align-items-center gap-1">
+            <a href="{{ url("view-posts", **posts_query.get_dict({"popular": None if posts_query.popular else 1})) }}"
+               class="btn btn-light {% if posts_query.popular %}active{% endif %}">
+                <i class="bi bi-star"></i> {{ popular_title }}
+            </a>
             <div>Search by:</div>
             {% with url=url("get-post-tags"),
                 value=posts_query.tags,
                 class_name="w-50",
-                auto_submit=True,
+                auto_submit=False,
                 inject_hidden=True %}
                 {% include "fragments/tags-input.html" %}
             {% endwith %}
-            <a href="{{ url("view-posts", **posts_query.get_dict({"popular": None if posts_query.popular else 1})) }}"
-               class="btn btn-light btn-sm {% if posts_query.popular %}active{% endif %}">
-                <i class="bi bi-star-fill"></i> {{ popular_title }} first
-            </a>
+            <button class="btn btn-light" type="submit">
+                <i class="bi bi-search"></i> Search
+            </button>
             {% if posts_query.has_params() %}
-                <a href="{{ url("view-posts") }}" class="btn btn-light btn-sm">
+                <a href="{{ url("view-posts") }}" class="btn btn-light">
                     <i class="bi bi-x-lg"></i> Reset
                 </a>
             {% endif %}
