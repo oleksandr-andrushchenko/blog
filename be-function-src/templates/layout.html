@@ -96,6 +96,9 @@
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url("view-user", user_id=cur_user.id) }}">
                                 <i class="bi bi-person-circle"></i> {{ cur_user.name }}
+                                {% if check_auth(cur_user, Permission.ROOT) %}
+                                    <span class="badge text-bg-success">root</span>
+                                {% endif %}
                             </a>
                         </li>
                         <li class="nav-item">
