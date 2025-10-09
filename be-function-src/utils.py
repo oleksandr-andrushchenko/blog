@@ -68,6 +68,7 @@ class User(BaseModel):
     published_post_count: Optional[int] = None
     unpublished_post_count: Optional[int] = None
     rejected_post_count: Optional[int] = None
+    rating: int
     created_at: int
     updated_at: Optional[int] = None
     offset: Optional[str] = None
@@ -894,6 +895,7 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
                 "username": token.username,
                 "providers": providers,
                 "status": status,
+                "rating_sk": compute_rating_sk(0, now),
                 "created_at_sk": now,
                 "user_status_pk": f"USER#STATUS#{status.value}",
             }
@@ -1238,6 +1240,7 @@ def user_from_dynamodb(d_item: Dict[str, Any]) -> User:
         published_post_count=d_item.get("published_post_count", 0),
         unpublished_post_count=d_item.get("unpublished_post_count", 0),
         rejected_post_count=d_item.get("rejected_post_count", 0),
+        rating=d_item["rating_sk"],
         created_at=d_item["created_at_sk"],
         updated_at=d_item.get("updated_at")
     )
@@ -1875,6 +1878,20 @@ async def get_popular_active_users(query_dto: UserQueryDTO = None) -> List[User]
     status = UserStatus.ACTIVE
 
     async def fn(table):
-        return []
+        query_args = {
+            "IndexName": "USERS_BY_STATUS_RATING",
+            "KeyConditionExpression": Key("user_status_pk").eq(f"USER#STATUS#{status.value}"),
+            "ScanIndexForward": False,
+            "Limit": query_dto.limit,
+        }
+        if query_dto.offset:
+            query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
+        resp = await table.query(**query_args)
+        items = resp.get("Items", [])
+        # logger.debug(json.dumps(items,indent=4))
+        posts = [user_from_dynamodb(item) for item in items]
+        if len(posts) == query_dto.limit:
+            posts[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
+        return posts
 
     return await with_dynamodb_table(fn)

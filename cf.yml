@@ -108,6 +108,14 @@ Resources:
               KeyType: HASH
           Projection:
             ProjectionType: ALL
+        - IndexName: USERS_BY_STATUS_RATING # get_popular_active_users
+          KeySchema:
+            - AttributeName: user_status_pk # e.g. "USER#STATUS#active"
+              KeyType: HASH
+            - AttributeName: rating_sk # e.g. 10000001759086095241
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
         - IndexName: POSTS_BY_STATUS_CREATED_AT # get_latest_published_posts
           KeySchema:
             - AttributeName: post_status_pk # e.g. "POST#STATUS#published"

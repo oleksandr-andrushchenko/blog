@@ -12,6 +12,22 @@
     }
   },
   {
+    "IndexName": "USERS_BY_STATUS_RATING",
+    "KeySchema": [
+      {
+        "AttributeName": "user_status_pk",
+        "KeyType": "HASH"
+      },
+      {
+        "AttributeName": "rating_sk",
+        "KeyType": "RANGE"
+      }
+    ],
+    "Projection": {
+      "ProjectionType": "ALL"
+    }
+  },
+  {
     "IndexName": "POSTS_BY_STATUS_CREATED_AT",
     "KeySchema": [
       {
