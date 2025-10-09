@@ -865,33 +865,37 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
     async def fn(table):
         now = utc_now()
 
-        existing_user = await get_user_by_user_token(token)
-        if existing_user:
-            user_id = existing_user.id
-            providers = existing_user.providers
+        user = await get_user_by_user_token(token)
+        if user:
+            user_id = user.id
+            providers = user.providers
         else:
             user_id = str(uuid.uuid4())
             providers = {}
 
-        # 2: Merge or add provider info
         providers[token.iss] = {"sub": token.sub, "username": token.username, "name": token.name}
 
         transact_items = []
 
-        # todo: fix bug here, it rewrites existing object!
-        user_key = (f"USER#{user_id}", 0)
-        user_item = {
-            "id": user_id,
-            "user_email_pk": token.email,
-            "name": token.name,
-            "username": token.username,
-            "providers": providers,
-            "status": status,
-            "created_at_sk": now,
-            "updated_at": now,
-            "user_status_pk": f"USER#STATUS#{status.value}",
-        }
-        transact_items.append(build_dynamodb_put_item_params(table, user_key, user_item))
+        if user:
+            user_key = (f"USER#{user_id}", 0)
+            user_item = {"providers": providers}
+            transact_items.append(build_dynamodb_update_item_params(table, user_key, user_item))
+            user.providers = providers
+        else:
+            user_key = (f"USER#{user_id}", 0)
+            user_item = {
+                "id": user_id,
+                "user_email_pk": token.email,
+                "name": token.name,
+                "username": token.username,
+                "providers": providers,
+                "status": status,
+                "created_at_sk": now,
+                "user_status_pk": f"USER#STATUS#{status.value}",
+            }
+            transact_items.append(build_dynamodb_put_item_params(table, user_key, user_item))
+            user = user_from_dynamodb(user_item)
 
         provider_user_key = (f"PROVIDER_USER#{token.iss}#{token.sub}", 0)
         provider_user_item = {
@@ -904,7 +908,7 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
 
         await dynamodb_transact_write(table, transact_items)
 
-        return user_from_dynamodb(user_item)
+        return user
 
     return await with_dynamodb_table(fn)
 
