@@ -65,6 +65,9 @@ class User(BaseModel):
     providers: Dict[str, Dict[str, Optional[str]]] = Field(default_factory=dict)  # noqa
     permissions: List[str] = Field(default_factory=lambda: [Permission.REGULAR])  # noqa
     status: UserStatus = UserStatus.ACTIVE
+    published_post_count: Optional[int] = None
+    unpublished_post_count: Optional[int] = None
+    rejected_post_count: Optional[int] = None
     created_at: int
     updated_at: Optional[int] = None
     offset: Optional[str] = None
@@ -1119,6 +1122,13 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
         }
         transact_items.append(build_dynamodb_put_item_params(table, post_key, post_item, raise_on_existing_pk=True))
 
+        # User post counters
+        user_key = (f"USER#{user.id}", 0)
+        user_item = {
+            "unpublished_post_count": user.unpublished_post_count + 1,
+        }
+        transact_items.append(build_dynamodb_update_item_params(table, user_key, user_item))
+
         # Slug item for uniqueness
         slug_key = (f"POST_SLUG#{slug}", 0)
         slug_item = {
@@ -1225,6 +1235,9 @@ def user_from_dynamodb(d_item: Dict[str, Any]) -> User:
         providers=d_item.get("providers", {}),
         permissions=d_item.get("permissions", [Permission.REGULAR]),
         status=d_item.get("status", UserStatus.ACTIVE),
+        published_post_count=d_item.get("published_post_count", 0),
+        unpublished_post_count=d_item.get("unpublished_post_count", 0),
+        rejected_post_count=d_item.get("rejected_post_count", 0),
         created_at=d_item["created_at_sk"],
         updated_at=d_item.get("updated_at")
     )
@@ -1534,6 +1547,7 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
     if not changes:
         return
 
+    old_status = post.status
     status = PostStatus(changes.get("status"))
 
     async def fn(table):
@@ -1549,6 +1563,20 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
             "post_user_status_pk": f"POST#USER#{post.user_id}#STATUS#{status.value}",
         }
         transact_items.append(build_dynamodb_update_item_params(table, post_key, post_item))
+
+        # User post counters
+        owner = await find_user(post.user_id)
+        if owner:
+            user_key = (f"USER#{owner.id}", 0)
+            user_old_post_count_attr = f"{old_status.value}_post_count"
+            user_new_post_count_attr = f"{status.value}_post_count"
+            user_item = {
+                user_old_post_count_attr: max(0, getattr(owner, user_old_post_count_attr) - 1),
+                user_new_post_count_attr: getattr(owner, user_new_post_count_attr) + 1,
+            }
+            transact_items.append(build_dynamodb_update_item_params(table, user_key, user_item))
+            for key, value in user_item.items():
+                setattr(owner, key, value)
 
         if status == PostStatus.PUBLISHED:
             # Upsert tags
@@ -1815,6 +1843,8 @@ def unix_to_full_date(timestamp: int, tz: str | None = None) -> str:
 
 
 async def get_latest_published_posts_by_user(user: User, query_dto: PostQueryDTO = None) -> List[Post]:
+    if user.published_post_count == 0:
+        return []
     if query_dto is None:
         query_dto = PostQueryDTO()
     status = PostStatus.PUBLISHED
