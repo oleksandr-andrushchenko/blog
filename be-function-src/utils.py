@@ -1078,14 +1078,10 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
     add_dynamodb_put_transact(transacts, post_key, post_item, raise_on_existing_pk=True)
 
     # User post counters
-    # todo: replace with increments
-    add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), {
-        "unpublished_posts_count": user.unpublished_posts_count + 1
-    })
+    add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), deltas={"unpublished_posts_count": +1})
 
     # Slug item for uniqueness
-    add_dynamodb_put_transact(transacts, (f"POST_SLUG#{slug}", "META"), {"post_id": post_id},
-                              raise_on_existing_pk=True)
+    add_dynamodb_put_transact(transacts, (f"POST_SLUG#{slug}", "META"), {"post_id": post_id}, raise_on_existing_pk=True)
 
     try:
         await dynamodb_transact_write(transacts)
@@ -1540,15 +1536,13 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
     # User post counters
     owner = await find_user(post.user_id)
     if owner:
-        user_old_posts_count_attr = f"{old_status.value}_posts_count"
-        user_new_posts_count_attr = f"{status.value}_posts_count"
-        user_item = {
-            user_old_posts_count_attr: max(0, getattr(owner, user_old_posts_count_attr) - 1),
-            user_new_posts_count_attr: getattr(owner, user_new_posts_count_attr) + 1,
+        deltas = {
+            f"{old_status.value}_posts_count": -1,
+            f"{status.value}_posts_count": +1,
         }
-        add_dynamodb_update_transact(transacts, (f"USER#{owner.id}", "META"), user_item)
-        for key, value in user_item.items():
-            setattr(owner, key, value)
+        add_dynamodb_update_transact(transacts, (f"USER#{owner.id}", "META"), deltas=deltas)
+        for key, delta in deltas.items():
+            setattr(owner, key, getattr(owner, key) + delta)
 
     if status == PostStatus.PUBLISHED:
         # Upsert tags
