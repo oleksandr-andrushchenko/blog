@@ -822,7 +822,7 @@ async def get_user_by_user_token(token: UserToken) -> Optional[User]:
             resp = await table.get_item(
                 Key={
                     "pk": f"PROVIDER_USER#{token.iss}#{token.sub}",
-                    "sk": 0
+                    "sk": "META"
                 }
             )
             provider_user_item = resp.get("Item")
@@ -833,7 +833,7 @@ async def get_user_by_user_token(token: UserToken) -> Optional[User]:
                 resp = await table.get_item(
                     Key={
                         "pk": f"USER#{user_id}",
-                        "sk": 0
+                        "sk": "META"
                     }
                 )
                 user_item = resp.get("Item")
@@ -882,12 +882,12 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
         transact_items = []
 
         if user:
-            user_key = (f"USER#{user_id}", 0)
+            user_key = (f"USER#{user_id}", "META")
             user_item = {"providers": providers}
             transact_items.append(build_dynamodb_update_item_params(table, user_key, user_item))
             user.providers = providers
         else:
-            user_key = (f"USER#{user_id}", 0)
+            user_key = (f"USER#{user_id}", "META")
             user_item = {
                 "id": user_id,
                 "user_email_pk": token.email,
@@ -902,7 +902,7 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
             transact_items.append(build_dynamodb_put_item_params(table, user_key, user_item))
             user = user_from_dynamodb(user_item)
 
-        provider_user_key = (f"PROVIDER_USER#{token.iss}#{token.sub}", 0)
+        provider_user_key = (f"PROVIDER_USER#{token.iss}#{token.sub}", "META")
         provider_user_item = {
             "user_id": user_id,
             "email": token.email,
@@ -968,7 +968,7 @@ async def create_dummy_fixtures() -> None:
         return
     user_token = get_dummy_user_token()
     root_user = await upsert_user_by_user_token(user_token)
-    await update_dynamodb_item((f"USER#{root_user.id}", 0), {"permissions": [Permission.ROOT]})
+    await update_dynamodb_item((f"USER#{root_user.id}", "META"), {"permissions": [Permission.ROOT]})
     root_user.permissions = [Permission.ROOT]
     update_user_dto = UpdateUserDTO(
         name="John Doe",
@@ -1108,7 +1108,7 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
 
         transact_items = []
 
-        post_key = (f"POST#{post_id}", 0)
+        post_key = (f"POST#{post_id}", "META")
         post_item = {
             "id": post_id,
             "title": post_dto.title,
@@ -1125,14 +1125,14 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
         transact_items.append(build_dynamodb_put_item_params(table, post_key, post_item, raise_on_existing_pk=True))
 
         # User post counters
-        user_key = (f"USER#{user.id}", 0)
+        user_key = (f"USER#{user.id}", "META")
         user_item = {
             "unpublished_post_count": user.unpublished_post_count + 1,
         }
         transact_items.append(build_dynamodb_update_item_params(table, user_key, user_item))
 
         # Slug item for uniqueness
-        slug_key = (f"POST_SLUG#{slug}", 0)
+        slug_key = (f"POST_SLUG#{slug}", "META")
         slug_item = {
             "post_id": post_id,
         }
@@ -1170,18 +1170,18 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
 
             if old_slug != new_slug:
                 # Delete old slug mapping
-                old_slug_key = (f"POST_SLUG#{old_slug}", 0)
+                old_slug_key = (f"POST_SLUG#{old_slug}", "META")
                 transact_items.append(build_dynamodb_delete_item_params(table, old_slug_key))
 
                 # Insert new slug mapping
                 # todo: make universal slug (for users, for posts for tags, etc.: SLUG#{slug})
-                new_slug_key = (f"POST_SLUG#{new_slug}", 0)
+                new_slug_key = (f"POST_SLUG#{new_slug}", "META")
                 slug_item = {"post_id": post.id}
                 transact_items.append(
                     build_dynamodb_put_item_params(table, new_slug_key, slug_item, raise_on_existing_pk=True))
                 changes["slug"] = new_slug
 
-        post_key = (f"POST#{post.id}", 0)
+        post_key = (f"POST#{post.id}", "META")
         transact_items.append(build_dynamodb_update_item_params(table, post_key, changes))
 
         try:
@@ -1202,7 +1202,7 @@ async def find_post(post_id: str) -> Optional[Post]:
         resp = await table.get_item(
             Key={
                 "pk": f"POST#{post_id}",
-                "sk": 0
+                "sk": "META"
             }
         )
         item = resp.get("Item")
@@ -1251,19 +1251,19 @@ async def find_user(user_id: str) -> Optional[User]:
         resp = await table.get_item(
             Key={
                 "pk": f"USER#{user_id}",
-                "sk": 0
+                "sk": "META"
             }
         )
         item = resp.get("Item")
         if not item:
             return None
-        # logger.debug(f"User: {item}")
+        # logger.debug(f"User: {item}")"META"
         return user_from_dynamodb(item)
 
     return await with_dynamodb_table(fn)
 
 
-def build_dynamodb_put_item_params(table, key: Tuple[str, int], values: Dict[str, Any],
+def build_dynamodb_put_item_params(table, key: Tuple[str, str], values: Dict[str, Any],
                                    raise_on_existing_pk: bool = False) -> Dict[str, Any]:
     pk, sk = key
     params = {
@@ -1281,7 +1281,7 @@ def build_dynamodb_put_item_params(table, key: Tuple[str, int], values: Dict[str
     }
 
 
-def build_dynamodb_update_item_params(table, key: Tuple[str, int], changes: Dict[str, Any]) -> Dict[str, Any]:
+def build_dynamodb_update_item_params(table, key: Tuple[str, str], changes: Dict[str, Any]) -> Dict[str, Any]:
     now = utc_now()
 
     set_parts = []
@@ -1330,7 +1330,7 @@ def build_dynamodb_update_item_params(table, key: Tuple[str, int], changes: Dict
     }
 
 
-def build_dynamodb_delete_item_params(table, key: Tuple[str, int]) -> Dict[str, Any]:
+def build_dynamodb_delete_item_params(table, key: Tuple[str, str]) -> Dict[str, Any]:
     pk, sk = key
 
     return {
@@ -1344,7 +1344,7 @@ def build_dynamodb_delete_item_params(table, key: Tuple[str, int]) -> Dict[str, 
     }
 
 
-async def update_dynamodb_item(key: Tuple[str, int], updates: Dict[str, Any]) -> None:
+async def update_dynamodb_item(key: Tuple[str, str], updates: Dict[str, Any]) -> None:
     async def fn(table):
         update_item_params = build_dynamodb_update_item_params(table, key, updates)
         res = await table.update_item(**update_item_params["Update"])
@@ -1374,7 +1374,7 @@ async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User
 
     old_avatar = user.avatar_filename
 
-    await update_dynamodb_item((f"USER#{user.id}", 0), changes)
+    await update_dynamodb_item((f"USER#{user.id}", "META"), changes)
 
     if old_avatar and avatar_action in {"delete", "replace"}:
         await drop_public_file(old_avatar)
@@ -1511,7 +1511,7 @@ async def get_latest_published_posts_by_tags(query_dto: PostQueryDTO = None) -> 
 
         # Batch get post metadata
         post_ids = [item["post_id"] for item in combo_items]
-        keys = [{"pk": f"POST#{post_id}", "sk": 0} for post_id in post_ids]
+        keys = [{"pk": f"POST#{post_id}", "sk": "META"} for post_id in post_ids]
         resp = await table.meta.client.batch_get_item(RequestItems={table.name: {"Keys": keys}})
         post_items = resp["Responses"].get(table.name, [])
 
@@ -1570,7 +1570,7 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
         transact_items = []
 
         # Update post
-        post_key = (f"POST#{post.id}", 0)
+        post_key = (f"POST#{post.id}", "META")
         post_item = {
             **changes,
             "post_status_pk": f"POST#STATUS#{status.value}",
@@ -1581,7 +1581,7 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
         # User post counters
         owner = await find_user(post.user_id)
         if owner:
-            user_key = (f"USER#{owner.id}", 0)
+            user_key = (f"USER#{owner.id}", "META")
             user_old_post_count_attr = f"{old_status.value}_post_count"
             user_new_post_count_attr = f"{status.value}_post_count"
             user_item = {
@@ -1600,7 +1600,7 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
                         "TableName": table.name,
                         "Key": {
                             "pk": f"POST_TAG#{tag}",
-                            "sk": 0
+                            "sk": "META"
                         },
                         "UpdateExpression": (
                             "SET #new_tag_name_sk = if_not_exists(#new_tag_name_sk, :tag_name_sk), "
@@ -1629,7 +1629,7 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
             # Create post tag combos
             for r in range(1, len(post.tags) + 1):
                 for combo in combinations(sorted(post.tags), r):
-                    combo_key = ("POST_TAG_COMBO#" + "#".join(combo), now)
+                    combo_key = ("POST_TAG_COMBO#" + "#".join(combo), str(now))
                     combo_item = {"post_id": post.id}
                     transact_items.append(build_dynamodb_put_item_params(table, combo_key, combo_item))
 
@@ -1710,7 +1710,7 @@ async def create_contact_message(message_dto: ContactMessageDTO, user: User = No
 
         message_item = {
             "pk": f"CONTACT_MESSAGE#{message_id}",
-            "sk": 0,
+            "sk": "META",
             "message_id": message_id,
             "name": message_dto.name,
             "email": message_dto.email,
