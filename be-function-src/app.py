@@ -100,7 +100,7 @@ async def view_index(cur_user: OptCurUserDep) -> str:
     posts_query = PostQueryDTO()
     return get_html_content("view-index.html", {
         "cur_user": cur_user,
-        "popular_tags": await get_popular_post_tags(),
+        "popular_post_tags": await get_popular_post_tags(),
         "posts_query": posts_query,
         "posts": await get_published_posts(posts_query),
         "popular_posts": await get_popular_published_posts(),
@@ -153,7 +153,7 @@ async def view_post(post: PostDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("view-post.html", {
         "cur_user": cur_user,
         "post": post,
-        "author": await find_user(post.user_id),
+        "post_author": await find_user(post.user_id),
         "post_impression": await find_post_impression(post, cur_user) if cur_user else None
     })
 

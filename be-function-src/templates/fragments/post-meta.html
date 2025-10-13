@@ -1,6 +1,6 @@
 <div class="d-flex gap-2 align-items-center">
-    {% if author %}
-        {% with user=author %}
+    {% if post_author %}
+        {% with user=post_author %}
             {% include "fragments/user-inline.html" %}
         {% endwith %}
     {% endif %}

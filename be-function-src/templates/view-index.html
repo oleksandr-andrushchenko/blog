@@ -46,9 +46,9 @@
             </div>
 
             <div>
-                <h2>Popular tags</h2>
-                {% if popular_tags %}
-                    {% for tag in popular_tags %}
+                <h2>Popular post tags</h2>
+                {% if popular_post_tags %}
+                    {% for tag in popular_post_tags %}
                         <a href="{{ url("view-posts", tags=tag.name) }}" class="btn btn-light btn-sm">
                             {{ tag.name }}
                         </a>
