@@ -688,7 +688,7 @@ def get_aioboto3_session():
         "aws_secret_access_key": "dummy",
         "region_name": get_aws_region(),
     }
-    logger.log("Boto3 session loading")
+    logger.debug("Boto3 session loading")
     return aioboto3.Session(**args)
 
 
@@ -719,7 +719,7 @@ async def get_dynamodb_table():
         session = aioboto3_session()
         async with session.resource("dynamodb", **get_dynamodb_resource_kwargs()) as dynamodb:
             dynamodb_table = await dynamodb.Table(get_dynamodb_table_name())
-            logger.log("DynamoDB table resource loading")
+            logger.debug("DynamoDB table resource loading")
     return dynamodb_table
 
 
