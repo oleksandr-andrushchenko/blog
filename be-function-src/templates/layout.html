@@ -151,7 +151,16 @@
 <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
 <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.polyfills.min.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css" rel="stylesheet" type="text/css"/>
+<!--jquery-->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"
+        integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 <!--custom-->
+<script>
+  window.CONFIG = {
+    "current_user": {{ ({"id": cur_user.id} | tojson) if cur_user else "null" }},
+    "update_post_impression_url": "{{ url("update-post-impression", post_id="{post_id}") }}"
+  }
+</script>
 <script src="{{ static_url('scripts.js') }}"></script>
 </body>
 </html>

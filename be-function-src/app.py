@@ -52,6 +52,8 @@ from utils import (
     update_user,
     save_public_file,
     update_post,
+    find_post_impression,
+    update_post_impression,
 )
 
 from deps import (
@@ -67,6 +69,7 @@ from deps import (
     get_error_response,
     UpdatePostDTODep,
     UpdatePostStatusDTODep,
+    UpdatePostImpressionDTODep,
 )
 
 
@@ -151,7 +154,8 @@ async def view_post(post: PostDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("view-post.html", {
         "cur_user": cur_user,
         "post": post,
-        "author": await find_user(post.user_id)
+        "author": await find_user(post.user_id),
+        "post_impression": await find_post_impression(post, cur_user) if cur_user else None
     })
 
 
@@ -181,6 +185,12 @@ async def _update_post_status(post: PostDep, update_post_status_dto: UpdatePostS
                               cur_user: CurUserDep, request: Request) -> str:
     await update_post_status(post, update_post_status_dto, cur_user)
     return get_url(request, "view-post", post_id=post.id)
+
+
+@app.post("/posts/{post_id}/impression", name="update-post-impression", status_code=HTTP_204_NO_CONTENT)
+async def _update_post_impression(post: PostDep, update_post_impression_dto: UpdatePostImpressionDTODep,
+                                  cur_user: CurUserDep) -> None:
+    return await update_post_impression(post, update_post_impression_dto, cur_user)
 
 
 @app.get("/contacts", name="view-contacts", response_class=HTMLResponse)

@@ -26,6 +26,7 @@ from utils import (
     FileDTO,
     UpdatePostDTO,
     UpdatePostStatusDTO,
+    UpdatePostImpressionDTO,
 )
 
 
@@ -133,6 +134,15 @@ def get_update_post_status_dto(
 
 
 UpdatePostStatusDTODep = Annotated[UpdatePostStatusDTO, Depends(get_update_post_status_dto)]
+
+
+def get_update_post_impression_dto(
+        update_post_impression_dto: UpdatePostImpressionDTO = Body(...)
+) -> UpdatePostImpressionDTO:
+    return update_post_impression_dto
+
+
+UpdatePostImpressionDTODep = Annotated[UpdatePostImpressionDTO, Depends(get_update_post_impression_dto)]
 
 
 async def get_error_response(request: Request, status_code: int, details: Union[Dict, str]):

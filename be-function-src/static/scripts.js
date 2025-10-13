@@ -414,3 +414,36 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
     tagify.on("change", () => form.requestSubmit())
   }
 })()
+
+// Enable bootstrap tooltip
+const tooltipTriggerList = document.querySelectorAll("[data-bs-toggle=\"tooltip\"]")
+const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+
+// Post like/dislike
+$(function () {
+  $(".btn-post-like, .btn-post-dislike").on("click", function () {
+    const $btn = $(this)
+    const postId = $btn.data("post-id")
+
+    if (!window.CONFIG.current_user) {
+      alert("You must be logged in to react.")
+      return
+    }
+
+    const action = $btn.hasClass("btn-post-like") ? "like" : "dislike"
+    const url = window.CONFIG.update_post_impression_url.replace("{post_id}", postId)
+
+    $.ajax({
+      url: url,
+      method: "POST",
+      contentType: "application/json",
+      data: JSON.stringify({action}),
+      success: function () {
+        location.reload()
+      },
+      error: function () {
+        alert("Failed to update impression. Please try again.")
+      }
+    })
+  })
+})

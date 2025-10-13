@@ -219,6 +219,24 @@ class UpdatePostStatusDTO(BaseModel):
         return value
 
 
+class Impression(str, Enum):
+    LIKE = "like"
+    DISLIKE = "dislike"
+
+
+class PostImpression(BaseModel):
+    owner_id: str
+    post_id: str
+    action: Impression
+    user_id: str
+    created_at: int
+    updated_at: int | None = None
+
+
+class UpdatePostImpressionDTO(BaseModel):
+    action: Impression = Field(...)
+
+
 class Post(BaseModel):
     id: str
     owner_id: str
@@ -230,6 +248,8 @@ class Post(BaseModel):
     status: PostStatus = PostStatus.UNPUBLISHED
     comment: Optional[str] = None
     rating: int
+    likes_count: int
+    dislikes_count: int
     created_at: int
     updated_at: Optional[int] = None
     offset: Optional[str] = None
@@ -246,6 +266,7 @@ class Permission(str, Enum):
     UPDATE_POST = "update_post"
     UPDATE_POST_STATUS = "update_post_status"
     CREATE_CONTACT_MESSAGE = "create_contact_message"
+    UPDATE_POST_IMPRESSION = "toggle_post_impression"
 
 
 class BaseError(Exception):
@@ -326,6 +347,7 @@ def get_live_config(load_env=False):
         "permission_hierarchy": {
             Permission.REGULAR: [
                 Permission.CREATE_POST,
+                Permission.UPDATE_POST_IMPRESSION,
                 Permission.CREATE_CONTACT_MESSAGE,
             ],
             Permission.ROOT: [
@@ -623,6 +645,7 @@ def get_jinja2_env():
         "Permission": Permission,
         "check_auth": check_authorization,
         "PostStatus": PostStatus,
+        "Impression": Impression,
     })
     return jinja2_env
 
@@ -906,6 +929,7 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
         provider_user_item = {
             "user_id": user_id,
             "email": token.email,
+            # todo: rename to created_at
             "created_at_sk": now,
             "updated_at": now
         }
@@ -963,6 +987,7 @@ def get_dummy_user_token(
     )
 
 
+# todo: move to the bottom
 async def create_dummy_fixtures() -> None:
     if is_prod():
         return
@@ -1088,6 +1113,8 @@ def post_from_dynamodb(d_item: Dict[str, Any]) -> Post:
         status=d_item["status"],
         comment=d_item.get("comment"),
         rating=d_item["rating_sk"],
+        likes_count=d_item.get("likes_count", 0),
+        dislikes_count=d_item.get("dislikes_count", 0),
         created_at=d_item["created_at_sk"],
         updated_at=d_item.get("updated_at"),
     )
@@ -1281,26 +1308,41 @@ def build_dynamodb_put_item_params(table, key: Tuple[str, str], values: Dict[str
     }
 
 
-def build_dynamodb_update_item_params(table, key: Tuple[str, str], changes: Dict[str, Any]) -> Dict[str, Any]:
+def build_dynamodb_update_item_params(
+        table,
+        key: tuple[str, str],
+        changes: dict[str, any] | None = None,
+        deltas: dict[str, int] | None = None
+) -> dict[str, any]:
     now = utc_now()
 
     set_parts = []
     remove_parts = []
+    add_parts = []
     expr_attr_names = {}
     expr_attr_values = {}
 
-    for field, value in changes.items():
-        # Always alias and prefix to avoid reserved keywords
-        name_alias = f"#new_{field}"
-        value_alias = f":new_{field}"
+    # Handle normal changes (SET / REMOVE)
+    if changes:
+        for field, value in changes.items():
+            name_alias = f"#new_{field}"
+            value_alias = f":new_{field}"
+            expr_attr_names[name_alias] = field
 
-        expr_attr_names[name_alias] = field
+            if value is None:
+                remove_parts.append(name_alias)
+            else:
+                set_parts.append(f"{name_alias} = {value_alias}")
+                expr_attr_values[value_alias] = value
 
-        if value is None:
-            remove_parts.append(name_alias)
-        else:
-            set_parts.append(f"{name_alias} = {value_alias}")
-            expr_attr_values[value_alias] = value
+    # Handle numeric deltas (ADD)
+    if deltas:
+        for field, delta in deltas.items():
+            name_alias = f"#delta_{field}"
+            value_alias = f":delta_{field}"
+            expr_attr_names[name_alias] = field
+            expr_attr_values[value_alias] = delta
+            add_parts.append(f"{name_alias} {value_alias}")
 
     # Always set updated_at
     expr_attr_names["#new_updated_at"] = "updated_at"
@@ -1311,6 +1353,8 @@ def build_dynamodb_update_item_params(table, key: Tuple[str, str], changes: Dict
     update_expr_parts = []
     if set_parts:
         update_expr_parts.append("SET " + ", ".join(set_parts))
+    if add_parts:
+        update_expr_parts.append("ADD " + ", ".join(add_parts))
     if remove_parts:
         update_expr_parts.append("REMOVE " + ", ".join(remove_parts))
 
@@ -1715,6 +1759,7 @@ async def create_contact_message(message_dto: ContactMessageDTO, user: User = No
             "name": message_dto.name,
             "email": message_dto.email,
             "message": message_dto.message,
+            # todo: rename to created_at
             "created_at_sk": now,
         }
         if user:
@@ -1857,3 +1902,87 @@ async def get_popular_active_users(query_dto: UserQueryDTO = None) -> List[User]
         key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{status.value}"),
         map_fn=user_from_dynamodb,
     )
+
+
+def post_impression_from_dynamodb(d_item: Dict[str, Any]) -> PostImpression:
+    user_id = d_item["user_id"]
+    return PostImpression(
+        owner_id=user_id,
+        post_id=d_item["post_id"],
+        user_id=user_id,
+        action=d_item["action"],
+        created_at=d_item["created_at"],
+        updated_at=d_item.get("updated_at")
+    )
+
+
+async def find_post_impression(post: Post, user: User) -> PostImpression | None:
+    async def fn(table):
+        resp = await table.get_item(
+            Key={
+                "pk": f"POST#{post.id}",
+                "sk": f"IMP#USER#{user.id}"
+            }
+        )
+        item = resp.get("Item")
+        if not item:
+            return None
+        # logger.debug(f"PostImpression: {item}")
+        return post_impression_from_dynamodb(item)
+
+    return await with_dynamodb_table(fn)
+
+
+async def update_post_impression(post: Post, update_post_impression_dto: UpdatePostImpressionDTO, user: User) -> None:
+    verify_authorization(user, Permission.UPDATE_POST_IMPRESSION, post)
+    current_impression = await find_post_impression(post, user)
+
+    async def fn(table):
+        now = utc_now()
+        current_action = current_impression.action if current_impression else None
+        action = update_post_impression_dto.action
+        post_impression_item = {
+            "post_id": post.id,
+            "user_id": user.id,
+            "action": action,
+            "created_at": now
+        }
+        transact_items = []
+
+        post_key = (f"POST#{post.id}", "META")
+        post_imp_key = (f"POST#{post.id}", f"IMP#USER#{user.id}")
+
+        if action == Impression.LIKE:
+            if current_action == Impression.LIKE:
+                transact_items.append(build_dynamodb_delete_item_params(table, post_imp_key))
+                transact_items.append(build_dynamodb_update_item_params(table, post_key, deltas={"likes_count": -1}))
+            elif current_action == Impression.DISLIKE:
+                transact_items.append(
+                    build_dynamodb_update_item_params(table, post_imp_key, {"action": Impression.LIKE}))
+                transact_items.append(build_dynamodb_update_item_params(table, post_key, deltas={"dislikes_count": -1,
+                                                                                                 "likes_count": +1}))
+            else:
+                transact_items.append(
+                    build_dynamodb_put_item_params(table, post_imp_key,
+                                                   {**post_impression_item, "action": Impression.LIKE},
+                                                   raise_on_existing_pk=True))
+                transact_items.append(build_dynamodb_update_item_params(table, post_key, deltas={"likes_count": +1}))
+
+        elif action == Impression.DISLIKE:
+            if current_action == Impression.DISLIKE:
+                transact_items.append(build_dynamodb_delete_item_params(table, post_imp_key))
+                transact_items.append(build_dynamodb_update_item_params(table, post_key, deltas={"dislikes_count": -1}))
+            elif current_action == Impression.LIKE:
+                transact_items.append(
+                    build_dynamodb_update_item_params(table, post_imp_key, {"action": Impression.DISLIKE}))
+                transact_items.append(build_dynamodb_update_item_params(table, post_key, deltas={"likes_count": -1,
+                                                                                                 "dislikes_count": +1}))
+            else:
+                transact_items.append(build_dynamodb_put_item_params(table, post_imp_key, {**post_impression_item,
+                                                                                           "action": Impression.DISLIKE},
+                                                                     raise_on_existing_pk=True))
+                transact_items.append(build_dynamodb_update_item_params(table, post_key, deltas={"dislikes_count": +1}))
+
+        await dynamodb_transact_write(table, transact_items)
+
+    return await with_dynamodb_table(fn)
