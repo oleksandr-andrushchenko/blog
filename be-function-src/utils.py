@@ -12,7 +12,7 @@ from urllib.parse import quote
 from jose import jwt
 from jose.exceptions import JWTError
 import base64
-from typing import Callable, Optional, Dict, Any, Union, List, Awaitable, Tuple, ClassVar, Set, Literal, TypeVar
+from typing import Callable, Awaitable, ClassVar, Literal, TypeVar
 from starlette.datastructures import State
 from starlette.status import HTTP_200_OK
 from jinja2 import Environment, FileSystemLoader, pass_context
@@ -36,14 +36,14 @@ import struct
 class UserToken(BaseModel):
     sub: str
     iss: str  # "cognito", "google", etc.
-    email: Optional[str] = None
-    name: Optional[str] = None
-    username: Optional[str] = None  # only for Cognito native
-    iat: Optional[datetime] = None  # issued at
-    exp: Optional[datetime] = None  # expiration
-    max_age: Optional[int] = None
-    aud: Optional[Union[str, List[str]]] = None  # audience / client_id
-    plain_token: Optional[str] = None  # plain token
+    email: str | None = None
+    name: str | None = None
+    username: str | None = None  # only for Cognito native
+    iat: datetime | None = None  # issued at
+    exp: datetime | None = None  # expiration
+    max_age: int | None = None
+    aud: str | list[str] | None = None  # audience / client_id
+    plain_token: str | None = None  # plain token
 
 
 class UserStatus(str, Enum):
@@ -53,25 +53,25 @@ class UserStatus(str, Enum):
 
 class User(BaseModel):
     id: str
-    owner_id: Optional[str] = None
-    email: Optional[str] = None
-    avatar_filename: Optional[str] = None
-    name: Optional[str] = None
-    username: Optional[str] = None
-    headline: Optional[str] = None
-    website: Optional[str] = None
-    address: Optional[str] = None
-    about: Optional[str] = None
-    providers: Dict[str, Dict[str, Optional[str]]] = Field(default_factory=dict)  # noqa
-    permissions: List[str] = Field(default_factory=lambda: [Permission.REGULAR])  # noqa
+    owner_id: str | None = None
+    email: str | None = None
+    avatar_filename: str | None = None
+    name: str | None = None
+    username: str | None = None
+    headline: str | None = None
+    website: str | None = None
+    address: str | None = None
+    about: str | None = None
+    providers: dict[str, dict[str, str | None]] = Field(default_factory=dict)  # noqa
+    permissions: list[str] = Field(default_factory=lambda: [Permission.REGULAR])  # noqa
     status: UserStatus = UserStatus.ACTIVE
-    published_post_count: Optional[int] = None
-    unpublished_post_count: Optional[int] = None
-    rejected_post_count: Optional[int] = None
+    published_posts_count: int | None = None
+    unpublished_posts_count: int | None = None
+    rejected_posts_count: int | None = None
     rating: int
     created_at: int
-    updated_at: Optional[int] = None
-    offset: Optional[str] = None
+    updated_at: int | None = None
+    offset: str | None = None
 
 
 class FileDTO(BaseModel):
@@ -79,7 +79,7 @@ class FileDTO(BaseModel):
     filename: str
 
     MAX_IMAGE_SIZE: ClassVar[int] = 2 * 1024 * 1024  # 2 MB
-    ALLOWED_IMAGE_TYPES: ClassVar[Set[str]] = {"jpeg", "png", "gif"}
+    ALLOWED_IMAGE_TYPES: ClassVar[set[str]] = {"jpeg", "png", "gif"}
 
     @computed_field
     @property
@@ -99,15 +99,15 @@ class FileDTO(BaseModel):
 
 
 class UpdateUserDTO(BaseModel):
-    avatar_action: Optional[Literal["delete", "replace", "keep"]] = None
+    avatar_action: Literal["delete", "replace", "keep"] | None = None
     # todo: check if file exists
-    avatar_filename: Optional[str] = None
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
-    username: Optional[str] = Field(None, min_length=3, max_length=30)
-    headline: Optional[str] = Field(None, max_length=150)
-    about: Optional[str] = Field(None, max_length=2000)
-    website: Optional[HttpUrl] = None
-    address: Optional[str] = Field(None, max_length=255)
+    avatar_filename: str | None = None
+    name: str | None = Field(None, min_length=1, max_length=100)
+    username: str | None = Field(None, min_length=3, max_length=30)
+    headline: str | None = Field(None, max_length=150)
+    about: str | None = Field(None, max_length=2000)
+    website: HttpUrl | None = None
+    address: str | None = Field(None, max_length=255)
 
 
 class ContactMessageDTO(BaseModel):
@@ -121,7 +121,7 @@ class ContactMessage(BaseModel):
     name: str
     email: str
     message: str
-    user_id: Optional[str] = None
+    user_id: str | None = None
     created_at: int
 
 
@@ -146,10 +146,10 @@ class UpdatePostDTO(PostDTO):
 
 
 class BaseQueryDTO(BaseModel):
-    offset: Optional[str] = Field(None)
+    offset: str | None = Field(None)
     limit: int = Field(default=20, ge=1)
 
-    def get_dict(self, rewrite: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def get_dict(self, rewrite: dict[str, any] | None = None) -> dict[str, any]:
         """Return a dictionary representation of the model."""
         data = self.model_dump()
         if rewrite:
@@ -176,8 +176,8 @@ class BaseQueryDTO(BaseModel):
 
 
 class PostQueryDTO(BaseQueryDTO):
-    tags: Optional[List[str]] = Field(default_factory=list)  # noqa
-    popular: Optional[bool] = None
+    tags: list[str] | None = Field(default_factory=list)  # noqa
+    popular: bool | None = None
 
 
 class UserQueryDTO(BaseQueryDTO):
@@ -185,13 +185,13 @@ class UserQueryDTO(BaseQueryDTO):
 
 
 class TagQueryDTO(BaseQueryDTO):
-    prefix: Optional[str] = Field(None, min_length=1, max_length=10)
+    prefix: str | None = Field(None, min_length=1, max_length=10)
 
 
 class Tag(BaseModel):
     name: str
     rating: int
-    offset: Optional[str] = None
+    offset: str | None = None
 
 
 class PublicTag(BaseModel):
@@ -244,15 +244,15 @@ class Post(BaseModel):
     slug: str
     user_id: str
     content: str
-    tags: List[str]
+    tags: list[str]
     status: PostStatus = PostStatus.UNPUBLISHED
-    comment: Optional[str] = None
+    comment: str | None = None
     rating: int
     likes_count: int
     dislikes_count: int
     created_at: int
-    updated_at: Optional[int] = None
-    offset: Optional[str] = None
+    updated_at: int | None = None
+    offset: str | None = None
 
 
 class Permission(str, Enum):
@@ -443,12 +443,12 @@ def get_cognito_user_pool_id():
     return get_config().get("cognito_user_pool_id")
 
 
-def get_permission_hierarchy() -> Dict[str, List[str]]:
+def get_permission_hierarchy() -> dict[str, list[str]]:
     return get_config().get("permission_hierarchy")
 
 
 class Lazy:
-    def __init__(self, factory: Callable):
+    def __init__(self, factory: callable):
         self._factory = factory
         self._instance = None
 
@@ -462,8 +462,8 @@ def verify_authorization(
         user: User,
         permission: str,
         resource: BaseModel = None,
-        permissions: Optional[List[str]] = None,
-        hierarchy: Optional[Dict[str, List[str]]] = None,
+        permissions: list[str] | None = None,
+        hierarchy: dict[str, list[str]] | None = None,
 ) -> bool:
     """
     Verify if user has access to perform action requiring `permission`.
@@ -502,8 +502,8 @@ def check_authorization(
         user: User,
         permission: str,
         resource: BaseModel = None,
-        permissions: Optional[List[str]] = None,
-        hierarchy: Optional[Dict[str, List[str]]] = None,
+        permissions: list[str] | None = None,
+        hierarchy: dict[str, list[str]] | None = None
 ) -> bool:
     try:
         verify_authorization(user, permission, resource, permissions, hierarchy)
@@ -523,13 +523,14 @@ def utc_now() -> int:
     return int(time.time() * 1000)
 
 
-async def dynamodb_transact_write(table, transact_items: List[Dict[str, Any]]):
+async def dynamodb_transact_write(transacts: list[dict[str, any]]):
     """
     Executes a DynamoDB TransactWriteItems call and raises a
     DynamoTransactionError with detailed reasons if it fails.
     """
     try:
-        await table.meta.client.transact_write_items(TransactItems=transact_items)
+        table = await get_dynamodb_table()
+        await table.meta.client.transact_write_items(TransactItems=transacts)
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code")
         if error_code == "TransactionCanceledException":
@@ -707,21 +708,26 @@ def get_s3_client_kwargs():
 
 aioboto3_session = Lazy(get_aioboto3_session)
 
-
-async def with_dynamodb_table(fn: Callable):
-    session = aioboto3_session()
-    async with session.resource("dynamodb", **get_dynamodb_resource_kwargs()) as dynamodb:
-        dynamodb_table = await dynamodb.Table(get_dynamodb_table_name())
-        return await fn(dynamodb_table)
+# Global DynamoDB table
+dynamodb_table = None
 
 
-async def with_s3_client(fn: Callable[[Any], Awaitable[Any]]):
+async def get_dynamodb_table():
+    global dynamodb_table
+    if dynamodb_table is None:
+        session = aioboto3_session()
+        async with session.resource("dynamodb", **get_dynamodb_resource_kwargs()) as dynamodb:
+            dynamodb_table = await dynamodb.Table(get_dynamodb_table_name())
+    return dynamodb_table
+
+
+async def with_s3_client(fn: Callable[[any], Awaitable[any]]):
     session = aioboto3_session()
     async with session.client("s3", **get_s3_client_kwargs()) as s3_client:
         return await fn(s3_client)
 
 
-def get_html_content(template: str, data: Dict[str, Any]) -> str:
+def get_html_content(template: str, data: dict[str, any]) -> str:
     if data is None:
         data = {}
     template = jinja2_env().get_template(template)
@@ -828,121 +834,111 @@ async def configure_app_state(app_state: State) -> None:
         app_state.jwks = await get_cognito_jwks()
 
 
-def to_datetime(ts: Any) -> Optional[datetime]:
+def to_datetime(ts: any) -> datetime | None:
     if isinstance(ts, (int, float)):
         return datetime.fromtimestamp(ts, tz=timezone.utc)
     return None
 
 
-async def get_user_by_user_token(token: UserToken) -> Optional[User]:
-    async def fn(table):
-        provider_user_item = None
-        user_item = None
-        user_id = None
+async def get_user_by_user_token(token: UserToken) -> User | None:
+    table = await get_dynamodb_table()
+    provider_user_item = None
+    user_item = None
+    user_id = None
 
-        # 1: Lookup provider user record
-        if token.sub:
+    # 1: Lookup provider user record
+    if token.sub:
+        resp = await table.get_item(
+            Key={
+                "pk": f"PROVIDER_USER#{token.iss}#{token.sub}",
+                "sk": "META"
+            }
+        )
+        provider_user_item = resp.get("Item")
+        if provider_user_item:
+            user_id = provider_user_item["user_id"]
+
+            # Fetch user record
             resp = await table.get_item(
                 Key={
-                    "pk": f"PROVIDER_USER#{token.iss}#{token.sub}",
+                    "pk": f"USER#{user_id}",
                     "sk": "META"
                 }
             )
-            provider_user_item = resp.get("Item")
-            if provider_user_item:
-                user_id = provider_user_item["user_id"]
+            user_item = resp.get("Item")
 
-                # Fetch user record
-                resp = await table.get_item(
-                    Key={
-                        "pk": f"USER#{user_id}",
-                        "sk": "META"
-                    }
-                )
-                user_item = resp.get("Item")
+    # 2: Fallback: lookup user by email
+    # todo: user_item instead of provider_user_item (?)
+    if not provider_user_item and token.email:
+        resp = await table.query(
+            IndexName="USERS_BY_EMAIL",
+            KeyConditionExpression=Key("user_email_pk").eq(token.email)
+        )
+        items = resp.get("Items", [])
+        if items:
+            user_item = items[0]
+            user_id = user_item["id"]
 
-        # 2: Fallback: lookup user by email
-        # todo: user_item instead of provider_user_item (?)
-        if not provider_user_item and token.email:
-            resp = await table.query(
-                IndexName="USERS_BY_EMAIL",
-                KeyConditionExpression=Key("user_email_pk").eq(token.email)
-            )
-            items = resp.get("Items", [])
-            if items:
-                user_item = items[0]
-                user_id = user_item["id"]
+    # 3: Not found
+    if not user_item:
+        return None
 
-        # 3: Not found
-        if not user_item:
-            return None
-
-        return user_from_dynamodb({
-            "id": user_id,
-            **user_item,
-            "user_email_pk": user_item.get("user_email_pk") or token.email,
-            "name": user_item.get("name") or token.name,
-            "username": user_item.get("username") or token.username
-        })
-
-    return await with_dynamodb_table(fn)
+    return user_from_dynamodb({
+        "id": user_id,
+        **user_item,
+        "user_email_pk": user_item.get("user_email_pk") or token.email,
+        "name": user_item.get("name") or token.name,
+        "username": user_item.get("username") or token.username
+    })
 
 
 async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserStatus.ACTIVE) -> User:
-    async def fn(table):
-        now = utc_now()
+    await get_dynamodb_table()
+    now = utc_now()
 
-        user = await get_user_by_user_token(token)
-        if user:
-            user_id = user.id
-            providers = user.providers
-        else:
-            user_id = str(uuid.uuid4())
-            providers = {}
+    user = await get_user_by_user_token(token)
+    if user:
+        user_id = user.id
+        providers = user.providers
+    else:
+        user_id = str(uuid.uuid4())
+        providers = {}
 
-        providers[token.iss] = {"sub": token.sub, "username": token.username, "name": token.name}
+    providers[token.iss] = {"sub": token.sub, "username": token.username, "name": token.name}
 
-        transact_items = []
+    transacts = []
 
-        if user:
-            user_key = (f"USER#{user_id}", "META")
-            user_item = {"providers": providers}
-            transact_items.append(build_dynamodb_update_item_params(table, user_key, user_item))
-            user.providers = providers
-        else:
-            user_key = (f"USER#{user_id}", "META")
-            user_item = {
-                "id": user_id,
-                "user_email_pk": token.email,
-                "name": token.name,
-                "username": token.username,
-                "providers": providers,
-                "status": status,
-                "rating_sk": compute_rating_sk(0, now),
-                "created_at_sk": now,
-                "user_status_pk": f"USER#STATUS#{status.value}",
-            }
-            transact_items.append(build_dynamodb_put_item_params(table, user_key, user_item))
-            user = user_from_dynamodb(user_item)
-
-        provider_user_key = (f"PROVIDER_USER#{token.iss}#{token.sub}", "META")
-        provider_user_item = {
-            "user_id": user_id,
-            "email": token.email,
-            # todo: rename to created_at
+    if user:
+        add_dynamodb_update_transact(transacts, (f"USER#{user_id}", "META"), {"providers": providers})
+        user.providers = providers
+    else:
+        user_item = {
+            "id": user_id,
+            "user_email_pk": token.email,
+            "name": token.name,
+            "username": token.username,
+            "providers": providers,
+            "status": status,
+            "rating_sk": compute_rating_sk(0, now),
             "created_at_sk": now,
-            "updated_at": now
+            "user_status_pk": f"USER#STATUS#{status.value}",
         }
-        transact_items.append(build_dynamodb_put_item_params(table, provider_user_key, provider_user_item))
+        add_dynamodb_put_transact(transacts, (f"USER#{user_id}", "META"), user_item)
+        user = user_from_dynamodb(user_item)
 
-        await dynamodb_transact_write(table, transact_items)
+    add_dynamodb_put_transact(transacts, (f"PROVIDER_USER#{token.iss}#{token.sub}", "META"), {
+        "user_id": user_id,
+        "email": token.email,
+        "created_at": now,
+        "updated_at": now
+    })
 
-        return user
+    await dynamodb_transact_write(transacts)
 
-    return await with_dynamodb_table(fn)
+    return user
 
 
-def user_token_from_jwt_claims(claims: dict[str, Any], plain_token: str = None) -> UserToken:
+def user_token_from_jwt_claims(claims: dict[str, any], plain_token: str = None) -> UserToken:
     exp = to_datetime(claims.get("exp"))
     max_age = None
 
@@ -987,7 +983,909 @@ def get_dummy_user_token(
     )
 
 
-# todo: move to the bottom
+async def get_user_token_by_plain_token(plain_token: str | None, app_state: State) -> UserToken | None:
+    if not plain_token:
+        return None
+    if not is_prod():
+        return get_dummy_user_token()
+    try:
+        unverified_header = jwt.get_unverified_header(plain_token)
+        kid = unverified_header.get("kid")
+
+        key = next((k for k in app_state.jwks.get("keys", []) if k["kid"] == kid), None)
+        if key is None:
+            app_state.jwks = await get_cognito_jwks()
+            key = next((k for k in app_state.jwks.get("keys", []) if k["kid"] == kid), None)
+        if key is None:
+            raise InvalidTokenKidError("Invalid token (unknown kid)")
+
+        issuer = f"https://cognito-idp.{get_aws_region()}.amazonaws.com/{get_cognito_user_pool_id()}"
+        claims = jwt.decode(
+            plain_token,
+            key,  # pass the JWK dict
+            algorithms=["RS256"],
+            audience=get_cognito_client_id(),
+            issuer=issuer,
+        )
+        return user_token_from_jwt_claims(claims, plain_token)
+    except JWTError:
+        raise InvalidTokenError("Invalid token")
+
+
+async def get_user_by_plain_token(plain_token: str | None, app_state: State) -> User | None:
+    user_token = await get_user_token_by_plain_token(plain_token, app_state)
+
+    if user_token is None:
+        return None
+
+    # logger.debug(f"user_token: {user_token}")
+
+    user = await get_user_by_user_token(user_token)
+    # logger.debug(f"user: {user}")
+
+    return user
+
+
+def post_from_dynamodb(d_item: dict[str, any]) -> Post:
+    owner_id = d_item["user_id"]
+    return Post(
+        id=d_item["id"],
+        owner_id=owner_id,
+        title=d_item["title"],
+        slug=d_item["slug"],
+        user_id=owner_id,
+        content=d_item["content"],
+        tags=d_item.get("tags", []),
+        status=d_item["status"],
+        comment=d_item.get("comment"),
+        rating=d_item["rating_sk"],
+        likes_count=d_item.get("likes_count", 0),
+        dislikes_count=d_item.get("dislikes_count", 0),
+        created_at=d_item["created_at_sk"],
+        updated_at=d_item.get("updated_at"),
+    )
+
+
+def compute_rating_sk(rating: int, created_at: int = 0) -> int:
+    return rating * 10_000_000_000_000 + created_at
+
+
+async def create_post(post_dto: PostDTO, user: User) -> Post:
+    verify_authorization(user, Permission.CREATE_POST)
+
+    await get_dynamodb_table()
+    now = utc_now()
+    status = PostStatus.UNPUBLISHED
+    post_id = str(uuid.uuid4())
+    slug = to_kebab_case(post_dto.title)
+
+    transacts = []
+
+    post_key = (f"POST#{post_id}", "META")
+    post_item = {
+        "id": post_id,
+        "title": post_dto.title,
+        "slug": slug,
+        "user_id": user.id,
+        "content": post_dto.content,
+        "tags": post_dto.tags,
+        "rating_sk": compute_rating_sk(0, now),
+        "status": status,
+        "created_at_sk": now,
+        "post_status_pk": f"POST#STATUS#{status.value}",
+        "post_user_status_pk": f"POST#USER#{user.id}#STATUS#{status.value}",
+    }
+    add_dynamodb_put_transact(transacts, post_key, post_item, raise_on_existing_pk=True)
+
+    # User post counters
+    # todo: replace with increments
+    add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), {
+        "unpublished_posts_count": user.unpublished_posts_count + 1
+    })
+
+    # Slug item for uniqueness
+    add_dynamodb_put_transact(transacts, (f"POST_SLUG#{slug}", "META"), {"post_id": post_id},
+                              raise_on_existing_pk=True)
+
+    try:
+        await dynamodb_transact_write(transacts)
+    except DynamoDBTransactionError as e:
+        if e.is_conditional():
+            raise SlugDuplicationError(field="title")
+        raise
+
+    return post_from_dynamodb(post_item)
+
+
+async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User) -> None:
+    verify_authorization(cur_user, Permission.UPDATE_POST, post)
+
+    if post.status == PostStatus.PUBLISHED:
+        raise PostAlreadyPublishedError()
+
+    changes = update_post_dto.model_dump(exclude_unset=True)
+    if not changes:
+        return
+
+    await get_dynamodb_table()
+    transacts = []
+
+    # Slug update if title changed
+    if "title" in changes:
+        new_slug = to_kebab_case(changes["title"])
+        old_slug = post.slug
+
+        if old_slug != new_slug:
+            # Delete old slug mapping
+            add_dynamodb_delete_transact(transacts, (f"POST_SLUG#{old_slug}", "META"))
+
+            # Insert new slug mapping
+            # todo: make universal slug (for users, for posts for tags, etc.: SLUG#{slug})
+            add_dynamodb_put_transact(transacts, (f"POST_SLUG#{new_slug}", "META"), {"post_id": post.id},
+                                      raise_on_existing_pk=True)
+            changes["slug"] = new_slug
+
+    add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), changes)
+
+    try:
+        await dynamodb_transact_write(transacts)
+    except DynamoDBTransactionError as e:
+        if e.is_conditional():
+            raise SlugDuplicationError(field="title")
+        raise
+
+    for key, value in changes.items():
+        setattr(post, key, value)
+
+
+async def find_post(post_id: str) -> Post | None:
+    table = await get_dynamodb_table()
+    resp = await table.get_item(
+        Key={
+            "pk": f"POST#{post_id}",
+            "sk": "META"
+        }
+    )
+    item = resp.get("Item")
+    if not item:
+        return None
+
+    return post_from_dynamodb(item)
+
+
+async def get_post(post_id: str) -> Post:
+    post = await find_post(post_id)
+    if post is None:
+        raise PostNotFoundError(f"Post '{post_id}' not found")
+    return post
+
+
+def user_from_dynamodb(d_item: dict[str, any]) -> User:
+    owner_id = d_item["id"]
+    return User(
+        id=owner_id,
+        owner_id=owner_id,
+        email=d_item.get("user_email_pk"),
+        avatar_filename=d_item.get("avatar_filename"),
+        name=d_item.get("name"),
+        username=d_item.get("username"),
+        headline=d_item.get("headline"),
+        website=d_item.get("website"),
+        address=d_item.get("address"),
+        about=d_item.get("about"),
+        providers=d_item.get("providers", {}),
+        permissions=d_item.get("permissions", [Permission.REGULAR]),
+        status=d_item.get("status", UserStatus.ACTIVE),
+        published_posts_count=d_item.get("published_posts_count", 0),
+        unpublished_posts_count=d_item.get("unpublished_posts_count", 0),
+        rejected_posts_count=d_item.get("rejected_posts_count", 0),
+        rating=d_item["rating_sk"],
+        created_at=d_item["created_at_sk"],
+        updated_at=d_item.get("updated_at")
+    )
+
+
+async def find_user(user_id: str) -> User | None:
+    table = await get_dynamodb_table()
+    resp = await table.get_item(
+        Key={
+            "pk": f"USER#{user_id}",
+            "sk": "META"
+        }
+    )
+    item = resp.get("Item")
+    if not item:
+        return None
+    # logger.debug(f"User: {item}")
+    return user_from_dynamodb(item)
+
+
+def build_dynamodb_put_item_params(key: tuple[str, str], values: dict[str, any],
+                                   raise_on_existing_pk: bool = False) -> dict[str, any]:
+    pk, sk = key
+    params = {
+        "TableName": dynamodb_table.name,
+        "Item": {
+            **values,
+            "pk": pk,
+            "sk": sk
+        }
+    }
+    if raise_on_existing_pk:
+        params["ConditionExpression"] = "attribute_not_exists(pk)"
+    return {
+        "Put": params
+    }
+
+
+def add_dynamodb_put_transact(transacts: list, key: tuple[str, str], values: dict[str, any],
+                              raise_on_existing_pk: bool = False) -> None:
+    transacts.append(build_dynamodb_put_item_params(key, values, raise_on_existing_pk))
+
+
+def build_dynamodb_update_item_params(
+        key: tuple[str, str],
+        changes: dict[str, any] | None = None,
+        deltas: dict[str, int] | None = None
+) -> dict[str, any]:
+    now = utc_now()
+
+    set_parts = []
+    remove_parts = []
+    add_parts = []
+    expr_attr_names = {}
+    expr_attr_values = {}
+
+    # Handle normal changes (SET / REMOVE)
+    if changes:
+        for field, value in changes.items():
+            name_alias = f"#new_{field}"
+            value_alias = f":new_{field}"
+            expr_attr_names[name_alias] = field
+
+            if value is None:
+                remove_parts.append(name_alias)
+            else:
+                set_parts.append(f"{name_alias} = {value_alias}")
+                expr_attr_values[value_alias] = value
+
+    # Handle numeric deltas (ADD)
+    if deltas:
+        for field, delta in deltas.items():
+            name_alias = f"#delta_{field}"
+            value_alias = f":delta_{field}"
+            expr_attr_names[name_alias] = field
+            expr_attr_values[value_alias] = delta
+            add_parts.append(f"{name_alias} {value_alias}")
+
+    # Always set updated_at
+    expr_attr_names["#new_updated_at"] = "updated_at"
+    expr_attr_values[":new_now"] = now
+    set_parts.append("#new_updated_at = :new_now")
+
+    # Combine expressions
+    update_expr_parts = []
+    if set_parts:
+        update_expr_parts.append("SET " + ", ".join(set_parts))
+    if add_parts:
+        update_expr_parts.append("ADD " + ", ".join(add_parts))
+    if remove_parts:
+        update_expr_parts.append("REMOVE " + ", ".join(remove_parts))
+
+    update_expr = " ".join(update_expr_parts)
+
+    pk, sk = key
+    # logger.debug(f"DynamoDB UpdateExpression: {update_expr}")
+
+    return {
+        "Update": {
+            "TableName": dynamodb_table.name,
+            "Key": {"pk": pk, "sk": sk},
+            "UpdateExpression": update_expr,
+            "ExpressionAttributeNames": expr_attr_names,
+            "ExpressionAttributeValues": expr_attr_values,
+        }
+    }
+
+
+def add_dynamodb_update_transact(transacts: list, key: tuple[str, str], changes: dict[str, any] | None = None,
+                                 deltas: dict[str, int] | None = None) -> None:
+    transacts.append(build_dynamodb_update_item_params(key, changes, deltas))
+
+
+def build_dynamodb_delete_item_params(key: tuple[str, str]) -> dict[str, any]:
+    pk, sk = key
+
+    return {
+        "Delete": {
+            "TableName": dynamodb_table.name,
+            "Key": {
+                "pk": pk,
+                "sk": sk
+            }
+        }
+    }
+
+
+def add_dynamodb_delete_transact(transacts: list, key: tuple[str, str]) -> None:
+    transacts.append(build_dynamodb_delete_item_params(key))
+
+
+async def update_dynamodb_item(key: tuple[str, str], updates: dict[str, any]) -> None:
+    table = await get_dynamodb_table()
+    update_item_params = build_dynamodb_update_item_params(key, updates)
+    res = await table.update_item(**update_item_params["Update"])
+    # logger.debug(f"update_dynamodb_item: key: {key}, updates: {updates}, res: {res}")
+
+
+async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User) -> None:
+    verify_authorization(cur_user, Permission.UPDATE_USER, user)
+
+    changes = update_user_dto.model_dump(exclude_unset=True)
+    if changes.get("website"):
+        changes["website"] = str(changes["website"])
+
+    # logger.debug("Changes:")
+    # logger.debug(changes)
+
+    avatar_action = changes.pop("avatar_action", "keep")
+
+    if avatar_action == "delete":
+        changes["avatar_filename"] = None
+    elif avatar_action == "replace":
+        pass
+    elif avatar_action == "keep":
+        changes.pop("avatar_filename", None)
+
+    old_avatar = user.avatar_filename
+
+    await update_dynamodb_item((f"USER#{user.id}", "META"), changes)
+
+    if old_avatar and avatar_action in {"delete", "replace"}:
+        await drop_public_file(old_avatar)
+
+    for key, value in changes.items():
+        setattr(user, key, value)
+
+
+async def get_user(user_id: str) -> User:
+    user = await find_user(user_id)
+    if user is None:
+        raise UserNotFoundError(f"User '{user_id}' not found")
+    return user
+
+
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, decimal.Decimal):
+            # you can cast to int if you know it’s always an integer
+            if o % 1 == 0:
+                return int(o)
+            return float(o)
+        return super().default(o)
+
+
+def encode_offset(offset: dict) -> str | None:
+    if not offset:
+        return None
+    return base64.urlsafe_b64encode(
+        json.dumps(offset, cls=DecimalEncoder).encode()
+    ).decode()
+
+
+def decode_offset(token: str) -> dict | None:
+    if not token:
+        return None
+    return json.loads(
+        base64.urlsafe_b64decode(token.encode()).decode()
+    )
+
+
+async def get_published_posts(query_dto: PostQueryDTO = None) -> list[Post]:
+    if query_dto is None:
+        query_dto = PostQueryDTO()
+    if query_dto.popular:
+        if query_dto.tags:
+            return await get_popular_published_posts_by_tags(query_dto)
+        return await get_popular_published_posts(query_dto)
+    if query_dto.tags:
+        return await get_latest_published_posts_by_tags(query_dto)
+    return await get_latest_published_posts(query_dto)
+
+
+T = TypeVar("T")
+
+
+async def query_dynamodb_items(
+        query_dto: BaseQueryDTO,
+        index_name: str,
+        key_condition_expr: any,
+        map_fn: Callable[[dict], T],
+) -> list[T]:
+    """Generic DynamoDB query executor with pagination and mapping."""
+
+    table = await get_dynamodb_table()
+    query_args = {
+        "IndexName": index_name,
+        "KeyConditionExpression": key_condition_expr,
+        "ScanIndexForward": False,
+        "Limit": query_dto.limit,
+    }
+
+    if query_dto.offset:
+        query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
+
+    resp = await table.query(**query_args)
+    items = resp.get("Items", [])
+    results = [map_fn(item) for item in items]
+
+    # Handle pagination
+    if len(results) == query_dto.limit:
+        results[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
+
+    return results
+
+
+async def get_latest_published_posts(query_dto: PostQueryDTO = None) -> list[Post]:
+    if query_dto is None:
+        query_dto = PostQueryDTO()
+    status = PostStatus.PUBLISHED
+
+    return await query_dynamodb_items(
+        query_dto=query_dto,
+        index_name="POSTS_BY_STATUS_CREATED_AT",
+        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{status.value}"),
+        map_fn=post_from_dynamodb,
+    )
+
+
+async def get_popular_published_posts(query_dto: PostQueryDTO = None) -> list[Post]:
+    if query_dto is None:
+        query_dto = PostQueryDTO()
+    status = PostStatus.PUBLISHED
+
+    return await query_dynamodb_items(
+        query_dto=query_dto,
+        index_name="POSTS_BY_STATUS_RATING",
+        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{status.value}"),
+        map_fn=post_from_dynamodb,
+    )
+
+
+async def get_latest_published_posts_by_tags(query_dto: PostQueryDTO = None) -> list[Post]:
+    if query_dto is None:
+        query_dto = PostQueryDTO()
+    if not query_dto.tags:
+        return await get_latest_published_posts(query_dto)
+
+    table = await get_dynamodb_table()
+    query_args = {
+        "KeyConditionExpression": Key("pk").eq("POST_TAG_COMBO#" + "#".join(sorted(query_dto.tags))),
+        "ScanIndexForward": False,
+        "Limit": query_dto.limit,
+    }
+    if query_dto.offset:
+        query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
+    resp = await table.query(**query_args)
+    combo_items = resp.get("Items", [])
+    # logger.debug(combo_items)
+    if not combo_items:
+        return []
+
+    # Batch get post metadata
+    post_ids = [item["post_id"] for item in combo_items]
+    keys = [{"pk": f"POST#{post_id}", "sk": "META"} for post_id in post_ids]
+    resp = await table.meta.client.batch_get_item(RequestItems={table.name: {"Keys": keys}})
+    post_items = resp["Responses"].get(table.name, [])
+
+    # Maintain original order
+    post_items_map = {item["id"]: item for item in post_items}
+    ordered_posts = [post_items_map[pid] for pid in post_ids if pid in post_items_map]
+
+    posts = [post_from_dynamodb(item) for item in ordered_posts]
+    if len(posts) == query_dto.limit:
+        posts[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
+    return posts
+
+
+async def get_popular_published_posts_by_tags(query_dto: PostQueryDTO = None) -> list[Post]:
+    if query_dto is None:
+        query_dto = PostQueryDTO()
+
+    # Increase limit to fetch more posts before filtering
+    query_dto_copy = copy.copy(query_dto)
+    query_dto_copy.limit = max(query_dto.limit * 5, 100)
+
+    posts = await get_popular_published_posts(query_dto_copy)
+
+    if not query_dto.tags:
+        return posts
+
+    offset = posts[-1].offset if posts else None
+
+    # Filter by tags
+    filtered_posts = [post for post in posts if set(query_dto.tags).issubset(set(post.tags))]
+    if filtered_posts:
+        filtered_posts[-1].offset = offset
+
+    return filtered_posts
+
+
+async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, user: User) -> None:
+    # logger.debug(f"update_post_status: user: {user}")
+    verify_authorization(user, Permission.UPDATE_POST_STATUS)
+
+    if post.status == PostStatus.PUBLISHED:
+        raise PostAlreadyPublishedError()
+
+    changes = update_post_status_dto.model_dump(exclude_unset=True)
+    if not changes:
+        return
+
+    old_status = post.status
+    status = PostStatus(changes.get("status"))
+
+    table = await get_dynamodb_table()
+    now = utc_now()
+
+    transacts = []
+
+    # Update post
+    add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {
+        **changes,
+        "post_status_pk": f"POST#STATUS#{status.value}",
+        "post_user_status_pk": f"POST#USER#{post.user_id}#STATUS#{status.value}",
+    })
+
+    # User post counters
+    owner = await find_user(post.user_id)
+    if owner:
+        user_old_posts_count_attr = f"{old_status.value}_posts_count"
+        user_new_posts_count_attr = f"{status.value}_posts_count"
+        user_item = {
+            user_old_posts_count_attr: max(0, getattr(owner, user_old_posts_count_attr) - 1),
+            user_new_posts_count_attr: getattr(owner, user_new_posts_count_attr) + 1,
+        }
+        add_dynamodb_update_transact(transacts, (f"USER#{owner.id}", "META"), user_item)
+        for key, value in user_item.items():
+            setattr(owner, key, value)
+
+    if status == PostStatus.PUBLISHED:
+        # Upsert tags
+        for tag in post.tags:
+            transacts.append({
+                "Update": {
+                    "TableName": table.name,
+                    "Key": {
+                        "pk": f"POST_TAG#{tag}",
+                        "sk": "META"
+                    },
+                    "UpdateExpression": (
+                        "SET #new_tag_name_sk = if_not_exists(#new_tag_name_sk, :tag_name_sk), "
+                        "    #new_tag_type_pk = if_not_exists(#new_tag_type_pk, :tag_type_pk), "
+                        "    #new_rating_sk = if_not_exists(#new_rating_sk, :def_rating_sk) + :rating_sk_inc, "
+                        "    #new_created_at = if_not_exists(#new_created_at, :now), "
+                        "    #new_updated_at = :now "
+                    ),
+                    "ExpressionAttributeNames": {
+                        "#new_tag_name_sk": "tag_name_sk",
+                        "#new_tag_type_pk": "tag_type_pk",
+                        "#new_rating_sk": "rating_sk",
+                        "#new_created_at": "created_at",
+                        "#new_updated_at": "updated_at",
+                    },
+                    "ExpressionAttributeValues": {
+                        ":tag_name_sk": tag,
+                        ":tag_type_pk": "POST_TAG",
+                        ":now": now,
+                        ":def_rating_sk": compute_rating_sk(0, now),
+                        ":rating_sk_inc": compute_rating_sk(1)
+                    }
+                }
+            })
+
+        # Create post tag combos
+        for r in range(1, len(post.tags) + 1):
+            for combo in combinations(sorted(post.tags), r):
+                add_dynamodb_put_transact(transacts, ("POST_TAG_COMBO#" + "#".join(combo), str(now)), {
+                    "post_id": post.id
+                })
+
+    # logger.debug(transacts)
+
+    await dynamodb_transact_write(transacts)
+    post.status = status
+
+
+def tag_from_dynamodb(d_item: dict[str, any]) -> Tag:
+    # logger.debug(d_item)
+    return Tag(
+        name=d_item["tag_name_sk"],
+        rating=d_item["rating_sk"],
+    )
+
+
+async def get_popular_post_tags(query_dto: TagQueryDTO = None) -> list[Tag]:
+    if query_dto is None:
+        query_dto = TagQueryDTO()
+
+    return await query_dynamodb_items(
+        query_dto=query_dto,
+        index_name="TAGS_BY_TYPE_RATING",
+        key_condition_expr=Key("tag_type_pk").eq("POST_TAG"),
+        map_fn=tag_from_dynamodb,
+    )
+
+
+async def get_post_tags_by_prefix(query_dto: TagQueryDTO = None) -> list[Tag]:
+    if query_dto is None:
+        query_dto = TagQueryDTO()
+
+    table = await get_dynamodb_table()
+    resp = await table.query(
+        IndexName="TAGS_BY_TYPE_NAME",
+        KeyConditionExpression=Key("tag_type_pk").eq("POST_TAG") & Key("tag_name_sk").begins_with(query_dto.prefix),
+        Limit=query_dto.limit
+    )
+    items = resp.get("Items", [])
+    # logger.debug(f"Tags: {items}")
+    return [tag_from_dynamodb(item) for item in items]
+
+
+async def get_post_tags(query_dto: TagQueryDTO = None) -> list[Tag]:
+    if query_dto.prefix:
+        return await get_post_tags_by_prefix(query_dto)
+    return await get_popular_post_tags(query_dto)
+
+
+async def create_contact_message(message_dto: ContactMessageDTO, user: User = None) -> ContactMessage:
+    if user:
+        verify_authorization(user, Permission.CREATE_CONTACT_MESSAGE)
+
+    table = await get_dynamodb_table()
+    now = utc_now()
+    message_id = str(uuid.uuid4())
+
+    if is_prod():
+        async with aioboto3_session().client("sns") as sns_client:
+            text = (
+                f"New contact form submission:\n"
+                f"ID: {message_id}\n"
+                f"Name: {message_dto.name}\n"
+                f"Email: {message_dto.email}\n"
+                f"Message: {message_dto.message}\n"
+                f"User ID: {user.id if user else 'N/A'}"
+            )
+            await sns_client.publish(
+                TopicArn=get_contact_topic_arn(),
+                Message=text,
+                Subject="New Contact Form Submission"
+            )
+
+    message_item = {
+        "pk": f"CONTACT_MESSAGE#{message_id}",
+        "sk": "META",
+        "message_id": message_id,
+        "name": message_dto.name,
+        "email": message_dto.email,
+        "message": message_dto.message,
+        # todo: rename to created_at
+        "created_at_sk": now,
+    }
+    if user:
+        message_item["user_id"] = user.id
+
+    await table.put_item(Item=message_item)
+
+    return ContactMessage(
+        id=message_id,
+        name=message_item["name"],
+        email=str(message_item["email"]),
+        message=message_item["message"],
+        user_id=message_item.get("user_id"),
+        created_at=now,
+    )
+
+
+async def get_login_redirect_url(callback_url: str) -> str:
+    if is_prod():
+        return (
+            f"https://{get_cognito_domain()}/oauth2/authorize"
+            f"?client_id={get_cognito_client_id()}"
+            f"&response_type=code"
+            f"&redirect_uri={quote(callback_url, safe='')}"
+            f"&scope=openid+email+profile"
+        )
+
+    return callback_url
+
+
+async def get_user_token_by_code(code: str, callback_url: str) -> UserToken:
+    if is_prod():
+        if not code:
+            raise InvalidCodeError("Missing code")
+
+        token_url = f"https://{get_cognito_domain()}/oauth2/token"
+        cognito_client_id = get_cognito_client_id()
+        cognito_client_secret = get_cognito_client_secret()
+        data = {
+            "grant_type": "authorization_code",
+            "client_id": cognito_client_id,
+            "code": code,
+            "redirect_uri": quote(callback_url, safe=''),
+        }
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": "Basic " + base64.b64encode(
+                f"{cognito_client_id}:{cognito_client_secret}".encode()
+            ).decode()
+        }
+
+        async with httpx.AsyncClient() as client:
+            token_resp = await client.post(token_url, data=data, headers=headers)
+            if token_resp.status_code != HTTP_200_OK:
+                raise CodeExchangeFailedError("Failed to exchange code")
+            tokens = token_resp.json()
+
+        token = tokens.get("id_token")
+        if not token:
+            raise InvalidTokenError("Missing token")
+
+        claims = jwt.get_unverified_claims(token)
+        user_token = user_token_from_jwt_claims(claims, token)
+    else:
+        user_token = get_dummy_user_token()
+
+    await upsert_user_by_user_token(user_token)
+    return user_token
+
+
+async def get_logout_redirect_url(callback_url: str) -> str:
+    if is_prod():
+        return (
+            f"https://{get_cognito_domain()}/logout"
+            f"?client_id={get_cognito_client_id()}"
+            f"&logout_uri={quote(callback_url, safe='')}"
+        )
+
+    return callback_url
+
+
+async def get_latest_active_users(query_dto: UserQueryDTO = None) -> list[User]:
+    if query_dto is None:
+        query_dto = UserQueryDTO()
+    status = UserStatus.ACTIVE
+
+    return await query_dynamodb_items(
+        query_dto=query_dto,
+        index_name="USERS_BY_STATUS_CREATED_AT",
+        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{status.value}"),
+        map_fn=user_from_dynamodb,
+    )
+
+
+def unix_to_month_year(timestamp: int, tz: str | None = None) -> str:
+    """
+    Convert Unix timestamp to 'Feb 2024' format, optional timezone.
+    """
+    dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+    if tz:
+        dt = dt.astimezone(ZoneInfo(tz))
+    return dt.strftime("%b %Y")
+
+
+def unix_to_full_date(timestamp: int, tz: str | None = None) -> str:
+    """
+    Convert Unix timestamp to 'May 29, 2024' format, optional timezone.
+    """
+    dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+    if tz:
+        dt = dt.astimezone(ZoneInfo(tz))
+    return dt.strftime("%b %d, %Y")
+
+
+async def get_latest_published_posts_by_user(user: User, query_dto: PostQueryDTO = None) -> list[Post]:
+    if user.published_posts_count == 0:
+        return []
+    if query_dto is None:
+        query_dto = PostQueryDTO()
+    status = PostStatus.PUBLISHED
+
+    return await query_dynamodb_items(
+        query_dto=query_dto,
+        index_name="POSTS_BY_USER_STATUS_CREATED_AT",
+        key_condition_expr=Key("post_user_status_pk").eq(f"POST#USER#{user.id}#STATUS#{status.value}"),
+        map_fn=post_from_dynamodb,
+    )
+
+
+async def get_popular_active_users(query_dto: UserQueryDTO = None) -> list[User]:
+    if query_dto is None:
+        query_dto = UserQueryDTO()
+    status = UserStatus.ACTIVE
+
+    return await query_dynamodb_items(
+        query_dto=query_dto,
+        index_name="USERS_BY_STATUS_RATING",
+        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{status.value}"),
+        map_fn=user_from_dynamodb,
+    )
+
+
+def post_impression_from_dynamodb(d_item: dict[str, any]) -> PostImpression:
+    user_id = d_item["user_id"]
+    return PostImpression(
+        owner_id=user_id,
+        post_id=d_item["post_id"],
+        user_id=user_id,
+        action=d_item["action"],
+        created_at=d_item["created_at"],
+        updated_at=d_item.get("updated_at")
+    )
+
+
+async def find_post_impression(post: Post, user: User) -> PostImpression | None:
+    table = await get_dynamodb_table()
+    resp = await table.get_item(
+        Key={
+            "pk": f"POST#{post.id}",
+            "sk": f"IMP#USER#{user.id}"
+        }
+    )
+    item = resp.get("Item")
+    if not item:
+        return None
+    # logger.debug(f"PostImpression: {item}")
+    return post_impression_from_dynamodb(item)
+
+
+async def update_post_impression(post: Post, update_post_impression_dto: UpdatePostImpressionDTO, user: User) -> None:
+    verify_authorization(user, Permission.UPDATE_POST_IMPRESSION, post)
+
+    current_impression = await find_post_impression(post, user)
+    now = utc_now()
+    current_action = current_impression.action if current_impression else None
+    action = update_post_impression_dto.action
+    post_impression_item = {
+        "post_id": post.id,
+        "user_id": user.id,
+        "action": action,
+        "created_at": now
+    }
+    transacts = []
+
+    post_key = (f"POST#{post.id}", "META")
+    post_imp_key = (f"POST#{post.id}", f"IMP#USER#{user.id}")
+
+    if action == Impression.LIKE:
+        if current_action == Impression.LIKE:
+            add_dynamodb_delete_transact(transacts, post_imp_key)
+            add_dynamodb_update_transact(transacts, post_key, deltas={"likes_count": -1})
+        elif current_action == Impression.DISLIKE:
+            add_dynamodb_update_transact(transacts, post_imp_key, {"action": Impression.LIKE})
+            add_dynamodb_update_transact(transacts, post_key, deltas={"dislikes_count": -1, "likes_count": +1})
+        else:
+            add_dynamodb_put_transact(transacts, post_imp_key,
+                                      {**post_impression_item, "action": Impression.LIKE},
+                                      raise_on_existing_pk=True)
+            add_dynamodb_update_transact(transacts, post_key, deltas={"likes_count": +1})
+
+    elif action == Impression.DISLIKE:
+        if current_action == Impression.DISLIKE:
+            add_dynamodb_delete_transact(transacts, post_imp_key)
+            add_dynamodb_update_transact(transacts, post_key, deltas={"dislikes_count": -1})
+        elif current_action == Impression.LIKE:
+            add_dynamodb_update_transact(transacts, post_imp_key, {"action": Impression.DISLIKE})
+            add_dynamodb_update_transact(transacts, post_key, deltas={"likes_count": -1, "dislikes_count": +1})
+        else:
+            add_dynamodb_put_transact(transacts, post_imp_key,
+                                      {**post_impression_item, "action": Impression.DISLIKE},
+                                      raise_on_existing_pk=True)
+            add_dynamodb_update_transact(transacts, post_key, deltas={"dislikes_count": +1})
+
+    await dynamodb_transact_write(transacts)
+
+
 async def create_dummy_fixtures() -> None:
     if is_prod():
         return
@@ -1055,934 +1953,3 @@ async def create_dummy_fixtures() -> None:
     await upsert_user_by_user_token(user_token3)
     user_token4 = get_dummy_user_token(sub="p4", email="test4@example.com", name="Vanilla user")
     await upsert_user_by_user_token(user_token4)
-
-
-async def get_user_token_by_plain_token(plain_token: Optional[str], app_state: State) -> Optional[UserToken]:
-    if not plain_token:
-        return None
-    if not is_prod():
-        return get_dummy_user_token()
-    try:
-        unverified_header = jwt.get_unverified_header(plain_token)
-        kid = unverified_header.get("kid")
-
-        key = next((k for k in app_state.jwks.get("keys", []) if k["kid"] == kid), None)
-        if key is None:
-            app_state.jwks = await get_cognito_jwks()
-            key = next((k for k in app_state.jwks.get("keys", []) if k["kid"] == kid), None)
-        if key is None:
-            raise InvalidTokenKidError("Invalid token (unknown kid)")
-
-        issuer = f"https://cognito-idp.{get_aws_region()}.amazonaws.com/{get_cognito_user_pool_id()}"
-        claims = jwt.decode(
-            plain_token,
-            key,  # pass the JWK dict
-            algorithms=["RS256"],
-            audience=get_cognito_client_id(),
-            issuer=issuer,
-        )
-        return user_token_from_jwt_claims(claims, plain_token)
-    except JWTError:
-        raise InvalidTokenError("Invalid token")
-
-
-async def get_user_by_plain_token(plain_token: Optional[str], app_state: State) -> Optional[User]:
-    user_token = await get_user_token_by_plain_token(plain_token, app_state)
-
-    if user_token is None:
-        return None
-
-    # logger.debug(f"user_token: {user_token}")
-
-    user = await get_user_by_user_token(user_token)
-    # logger.debug(f"user: {user}")
-
-    return user
-
-
-def post_from_dynamodb(d_item: Dict[str, Any]) -> Post:
-    owner_id = d_item["user_id"]
-    return Post(
-        id=d_item["id"],
-        owner_id=owner_id,
-        title=d_item["title"],
-        slug=d_item["slug"],
-        user_id=owner_id,
-        content=d_item["content"],
-        tags=d_item.get("tags", []),
-        status=d_item["status"],
-        comment=d_item.get("comment"),
-        rating=d_item["rating_sk"],
-        likes_count=d_item.get("likes_count", 0),
-        dislikes_count=d_item.get("dislikes_count", 0),
-        created_at=d_item["created_at_sk"],
-        updated_at=d_item.get("updated_at"),
-    )
-
-
-def compute_rating_sk(rating: int, created_at: int = 0) -> int:
-    return rating * 10_000_000_000_000 + created_at
-
-
-async def create_post(post_dto: PostDTO, user: User) -> Post:
-    verify_authorization(user, Permission.CREATE_POST)
-
-    async def fn(table):
-        now = utc_now()
-        status = PostStatus.UNPUBLISHED
-        post_id = str(uuid.uuid4())
-        slug = to_kebab_case(post_dto.title)
-
-        transact_items = []
-
-        post_key = (f"POST#{post_id}", "META")
-        post_item = {
-            "id": post_id,
-            "title": post_dto.title,
-            "slug": slug,
-            "user_id": user.id,
-            "content": post_dto.content,
-            "tags": post_dto.tags,
-            "rating_sk": compute_rating_sk(0, now),
-            "status": status,
-            "created_at_sk": now,
-            "post_status_pk": f"POST#STATUS#{status.value}",
-            "post_user_status_pk": f"POST#USER#{user.id}#STATUS#{status.value}",
-        }
-        transact_items.append(build_dynamodb_put_item_params(table, post_key, post_item, raise_on_existing_pk=True))
-
-        # User post counters
-        user_key = (f"USER#{user.id}", "META")
-        user_item = {
-            "unpublished_post_count": user.unpublished_post_count + 1,
-        }
-        transact_items.append(build_dynamodb_update_item_params(table, user_key, user_item))
-
-        # Slug item for uniqueness
-        slug_key = (f"POST_SLUG#{slug}", "META")
-        slug_item = {
-            "post_id": post_id,
-        }
-        transact_items.append(build_dynamodb_put_item_params(table, slug_key, slug_item, raise_on_existing_pk=True))
-
-        try:
-            await dynamodb_transact_write(table, transact_items)
-        except DynamoDBTransactionError as e:
-            if e.is_conditional():
-                raise SlugDuplicationError(field="title")
-            raise
-
-        return post_from_dynamodb(post_item)
-
-    return await with_dynamodb_table(fn)
-
-
-async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User) -> None:
-    verify_authorization(cur_user, Permission.UPDATE_POST, post)
-
-    if post.status == PostStatus.PUBLISHED:
-        raise PostAlreadyPublishedError()
-
-    changes = update_post_dto.model_dump(exclude_unset=True)
-    if not changes:
-        return
-
-    async def fn(table):
-        transact_items = []
-
-        # Slug update if title changed
-        if "title" in changes:
-            new_slug = to_kebab_case(changes["title"])
-            old_slug = post.slug
-
-            if old_slug != new_slug:
-                # Delete old slug mapping
-                old_slug_key = (f"POST_SLUG#{old_slug}", "META")
-                transact_items.append(build_dynamodb_delete_item_params(table, old_slug_key))
-
-                # Insert new slug mapping
-                # todo: make universal slug (for users, for posts for tags, etc.: SLUG#{slug})
-                new_slug_key = (f"POST_SLUG#{new_slug}", "META")
-                slug_item = {"post_id": post.id}
-                transact_items.append(
-                    build_dynamodb_put_item_params(table, new_slug_key, slug_item, raise_on_existing_pk=True))
-                changes["slug"] = new_slug
-
-        post_key = (f"POST#{post.id}", "META")
-        transact_items.append(build_dynamodb_update_item_params(table, post_key, changes))
-
-        try:
-            await dynamodb_transact_write(table, transact_items)
-        except DynamoDBTransactionError as e:
-            if e.is_conditional():
-                raise SlugDuplicationError(field="title")
-            raise
-
-        for key, value in changes.items():
-            setattr(post, key, value)
-
-    return await with_dynamodb_table(fn)
-
-
-async def find_post(post_id: str) -> Optional[Post]:
-    async def fn(table):
-        resp = await table.get_item(
-            Key={
-                "pk": f"POST#{post_id}",
-                "sk": "META"
-            }
-        )
-        item = resp.get("Item")
-        if not item:
-            return None
-
-        return post_from_dynamodb(item)
-
-    return await with_dynamodb_table(fn)
-
-
-async def get_post(post_id: str) -> Post:
-    post = await find_post(post_id)
-    if post is None:
-        raise PostNotFoundError(f"Post '{post_id}' not found")
-    return post
-
-
-def user_from_dynamodb(d_item: Dict[str, Any]) -> User:
-    owner_id = d_item["id"]
-    return User(
-        id=owner_id,
-        owner_id=owner_id,
-        email=d_item.get("user_email_pk"),
-        avatar_filename=d_item.get("avatar_filename"),
-        name=d_item.get("name"),
-        username=d_item.get("username"),
-        headline=d_item.get("headline"),
-        website=d_item.get("website"),
-        address=d_item.get("address"),
-        about=d_item.get("about"),
-        providers=d_item.get("providers", {}),
-        permissions=d_item.get("permissions", [Permission.REGULAR]),
-        status=d_item.get("status", UserStatus.ACTIVE),
-        published_post_count=d_item.get("published_post_count", 0),
-        unpublished_post_count=d_item.get("unpublished_post_count", 0),
-        rejected_post_count=d_item.get("rejected_post_count", 0),
-        rating=d_item["rating_sk"],
-        created_at=d_item["created_at_sk"],
-        updated_at=d_item.get("updated_at")
-    )
-
-
-async def find_user(user_id: str) -> Optional[User]:
-    async def fn(table):
-        resp = await table.get_item(
-            Key={
-                "pk": f"USER#{user_id}",
-                "sk": "META"
-            }
-        )
-        item = resp.get("Item")
-        if not item:
-            return None
-        # logger.debug(f"User: {item}")"META"
-        return user_from_dynamodb(item)
-
-    return await with_dynamodb_table(fn)
-
-
-def build_dynamodb_put_item_params(table, key: Tuple[str, str], values: Dict[str, Any],
-                                   raise_on_existing_pk: bool = False) -> Dict[str, Any]:
-    pk, sk = key
-    params = {
-        "TableName": table.name,
-        "Item": {
-            **values,
-            "pk": pk,
-            "sk": sk
-        }
-    }
-    if raise_on_existing_pk:
-        params["ConditionExpression"] = "attribute_not_exists(pk)"
-    return {
-        "Put": params
-    }
-
-
-def build_dynamodb_update_item_params(
-        table,
-        key: tuple[str, str],
-        changes: dict[str, any] | None = None,
-        deltas: dict[str, int] | None = None
-) -> dict[str, any]:
-    now = utc_now()
-
-    set_parts = []
-    remove_parts = []
-    add_parts = []
-    expr_attr_names = {}
-    expr_attr_values = {}
-
-    # Handle normal changes (SET / REMOVE)
-    if changes:
-        for field, value in changes.items():
-            name_alias = f"#new_{field}"
-            value_alias = f":new_{field}"
-            expr_attr_names[name_alias] = field
-
-            if value is None:
-                remove_parts.append(name_alias)
-            else:
-                set_parts.append(f"{name_alias} = {value_alias}")
-                expr_attr_values[value_alias] = value
-
-    # Handle numeric deltas (ADD)
-    if deltas:
-        for field, delta in deltas.items():
-            name_alias = f"#delta_{field}"
-            value_alias = f":delta_{field}"
-            expr_attr_names[name_alias] = field
-            expr_attr_values[value_alias] = delta
-            add_parts.append(f"{name_alias} {value_alias}")
-
-    # Always set updated_at
-    expr_attr_names["#new_updated_at"] = "updated_at"
-    expr_attr_values[":new_now"] = now
-    set_parts.append("#new_updated_at = :new_now")
-
-    # Combine expressions
-    update_expr_parts = []
-    if set_parts:
-        update_expr_parts.append("SET " + ", ".join(set_parts))
-    if add_parts:
-        update_expr_parts.append("ADD " + ", ".join(add_parts))
-    if remove_parts:
-        update_expr_parts.append("REMOVE " + ", ".join(remove_parts))
-
-    update_expr = " ".join(update_expr_parts)
-
-    pk, sk = key
-    # logger.debug(f"DynamoDB UpdateExpression: {update_expr}")
-
-    return {
-        "Update": {
-            "TableName": table.name,
-            "Key": {"pk": pk, "sk": sk},
-            "UpdateExpression": update_expr,
-            "ExpressionAttributeNames": expr_attr_names,
-            "ExpressionAttributeValues": expr_attr_values,
-        }
-    }
-
-
-def build_dynamodb_delete_item_params(table, key: Tuple[str, str]) -> Dict[str, Any]:
-    pk, sk = key
-
-    return {
-        "Delete": {
-            "TableName": table.name,
-            "Key": {
-                "pk": pk,
-                "sk": sk
-            }
-        }
-    }
-
-
-async def update_dynamodb_item(key: Tuple[str, str], updates: Dict[str, Any]) -> None:
-    async def fn(table):
-        update_item_params = build_dynamodb_update_item_params(table, key, updates)
-        res = await table.update_item(**update_item_params["Update"])
-        # logger.debug(f"update_dynamodb_item: key: {key}, updates: {updates}, res: {res}")
-
-    return await with_dynamodb_table(fn)
-
-
-async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User) -> None:
-    verify_authorization(cur_user, Permission.UPDATE_USER, user)
-
-    changes = update_user_dto.model_dump(exclude_unset=True)
-    if changes.get("website"):
-        changes["website"] = str(changes["website"])
-
-    # logger.debug("Changes:")
-    # logger.debug(changes)
-
-    avatar_action = changes.pop("avatar_action", "keep")
-
-    if avatar_action == "delete":
-        changes["avatar_filename"] = None
-    elif avatar_action == "replace":
-        pass
-    elif avatar_action == "keep":
-        changes.pop("avatar_filename", None)
-
-    old_avatar = user.avatar_filename
-
-    await update_dynamodb_item((f"USER#{user.id}", "META"), changes)
-
-    if old_avatar and avatar_action in {"delete", "replace"}:
-        await drop_public_file(old_avatar)
-
-    for key, value in changes.items():
-        setattr(user, key, value)
-
-
-async def get_user(user_id: str) -> User:
-    user = await find_user(user_id)
-    if user is None:
-        raise UserNotFoundError(f"User '{user_id}' not found")
-    return user
-
-
-class DecimalEncoder(json.JSONEncoder):
-    def default(self, o):
-        if isinstance(o, decimal.Decimal):
-            # you can cast to int if you know it’s always an integer
-            if o % 1 == 0:
-                return int(o)
-            return float(o)
-        return super().default(o)
-
-
-def encode_offset(offset: dict) -> Optional[str]:
-    if not offset:
-        return None
-    return base64.urlsafe_b64encode(
-        json.dumps(offset, cls=DecimalEncoder).encode()
-    ).decode()
-
-
-def decode_offset(token: str) -> Optional[dict]:
-    if not token:
-        return None
-    return json.loads(
-        base64.urlsafe_b64decode(token.encode()).decode()
-    )
-
-
-async def get_published_posts(query_dto: PostQueryDTO = None) -> List[Post]:
-    if query_dto is None:
-        query_dto = PostQueryDTO()
-    if query_dto.popular:
-        if query_dto.tags:
-            return await get_popular_published_posts_by_tags(query_dto)
-        return await get_popular_published_posts(query_dto)
-    if query_dto.tags:
-        return await get_latest_published_posts_by_tags(query_dto)
-    return await get_latest_published_posts(query_dto)
-
-
-T = TypeVar("T")
-
-
-async def query_dynamodb_items(
-        query_dto: BaseQueryDTO,
-        index_name: str,
-        key_condition_expr: Any,
-        map_fn: Callable[[dict], T],
-) -> List[T]:
-    """Generic DynamoDB query executor with pagination and mapping."""
-
-    async def fn(table):
-        query_args = {
-            "IndexName": index_name,
-            "KeyConditionExpression": key_condition_expr,
-            "ScanIndexForward": False,
-            "Limit": query_dto.limit,
-        }
-
-        if query_dto.offset:
-            query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
-
-        resp = await table.query(**query_args)
-        items = resp.get("Items", [])
-        results = [map_fn(item) for item in items]
-
-        # Handle pagination
-        if len(results) == query_dto.limit:
-            results[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
-
-        return results
-
-    return await with_dynamodb_table(fn)
-
-
-async def get_latest_published_posts(query_dto: PostQueryDTO = None) -> List[Post]:
-    if query_dto is None:
-        query_dto = PostQueryDTO()
-    status = PostStatus.PUBLISHED
-
-    return await query_dynamodb_items(
-        query_dto=query_dto,
-        index_name="POSTS_BY_STATUS_CREATED_AT",
-        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{status.value}"),
-        map_fn=post_from_dynamodb,
-    )
-
-
-async def get_popular_published_posts(query_dto: PostQueryDTO = None) -> List[Post]:
-    if query_dto is None:
-        query_dto = PostQueryDTO()
-    status = PostStatus.PUBLISHED
-
-    return await query_dynamodb_items(
-        query_dto=query_dto,
-        index_name="POSTS_BY_STATUS_RATING",
-        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{status.value}"),
-        map_fn=post_from_dynamodb,
-    )
-
-
-async def get_latest_published_posts_by_tags(query_dto: PostQueryDTO = None) -> List[Post]:
-    if query_dto is None:
-        query_dto = PostQueryDTO()
-    if not query_dto.tags:
-        return await get_latest_published_posts(query_dto)
-
-    async def fn(table):
-        query_args = {
-            "KeyConditionExpression": Key("pk").eq("POST_TAG_COMBO#" + "#".join(sorted(query_dto.tags))),
-            "ScanIndexForward": False,
-            "Limit": query_dto.limit,
-        }
-        if query_dto.offset:
-            query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
-        resp = await table.query(**query_args)
-        combo_items = resp.get("Items", [])
-        # logger.debug(combo_items)
-        if not combo_items:
-            return []
-
-        # Batch get post metadata
-        post_ids = [item["post_id"] for item in combo_items]
-        keys = [{"pk": f"POST#{post_id}", "sk": "META"} for post_id in post_ids]
-        resp = await table.meta.client.batch_get_item(RequestItems={table.name: {"Keys": keys}})
-        post_items = resp["Responses"].get(table.name, [])
-
-        # Maintain original order
-        post_items_map = {item["id"]: item for item in post_items}
-        ordered_posts = [post_items_map[pid] for pid in post_ids if pid in post_items_map]
-
-        posts = [post_from_dynamodb(item) for item in ordered_posts]
-        if len(posts) == query_dto.limit:
-            posts[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
-        return posts
-
-    return await with_dynamodb_table(fn)
-
-
-async def get_popular_published_posts_by_tags(query_dto: PostQueryDTO = None) -> List[Post]:
-    if query_dto is None:
-        query_dto = PostQueryDTO()
-
-    # Increase limit to fetch more posts before filtering
-    query_dto_copy = copy.copy(query_dto)
-    query_dto_copy.limit = max(query_dto.limit * 5, 100)
-
-    posts = await get_popular_published_posts(query_dto_copy)
-
-    if not query_dto.tags:
-        return posts
-
-    offset = posts[-1].offset if posts else None
-
-    # Filter by tags
-    filtered_posts = [post for post in posts if set(query_dto.tags).issubset(set(post.tags))]
-    if filtered_posts:
-        filtered_posts[-1].offset = offset
-
-    return filtered_posts
-
-
-async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, user: User) -> None:
-    # logger.debug(f"update_post_status: user: {user}")
-    verify_authorization(user, Permission.UPDATE_POST_STATUS)
-
-    if post.status == PostStatus.PUBLISHED:
-        raise PostAlreadyPublishedError()
-
-    changes = update_post_status_dto.model_dump(exclude_unset=True)
-    if not changes:
-        return
-
-    old_status = post.status
-    status = PostStatus(changes.get("status"))
-
-    async def fn(table):
-        now = utc_now()
-
-        transact_items = []
-
-        # Update post
-        post_key = (f"POST#{post.id}", "META")
-        post_item = {
-            **changes,
-            "post_status_pk": f"POST#STATUS#{status.value}",
-            "post_user_status_pk": f"POST#USER#{post.user_id}#STATUS#{status.value}",
-        }
-        transact_items.append(build_dynamodb_update_item_params(table, post_key, post_item))
-
-        # User post counters
-        owner = await find_user(post.user_id)
-        if owner:
-            user_key = (f"USER#{owner.id}", "META")
-            user_old_post_count_attr = f"{old_status.value}_post_count"
-            user_new_post_count_attr = f"{status.value}_post_count"
-            user_item = {
-                user_old_post_count_attr: max(0, getattr(owner, user_old_post_count_attr) - 1),
-                user_new_post_count_attr: getattr(owner, user_new_post_count_attr) + 1,
-            }
-            transact_items.append(build_dynamodb_update_item_params(table, user_key, user_item))
-            for key, value in user_item.items():
-                setattr(owner, key, value)
-
-        if status == PostStatus.PUBLISHED:
-            # Upsert tags
-            for tag in post.tags:
-                transact_items.append({
-                    "Update": {
-                        "TableName": table.name,
-                        "Key": {
-                            "pk": f"POST_TAG#{tag}",
-                            "sk": "META"
-                        },
-                        "UpdateExpression": (
-                            "SET #new_tag_name_sk = if_not_exists(#new_tag_name_sk, :tag_name_sk), "
-                            "    #new_tag_type_pk = if_not_exists(#new_tag_type_pk, :tag_type_pk), "
-                            "    #new_rating_sk = if_not_exists(#new_rating_sk, :def_rating_sk) + :rating_sk_inc, "
-                            "    #new_created_at = if_not_exists(#new_created_at, :now), "
-                            "    #new_updated_at = :now "
-                        ),
-                        "ExpressionAttributeNames": {
-                            "#new_tag_name_sk": "tag_name_sk",
-                            "#new_tag_type_pk": "tag_type_pk",
-                            "#new_rating_sk": "rating_sk",
-                            "#new_created_at": "created_at",
-                            "#new_updated_at": "updated_at",
-                        },
-                        "ExpressionAttributeValues": {
-                            ":tag_name_sk": tag,
-                            ":tag_type_pk": "POST_TAG",
-                            ":now": now,
-                            ":def_rating_sk": compute_rating_sk(0, now),
-                            ":rating_sk_inc": compute_rating_sk(1)
-                        }
-                    }
-                })
-
-            # Create post tag combos
-            for r in range(1, len(post.tags) + 1):
-                for combo in combinations(sorted(post.tags), r):
-                    combo_key = ("POST_TAG_COMBO#" + "#".join(combo), str(now))
-                    combo_item = {"post_id": post.id}
-                    transact_items.append(build_dynamodb_put_item_params(table, combo_key, combo_item))
-
-        # logger.debug(transact_items)
-
-        await dynamodb_transact_write(table, transact_items)
-        post.status = status
-
-    return await with_dynamodb_table(fn)
-
-
-def tag_from_dynamodb(d_item: Dict[str, Any]) -> Tag:
-    # logger.debug(d_item)
-    return Tag(
-        name=d_item["tag_name_sk"],
-        rating=d_item["rating_sk"],
-    )
-
-
-async def get_popular_post_tags(query_dto: TagQueryDTO = None) -> List[Tag]:
-    if query_dto is None:
-        query_dto = TagQueryDTO()
-
-    return await query_dynamodb_items(
-        query_dto=query_dto,
-        index_name="TAGS_BY_TYPE_RATING",
-        key_condition_expr=Key("tag_type_pk").eq("POST_TAG"),
-        map_fn=tag_from_dynamodb,
-    )
-
-
-async def get_post_tags_by_prefix(query_dto: TagQueryDTO = None) -> List[Tag]:
-    if query_dto is None:
-        query_dto = TagQueryDTO()
-
-    async def fn(table):
-        resp = await table.query(
-            IndexName="TAGS_BY_TYPE_NAME",
-            KeyConditionExpression=Key("tag_type_pk").eq("POST_TAG") & Key("tag_name_sk").begins_with(query_dto.prefix),
-            Limit=query_dto.limit
-        )
-        items = resp.get("Items", [])
-        # logger.debug(f"Tags: {items}")
-        return [tag_from_dynamodb(item) for item in items]
-
-    return await with_dynamodb_table(fn)
-
-
-async def get_post_tags(query_dto: TagQueryDTO = None) -> List[Tag]:
-    if query_dto.prefix:
-        return await get_post_tags_by_prefix(query_dto)
-    return await get_popular_post_tags(query_dto)
-
-
-async def create_contact_message(message_dto: ContactMessageDTO, user: User = None) -> ContactMessage:
-    if user:
-        verify_authorization(user, Permission.CREATE_CONTACT_MESSAGE)
-
-    async def fn(table):
-        now = utc_now()
-        message_id = str(uuid.uuid4())
-
-        if is_prod():
-            async with aioboto3_session().client("sns") as sns_client:
-                text = (
-                    f"New contact form submission:\n"
-                    f"ID: {message_id}\n"
-                    f"Name: {message_dto.name}\n"
-                    f"Email: {message_dto.email}\n"
-                    f"Message: {message_dto.message}\n"
-                    f"User ID: {user.id if user else 'N/A'}"
-                )
-                await sns_client.publish(
-                    TopicArn=get_contact_topic_arn(),
-                    Message=text,
-                    Subject="New Contact Form Submission"
-                )
-
-        message_item = {
-            "pk": f"CONTACT_MESSAGE#{message_id}",
-            "sk": "META",
-            "message_id": message_id,
-            "name": message_dto.name,
-            "email": message_dto.email,
-            "message": message_dto.message,
-            # todo: rename to created_at
-            "created_at_sk": now,
-        }
-        if user:
-            message_item["user_id"] = user.id
-
-        await table.put_item(Item=message_item)
-
-        return ContactMessage(
-            id=message_id,
-            name=message_item["name"],
-            email=str(message_item["email"]),
-            message=message_item["message"],
-            user_id=message_item.get("user_id"),
-            created_at=now,
-        )
-
-    return await with_dynamodb_table(fn)
-
-
-async def get_login_redirect_url(callback_url: str) -> str:
-    if is_prod():
-        return (
-            f"https://{get_cognito_domain()}/oauth2/authorize"
-            f"?client_id={get_cognito_client_id()}"
-            f"&response_type=code"
-            f"&redirect_uri={quote(callback_url, safe='')}"
-            f"&scope=openid+email+profile"
-        )
-
-    return callback_url
-
-
-async def get_user_token_by_code(code: str, callback_url: str) -> UserToken:
-    if is_prod():
-        if not code:
-            raise InvalidCodeError("Missing code")
-
-        token_url = f"https://{get_cognito_domain()}/oauth2/token"
-        cognito_client_id = get_cognito_client_id()
-        cognito_client_secret = get_cognito_client_secret()
-        data = {
-            "grant_type": "authorization_code",
-            "client_id": cognito_client_id,
-            "code": code,
-            "redirect_uri": quote(callback_url, safe=''),
-        }
-        headers = {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": "Basic " + base64.b64encode(
-                f"{cognito_client_id}:{cognito_client_secret}".encode()
-            ).decode()
-        }
-
-        async with httpx.AsyncClient() as client:
-            token_resp = await client.post(token_url, data=data, headers=headers)
-            if token_resp.status_code != HTTP_200_OK:
-                raise CodeExchangeFailedError("Failed to exchange code")
-            tokens = token_resp.json()
-
-        token = tokens.get("id_token")
-        if not token:
-            raise InvalidTokenError("Missing token")
-
-        claims = jwt.get_unverified_claims(token)
-        user_token = user_token_from_jwt_claims(claims, token)
-    else:
-        user_token = get_dummy_user_token()
-
-    await upsert_user_by_user_token(user_token)
-    return user_token
-
-
-async def get_logout_redirect_url(callback_url: str) -> str:
-    if is_prod():
-        return (
-            f"https://{get_cognito_domain()}/logout"
-            f"?client_id={get_cognito_client_id()}"
-            f"&logout_uri={quote(callback_url, safe='')}"
-        )
-
-    return callback_url
-
-
-async def get_latest_active_users(query_dto: UserQueryDTO = None) -> List[User]:
-    if query_dto is None:
-        query_dto = UserQueryDTO()
-    status = UserStatus.ACTIVE
-
-    return await query_dynamodb_items(
-        query_dto=query_dto,
-        index_name="USERS_BY_STATUS_CREATED_AT",
-        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{status.value}"),
-        map_fn=user_from_dynamodb,
-    )
-
-
-def unix_to_month_year(timestamp: int, tz: str | None = None) -> str:
-    """
-    Convert Unix timestamp to 'Feb 2024' format, optional timezone.
-    """
-    dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
-    if tz:
-        dt = dt.astimezone(ZoneInfo(tz))
-    return dt.strftime("%b %Y")
-
-
-def unix_to_full_date(timestamp: int, tz: str | None = None) -> str:
-    """
-    Convert Unix timestamp to 'May 29, 2024' format, optional timezone.
-    """
-    dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
-    if tz:
-        dt = dt.astimezone(ZoneInfo(tz))
-    return dt.strftime("%b %d, %Y")
-
-
-async def get_latest_published_posts_by_user(user: User, query_dto: PostQueryDTO = None) -> List[Post]:
-    if user.published_post_count == 0:
-        return []
-    if query_dto is None:
-        query_dto = PostQueryDTO()
-    status = PostStatus.PUBLISHED
-
-    return await query_dynamodb_items(
-        query_dto=query_dto,
-        index_name="POSTS_BY_USER_STATUS_CREATED_AT",
-        key_condition_expr=Key("post_user_status_pk").eq(f"POST#USER#{user.id}#STATUS#{status.value}"),
-        map_fn=post_from_dynamodb,
-    )
-
-
-async def get_popular_active_users(query_dto: UserQueryDTO = None) -> List[User]:
-    if query_dto is None:
-        query_dto = UserQueryDTO()
-    status = UserStatus.ACTIVE
-
-    return await query_dynamodb_items(
-        query_dto=query_dto,
-        index_name="USERS_BY_STATUS_RATING",
-        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{status.value}"),
-        map_fn=user_from_dynamodb,
-    )
-
-
-def post_impression_from_dynamodb(d_item: Dict[str, Any]) -> PostImpression:
-    user_id = d_item["user_id"]
-    return PostImpression(
-        owner_id=user_id,
-        post_id=d_item["post_id"],
-        user_id=user_id,
-        action=d_item["action"],
-        created_at=d_item["created_at"],
-        updated_at=d_item.get("updated_at")
-    )
-
-
-async def find_post_impression(post: Post, user: User) -> PostImpression | None:
-    async def fn(table):
-        resp = await table.get_item(
-            Key={
-                "pk": f"POST#{post.id}",
-                "sk": f"IMP#USER#{user.id}"
-            }
-        )
-        item = resp.get("Item")
-        if not item:
-            return None
-        # logger.debug(f"PostImpression: {item}")
-        return post_impression_from_dynamodb(item)
-
-    return await with_dynamodb_table(fn)
-
-
-async def update_post_impression(post: Post, update_post_impression_dto: UpdatePostImpressionDTO, user: User) -> None:
-    verify_authorization(user, Permission.UPDATE_POST_IMPRESSION, post)
-    current_impression = await find_post_impression(post, user)
-
-    async def fn(table):
-        now = utc_now()
-        current_action = current_impression.action if current_impression else None
-        action = update_post_impression_dto.action
-        post_impression_item = {
-            "post_id": post.id,
-            "user_id": user.id,
-            "action": action,
-            "created_at": now
-        }
-        transact_items = []
-
-        post_key = (f"POST#{post.id}", "META")
-        post_imp_key = (f"POST#{post.id}", f"IMP#USER#{user.id}")
-
-        if action == Impression.LIKE:
-            if current_action == Impression.LIKE:
-                transact_items.append(build_dynamodb_delete_item_params(table, post_imp_key))
-                transact_items.append(build_dynamodb_update_item_params(table, post_key, deltas={"likes_count": -1}))
-            elif current_action == Impression.DISLIKE:
-                transact_items.append(
-                    build_dynamodb_update_item_params(table, post_imp_key, {"action": Impression.LIKE}))
-                transact_items.append(build_dynamodb_update_item_params(table, post_key, deltas={"dislikes_count": -1,
-                                                                                                 "likes_count": +1}))
-            else:
-                transact_items.append(
-                    build_dynamodb_put_item_params(table, post_imp_key,
-                                                   {**post_impression_item, "action": Impression.LIKE},
-                                                   raise_on_existing_pk=True))
-                transact_items.append(build_dynamodb_update_item_params(table, post_key, deltas={"likes_count": +1}))
-
-        elif action == Impression.DISLIKE:
-            if current_action == Impression.DISLIKE:
-                transact_items.append(build_dynamodb_delete_item_params(table, post_imp_key))
-                transact_items.append(build_dynamodb_update_item_params(table, post_key, deltas={"dislikes_count": -1}))
-            elif current_action == Impression.LIKE:
-                transact_items.append(
-                    build_dynamodb_update_item_params(table, post_imp_key, {"action": Impression.DISLIKE}))
-                transact_items.append(build_dynamodb_update_item_params(table, post_key, deltas={"likes_count": -1,
-                                                                                                 "dislikes_count": +1}))
-            else:
-                transact_items.append(build_dynamodb_put_item_params(table, post_imp_key, {**post_impression_item,
-                                                                                           "action": Impression.DISLIKE},
-                                                                     raise_on_existing_pk=True))
-                transact_items.append(build_dynamodb_update_item_params(table, post_key, deltas={"dislikes_count": +1}))
-
-        await dynamodb_transact_write(table, transact_items)
-
-    return await with_dynamodb_table(fn)

@@ -1,4 +1,3 @@
-from typing import List
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.exceptions import RequestValidationError
@@ -205,8 +204,8 @@ async def _create_contact_message(message_dto: ContactMessageDTO, cur_user: OptC
     await create_contact_message(message_dto, cur_user)
 
 
-@app.get("/post-tags", name="get-post-tags", response_model=List[PublicTag], response_class=JSONResponse)
-async def _get_post_tags(query_dto: TagQueryDep) -> List[Tag]:
+@app.get("/post-tags", name="get-post-tags", response_model=list[PublicTag], response_class=JSONResponse)
+async def _get_post_tags(query_dto: TagQueryDep) -> list[Tag]:
     return await get_post_tags(query_dto)
 
 

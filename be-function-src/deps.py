@@ -1,4 +1,3 @@
-from typing import List, Dict, Union
 from fastapi import Request, Depends, HTTPException, Query, UploadFile, File, Body
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.status import (
@@ -89,7 +88,7 @@ UserDep = Annotated[User, Depends(get_user_by_id)]
 UserQueryDep = Annotated[UserQueryDTO, Depends()]
 
 
-async def get_post_query(request: Request, tags: List[str] = Query([])) -> PostQueryDTO:
+async def get_post_query(request: Request, tags: list[str] = Query([])) -> PostQueryDTO:
     data = dict(request.query_params)
     data['tags'] = tags
     return PostQueryDTO(**data)
@@ -145,7 +144,7 @@ def get_update_post_impression_dto(
 UpdatePostImpressionDTODep = Annotated[UpdatePostImpressionDTO, Depends(get_update_post_impression_dto)]
 
 
-async def get_error_response(request: Request, status_code: int, details: Union[Dict, str]):
+async def get_error_response(request: Request, status_code: int, details: dict | str):
     status_enum = HTTPStatus(status_code)
     public_data = {
         "code": status_code,
