@@ -1,0 +1,26 @@
+{% set can_change_status = cur_user and check_auth(cur_user, Permission.CHANGE_POST_STATUS, post) %}
+
+{% if post.status != PostStatus.PUBLISHED and can_change_status %}
+    <div class="d-flex gap-1 align-items-center">
+        <!-- Publish Post -->
+        <span data-bs-toggle="tooltip" data-bs-title="Publish this post">
+            <button type="button" class="btn btn-success btn-sm btn-post-publish" data-post-id="{{ post.id }}">
+                <i class="bi bi-check-all"></i> Publish
+            </button>
+        </span>
+
+        <!-- Reject Post -->
+        <span data-bs-toggle="tooltip" data-bs-title="Reject this post">
+            <label class="input-group input-group-sm">
+                <input type="text"
+                       class="form-control form-control-sm"
+                       name="comment"
+                       id="comment"
+                       placeholder="Rejection reason...">
+                <button type="button" class="btn btn-danger btn-sm btn-post-reject" data-post-id="{{ post.id }}">
+                    <i class="bi bi-x-lg"></i> Reject
+                </button>
+            </label>
+        </span>
+    </div>
+{% endif %}

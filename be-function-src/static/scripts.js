@@ -419,6 +419,72 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
 const tooltipTriggerList = document.querySelectorAll("[data-bs-toggle=\"tooltip\"]")
 const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
 
+// Post publish/reject
+$(function () {
+  // Publish post handler
+  $(".btn-post-publish").on("click", function () {
+    const $btn = $(this)
+    const postId = $btn.data("post-id")
+
+    if (!window.CONFIG.current_user) {
+      alert("You must be logged in to react.")
+      return
+    }
+
+    const url = window.CONFIG.update_post_status_url.replace("{post_id}", postId)
+
+    $.ajax({
+      url: url,
+      method: "POST",
+      contentType: "application/json",
+      data: JSON.stringify({status: "published"}),
+      success: function () {
+        window.location.reload()
+      },
+      error: function (xhr) {
+        console.error("Error publishing post:", xhr.responseText)
+        alert("Failed to publish post.")
+      }
+    })
+  })
+
+  // Reject post handler
+  $(".btn-post-reject").on("click", function () {
+    const $btn = $(this)
+    const postId = $btn.data("post-id")
+
+    if (!window.CONFIG.current_user) {
+      alert("You must be logged in to react.")
+      return
+    }
+
+    const url = window.CONFIG.update_post_status_url.replace("{post_id}", postId)
+    const comment = $(this).closest(".input-group").find("input[name='comment']").val().trim()
+
+    if (!comment) {
+      alert("Please enter a rejection reason.")
+      return
+    }
+
+    $.ajax({
+      url: url,
+      method: "POST",
+      contentType: "application/json",
+      data: JSON.stringify({
+        status: "rejected",
+        comment: comment
+      }),
+      success: function () {
+        window.location.reload()
+      },
+      error: function (xhr) {
+        console.error("Error rejecting post:", xhr.responseText)
+        alert("Failed to reject post.")
+      }
+    })
+  })
+})
+
 // Post like/dislike
 $(function () {
   $(".btn-post-like, .btn-post-dislike").on("click", function () {
