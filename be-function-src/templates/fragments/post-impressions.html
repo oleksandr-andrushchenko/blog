@@ -1,8 +1,8 @@
 {% set is_anonymous = not cur_user %}
 {% set has_permission = cur_user and check_auth(cur_user, Permission.UPDATE_POST_IMPRESSION, post) %}
 
-{% if has_permission %}
-    <div class="d-flex gap-1 align-items-center">
+<div class="d-flex gap-1 align-items-center">
+    {% if has_permission %}
         <!-- Like Button -->
         <span data-bs-toggle="tooltip"
               data-bs-title="{% if post_impression and post_impression.action == Impression.LIKE %}Unlike this post{% else %}Like this post{% endif %}">
@@ -20,19 +20,8 @@
                 {{ post.dislikes_count }}
             </button>
         </span>
-    </div>
-{% elif is_anonymous %}
-    <!-- Optionally, show a message for non-logged-in users -->
-    <div>
-        <span data-bs-toggle="tooltip" data-bs-title="Log in to react">
-            <button type="button" class="btn btn-success btn-sm" disabled>
-                <i class="bi bi-hand-thumbs-up"></i> {{ post.likes_count }}
-            </button>
-        </span>
-        <span data-bs-toggle="tooltip" data-bs-title="Log in to react">
-            <button type="button" class="btn btn-danger btn-sm" disabled>
-                <i class="bi bi-hand-thumbs-down"></i> {{ post.dislikes_count }}
-            </button>
-        </span>
-    </div>
-{% endif %}
+    {% else %}
+        <div><b>{{ post.likes_count }}</b> Likes</div>
+        <div><b>{{ post.dislikes_count }}</b> Dislikes</div>
+    {% endif %}
+</div>

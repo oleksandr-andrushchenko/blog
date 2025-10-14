@@ -60,12 +60,14 @@
                 Joined: {{ (user.created_at / 1000) | unix_to_full_date() }}
             </div>
 
-            {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
-                <a href="{{ url("edit-user", user_id=user.id) }}" class="btn btn-light btn-sm">
-                    <i class="bi bi-pencil-square"></i> Edit profile
-                </a>
-            {% endif %}
-            {% include "fragments/user-impressions.html" %}
+            <div class="d-flex gap-2 align-items-center">
+                {% include "fragments/user-impressions.html" %}
+                {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
+                    <a href="{{ url("edit-user", user_id=user.id) }}" class="btn btn-secondary btn-sm">
+                        <i class="bi bi-pencil-square"></i> Edit profile
+                    </a>
+                {% endif %}
+            </div>
         </div>
     </div>
 
