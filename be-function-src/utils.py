@@ -2118,3 +2118,7 @@ async def create_dummy_fixtures() -> None:
         for post in created_posts:
             await update_post_impression(post, UpdatePostImpressionDTO(
                 action=Impression.LIKE if random.random() < .5 else Impression.DISLIKE), user)
+        for user2 in created_users:
+            if user.id != user2.id:
+                await update_user_impression(user, UpdateUserImpressionDTO(
+                    action=UserImpressionAction.FOLLOW if random.random() < .5 else UserImpressionAction.BLOCK), user2)
