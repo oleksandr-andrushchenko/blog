@@ -1198,8 +1198,11 @@ async def find_user(user_id: str) -> User | None:
     return user_from_dynamodb(item)
 
 
-def build_dynamodb_put_item_params(key: tuple[str, str], values: dict[str, any],
-                                   raise_on_existing_pk: bool = False) -> dict[str, any]:
+def build_dynamodb_put_item_params(
+        key: tuple[str, str],
+        values: dict[str, any],
+        raise_on_existing_pk: bool = False
+) -> dict[str, any]:
     pk, sk = key
     params = {
         "TableName": dynamodb_table.name,
@@ -1216,15 +1219,22 @@ def build_dynamodb_put_item_params(key: tuple[str, str], values: dict[str, any],
     }
 
 
-def add_dynamodb_put_transact(transacts: list, key: tuple[str, str], values: dict[str, any],
-                              raise_on_existing_pk: bool = False) -> None:
-    transacts.append(build_dynamodb_put_item_params(key, values, raise_on_existing_pk))
+def add_dynamodb_put_transact(
+        transacts: list,
+        key: tuple[str, str],
+        values: dict[str, any],
+        raise_on_existing_pk: bool = False
+) -> None:
+    param_dict = dict(locals())
+    param_dict.pop("transacts", None)
+    transacts.append(build_dynamodb_put_item_params(**param_dict))
 
 
 def build_dynamodb_update_item_params(
         key: tuple[str, str],
         changes: dict[str, any] | None = None,
-        deltas: dict[str, int] | None = None
+        deltas: dict[str, any] | None = None,
+        add_updated_at: bool = True
 ) -> dict[str, any]:
     now = utc_now()
 
@@ -1256,10 +1266,11 @@ def build_dynamodb_update_item_params(
             expr_attr_values[value_alias] = delta
             add_parts.append(f"{name_alias} {value_alias}")
 
-    # Always set updated_at
-    expr_attr_names["#new_updated_at"] = "updated_at"
-    expr_attr_values[":new_now"] = now
-    set_parts.append("#new_updated_at = :new_now")
+    # Set updated_at
+    if add_updated_at:
+        expr_attr_names["#new_updated_at"] = "updated_at"
+        expr_attr_values[":new_now"] = now
+        set_parts.append("#new_updated_at = :new_now")
 
     # Combine expressions
     update_expr_parts = []
@@ -1286,9 +1297,16 @@ def build_dynamodb_update_item_params(
     }
 
 
-def add_dynamodb_update_transact(transacts: list, key: tuple[str, str], changes: dict[str, any] | None = None,
-                                 deltas: dict[str, int] | None = None) -> None:
-    transacts.append(build_dynamodb_update_item_params(key, changes, deltas))
+def add_dynamodb_update_transact(
+        transacts: list,
+        key: tuple[str, str],
+        changes: dict[str, any] | None = None,
+        deltas: dict[str, any] | None = None,
+        add_updated_at: bool = True
+) -> None:
+    param_dict = dict(locals())
+    param_dict.pop("transacts", None)
+    transacts.append(build_dynamodb_update_item_params(**param_dict))
 
 
 def build_dynamodb_delete_item_params(key: tuple[str, str]) -> dict[str, any]:
@@ -1305,15 +1323,25 @@ def build_dynamodb_delete_item_params(key: tuple[str, str]) -> dict[str, any]:
     }
 
 
-def add_dynamodb_delete_transact(transacts: list, key: tuple[str, str]) -> None:
-    transacts.append(build_dynamodb_delete_item_params(key))
+def add_dynamodb_delete_transact(
+        transacts: list,
+        key: tuple[str, str]
+) -> None:
+    param_dict = dict(locals())
+    param_dict.pop("transacts", None)
+    transacts.append(build_dynamodb_delete_item_params(**param_dict))
 
 
-async def update_dynamodb_item(key: tuple[str, str], updates: dict[str, any]) -> None:
+async def update_dynamodb_item(
+        key: tuple[str, str],
+        changes: dict[str, any] | None = None,
+        deltas: dict[str, any] | None = None,
+        add_updated_at: bool = True
+) -> None:
+    param_dict = dict(locals())
     table = await get_dynamodb_table()
-    update_item_params = build_dynamodb_update_item_params(key, updates)
-    res = await table.update_item(**update_item_params["Update"])
-    # logger.debug(f"update_dynamodb_item: key: {key}, updates: {updates}, res: {res}")
+    update_item_params = build_dynamodb_update_item_params(**param_dict)
+    await table.update_item(**update_item_params["Update"])
 
 
 async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User) -> None:
