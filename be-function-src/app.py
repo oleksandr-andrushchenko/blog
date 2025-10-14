@@ -38,7 +38,7 @@ from utils import (
     get_post_tags,
     create_dummy_fixtures,
     update_post_status,
-    get_latest_active_users,
+    get_active_users,
     get_latest_published_posts_by_user,
     get_published_posts,
     get_popular_post_tags,
@@ -218,14 +218,14 @@ async def view_users(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("view-users.html", {
         "cur_user": cur_user,
         "users_query": query_dto,
-        "users": await get_latest_active_users(query_dto)
+        "users": await get_active_users(query_dto)
     })
 
 
 @app.get("/users-fragment", name="view-users-fragment", response_class=HTMLResponse)
 async def view_users_fragment(query_dto: UserQueryDep) -> str:
     return get_html_content("fragments/users.html", {
-        "users": await get_latest_active_users(query_dto)
+        "users": await get_active_users(query_dto)
     })
 
 

@@ -202,7 +202,7 @@ class PostQueryDTO(BaseQueryDTO):
 
 
 class UserQueryDTO(BaseQueryDTO):
-    pass
+    popular: bool | None = None
 
 
 class TagQueryDTO(BaseQueryDTO):
@@ -1843,6 +1843,14 @@ async def get_latest_active_users(query_dto: UserQueryDTO = None) -> list[User]:
         key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{status.value}"),
         map_fn=user_from_dynamodb,
     )
+
+
+async def get_active_users(query_dto: UserQueryDTO = None) -> list[User]:
+    if query_dto is None:
+        query_dto = PostQueryDTO()
+    if query_dto.popular:
+        return await get_popular_active_users(query_dto)
+    return await get_latest_active_users(query_dto)
 
 
 def unix_to_month_year(timestamp: int, tz: str | None = None) -> str:
