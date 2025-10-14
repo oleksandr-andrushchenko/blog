@@ -1201,12 +1201,17 @@ async def find_user(user_id: str) -> User | None:
 def build_dynamodb_put_item_params(
         key: tuple[str, str],
         values: dict[str, any],
+        add_created_at: bool = True,
         raise_on_existing_pk: bool = False
 ) -> dict[str, any]:
     pk, sk = key
+    item = {}
+    if add_created_at:
+        item["created_at"] = values["created_at"] = utc_now()
     params = {
         "TableName": dynamodb_table.name,
         "Item": {
+            **item,
             **values,
             "pk": pk,
             "sk": sk
@@ -1223,6 +1228,7 @@ def add_dynamodb_put_transact(
         transacts: list,
         key: tuple[str, str],
         values: dict[str, any],
+        add_created_at: bool = True,
         raise_on_existing_pk: bool = False
 ) -> None:
     param_dict = dict(locals())
@@ -1874,7 +1880,6 @@ async def update_post_impression(post: Post, update_post_impression_dto: UpdateP
         "post_id": post.id,
         "user_id": user.id,
         "action": action,
-        "created_at": now
     }
     transacts = []
 
