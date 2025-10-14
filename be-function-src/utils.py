@@ -1872,7 +1872,6 @@ async def update_post_impression(post: Post, update_post_impression_dto: UpdateP
     verify_authorization(user, Permission.UPDATE_POST_IMPRESSION, post)
 
     current_impression = await find_post_impression(post, user)
-    now = utc_now()
     current_action = current_impression.action if current_impression else None
     action = update_post_impression_dto.action
     post_impression_item = {
@@ -1888,28 +1887,34 @@ async def update_post_impression(post: Post, update_post_impression_dto: UpdateP
     if action == Impression.LIKE:
         if current_action == Impression.LIKE:
             add_dynamodb_delete_transact(transacts, post_imp_key)
-            add_dynamodb_update_transact(transacts, post_key, deltas={"likes_count": -1})
+            add_dynamodb_update_transact(transacts, post_key,
+                                         deltas={"likes_count": -1, "rating_sk": compute_rating_sk(-1)})
         elif current_action == Impression.DISLIKE:
             add_dynamodb_update_transact(transacts, post_imp_key, {"action": Impression.LIKE})
-            add_dynamodb_update_transact(transacts, post_key, deltas={"dislikes_count": -1, "likes_count": +1})
+            add_dynamodb_update_transact(transacts, post_key, deltas={"dislikes_count": -1, "likes_count": 1,
+                                                                      "rating_sk": compute_rating_sk(2)})
         else:
             add_dynamodb_put_transact(transacts, post_imp_key,
                                       {**post_impression_item, "action": Impression.LIKE},
                                       raise_on_existing_pk=True)
-            add_dynamodb_update_transact(transacts, post_key, deltas={"likes_count": +1})
+            add_dynamodb_update_transact(transacts, post_key,
+                                         deltas={"likes_count": 1, "rating_sk": compute_rating_sk(1)})
 
     elif action == Impression.DISLIKE:
         if current_action == Impression.DISLIKE:
             add_dynamodb_delete_transact(transacts, post_imp_key)
-            add_dynamodb_update_transact(transacts, post_key, deltas={"dislikes_count": -1})
+            add_dynamodb_update_transact(transacts, post_key,
+                                         deltas={"dislikes_count": -1, "rating_sk": compute_rating_sk(1)})
         elif current_action == Impression.LIKE:
             add_dynamodb_update_transact(transacts, post_imp_key, {"action": Impression.DISLIKE})
-            add_dynamodb_update_transact(transacts, post_key, deltas={"likes_count": -1, "dislikes_count": +1})
+            add_dynamodb_update_transact(transacts, post_key, deltas={"likes_count": -1, "dislikes_count": 1,
+                                                                      "rating_sk": compute_rating_sk(-2)})
         else:
             add_dynamodb_put_transact(transacts, post_imp_key,
                                       {**post_impression_item, "action": Impression.DISLIKE},
                                       raise_on_existing_pk=True)
-            add_dynamodb_update_transact(transacts, post_key, deltas={"dislikes_count": +1})
+            add_dynamodb_update_transact(transacts, post_key,
+                                         deltas={"dislikes_count": 1, "rating_sk": compute_rating_sk(-1)})
 
     await dynamodb_transact_write(transacts)
 
