@@ -1251,6 +1251,8 @@ def build_dynamodb_update_item_params(
 
     # Set updated_at
     if add_updated_at:
+        if not changes:
+            changes = {}
         changes["updated_at"] = utc_now()
 
     # Handle normal changes (SET / REMOVE)
