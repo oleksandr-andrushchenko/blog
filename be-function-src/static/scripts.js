@@ -419,112 +419,75 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
 const tooltipTriggerList = document.querySelectorAll("[data-bs-toggle=\"tooltip\"]")
 const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
 
-// Post publish/reject
-$(function () {
-  // Publish post handler
-  $(".btn-post-publish").on("click", function () {
-    const $btn = $(this)
-    const postId = $btn.data("post-id")
+// Publish post
+$(".btn-post-publish").on("click", function () {
+  const $btn = $(this)
+  const postId = $btn.data("post-id")
+  const status = $btn.data("status")
+  const url = window.CONFIG.update_post_status_url.replace("{post_id}", postId)
 
-    if (!window.CONFIG.current_user) {
-      alert("You must be logged in to react.")
-      return
+  $btn.prop("disabled", true).addClass("disabled")
+
+  $.ajax({
+    url,
+    method: "POST",
+    contentType: "application/json",
+    data: JSON.stringify({status}),
+    success: function () {
+      window.location.reload()
+    },
+    error: function (xhr) {
+      console.error("Error publishing post:", xhr.responseText)
+      alert("Failed to publish post.")
+    },
+    complete: function () {
+      // Re-enable button if reload didn’t happen
+      $btn.prop("disabled", false).removeClass("disabled")
     }
-
-    const url = window.CONFIG.update_post_status_url.replace("{post_id}", postId)
-
-    $.ajax({
-      url: url,
-      method: "POST",
-      contentType: "application/json",
-      data: JSON.stringify({status: "published"}),
-      success: function () {
-        window.location.reload()
-      },
-      error: function (xhr) {
-        console.error("Error publishing post:", xhr.responseText)
-        alert("Failed to publish post.")
-      }
-    })
-  })
-
-  // Reject post handler
-  $(".btn-post-reject").on("click", function () {
-    const $btn = $(this)
-    const postId = $btn.data("post-id")
-
-    if (!window.CONFIG.current_user) {
-      alert("You must be logged in to react.")
-      return
-    }
-
-    const url = window.CONFIG.update_post_status_url.replace("{post_id}", postId)
-    const comment = $(this).closest(".input-group").find("input[name='comment']").val().trim()
-
-    if (!comment) {
-      alert("Please enter a rejection reason.")
-      return
-    }
-
-    $.ajax({
-      url: url,
-      method: "POST",
-      contentType: "application/json",
-      data: JSON.stringify({
-        status: "rejected",
-        comment: comment
-      }),
-      success: function () {
-        window.location.reload()
-      },
-      error: function (xhr) {
-        console.error("Error rejecting post:", xhr.responseText)
-        alert("Failed to reject post.")
-      }
-    })
   })
 })
 
-// Post like/dislike
-$(function () {
-  $(".btn-post-like, .btn-post-dislike").on("click", function () {
-    const $btn = $(this)
-    const postId = $btn.data("post-id")
+// Reject post
+$(".btn-post-reject").on("click", function () {
+  const $btn = $(this)
+  const postId = $btn.data("post-id")
+  const status = $btn.data("status")
+  const url = window.CONFIG.update_post_status_url.replace("{post_id}", postId)
+  const comment = $btn.closest(".input-group").find("input[name='comment']").val().trim()
 
-    if (!window.CONFIG.current_user) {
-      alert("You must be logged in to react.")
-      return
-    }
-
-    const action = $btn.hasClass("btn-post-like") ? "like" : "dislike"
-    const url = window.CONFIG.update_post_impression_url.replace("{post_id}", postId)
-
-    $.ajax({
-      url: url,
-      method: "POST",
-      contentType: "application/json",
-      data: JSON.stringify({action}),
-      success: function () {
-        location.reload()
-      },
-      error: function () {
-        alert("Failed to update impression. Please try again.")
-      }
-    })
-  })
-})
-
-// User follow/block
-$(".btn-user-follow, .btn-user-block").on("click", function () {
-  if (!window.CONFIG.current_user) {
-    alert("You must be logged in to react.")
+  if (!comment) {
+    alert("Please enter a rejection reason.")
     return
   }
 
+  $btn.prop("disabled", true).addClass("disabled")
+
+  $.ajax({
+    url,
+    method: "POST",
+    contentType: "application/json",
+    data: JSON.stringify({status, comment}),
+    success: function () {
+      window.location.reload()
+    },
+    error: function (xhr) {
+      console.error("Error rejecting post:", xhr.responseText)
+      alert("Failed to reject post.")
+    },
+    complete: function () {
+      $btn.prop("disabled", false).removeClass("disabled")
+    }
+  })
+})
+
+// Like/dislike post
+$(".btn-post-like, .btn-post-dislike").on("click", function () {
   const $btn = $(this)
-  const userId = $btn.data("user-id")
+  const postId = $btn.data("post-id")
   const action = $btn.data("action")
-  const url = window.CONFIG.update_user_impression_url.replace("{user_id}", userId)
+  const url = window.CONFIG.update_post_impression_url.replace("{post_id}", postId)
+
+  $btn.prop("disabled", true).addClass("disabled")
 
   $.ajax({
     url,
@@ -532,11 +495,41 @@ $(".btn-user-follow, .btn-user-block").on("click", function () {
     contentType: "application/json",
     data: JSON.stringify({action}),
     success: function () {
-      window.location.reload()  // or update UI dynamically
+      location.reload()
     },
     error: function (xhr) {
-      console.error(`Error on user ${action}: `, xhr.responseText)
-      alert(`Failed to ${action} user.`)
+      console.error(`Error on post ${action}:`, xhr.responseText)
+      alert(`Failed to ${action} post. Please try again.`)
+    },
+    complete: function () {
+      $btn.prop("disabled", false).removeClass("disabled")
+    }
+  })
+})
+
+// Follow/block user
+$(".btn-user-follow, .btn-user-block").on("click", function () {
+  const $btn = $(this)
+  const userId = $btn.data("user-id")
+  const action = $btn.data("action")
+  const url = window.CONFIG.update_user_impression_url.replace("{user_id}", userId)
+
+  $btn.prop("disabled", true).addClass("disabled")
+
+  $.ajax({
+    url,
+    method: "POST",
+    contentType: "application/json",
+    data: JSON.stringify({action}),
+    success: function () {
+      window.location.reload()
+    },
+    error: function (xhr) {
+      console.error(`Error on user ${action}:`, xhr.responseText)
+      alert(`Failed to ${action} user. Please try again.`)
+    },
+    complete: function () {
+      $btn.prop("disabled", false).removeClass("disabled")
     }
   })
 })
