@@ -31,6 +31,7 @@ import copy
 import imghdr
 from io import BytesIO
 import struct
+import random
 
 
 class UserToken(BaseModel):
@@ -1914,8 +1915,11 @@ async def update_post_impression(post: Post, update_post_impression_dto: UpdateP
 async def create_dummy_fixtures() -> None:
     if is_prod():
         return
+    created_posts = []
+    created_users = []
     user_token = get_dummy_user_token()
     root_user = await upsert_user_by_user_token(user_token)
+    created_users.append(root_user)
     await update_dynamodb_item((f"USER#{root_user.id}", "META"), {"permissions": [Permission.ROOT]})
     root_user.permissions = [Permission.ROOT]
     update_user_dto = UpdateUserDTO(
@@ -1952,8 +1956,10 @@ async def create_dummy_fixtures() -> None:
     for post in posts:
         created_post = await create_post(post, root_user)
         await update_post_status(created_post, UpdatePostStatusDTO(status=PostStatus.PUBLISHED), root_user)
+        created_posts.append(created_post)
     user_token2 = get_dummy_user_token(sub="p2", email="test2@example.com", name="Some test user")
     user2 = await upsert_user_by_user_token(user_token2)
+    created_users.append(user2)
     posts = [
         PostDTO(
             title="Post title #111111111111111111111111 for user 2",
@@ -1974,7 +1980,14 @@ async def create_dummy_fixtures() -> None:
     for post in posts:
         created_post = await create_post(post, user2)
         await update_post_status(created_post, UpdatePostStatusDTO(status=PostStatus.PUBLISHED), root_user)
+        created_posts.append(created_post)
     user_token3 = get_dummy_user_token(sub="p3", email="test3@example.com", name="Another user")
-    await upsert_user_by_user_token(user_token3)
+    user3 = await upsert_user_by_user_token(user_token3)
+    created_users.append(user3)
     user_token4 = get_dummy_user_token(sub="p4", email="test4@example.com", name="Vanilla user")
-    await upsert_user_by_user_token(user_token4)
+    user4 = await upsert_user_by_user_token(user_token4)
+    created_users.append(user4)
+    for user in created_users:
+        for post in created_posts:
+            await update_post_impression(post, UpdatePostImpressionDTO(
+                action=Impression.LIKE if random.random() < .5 else Impression.DISLIKE), user)
