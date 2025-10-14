@@ -70,6 +70,7 @@ from deps import (
     UpdatePostStatusDTODep,
     UpdatePostImpressionDTODep,
 )
+from urllib.parse import quote
 
 
 @asynccontextmanager
@@ -264,7 +265,7 @@ async def login(request: Request) -> str:
     # todo: make sure referer belongs to the website
     referer = request.headers.get('referer')
     index_url = get_full_url(request, 'view-index')
-    callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={referer if referer else index_url}"
+    callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={quote(referer if referer else index_url)}"
     redirect_url = await get_login_redirect_url(callback_url)
     return redirect_url
 
