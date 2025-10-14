@@ -39,18 +39,16 @@
 ## TODO
 
 - optimize Projections for DynamoDB indexes
-- upsert_user_by_user_token: remove updated_at for new ones, map providers attribute to objects
+- optimize DynamoDB attributes
 - generate default user names
-- edit user profile: photo, bio, links: website etc.
 - create post: add optional image input, add advanced editor
 - add manage users page
 - add manage posts page
-- update post rating on like/dislike
-- add follow/unfollow
-- update user rating on follow/unfollow
-- add popular users filter
-- add user tags
-- filter users by tags
+- add user tags, filter users by tags (?)
+- post markups
+- post image
+- user page human-readable links
+- post page human-readable links
 
 ## Links
 
