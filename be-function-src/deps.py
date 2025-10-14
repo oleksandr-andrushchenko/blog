@@ -26,6 +26,7 @@ from utils import (
     UpdatePostDTO,
     UpdatePostStatusDTO,
     UpdatePostImpressionDTO,
+    UpdateUserImpressionDTO,
 )
 
 
@@ -142,6 +143,15 @@ def get_update_post_impression_dto(
 
 
 UpdatePostImpressionDTODep = Annotated[UpdatePostImpressionDTO, Depends(get_update_post_impression_dto)]
+
+
+def get_update_user_impression_dto(
+        update_user_impression_dto: UpdateUserImpressionDTO = Body(...)
+) -> UpdateUserImpressionDTO:
+    return update_user_impression_dto
+
+
+UpdateUserImpressionDTODep = Annotated[UpdateUserImpressionDTO, Depends(get_update_user_impression_dto)]
 
 
 async def get_error_response(request: Request, status_code: int, details: dict | str):

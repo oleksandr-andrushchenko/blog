@@ -53,6 +53,8 @@ from utils import (
     update_post,
     find_post_impression,
     update_post_impression,
+    update_user_impression,
+    find_user_impression,
 )
 
 from deps import (
@@ -69,6 +71,7 @@ from deps import (
     UpdatePostDTODep,
     UpdatePostStatusDTODep,
     UpdatePostImpressionDTODep,
+    UpdateUserImpressionDTODep,
 )
 from urllib.parse import quote
 
@@ -233,8 +236,15 @@ async def view_user(user: UserDep, cur_user: OptCurUserDep) -> str:
         "cur_user": cur_user,
         "user": user,
         "posts_query": posts_query_dto,
-        "posts": await get_latest_published_posts_by_user(user)
+        "posts": await get_latest_published_posts_by_user(user),
+        "user_impression": await find_user_impression(user, cur_user) if cur_user else None
     })
+
+
+@app.post("/users/{user_id}/impression", name="update-user-impression", status_code=HTTP_204_NO_CONTENT)
+async def _update_user_impression(user: UserDep, update_user_impression_dto: UpdateUserImpressionDTODep,
+                                  cur_user: CurUserDep) -> None:
+    return await update_user_impression(user, update_user_impression_dto, cur_user)
 
 
 @app.get("/users/{user_id}/edit", name="edit-user", response_class=HTMLResponse)

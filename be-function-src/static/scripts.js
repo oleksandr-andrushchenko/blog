@@ -513,3 +513,30 @@ $(function () {
     })
   })
 })
+
+// User follow/block
+$(".btn-user-follow, .btn-user-block").on("click", function () {
+  if (!window.CONFIG.current_user) {
+    alert("You must be logged in to react.")
+    return
+  }
+
+  const $btn = $(this)
+  const userId = $btn.data("user-id")
+  const action = $btn.data("action")
+  const url = window.CONFIG.update_user_impression_url.replace("{user_id}", userId)
+
+  $.ajax({
+    url,
+    method: "POST",
+    contentType: "application/json",
+    data: JSON.stringify({action}),
+    success: function () {
+      window.location.reload()  // or update UI dynamically
+    },
+    error: function (xhr) {
+      console.error(`Error on user ${action}: `, xhr.responseText)
+      alert(`Failed to ${action} user.`)
+    }
+  })
+})

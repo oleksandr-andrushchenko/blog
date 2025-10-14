@@ -70,6 +70,8 @@ class User(BaseModel):
     unpublished_posts_count: int | None = None
     rejected_posts_count: int | None = None
     rating: int
+    followers_count: int
+    following_count: int
     created_at: int
     updated_at: int | None = None
     offset: str | None = None
@@ -109,6 +111,24 @@ class UpdateUserDTO(BaseModel):
     about: str | None = Field(None, max_length=2000)
     website: HttpUrl | None = None
     address: str | None = Field(None, max_length=255)
+
+
+class UserImpressionAction(str, Enum):
+    FOLLOW = "follow"
+    BLOCK = "block"
+
+
+class UserImpression(BaseModel):
+    owner_id: str
+    action: UserImpressionAction
+    user_id: str
+    target_user_id: str
+    created_at: int
+    updated_at: int | None = None
+
+
+class UpdateUserImpressionDTO(BaseModel):
+    action: UserImpressionAction = Field(...)
 
 
 class ContactMessageDTO(BaseModel):
@@ -262,6 +282,7 @@ class Permission(str, Enum):
     ALL = "*"
 
     UPDATE_USER = "update_user"
+    UPDATE_USER_IMPRESSION = "update_user_impression"
 
     CREATE_POST = "create_post"
     UPDATE_POST = "update_post"
@@ -347,6 +368,7 @@ def get_live_config(load_env=False):
         "public_s3_bucket": os.getenv("PUBLIC_S3_BUCKET"),
         "permission_hierarchy": {
             Permission.REGULAR: [
+                Permission.UPDATE_USER_IMPRESSION,
                 Permission.CREATE_POST,
                 Permission.UPDATE_POST_IMPRESSION,
                 Permission.CREATE_CONTACT_MESSAGE,
@@ -648,6 +670,7 @@ def get_jinja2_env():
         "check_auth": check_authorization,
         "PostStatus": PostStatus,
         "Impression": Impression,
+        "UserImpressionAction": UserImpressionAction,
     })
     return jinja2_env
 
@@ -1179,6 +1202,8 @@ def user_from_dynamodb(d_item: dict[str, any]) -> User:
         unpublished_posts_count=d_item.get("unpublished_posts_count", 0),
         rejected_posts_count=d_item.get("rejected_posts_count", 0),
         rating=d_item["rating_sk"],
+        followers_count=d_item.get("followers_count", 0),
+        following_count=d_item.get("following_count", 0),
         created_at=d_item["created_at_sk"],
         updated_at=d_item.get("updated_at")
     )
@@ -1197,6 +1222,33 @@ async def find_user(user_id: str) -> User | None:
         return None
     # logger.debug(f"User: {item}")
     return user_from_dynamodb(item)
+
+
+def user_impression_from_dynamodb(d_item: dict[str, any]) -> UserImpression:
+    user_id = d_item["user_id"]
+    return UserImpression(
+        owner_id=user_id,
+        user_id=user_id,
+        target_user_id=d_item["target_user_id"],
+        action=d_item["action"],
+        created_at=d_item["created_at"],
+        updated_at=d_item.get("updated_at")
+    )
+
+
+async def find_user_impression(user: User, cur_user: User) -> UserImpression | None:
+    table = await get_dynamodb_table()
+    resp = await table.get_item(
+        Key={
+            "pk": f"USER#{cur_user.id}",
+            "sk": f"REL#USER#{user.id}"
+        }
+    )
+    item = resp.get("Item")
+    if not item:
+        return None
+    # logger.debug(f"UserImpression: {item}")
+    return user_impression_from_dynamodb(item)
 
 
 def build_dynamodb_put_item_params(
@@ -1915,6 +1967,66 @@ async def update_post_impression(post: Post, update_post_impression_dto: UpdateP
                                       raise_on_existing_pk=True)
             add_dynamodb_update_transact(transacts, post_key,
                                          deltas={"dislikes_count": 1, "rating_sk": compute_rating_sk(-1)})
+
+    await dynamodb_transact_write(transacts)
+
+
+async def update_user_impression(
+        user: User,
+        update_relation_dto: UpdateUserImpressionDTO,
+        cur_user: User,
+) -> None:
+    verify_authorization(cur_user, Permission.UPDATE_USER_IMPRESSION, user)
+
+    current_relation = await find_user_impression(user, cur_user)
+    current_action = current_relation.action if current_relation else None
+    action = update_relation_dto.action
+    relation_item = {
+        "user_id": cur_user.id,
+        "target_user_id": user.id,
+        "action": action,
+    }
+    transacts = []
+
+    user_key = (f"USER#{cur_user.id}", "META")
+    target_user_key = (f"USER#{user.id}", "META")
+    relation_key = (f"USER#{cur_user.id}", f"REL#USER#{user.id}")
+
+    if action == UserImpressionAction.FOLLOW:
+        if current_action == UserImpressionAction.FOLLOW:
+            # Unfollow
+            add_dynamodb_delete_transact(transacts, relation_key)
+            add_dynamodb_update_transact(transacts, user_key, deltas={"following_count": -1})
+            add_dynamodb_update_transact(transacts, target_user_key,
+                                         deltas={"followers_count": -1, "rating_sk": compute_rating_sk(-1)})
+        elif current_action == UserImpressionAction.BLOCK:
+            # Switching from block to follow
+            add_dynamodb_update_transact(transacts, relation_key, {"action": UserImpressionAction.FOLLOW})
+            add_dynamodb_update_transact(transacts, user_key, deltas={"following_count": 1})
+            add_dynamodb_update_transact(transacts, target_user_key,
+                                         deltas={"followers_count": 1, "rating_sk": compute_rating_sk(2)})
+        else:
+            # New follow
+            add_dynamodb_put_transact(transacts, relation_key, relation_item, raise_on_existing_pk=True)
+            add_dynamodb_update_transact(transacts, user_key, deltas={"following_count": 1})
+            add_dynamodb_update_transact(transacts, target_user_key,
+                                         deltas={"followers_count": 1, "rating_sk": compute_rating_sk(1)})
+
+    elif action == UserImpressionAction.BLOCK:
+        if current_action == UserImpressionAction.BLOCK:
+            # Unblock
+            add_dynamodb_delete_transact(transacts, relation_key)
+            add_dynamodb_update_transact(transacts, target_user_key, deltas={"rating_sk": compute_rating_sk(1)})
+        elif current_action == UserImpressionAction.FOLLOW:
+            # Switching from follow to block
+            add_dynamodb_update_transact(transacts, relation_key, {"action": UserImpressionAction.BLOCK})
+            add_dynamodb_update_transact(transacts, user_key, deltas={"following_count": -1})
+            add_dynamodb_update_transact(transacts, target_user_key,
+                                         deltas={"followers_count": -1, "rating_sk": compute_rating_sk(-2)})
+        else:
+            # New block
+            add_dynamodb_put_transact(transacts, relation_key, relation_item, raise_on_existing_pk=True)
+            add_dynamodb_update_transact(transacts, target_user_key, deltas={"rating_sk": compute_rating_sk(-1)})
 
     await dynamodb_transact_write(transacts)
 
