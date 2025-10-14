@@ -1204,14 +1204,14 @@ def build_dynamodb_put_item_params(
         add_created_at: bool = True,
         raise_on_existing_pk: bool = False
 ) -> dict[str, any]:
-    pk, sk = key
-    item = {}
+    # Set created_at
     if add_created_at:
-        item["created_at"] = values["created_at"] = utc_now()
+        values["created_at"] = utc_now()
+
+    pk, sk = key
     params = {
         "TableName": dynamodb_table.name,
         "Item": {
-            **item,
             **values,
             "pk": pk,
             "sk": sk
@@ -1242,13 +1242,15 @@ def build_dynamodb_update_item_params(
         deltas: dict[str, any] | None = None,
         add_updated_at: bool = True
 ) -> dict[str, any]:
-    now = utc_now()
-
     set_parts = []
     remove_parts = []
     add_parts = []
     expr_attr_names = {}
     expr_attr_values = {}
+
+    # Set updated_at
+    if add_updated_at:
+        changes["updated_at"] = utc_now()
 
     # Handle normal changes (SET / REMOVE)
     if changes:
@@ -1271,12 +1273,6 @@ def build_dynamodb_update_item_params(
             expr_attr_names[name_alias] = field
             expr_attr_values[value_alias] = delta
             add_parts.append(f"{name_alias} {value_alias}")
-
-    # Set updated_at
-    if add_updated_at:
-        expr_attr_names["#new_updated_at"] = "updated_at"
-        expr_attr_values[":new_now"] = now
-        set_parts.append("#new_updated_at = :new_now")
 
     # Combine expressions
     update_expr_parts = []
