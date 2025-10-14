@@ -12,6 +12,8 @@
 {% block content %}
     <h1>{{ post.title }}</h1>
 
+    <div>{{ post.content }}</div>
+
     <div class="d-flex gap-2 align-items-center">
         {% include "fragments/post-meta.html" %}
         {% include "fragments/post-status.html" %}
@@ -22,6 +24,4 @@
             </a>
         {% endif %}
     </div>
-
-    <div>{{ post.content }}</div>
 {% endblock %}

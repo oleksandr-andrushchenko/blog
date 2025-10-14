@@ -2,7 +2,6 @@
 
 {% set latest_title = "Latest posts" %}
 {% set popular_title = "Popular posts" %}
-
 {% set tags_title = " ".join(posts_query.tags) %}
 {% set title = (tags_title ~ " " ~ (popular_title if posts_query.popular else latest_title)) | trim %}
 {% set sub_title = "Most rated articles" if posts_query.popular else "Recently added articles" %}
@@ -18,15 +17,17 @@
 
 {% block content %}
     <h1>{{ title }}</h1>
+
     <p class="small text-secondary">{{ sub_title }}</p>
+
     <form action="{{ url("posts") }}" method="get">
         {% if posts_query.popular %}
             <input type="hidden" name="popular" value="1">
         {% endif %}
         <div class="d-flex justify-content-start align-items-center gap-1">
             <a href="{{ url("posts", **posts_query.get_dict({"popular": None if posts_query.popular else 1})) }}"
-               class="btn btn-light {% if posts_query.popular %}active{% endif %}">
-                <i class="bi bi-star"></i> {{ popular_title }}
+               class="btn btn-secondary btn-sm {% if posts_query.popular %}active{% endif %}">
+                <i class="bi bi-star{{ "-fill" if posts_query.popular else "" }}"></i> {{ popular_title }}
             </a>
             <div>Search by:</div>
             {% with url=url("get-post-tags"),
@@ -36,16 +37,17 @@
                 inject_hidden=True %}
                 {% include "fragments/tags-input.html" %}
             {% endwith %}
-            <button class="btn btn-light" type="submit">
+            <button class="btn btn-secondary btn-sm" type="submit">
                 <i class="bi bi-search"></i> Search
             </button>
             {% if posts_query.has_params() %}
-                <a href="{{ url("posts") }}" class="btn btn-light">
+                <a href="{{ url("posts") }}" class="btn btn-secondary btn-sm">
                     <i class="bi bi-x-lg"></i> Reset
                 </a>
             {% endif %}
         </div>
     </form>
+
     {% if posts %}
         <div id="posts">
             {% include "fragments/posts.html" %}

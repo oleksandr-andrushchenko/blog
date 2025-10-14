@@ -2,6 +2,7 @@
 
 {% set latest_title = "Latest users" %}
 {% set popular_title = "Popular users" %}
+
 {% set title = (popular_title if users_query.popular else latest_title) | trim %}
 {% set sub_title = "Most followed users" if users_query.popular else "Recently registered users" %}
 
@@ -16,23 +17,26 @@
 
 {% block content %}
     <h1>{{ title }}</h1>
+
     <p class="small text-secondary">{{ sub_title }}</p>
+
     <form action="{{ url("users") }}" method="get">
         {% if users_query.popular %}
             <input type="hidden" name="popular" value="1">
         {% endif %}
         <div class="d-flex justify-content-start align-items-center gap-1">
             <a href="{{ url("users", **users_query.get_dict({"popular": None if users_query.popular else 1})) }}"
-               class="btn btn-light {% if users_query.popular %}active{% endif %}">
-                <i class="bi bi-star"></i> {{ popular_title }}
+               class="btn btn-secondary btn-sm {% if users_query.popular %}active{% endif %}">
+                <i class="bi bi-star{{ "-fill" if users_query.popular else "" }}"></i> {{ popular_title }}
             </a>
             {% if users_query.has_params() %}
-                <a href="{{ url("users") }}" class="btn btn-light">
+                <a href="{{ url("users") }}" class="btn btn-secondary btn-sm">
                     <i class="bi bi-x-lg"></i> Reset
                 </a>
             {% endif %}
         </div>
     </form>
+
     {% if users %}
         <div class="row g-3" id="users">
             {% include "fragments/users.html" %}
