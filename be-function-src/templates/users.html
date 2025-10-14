@@ -44,7 +44,7 @@
         {% with limit=users_query.limit,
             offset=users[-1].offset,
             count=users|length,
-            url=url("users-fragment"),
+            url=url("users-fragment", **dict(users_query)),
             container="#users" %}
             {% include "fragments/load-more-button.html" %}
         {% endwith %}
