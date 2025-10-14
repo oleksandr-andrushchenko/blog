@@ -77,13 +77,13 @@
             <div class="collapse navbar-collapse" id="navbar">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url("view-posts") }}">Posts</a>
+                        <a class="nav-link" href="{{ url("posts") }}">Posts</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url("view-users") }}">Users</a>
+                        <a class="nav-link" href="{{ url("users") }}">Users</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url("view-contacts") }}">Contacts</a>
+                        <a class="nav-link" href="{{ url("contacts") }}">Contacts</a>
                     </li>
                 </ul>
                 <ul class="navbar-nav">
@@ -94,7 +94,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url("view-user", user_id=cur_user.id) }}">
+                            <a class="nav-link" href="{{ url("user", user_id=cur_user.id) }}">
                                 <i class="bi bi-person-circle"></i> {{ cur_user.name }}
                                 {% if check_auth(cur_user, Permission.ROOT) %}
                                     <span class="badge text-bg-success">root</span>

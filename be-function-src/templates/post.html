@@ -1,10 +1,10 @@
 {% extends "layout.html" %}
 
 {% block title %}{{ post.title }} | {{ site_name }}{% endblock %}
-{% block canonical_url %}{{ full_url("view-post", post_id=post.id) }}{% endblock %}
+{% block canonical_url %}{{ full_url("post", post_id=post.id) }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), "Posts": url("view-posts"), (post.title): None} %}
+    {% with breadcrumbs = {"Home": url("index"), "Posts": url("posts"), (post.title): None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}

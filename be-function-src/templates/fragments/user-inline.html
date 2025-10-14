@@ -1,9 +1,9 @@
 <div class="d-flex gap-1 align-items-center">
     <div style="width:30px">
-        {% include "fragments/avatar.html" %}
+        {% include "fragments/user-avatar.html" %}
     </div>
     <div>
-        <a href="{{ url("view-user", user_id=user.id) }}">
+        <a href="{{ url("user", user_id=user.id) }}">
             <h3 class="h4 card-title mb-0">
                 {{ user.name }}
             </h3>

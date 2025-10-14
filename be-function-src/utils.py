@@ -66,9 +66,9 @@ class User(BaseModel):
     providers: dict[str, dict[str, str | None]] = Field(default_factory=dict)  # noqa
     permissions: list[str] = Field(default_factory=lambda: [Permission.REGULAR])  # noqa
     status: UserStatus = UserStatus.ACTIVE
-    published_posts_count: int | None = None
-    unpublished_posts_count: int | None = None
-    rejected_posts_count: int | None = None
+    published_posts_count: int
+    unpublished_posts_count: int
+    rejected_posts_count: int
     rating: int
     followers_count: int
     following_count: int
@@ -240,7 +240,7 @@ class UpdatePostStatusDTO(BaseModel):
         return value
 
 
-class Impression(str, Enum):
+class PostImpressionAction(str, Enum):
     LIKE = "like"
     DISLIKE = "dislike"
 
@@ -248,14 +248,14 @@ class Impression(str, Enum):
 class PostImpression(BaseModel):
     owner_id: str
     post_id: str
-    action: Impression
+    action: PostImpressionAction
     user_id: str
     created_at: int
     updated_at: int | None = None
 
 
 class UpdatePostImpressionDTO(BaseModel):
-    action: Impression = Field(...)
+    action: PostImpressionAction = Field(...)
 
 
 class Post(BaseModel):
@@ -669,7 +669,7 @@ def get_jinja2_env():
         "Permission": Permission,
         "check_auth": check_authorization,
         "PostStatus": PostStatus,
-        "Impression": Impression,
+        "PostImpressionAction": PostImpressionAction,
         "UserImpressionAction": UserImpressionAction,
     })
     return jinja2_env
@@ -1944,34 +1944,34 @@ async def update_post_impression(post: Post, update_post_impression_dto: UpdateP
     post_key = (f"POST#{post.id}", "META")
     post_imp_key = (f"POST#{post.id}", f"IMP#USER#{user.id}")
 
-    if action == Impression.LIKE:
-        if current_action == Impression.LIKE:
+    if action == PostImpressionAction.LIKE:
+        if current_action == PostImpressionAction.LIKE:
             add_dynamodb_delete_transact(transacts, post_imp_key)
             add_dynamodb_update_transact(transacts, post_key,
                                          deltas={"likes_count": -1, "rating_sk": compute_rating_sk(-1)})
-        elif current_action == Impression.DISLIKE:
-            add_dynamodb_update_transact(transacts, post_imp_key, {"action": Impression.LIKE})
+        elif current_action == PostImpressionAction.DISLIKE:
+            add_dynamodb_update_transact(transacts, post_imp_key, {"action": PostImpressionAction.LIKE})
             add_dynamodb_update_transact(transacts, post_key, deltas={"dislikes_count": -1, "likes_count": 1,
                                                                       "rating_sk": compute_rating_sk(2)})
         else:
             add_dynamodb_put_transact(transacts, post_imp_key,
-                                      {**post_impression_item, "action": Impression.LIKE},
+                                      {**post_impression_item, "action": PostImpressionAction.LIKE},
                                       raise_on_existing_pk=True)
             add_dynamodb_update_transact(transacts, post_key,
                                          deltas={"likes_count": 1, "rating_sk": compute_rating_sk(1)})
 
-    elif action == Impression.DISLIKE:
-        if current_action == Impression.DISLIKE:
+    elif action == PostImpressionAction.DISLIKE:
+        if current_action == PostImpressionAction.DISLIKE:
             add_dynamodb_delete_transact(transacts, post_imp_key)
             add_dynamodb_update_transact(transacts, post_key,
                                          deltas={"dislikes_count": -1, "rating_sk": compute_rating_sk(1)})
-        elif current_action == Impression.LIKE:
-            add_dynamodb_update_transact(transacts, post_imp_key, {"action": Impression.DISLIKE})
+        elif current_action == PostImpressionAction.LIKE:
+            add_dynamodb_update_transact(transacts, post_imp_key, {"action": PostImpressionAction.DISLIKE})
             add_dynamodb_update_transact(transacts, post_key, deltas={"likes_count": -1, "dislikes_count": 1,
                                                                       "rating_sk": compute_rating_sk(-2)})
         else:
             add_dynamodb_put_transact(transacts, post_imp_key,
-                                      {**post_impression_item, "action": Impression.DISLIKE},
+                                      {**post_impression_item, "action": PostImpressionAction.DISLIKE},
                                       raise_on_existing_pk=True)
             add_dynamodb_update_transact(transacts, post_key,
                                          deltas={"dislikes_count": 1, "rating_sk": compute_rating_sk(-1)})
@@ -2117,7 +2117,7 @@ async def create_dummy_fixtures() -> None:
     for user in created_users:
         for post in created_posts:
             await update_post_impression(post, UpdatePostImpressionDTO(
-                action=Impression.LIKE if random.random() < .5 else Impression.DISLIKE), user)
+                action=PostImpressionAction.LIKE if random.random() < .5 else PostImpressionAction.DISLIKE), user)
         for user2 in created_users:
             if user.id != user2.id:
                 await update_user_impression(user, UpdateUserImpressionDTO(

@@ -1,10 +1,10 @@
 {% extends "layout.html" %}
 
 {% block title %}{{ user.name }} | {{ site_name }}{% endblock %}
-{% block canonical_url %}{{ full_url("view-user", user_id=user.id) }}{% endblock %}
+{% block canonical_url %}{{ full_url("user", user_id=user.id) }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), "Users": url("view-users"), (user.name): None} %}
+    {% with breadcrumbs = {"Home": url("index"), "Users": url("users"), (user.name): None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
@@ -12,7 +12,7 @@
 {% block content %}
     <div class="row">
         <div class="col col-2">
-            {% include "fragments/avatar.html" %}
+            {% include "fragments/user-avatar.html" %}
         </div>
         <div class="col col-10">
             <h1 class="m-0">{{ user.name }}</h1>
@@ -93,7 +93,7 @@
             {% with limit=posts_query.limit,
                 offset=posts[-1].offset,
                 count=posts|length,
-                url=url("view-user-posts-fragment", user_id=user.id),
+                url=url("user-posts-fragment", user_id=user.id),
                 container="#posts" %}
                 {% include "fragments/load-more-button.html" %}
             {% endwith %}

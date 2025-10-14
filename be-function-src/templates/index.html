@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 
 {% block title %}{{ site_name }} - {{ site_about }}{% endblock %}
-{% block canonical_url %}{{ full_url("view-index") }}{% endblock %}
+{% block canonical_url %}{{ full_url("index") }}{% endblock %}
 
 {% block content %}
     <h1>{{ site_name }}</h1>
@@ -19,7 +19,7 @@
                     {% with limit=posts_query.limit,
                         offset=posts[-1].offset,
                         count=posts|length,
-                        url=url("view-posts-fragment", **dict(posts_query)),
+                        url=url("posts-fragment", **dict(posts_query)),
                         container="#posts",
                         auto_click=True %}
                         {% include "fragments/load-more-button.html" %}
@@ -35,7 +35,7 @@
                 {% if popular_posts %}
                     {% for post in popular_posts %}
                         <div>
-                            <a href="{{ url("view-post", post_id=post.id) }}">
+                            <a href="{{ url("post", post_id=post.id) }}">
                                 {{ post.title }}
                             </a>
                         </div>
@@ -49,7 +49,7 @@
                 <h2>Popular post tags</h2>
                 {% if popular_post_tags %}
                     {% for tag in popular_post_tags %}
-                        <a href="{{ url("view-posts", tags=tag.name) }}" class="btn btn-light btn-sm">
+                        <a href="{{ url("posts", tags=tag.name) }}" class="btn btn-light btn-sm">
                             {{ tag.name }}
                         </a>
                     {% endfor %}

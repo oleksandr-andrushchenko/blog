@@ -4,7 +4,10 @@
     <div class="d-flex gap-1 align-items-center">
         <!-- Publish Post -->
         <span data-bs-toggle="tooltip" data-bs-title="Publish this post">
-            <button type="button" class="btn btn-success btn-sm btn-post-publish" data-post-id="{{ post.id }}">
+            <button type="button"
+                    class="btn btn-success btn-sm btn-post-publish"
+                    data-post-id="{{ post.id }}"
+                    data-status="{{ PostStatus.PUBLISHED.value }}">
                 <i class="bi bi-check-all"></i> Publish
             </button>
         </span>
@@ -17,7 +20,10 @@
                        name="comment"
                        id="comment"
                        placeholder="Rejection reason...">
-                <button type="button" class="btn btn-danger btn-sm btn-post-reject" data-post-id="{{ post.id }}">
+                <button type="button"
+                        class="btn btn-danger btn-sm btn-post-reject"
+                        data-post-id="{{ post.id }}"
+                        data-status="{{ PostStatus.REJECTED.value }}">
                     <i class="bi bi-x-lg"></i> Reject
                 </button>
             </label>

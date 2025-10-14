@@ -99,10 +99,10 @@ async def inject_template_global_vars(request: Request, call_next):
     return await call_next(request)
 
 
-@app.get("/", name="view-index", response_class=HTMLResponse)
-async def view_index(cur_user: OptCurUserDep) -> str:
+@app.get("/", name="index", response_class=HTMLResponse)
+async def index(cur_user: OptCurUserDep) -> str:
     posts_query = PostQueryDTO()
-    return get_html_content("view-index.html", {
+    return get_html_content("index.html", {
         "cur_user": cur_user,
         "popular_post_tags": await get_popular_post_tags(),
         "posts_query": posts_query,
@@ -128,7 +128,7 @@ async def new_post(cur_user: CurUserDep) -> str:
 async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request) -> str:
     try:
         post = await create_post(post_dto, cur_user)
-        return get_url(request, "view-post", post_id=post.id)
+        return get_url(request, "post", post_id=post.id)
     except SlugDuplicationError as e:
         raise HTTPException(
             status_code=HTTP_409_CONFLICT,
@@ -136,25 +136,25 @@ async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request
         )
 
 
-@app.get("/posts", name="view-posts", response_class=HTMLResponse)
-async def view_posts(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
-    return get_html_content("view-posts.html", {
+@app.get("/posts", name="posts", response_class=HTMLResponse)
+async def posts(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
+    return get_html_content("posts.html", {
         "cur_user": cur_user,
         "posts_query": query_dto,
         "posts": await get_published_posts(query_dto),
     })
 
 
-@app.get("/posts-fragment", name="view-posts-fragment", response_class=HTMLResponse)
-async def view_posts_fragment(query_dto: PostQueryDep) -> str:
+@app.get("/posts-fragment", name="posts-fragment", response_class=HTMLResponse)
+async def posts_fragment(query_dto: PostQueryDep) -> str:
     return get_html_content("fragments/posts.html", {
         "posts": await get_published_posts(query_dto)
     })
 
 
-@app.get("/posts/{post_id}", name="view-post", response_class=HTMLResponse)
-async def view_post(post: PostDep, cur_user: OptCurUserDep) -> str:
-    return get_html_content("view-post.html", {
+@app.get("/posts/{post_id}", name="post", response_class=HTMLResponse)
+async def post(post: PostDep, cur_user: OptCurUserDep) -> str:
+    return get_html_content("post.html", {
         "cur_user": cur_user,
         "post": post,
         "post_author": await find_user(post.user_id),
@@ -175,7 +175,7 @@ async def edit_post(post: PostDep, cur_user: CurUserDep) -> str:
 async def _update_post(post: PostDep, update_post_dto: UpdatePostDTODep, cur_user: CurUserDep, request: Request) -> str:
     try:
         await update_post(post, update_post_dto, cur_user)
-        return get_url(request, "view-post", post_id=post.id)
+        return get_url(request, "post", post_id=post.id)
     except SlugDuplicationError as e:
         raise HTTPException(
             status_code=HTTP_409_CONFLICT,
@@ -187,7 +187,7 @@ async def _update_post(post: PostDep, update_post_dto: UpdatePostDTODep, cur_use
 async def _update_post_status(post: PostDep, update_post_status_dto: UpdatePostStatusDTODep,
                               cur_user: CurUserDep, request: Request) -> str:
     await update_post_status(post, update_post_status_dto, cur_user)
-    return get_url(request, "view-post", post_id=post.id)
+    return get_url(request, "post", post_id=post.id)
 
 
 @app.post("/posts/{post_id}/impression", name="update-post-impression", status_code=HTTP_204_NO_CONTENT)
@@ -196,9 +196,9 @@ async def _update_post_impression(post: PostDep, update_post_impression_dto: Upd
     return await update_post_impression(post, update_post_impression_dto, cur_user)
 
 
-@app.get("/contacts", name="view-contacts", response_class=HTMLResponse)
-async def view_contacts(cur_user: OptCurUserDep) -> str:
-    return get_html_content("view-contacts.html", {
+@app.get("/contacts", name="contacts", response_class=HTMLResponse)
+async def contacts(cur_user: OptCurUserDep) -> str:
+    return get_html_content("contacts.html", {
         "cur_user": cur_user
     })
 
@@ -213,26 +213,26 @@ async def _get_post_tags(query_dto: TagQueryDep) -> list[Tag]:
     return await get_post_tags(query_dto)
 
 
-@app.get("/users", name="view-users", response_class=HTMLResponse)
-async def view_users(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> str:
-    return get_html_content("view-users.html", {
+@app.get("/users", name="users", response_class=HTMLResponse)
+async def users(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> str:
+    return get_html_content("users.html", {
         "cur_user": cur_user,
         "users_query": query_dto,
         "users": await get_active_users(query_dto)
     })
 
 
-@app.get("/users-fragment", name="view-users-fragment", response_class=HTMLResponse)
-async def view_users_fragment(query_dto: UserQueryDep) -> str:
+@app.get("/users-fragment", name="users-fragment", response_class=HTMLResponse)
+async def users_fragment(query_dto: UserQueryDep) -> str:
     return get_html_content("fragments/users.html", {
         "users": await get_active_users(query_dto)
     })
 
 
-@app.get("/users/{user_id}", name="view-user", response_class=HTMLResponse)
-async def view_user(user: UserDep, cur_user: OptCurUserDep) -> str:
+@app.get("/users/{user_id}", name="user", response_class=HTMLResponse)
+async def user(user: UserDep, cur_user: OptCurUserDep) -> str:
     posts_query_dto = PostQueryDTO()
-    return get_html_content("view-user.html", {
+    return get_html_content("user.html", {
         "cur_user": cur_user,
         "user": user,
         "posts_query": posts_query_dto,
@@ -259,11 +259,11 @@ async def edit_user(user: UserDep, cur_user: CurUserDep) -> str:
 @app.patch("/users/{user_id}", name="update-user", response_class=JSONResponse)
 async def _update_user(update_user_dto: UpdateUserDTODep, user: UserDep, cur_user: CurUserDep, request: Request) -> str:
     await update_user(user, update_user_dto, cur_user)
-    return get_url(request, "view-user", user_id=user.id)
+    return get_url(request, "user", user_id=user.id)
 
 
-@app.get("/users/{user_id}/posts-fragment", name="view-user-posts-fragment", response_class=HTMLResponse)
-async def view_user_posts_fragment(user: UserDep, query_dto: PostQueryDep) -> str:
+@app.get("/users/{user_id}/posts-fragment", name="user-posts-fragment", response_class=HTMLResponse)
+async def user_posts_fragment(user: UserDep, query_dto: PostQueryDep) -> str:
     return get_html_content("fragments/posts.html", {
         "query": query_dto,
         "posts": await get_latest_published_posts_by_user(user, query_dto)
@@ -274,7 +274,7 @@ async def view_user_posts_fragment(user: UserDep, query_dto: PostQueryDep) -> st
 async def login(request: Request) -> str:
     # todo: make sure referer belongs to the website
     referer = request.headers.get('referer')
-    index_url = get_full_url(request, 'view-index')
+    index_url = get_full_url(request, 'index')
     callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={quote(referer if referer else index_url)}"
     redirect_url = await get_login_redirect_url(callback_url)
     return redirect_url
@@ -311,7 +311,7 @@ async def login_callback(request: Request) -> RedirectResponse:
 async def logout(request: Request) -> RedirectResponse:
     # todo: make sure referer belongs to the website
     referer = request.headers.get("referer")
-    callback_url = referer if referer else get_full_url(request, 'view-index')
+    callback_url = referer if referer else get_full_url(request, 'index')
     redirect_url = await get_logout_redirect_url(callback_url)
     response = RedirectResponse(redirect_url)
     response.delete_cookie("session_token")

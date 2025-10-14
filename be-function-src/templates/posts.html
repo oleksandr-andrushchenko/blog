@@ -8,7 +8,7 @@
 {% set sub_title = "Most rated articles" if posts_query.popular else "Recently added articles" %}
 
 {% block title %}{{ title }} | {{ site_name }}{% endblock %}
-{% block canonical_url %}{{ full_url("view-posts") }}{% endblock %}
+{% block canonical_url %}{{ full_url("posts") }}{% endblock %}
 
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), (popular_title if posts_query.popular else "Posts"): None} %}
@@ -19,12 +19,12 @@
 {% block content %}
     <h1>{{ title }}</h1>
     <p class="small text-secondary">{{ sub_title }}</p>
-    <form action="{{ url("view-posts") }}" method="get">
+    <form action="{{ url("posts") }}" method="get">
         {% if posts_query.popular %}
             <input type="hidden" name="popular" value="1">
         {% endif %}
         <div class="d-flex justify-content-start align-items-center gap-1">
-            <a href="{{ url("view-posts", **posts_query.get_dict({"popular": None if posts_query.popular else 1})) }}"
+            <a href="{{ url("posts", **posts_query.get_dict({"popular": None if posts_query.popular else 1})) }}"
                class="btn btn-light {% if posts_query.popular %}active{% endif %}">
                 <i class="bi bi-star"></i> {{ popular_title }}
             </a>
@@ -40,7 +40,7 @@
                 <i class="bi bi-search"></i> Search
             </button>
             {% if posts_query.has_params() %}
-                <a href="{{ url("view-posts") }}" class="btn btn-light">
+                <a href="{{ url("posts") }}" class="btn btn-light">
                     <i class="bi bi-x-lg"></i> Reset
                 </a>
             {% endif %}
@@ -53,7 +53,7 @@
         {% with limit=posts_query.limit,
             offset=posts[-1].offset,
             count=posts|length,
-            url=url("view-posts-fragment", **dict(posts_query)),
+            url=url("posts-fragment", **dict(posts_query)),
             container="#posts" %}
             {% include "fragments/load-more-button.html" %}
         {% endwith %}

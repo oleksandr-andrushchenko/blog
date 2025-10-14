@@ -3,20 +3,26 @@
 
 <div class="d-flex gap-1 align-items-center">
     {% if has_permission %}
-        <!-- Like Button -->
+        <!-- Like / Unlike Button -->
         <span data-bs-toggle="tooltip"
-              data-bs-title="{% if post_impression and post_impression.action == Impression.LIKE %}Unlike this post{% else %}Like this post{% endif %}">
-            <button type="button" class="btn btn-success btn-sm btn-post-like" data-post-id="{{ post.id }}">
-                <i class="bi {% if post_impression and post_impression.action == Impression.LIKE %}bi-hand-thumbs-up-fill{% else %}bi-hand-thumbs-up{% endif %}"></i>
+              data-bs-title="{% if post_impression and post_impression.action == PostImpressionAction.LIKE %}Unlike this post{% else %}Like this post{% endif %}">
+            <button type="button"
+                    class="btn btn-success btn-sm btn-post-like"
+                    data-post-id="{{ post.id }}"
+                    data-action="{{ PostImpressionAction.LIKE.value }}">
+                <i class="bi {% if post_impression and post_impression.action == PostImpressionAction.LIKE %}bi-hand-thumbs-up-fill{% else %}bi-hand-thumbs-up{% endif %}"></i>
                 {{ post.likes_count }}
             </button>
         </span>
 
-        <!-- Dislike Button -->
+        <!-- Dislike / Undislike Button -->
         <span data-bs-toggle="tooltip"
-              data-bs-title="{% if post_impression and post_impression.action == Impression.DISLIKE %}Undislike this post{% else %}Dislike this post{% endif %}">
-            <button type="button" class="btn btn-danger btn-sm btn-post-dislike" data-post-id="{{ post.id }}">
-                <i class="bi {% if post_impression and post_impression.action == Impression.DISLIKE %}bi-hand-thumbs-down-fill{% else %}bi-hand-thumbs-down{% endif %}"></i>
+              data-bs-title="{% if post_impression and post_impression.action == PostImpressionAction.DISLIKE %}Undislike this post{% else %}Dislike this post{% endif %}">
+            <button type="button"
+                    class="btn btn-danger btn-sm btn-post-dislike"
+                    data-post-id="{{ post.id }}"
+                    data-action="{{ PostImpressionAction.DISLIKE.value }}">
+                <i class="bi {% if post_impression and post_impression.action == PostImpressionAction.DISLIKE %}bi-hand-thumbs-down-fill{% else %}bi-hand-thumbs-down{% endif %}"></i>
                 {{ post.dislikes_count }}
             </button>
         </span>
