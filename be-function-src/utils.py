@@ -1552,6 +1552,12 @@ async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User
         posts = await get_latest_published_posts_by_user(user)
         for post in posts:
             add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {"user_slug": new_slug})
+    else:
+        old_slug = user.username
+        add_dynamodb_delete_transact(transacts, (f"USER_SLUG#{old_slug}", "META"))
+        posts = await get_latest_published_posts_by_user(user)
+        for post in posts:
+            add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {"user_slug": None})
 
     add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), changes)
 
