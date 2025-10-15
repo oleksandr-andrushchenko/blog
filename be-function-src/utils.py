@@ -161,7 +161,7 @@ class PostDTO(BaseModel):
         return list(dict.fromkeys(normalized))
 
 
-# todo:
+# todo: rename to ReplacePostDTO (?)
 class UpdatePostDTO(PostDTO):
     pass
 
@@ -1087,7 +1087,6 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
 
     transacts = []
 
-    post_key = (f"POST#{post_id}", "META")
     post_item = {
         "id": post_id,
         "title": post_dto.title,
@@ -1101,10 +1100,10 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
         "post_status_pk": f"POST#STATUS#{status.value}",
         "post_user_status_pk": f"POST#USER#{user.id}#STATUS#{status.value}",
     }
-    add_dynamodb_put_transact(transacts, post_key, post_item, raise_on_existing_pk=True)
+    add_dynamodb_put_transact(transacts, (f"POST#{post_id}", "META"), post_item, raise_on_existing_pk=True)
 
     # User post counters
-    add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), deltas={"unpublished_posts_count": +1})
+    add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), deltas={"unpublished_posts_count": 1})
 
     # Slug item for uniqueness
     add_dynamodb_put_transact(transacts, (f"POST_SLUG#{slug}", "META"), {"post_id": post_id}, raise_on_existing_pk=True)
@@ -1512,12 +1511,11 @@ async def query_dynamodb_items(
 async def get_latest_published_posts(query_dto: PostQueryDTO = None) -> list[Post]:
     if query_dto is None:
         query_dto = PostQueryDTO()
-    status = PostStatus.PUBLISHED
 
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="POSTS_BY_STATUS_CREATED_AT",
-        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{status.value}"),
+        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{PostStatus.PUBLISHED}"),
         map_fn=post_from_dynamodb,
     )
 
@@ -1525,12 +1523,11 @@ async def get_latest_published_posts(query_dto: PostQueryDTO = None) -> list[Pos
 async def get_popular_published_posts(query_dto: PostQueryDTO = None) -> list[Post]:
     if query_dto is None:
         query_dto = PostQueryDTO()
-    status = PostStatus.PUBLISHED
 
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="POSTS_BY_STATUS_RATING",
-        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{status.value}"),
+        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{PostStatus.PUBLISHED}"),
         map_fn=post_from_dynamodb,
     )
 
@@ -1606,7 +1603,7 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
         return
 
     old_status = post.status
-    status = PostStatus(changes.get("status"))
+    status = changes["status"]
 
     table = await get_dynamodb_table()
     now = utc_now()
@@ -1625,7 +1622,7 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
     if owner:
         deltas = {
             f"{old_status.value}_posts_count": -1,
-            f"{status.value}_posts_count": +1,
+            f"{status.value}_posts_count": 1,
         }
         add_dynamodb_update_transact(transacts, (f"USER#{owner.id}", "META"), deltas=deltas)
         for key, delta in deltas.items():
@@ -1835,12 +1832,11 @@ async def get_logout_redirect_url(callback_url: str) -> str:
 async def get_latest_active_users(query_dto: UserQueryDTO = None) -> list[User]:
     if query_dto is None:
         query_dto = UserQueryDTO()
-    status = UserStatus.ACTIVE
 
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="USERS_BY_STATUS_CREATED_AT",
-        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{status.value}"),
+        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{UserStatus.ACTIVE.value}"),
         map_fn=user_from_dynamodb,
     )
 
@@ -1878,12 +1874,11 @@ async def get_latest_published_posts_by_user(user: User, query_dto: PostQueryDTO
         return []
     if query_dto is None:
         query_dto = PostQueryDTO()
-    status = PostStatus.PUBLISHED
 
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="POSTS_BY_USER_STATUS_CREATED_AT",
-        key_condition_expr=Key("post_user_status_pk").eq(f"POST#USER#{user.id}#STATUS#{status.value}"),
+        key_condition_expr=Key("post_user_status_pk").eq(f"POST#USER#{user.id}#STATUS#{PostStatus.PUBLISHED.value}"),
         map_fn=post_from_dynamodb,
     )
 
@@ -1891,12 +1886,11 @@ async def get_latest_published_posts_by_user(user: User, query_dto: PostQueryDTO
 async def get_popular_active_users(query_dto: UserQueryDTO = None) -> list[User]:
     if query_dto is None:
         query_dto = UserQueryDTO()
-    status = UserStatus.ACTIVE
 
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="USERS_BY_STATUS_RATING",
-        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{status.value}"),
+        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{UserStatus.ACTIVE.value}"),
         map_fn=user_from_dynamodb,
     )
 
