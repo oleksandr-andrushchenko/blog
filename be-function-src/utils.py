@@ -1515,7 +1515,7 @@ async def get_latest_published_posts(query_dto: PostQueryDTO = None) -> list[Pos
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="POSTS_BY_STATUS_CREATED_AT",
-        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{PostStatus.PUBLISHED}"),
+        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{PostStatus.PUBLISHED.value}"),
         map_fn=post_from_dynamodb,
     )
 
@@ -1527,7 +1527,7 @@ async def get_popular_published_posts(query_dto: PostQueryDTO = None) -> list[Po
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="POSTS_BY_STATUS_RATING",
-        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{PostStatus.PUBLISHED}"),
+        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{PostStatus.PUBLISHED.value}"),
         map_fn=post_from_dynamodb,
     )
 
