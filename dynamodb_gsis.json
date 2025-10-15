@@ -12,6 +12,18 @@
     }
   },
   {
+    "IndexName": "USERS_BY_USERNAME",
+    "KeySchema": [
+      {
+        "AttributeName": "username",
+        "KeyType": "HASH"
+      }
+    ],
+    "Projection": {
+      "ProjectionType": "ALL"
+    }
+  },
+  {
     "IndexName": "USERS_BY_STATUS_RATING",
     "KeySchema": [
       {

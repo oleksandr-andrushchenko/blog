@@ -57,7 +57,7 @@ class User(BaseModel):
     owner_id: str | None = None
     email: str | None = None
     avatar_filename: str | None = None
-    name: str | None = None
+    name: str
     username: str | None = None
     headline: str | None = None
     website: str | None = None
@@ -102,7 +102,7 @@ class FileDTO(BaseModel):
 
 
 class UserDTO(BaseModel):
-    name: str | None = Field(None, min_length=1, max_length=100)
+    name: str = Field(..., min_length=1, max_length=100)
     username: str | None = Field(None, min_length=3, max_length=30)
 
     _username_pattern: ClassVar[re.Pattern] = re.compile(r"^[a-z0-9-]+$")
@@ -659,6 +659,19 @@ def url_for(ctx, name: str, **params) -> str:
     return url
 
 
+@pass_context
+def jinja2_user_url(ctx, user: User, **params) -> str:
+    if user.username:
+        return url_for(ctx, "user-by-username", username=user.username, **params)
+    return url_for(ctx, "user", user_id=user.id, **params)
+
+
+def get_user_url(request, user: User, **params) -> str:
+    if user.username:
+        return get_url(request, "user-by-username", username=user.username, **params)
+    return get_url(request, "user", user_id=user.id, **params)
+
+
 def get_url(request, name: str, **params) -> str:
     url = request.url_for(name, **params) if request else f"/{name}"
     return str(url).rstrip("/")
@@ -695,6 +708,7 @@ def get_jinja2_env():
     jinja2_env.globals.update({
         "static_url": static_url,
         "url": url_for,
+        "user_url": jinja2_user_url,
         "full_url": full_url_for,
         "Permission": Permission,
         "check_auth": check_authorization,
@@ -948,12 +962,20 @@ async def get_user_by_user_token(token: UserToken) -> User | None:
     })
 
 
-def build_username(raw_username: str | None, now: int) -> str:
-    if not raw_username:
-        raw_username = "user"
+def build_user_name(raw_name: str | None, now: int) -> str:
+    if not raw_name:
+        return f"User {now}"
+
+    return raw_name
+
+
+def build_user_username(raw_name: str | None, raw_username: str | None, now: int) -> str | None:
+    base = raw_username or raw_name
+    if not base:
+        return None
 
     # Lowercase
-    username = raw_username.lower()
+    username = base.lower()
 
     # Replace invalid characters with dash
     username = re.sub(r"[^a-z0-9]+", "-", username)
@@ -962,7 +984,10 @@ def build_username(raw_username: str | None, now: int) -> str:
     username = re.sub(r"-{2,}", "-", username)
 
     # Remove leading/trailing dashes
-    username = username.strip("-")
+    username = username.strip("-").strip()
+
+    if not username:
+        return None
 
     # Append timestamp for uniqueness
     username += f"-{now}"
@@ -990,20 +1015,22 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
         add_dynamodb_update_transact(transacts, (f"USER#{user_id}", "META"), {"providers": providers})
         user.providers = providers
     else:
-        username = build_username(token.username, now)
         user_item = {
             "id": user_id,
             "user_email_pk": token.email,
-            "name": token.name,
-            "username": username,
+            "name": build_user_name(token.name, now),
             "providers": providers,
             "status": status,
             "rating_sk": compute_rating_sk(0, now),
             "created_at_sk": now,
             "user_status_pk": f"USER#STATUS#{status.value}",
         }
+        username = build_user_username(token.name, token.username, now)
+        if username:
+            user_item["username"] = username
+            add_dynamodb_put_transact(transacts, (f"USER_SLUG#{username}", "META"), {"user_id": user_id},
+                                      new_pk_only=True)
         add_dynamodb_put_transact(transacts, (f"USER#{user_id}", "META"), user_item)
-        add_dynamodb_put_transact(transacts, (f"USER_SLUG#{username}", "META"), {"user_id": user_id}, new_pk_only=True)
         user = user_from_dynamodb(user_item)
 
     add_dynamodb_put_transact(transacts, (f"PROVIDER_USER#{token.iss}#{token.sub}", "META"), {
@@ -1050,9 +1077,9 @@ def get_dummy_user_token(
         *,
         sub: str = "test-sub",
         iss: str = "test-iss",
-        username: str = "Test username",
+        username: str | None = None,
         email: str = "test@example.com",
-        name: str = "Test User"
+        name: str | None = None
 ) -> UserToken:
     return UserToken(
         sub=sub,
@@ -1237,7 +1264,7 @@ def user_from_dynamodb(d_item: dict[str, any]) -> User:
         owner_id=owner_id,
         email=d_item.get("user_email_pk"),
         avatar_filename=d_item.get("avatar_filename"),
-        name=d_item.get("name"),
+        name=d_item["name"],
         username=d_item.get("username"),
         headline=d_item.get("headline"),
         website=d_item.get("website"),
@@ -1504,6 +1531,28 @@ async def get_user(user_id: str) -> User:
     user = await find_user(user_id)
     if user is None:
         raise UserNotFoundError(f"User '{user_id}' not found")
+    return user
+
+
+async def find_user_by_username(username: str) -> User | None:
+    table = await get_dynamodb_table()
+    resp = await table.query(
+        IndexName="USERS_BY_USERNAME",
+        KeyConditionExpression=Key("username").eq(username),
+        Limit=1
+    )
+    items = resp.get("Items", [])
+    if not items:
+        return None
+    item = items[0]
+    # logger.debug(f"User: {item}")
+    return user_from_dynamodb(item)
+
+
+async def get_user_by_username(username: str) -> User:
+    user = await find_user_by_username(username)
+    if user is None:
+        raise UserNotFoundError(f"User '{username}' not found")
     return user
 
 
@@ -2172,10 +2221,10 @@ async def create_dummy_fixtures() -> None:
         created_post = await create_post(post, user2)
         await update_post_status(created_post, UpdatePostStatusDTO(status=PostStatus.PUBLISHED), root_user)
         created_posts.append(created_post)
-    user_token3 = get_dummy_user_token(sub="p3", email="test3@example.com", name="Another user")
+    user_token3 = get_dummy_user_token(sub="p3", email="test3@example.com")
     user3 = await upsert_user_by_user_token(user_token3)
     created_users.append(user3)
-    user_token4 = get_dummy_user_token(sub="p4", email="test4@example.com", name="Vanilla user")
+    user_token4 = get_dummy_user_token(sub="p4", email="test4@example.com")
     user4 = await upsert_user_by_user_token(user_token4)
     created_users.append(user4)
     for user in created_users:

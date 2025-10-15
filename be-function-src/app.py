@@ -55,6 +55,7 @@ from utils import (
     update_post_impression,
     update_user_impression,
     find_user_impression,
+    get_user_url,
 )
 
 from deps import (
@@ -72,6 +73,7 @@ from deps import (
     UpdatePostStatusDTODep,
     UpdatePostImpressionDTODep,
     UpdateUserImpressionDTODep,
+    UserByUsernameDep,
 )
 from urllib.parse import quote
 
@@ -230,7 +232,7 @@ async def users_fragment(query_dto: UserQueryDep) -> str:
 
 
 @app.get("/users/{user_id}", name="user", response_class=HTMLResponse)
-async def user(user: UserDep, cur_user: OptCurUserDep) -> str:
+async def user_page(user: UserDep, cur_user: OptCurUserDep) -> str:
     posts_query_dto = PostQueryDTO()
     return get_html_content("user.html", {
         "cur_user": cur_user,
@@ -259,7 +261,7 @@ async def edit_user(user: UserDep, cur_user: CurUserDep) -> str:
 @app.patch("/users/{user_id}", name="update-user", response_class=JSONResponse)
 async def _update_user(update_user_dto: UpdateUserDTODep, user: UserDep, cur_user: CurUserDep, request: Request) -> str:
     await update_user(user, update_user_dto, cur_user)
-    return get_url(request, "user", user_id=user.id)
+    return get_user_url(request, user)
 
 
 @app.get("/users/{user_id}/posts-fragment", name="user-posts-fragment", response_class=HTMLResponse)
@@ -321,6 +323,11 @@ async def logout(request: Request) -> RedirectResponse:
 @app.post("/dummy-fixtures", name="create-dummy-fixtures")
 async def _create_dummy_fixtures() -> None:
     return await create_dummy_fixtures()
+
+
+@app.get("/{username}", name="user-by-username", response_class=HTMLResponse)
+async def user_page_by_username(user: UserByUsernameDep, cur_user: OptCurUserDep) -> str:
+    return await user_page(user, cur_user)
 
 
 @app.exception_handler(StarletteHTTPException)

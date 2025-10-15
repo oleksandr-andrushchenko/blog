@@ -82,6 +82,8 @@ Resources:
           AttributeType: S
         - AttributeName: user_email_pk
           AttributeType: S
+        - AttributeName: username
+          AttributeType: S
         - AttributeName: post_status_pk
           AttributeType: S
         - AttributeName: tag_type_pk
@@ -105,6 +107,12 @@ Resources:
         - IndexName: USERS_BY_EMAIL # get_user_by_user_token (get user by email)
           KeySchema:
             - AttributeName: user_email_pk # e.g. "me@example.com"
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: USERS_BY_USERNAME # get_user_by_username (get user by username)
+          KeySchema:
+            - AttributeName: username # e.g. "user-123"
               KeyType: HASH
           Projection:
             ProjectionType: ALL

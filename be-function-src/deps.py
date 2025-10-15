@@ -27,6 +27,7 @@ from utils import (
     UpdatePostStatusDTO,
     UpdatePostImpressionDTO,
     UpdateUserImpressionDTO,
+    get_user_by_username,
 )
 
 
@@ -152,6 +153,19 @@ def get_update_user_impression_dto(
 
 
 UpdateUserImpressionDTODep = Annotated[UpdateUserImpressionDTO, Depends(get_update_user_impression_dto)]
+
+
+async def _get_user_by_username(username: str) -> User:
+    try:
+        return await get_user_by_username(username)
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
+UserByUsernameDep = Annotated[User, Depends(_get_user_by_username)]
 
 
 async def get_error_response(request: Request, status_code: int, details: dict | str):
