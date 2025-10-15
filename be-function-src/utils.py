@@ -101,12 +101,42 @@ class FileDTO(BaseModel):
         return image_type
 
 
-class UpdateUserDTO(BaseModel):
+class UserDTO(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=100)
+    username: str | None = Field(None, min_length=3, max_length=30)
+
+    _username_pattern: ClassVar[re.Pattern] = re.compile(r"^[a-z0-9-]+$")
+    _username_blacklist: ClassVar[set[str]] = {"posts", "posts-fragment", "contacts", "post-tags", "users",
+                                               "users-fragment",
+                                               "dummy-fixtures"}
+
+    @field_validator("username")
+    @classmethod
+    def validate_slug(cls, value: str):
+        if value is None:
+            return value
+
+        value = value.strip()
+
+        if not cls._username_pattern.match(value):
+            raise ValueError("Username must be lowercase alphanumeric and may include single dashes only")
+
+        if value.startswith("-") or value.endswith("-"):
+            raise ValueError("Username cannot start or end with a dash")
+
+        if "--" in value:
+            raise ValueError("Username cannot contain consecutive dashes")
+
+        if value in cls._username_blacklist:
+            raise ValueError(f"'{value}' is a reserved word")
+
+        return value
+
+
+class UpdateUserDTO(UserDTO):
     avatar_action: Literal["delete", "replace", "keep"] | None = None
     # todo: check if file exists
     avatar_filename: str | None = None
-    name: str | None = Field(None, min_length=1, max_length=100)
-    username: str | None = Field(None, min_length=3, max_length=30)
     headline: str | None = Field(None, max_length=150)
     about: str | None = Field(None, max_length=2000)
     website: HttpUrl | None = None
@@ -918,6 +948,28 @@ async def get_user_by_user_token(token: UserToken) -> User | None:
     })
 
 
+def build_username(raw_username: str | None, now: int) -> str:
+    if not raw_username:
+        raw_username = "user"
+
+    # Lowercase
+    username = raw_username.lower()
+
+    # Replace invalid characters with dash
+    username = re.sub(r"[^a-z0-9]+", "-", username)
+
+    # Remove consecutive dashes
+    username = re.sub(r"-{2,}", "-", username)
+
+    # Remove leading/trailing dashes
+    username = username.strip("-")
+
+    # Append timestamp for uniqueness
+    username += f"-{now}"
+
+    return username
+
+
 async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserStatus.ACTIVE) -> User:
     await get_dynamodb_table()
     now = utc_now()
@@ -938,11 +990,12 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
         add_dynamodb_update_transact(transacts, (f"USER#{user_id}", "META"), {"providers": providers})
         user.providers = providers
     else:
+        username = build_username(token.username, now)
         user_item = {
             "id": user_id,
             "user_email_pk": token.email,
             "name": token.name,
-            "username": token.username,
+            "username": username,
             "providers": providers,
             "status": status,
             "rating_sk": compute_rating_sk(0, now),
@@ -950,6 +1003,8 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
             "user_status_pk": f"USER#STATUS#{status.value}",
         }
         add_dynamodb_put_transact(transacts, (f"USER#{user_id}", "META"), user_item)
+        add_dynamodb_put_transact(transacts, (f"USER_SLUG#{username}", "META"), {"user_id": user_id},
+                                  raise_on_existing_pk=True)
         user = user_from_dynamodb(user_item)
 
     add_dynamodb_put_transact(transacts, (f"PROVIDER_USER#{token.iss}#{token.sub}", "META"), {
@@ -959,7 +1014,12 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
         "updated_at": now
     })
 
-    await dynamodb_transact_write(transacts)
+    try:
+        await dynamodb_transact_write(transacts)
+    except DynamoDBTransactionError as e:
+        if e.is_conditional():
+            raise SlugDuplicationError(field="username")
+        raise
 
     return user
 
@@ -1254,6 +1314,7 @@ def build_dynamodb_put_item_params(
         key: tuple[str, str],
         values: dict[str, any],
         add_created_at: bool = True,
+        # todo: rename to new_pk
         raise_on_existing_pk: bool = False
 ) -> dict[str, any]:
     # Set created_at
@@ -1404,6 +1465,12 @@ async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User
     verify_authorization(cur_user, Permission.UPDATE_USER, user)
 
     changes = update_user_dto.model_dump(exclude_unset=True)
+    if not changes:
+        return
+
+    await get_dynamodb_table()
+    transacts = []
+
     if changes.get("website"):
         changes["website"] = str(changes["website"])
 
@@ -1421,7 +1488,27 @@ async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User
 
     old_avatar = user.avatar_filename
 
-    await update_dynamodb_item((f"USER#{user.id}", "META"), changes)
+    # Slug update if name changed
+    if "username" in changes:
+        new_slug = changes["username"]
+        old_slug = user.username
+
+        if old_slug == new_slug:
+            pass
+        # Delete old slug mapping
+        add_dynamodb_delete_transact(transacts, (f"USER_SLUG#{old_slug}", "META"))
+        # Insert new slug mapping
+        add_dynamodb_put_transact(transacts, (f"USER_SLUG#{new_slug}", "META"), {"user_id": user.id},
+                                  raise_on_existing_pk=True)
+
+    add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), changes)
+
+    try:
+        await dynamodb_transact_write(transacts)
+    except DynamoDBTransactionError as e:
+        if e.is_conditional():
+            raise SlugDuplicationError(field="username")
+        raise
 
     if old_avatar and avatar_action in {"delete", "replace"}:
         await drop_public_file(old_avatar)
@@ -2045,7 +2132,7 @@ async def create_dummy_fixtures() -> None:
     root_user.permissions = [Permission.ROOT]
     update_user_dto = UpdateUserDTO(
         name="John Doe",
-        username="j_doe",
+        username="j-doe",
         headline="Software Engineer",
         website=HttpUrl("https://example.com"),
         about=("Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the "

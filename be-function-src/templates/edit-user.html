@@ -156,7 +156,34 @@
             ],
             username: [
               {rule: "minLength", value: 3},
-              {rule: "maxLength", value: 30}
+              {rule: "maxLength", value: 30},
+              {
+                rule: "customRegexp",
+                value: /^[a-z0-9-]+$/,
+                errorMessage: "Username must be lowercase alphanumeric and may include single dashes only"
+              },
+              {
+                rule: "custom",
+                validator: (value) => !value.startsWith("-") && !value.endsWith("-"),
+                errorMessage: "Username cannot start or end with a dash"
+              },
+              {
+                rule: "custom",
+                validator: (value) => !value.includes("--"),
+                errorMessage: "Username cannot contain consecutive dashes"
+              },
+              {
+                rule: "custom",
+                validator: (value) => {
+                  const _username_blacklist = [
+                    "posts", "posts-fragment", "contacts",
+                    "post-tags", "users", "users-fragment",
+                    "dummy-fixtures"
+                  ]
+                  return !_username_blacklist.includes(value)
+                },
+                errorMessage: "This username is reserved"
+              }
             ],
             headline: [
               {rule: "minLength", value: 1},
