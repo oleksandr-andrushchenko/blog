@@ -942,7 +942,8 @@ async def get_user_by_user_token(token: UserToken) -> User | None:
     if not provider_user_item and token.email:
         resp = await table.query(
             IndexName="USERS_BY_EMAIL",
-            KeyConditionExpression=Key("user_email_pk").eq(token.email)
+            KeyConditionExpression=Key("user_email_pk").eq(token.email),
+            Limit=1
         )
         items = resp.get("Items", [])
         if items:
