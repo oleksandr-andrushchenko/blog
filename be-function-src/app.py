@@ -155,7 +155,7 @@ async def posts_fragment(query_dto: PostQueryDep) -> str:
 
 
 @app.get("/posts/{post_id}", name="post", response_class=HTMLResponse)
-async def post(post: PostDep, cur_user: OptCurUserDep) -> str:
+async def post_page(post: PostDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("post.html", {
         "cur_user": cur_user,
         "post": post,
