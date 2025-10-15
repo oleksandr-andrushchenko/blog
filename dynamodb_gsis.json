@@ -56,6 +56,18 @@
     }
   },
   {
+    "IndexName": "POSTS_BY_SLUG",
+    "KeySchema": [
+      {
+        "AttributeName": "post_slug",
+        "KeyType": "HASH"
+      }
+    ],
+    "Projection": {
+      "ProjectionType": "ALL"
+    }
+  },
+  {
     "IndexName": "TAGS_BY_TYPE_RATING",
     "KeySchema": [
       {

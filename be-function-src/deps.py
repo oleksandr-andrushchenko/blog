@@ -28,6 +28,7 @@ from utils import (
     UpdatePostImpressionDTO,
     UpdateUserImpressionDTO,
     get_user_by_username,
+    get_post_by_slugs,
 )
 
 
@@ -166,6 +167,24 @@ async def _get_user_by_username(username: str) -> User:
 
 
 UserByUsernameDep = Annotated[User, Depends(_get_user_by_username)]
+
+
+async def _get_post_by_slugs(user_slug: str, post_slug: str) -> Post:
+    try:
+        return await get_post_by_slugs(user_slug, post_slug)
+    except PostNotFoundError as e:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
+PostBySlugsDep = Annotated[Post, Depends(_get_post_by_slugs)]
 
 
 async def get_error_response(request: Request, status_code: int, details: dict | str):

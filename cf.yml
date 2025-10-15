@@ -86,6 +86,8 @@ Resources:
           AttributeType: S
         - AttributeName: post_status_pk
           AttributeType: S
+        - AttributeName: post_slug
+          AttributeType: S
         - AttributeName: tag_type_pk
           AttributeType: S
         - AttributeName: rating_sk
@@ -130,6 +132,12 @@ Resources:
               KeyType: HASH
             - AttributeName: created_at_sk # e.g. 1759086095241
               KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: POSTS_BY_SLUG # get_post_by_slugs
+          KeySchema:
+            - AttributeName: post_slug # e.g. "post-title-about-something"
+              KeyType: HASH
           Projection:
             ProjectionType: ALL
         - IndexName: TAGS_BY_TYPE_RATING # get_popular_post_tags

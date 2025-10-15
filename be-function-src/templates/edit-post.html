@@ -6,7 +6,7 @@
 {% block canonical_url %}{{ full_url("edit-post", post_id=post.id) }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), "Posts": url("posts"), (post.title): url("post", post_id=post.id), "Edit": None} %}
+    {% with breadcrumbs = {"Home": url("index"), "Posts": url("posts"), (post.title): post_url(post), "Edit": None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}

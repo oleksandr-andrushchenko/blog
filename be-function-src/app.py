@@ -74,6 +74,7 @@ from deps import (
     UpdatePostImpressionDTODep,
     UpdateUserImpressionDTODep,
     UserByUsernameDep,
+    PostBySlugsDep,
 )
 from urllib.parse import quote
 
@@ -328,6 +329,11 @@ async def _create_dummy_fixtures() -> None:
 @app.get("/{username}", name="user-by-username", response_class=HTMLResponse)
 async def user_page_by_username(user: UserByUsernameDep, cur_user: OptCurUserDep) -> str:
     return await user_page(user, cur_user)
+
+
+@app.get("/{user_slug}/{post_slug}", name="post-by-slugs", response_class=HTMLResponse)
+async def post_page_by_slugs(post: PostBySlugsDep, cur_user: OptCurUserDep) -> str:
+    return await post_page(post, cur_user)
 
 
 @app.exception_handler(StarletteHTTPException)

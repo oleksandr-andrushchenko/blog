@@ -1,5 +1,5 @@
 <div {% if post.offset %}data-offset="{{ post.offset }}"{% endif %}>
-    <a href="{{ url("post", post_id=post.id) }}">
+    <a href="{{ post_url(post) }}">
         <h2>{{ post.title }}</h2>
     </a>
     {% include "fragments/post-meta.html" %}

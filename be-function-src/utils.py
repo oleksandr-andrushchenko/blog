@@ -294,6 +294,7 @@ class Post(BaseModel):
     title: str
     slug: str
     user_id: str
+    user_slug: str | None
     content: str
     tags: list[str]
     status: PostStatus = PostStatus.UNPUBLISHED
@@ -672,6 +673,17 @@ def get_user_url(request, user: User, **params) -> str:
     return get_url(request, "user", user_id=user.id, **params)
 
 
+@pass_context
+def jinja2_post_url(ctx, post: Post, **params) -> str:
+    return get_post_url(ctx.get("request"), post, **params)
+
+
+def get_post_url(request, post: Post, **params) -> str:
+    if post.user_slug:
+        return get_url(request, "post-by-slugs", user_slug=post.user_slug, post_slug=post.slug, **params)
+    return get_url(request, "post", post_id=post.id, **params)
+
+
 def get_url(request, name: str, **params) -> str:
     url = request.url_for(name, **params) if request else f"/{name}"
     return str(url).rstrip("/")
@@ -710,6 +722,7 @@ def get_jinja2_env():
         "url": url_for,
         "user_url": jinja2_user_url,
         "full_url": full_url_for,
+        "post_url": jinja2_post_url,
         "Permission": Permission,
         "check_auth": check_authorization,
         "PostStatus": PostStatus,
@@ -1145,7 +1158,7 @@ def post_from_dynamodb(d_item: dict[str, any]) -> Post:
         id=d_item["id"],
         owner_id=owner_id,
         title=d_item["title"],
-        slug=d_item["slug"],
+        slug=d_item["post_slug"],
         user_id=owner_id,
         content=d_item["content"],
         tags=d_item.get("tags", []),
@@ -1154,6 +1167,7 @@ def post_from_dynamodb(d_item: dict[str, any]) -> Post:
         rating=d_item["rating_sk"],
         likes_count=d_item.get("likes_count", 0),
         dislikes_count=d_item.get("dislikes_count", 0),
+        user_slug=d_item.get("user_slug"),
         created_at=d_item["created_at_sk"],
         updated_at=d_item.get("updated_at"),
     )
@@ -1177,7 +1191,7 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
     post_item = {
         "id": post_id,
         "title": post_dto.title,
-        "slug": slug,
+        "post_slug": slug,
         "user_id": user.id,
         "content": post_dto.content,
         "tags": post_dto.tags,
@@ -1187,6 +1201,8 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
         "post_status_pk": f"POST#STATUS#{status.value}",
         "post_user_status_pk": f"POST#USER#{user.id}#STATUS#{status.value}",
     }
+    if user.username:
+        post_item["user_slug"] = user.username
     add_dynamodb_put_transact(transacts, (f"POST#{post_id}", "META"), post_item, new_pk_only=True)
     add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), deltas={"unpublished_posts_count": 1})
     add_dynamodb_put_transact(transacts, (f"POST_SLUG#{slug}", "META"), {"post_id": post_id}, new_pk_only=True)
@@ -1215,13 +1231,14 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
     transacts = []
 
     if "title" in changes:
+        # todo: normalize like username
         new_slug = to_kebab_case(changes["title"])
         old_slug = post.slug
         if old_slug == new_slug:
             pass
         add_dynamodb_delete_transact(transacts, (f"POST_SLUG#{old_slug}", "META"))
         add_dynamodb_put_transact(transacts, (f"POST_SLUG#{new_slug}", "META"), {"post_id": post.id}, new_pk_only=True)
-        changes["slug"] = new_slug
+        changes["post_slug"] = new_slug
 
     add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), changes)
 
@@ -1255,6 +1272,30 @@ async def get_post(post_id: str) -> Post:
     post = await find_post(post_id)
     if post is None:
         raise PostNotFoundError(f"Post '{post_id}' not found")
+    return post
+
+
+async def find_post_by_slug(slug: str) -> Post | None:
+    table = await get_dynamodb_table()
+    resp = await table.query(
+        IndexName="POSTS_BY_SLUG",
+        KeyConditionExpression=Key("post_slug").eq(slug),
+        Limit=1
+    )
+    items = resp.get("Items", [])
+    if not items:
+        return None
+    item = items[0]
+    # logger.debug(f"Post by slug: {item}")
+    return post_from_dynamodb(item)
+
+
+async def get_post_by_slugs(user_slug: str, post_slug: str) -> Post:
+    post = await find_post_by_slug(post_slug)
+    if post is None:
+        raise PostNotFoundError(f"Post '{post_slug}' not found")
+    if post.user_slug != user_slug:
+        raise UserNotFoundError(f"User '{user_slug}' not found")
     return post
 
 
@@ -1490,9 +1531,6 @@ async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User
     if changes.get("website"):
         changes["website"] = str(changes["website"])
 
-    # logger.debug("Changes:")
-    # logger.debug(changes)
-
     avatar_action = changes.pop("avatar_action", "keep")
 
     if avatar_action == "delete":
@@ -1511,6 +1549,9 @@ async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User
             pass
         add_dynamodb_delete_transact(transacts, (f"USER_SLUG#{old_slug}", "META"))
         add_dynamodb_put_transact(transacts, (f"USER_SLUG#{new_slug}", "META"), {"user_id": user.id}, new_pk_only=True)
+        posts = await get_latest_published_posts_by_user(user)
+        for post in posts:
+            add_dynamodb_update_transact(transacts, (f"POST{post.id}", "META"), {"user_slug": new_slug})
 
     add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), changes)
 

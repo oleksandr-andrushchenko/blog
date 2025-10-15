@@ -330,6 +330,7 @@ create-local-dynamodb:
 				AttributeName=user_email_pk,AttributeType=S \
 				AttributeName=username,AttributeType=S \
 				AttributeName=post_status_pk,AttributeType=S \
+				AttributeName=post_slug,AttributeType=S \
 				AttributeName=tag_type_pk,AttributeType=S \
 				AttributeName=rating_sk,AttributeType=N \
 				AttributeName=tag_name_sk,AttributeType=S \
