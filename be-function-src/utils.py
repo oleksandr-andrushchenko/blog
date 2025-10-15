@@ -1551,7 +1551,7 @@ async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User
         add_dynamodb_put_transact(transacts, (f"USER_SLUG#{new_slug}", "META"), {"user_id": user.id}, new_pk_only=True)
         posts = await get_latest_published_posts_by_user(user)
         for post in posts:
-            add_dynamodb_update_transact(transacts, (f"POST{post.id}", "META"), {"user_slug": new_slug})
+            add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {"user_slug": new_slug})
 
     add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), changes)
 
