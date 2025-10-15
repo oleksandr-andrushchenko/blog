@@ -88,11 +88,13 @@
                 </ul>
                 <ul class="navbar-nav">
                     {% if cur_user %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url("new-post") }}">
-                                <i class="bi bi-pencil-square"></i> Create post
-                            </a>
-                        </li>
+                        {% if check_auth(cur_user, Permission.CREATE_POST) %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url("new-post") }}">
+                                    <i class="bi bi-pencil-square"></i> Create post
+                                </a>
+                            </li>
+                        {% endif %}
                         <li class="nav-item">
                             <a class="nav-link" href="{{ user_url(cur_user) }}">
                                 <i class="bi bi-person-circle"></i> {{ cur_user.name }}
