@@ -40,15 +40,12 @@
 
 - optimize Projections for DynamoDB indexes
 - optimize DynamoDB attributes
-- generate default user names
 - create post: add optional image input, add advanced editor
 - add manage users page
 - add manage posts page
 - add user tags, filter users by tags (?)
 - post markups
 - post image
-- user page human-readable links
-- post page human-readable links
 
 ## Links
 
