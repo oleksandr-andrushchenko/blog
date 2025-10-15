@@ -1003,8 +1003,7 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
             "user_status_pk": f"USER#STATUS#{status.value}",
         }
         add_dynamodb_put_transact(transacts, (f"USER#{user_id}", "META"), user_item)
-        add_dynamodb_put_transact(transacts, (f"USER_SLUG#{username}", "META"), {"user_id": user_id},
-                                  raise_on_existing_pk=True)
+        add_dynamodb_put_transact(transacts, (f"USER_SLUG#{username}", "META"), {"user_id": user_id}, new_pk_only=True)
         user = user_from_dynamodb(user_item)
 
     add_dynamodb_put_transact(transacts, (f"PROVIDER_USER#{token.iss}#{token.sub}", "META"), {
@@ -1160,13 +1159,9 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
         "post_status_pk": f"POST#STATUS#{status.value}",
         "post_user_status_pk": f"POST#USER#{user.id}#STATUS#{status.value}",
     }
-    add_dynamodb_put_transact(transacts, (f"POST#{post_id}", "META"), post_item, raise_on_existing_pk=True)
-
-    # User post counters
+    add_dynamodb_put_transact(transacts, (f"POST#{post_id}", "META"), post_item, new_pk_only=True)
     add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), deltas={"unpublished_posts_count": 1})
-
-    # Slug item for uniqueness
-    add_dynamodb_put_transact(transacts, (f"POST_SLUG#{slug}", "META"), {"post_id": post_id}, raise_on_existing_pk=True)
+    add_dynamodb_put_transact(transacts, (f"POST_SLUG#{slug}", "META"), {"post_id": post_id}, new_pk_only=True)
 
     try:
         await dynamodb_transact_write(transacts)
@@ -1191,20 +1186,14 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
     await get_dynamodb_table()
     transacts = []
 
-    # Slug update if title changed
     if "title" in changes:
         new_slug = to_kebab_case(changes["title"])
         old_slug = post.slug
-
-        if old_slug != new_slug:
-            # Delete old slug mapping
-            add_dynamodb_delete_transact(transacts, (f"POST_SLUG#{old_slug}", "META"))
-
-            # Insert new slug mapping
-            # todo: make universal slug (for users, for posts for tags, etc.: SLUG#{slug})
-            add_dynamodb_put_transact(transacts, (f"POST_SLUG#{new_slug}", "META"), {"post_id": post.id},
-                                      raise_on_existing_pk=True)
-            changes["slug"] = new_slug
+        if old_slug == new_slug:
+            pass
+        add_dynamodb_delete_transact(transacts, (f"POST_SLUG#{old_slug}", "META"))
+        add_dynamodb_put_transact(transacts, (f"POST_SLUG#{new_slug}", "META"), {"post_id": post.id}, new_pk_only=True)
+        changes["slug"] = new_slug
 
     add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), changes)
 
@@ -1314,8 +1303,7 @@ def build_dynamodb_put_item_params(
         key: tuple[str, str],
         values: dict[str, any],
         add_created_at: bool = True,
-        # todo: rename to new_pk
-        raise_on_existing_pk: bool = False
+        new_pk_only: bool = False
 ) -> dict[str, any]:
     # Set created_at
     if add_created_at:
@@ -1330,7 +1318,7 @@ def build_dynamodb_put_item_params(
             "sk": sk
         }
     }
-    if raise_on_existing_pk:
+    if new_pk_only:
         params["ConditionExpression"] = "attribute_not_exists(pk)"
     return {
         "Put": params
@@ -1342,7 +1330,7 @@ def add_dynamodb_put_transact(
         key: tuple[str, str],
         values: dict[str, any],
         add_created_at: bool = True,
-        raise_on_existing_pk: bool = False
+        new_pk_only: bool = False
 ) -> None:
     param_dict = dict(locals())
     param_dict.pop("transacts", None)
@@ -1488,18 +1476,13 @@ async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User
 
     old_avatar = user.avatar_filename
 
-    # Slug update if name changed
     if "username" in changes:
         new_slug = changes["username"]
         old_slug = user.username
-
         if old_slug == new_slug:
             pass
-        # Delete old slug mapping
         add_dynamodb_delete_transact(transacts, (f"USER_SLUG#{old_slug}", "META"))
-        # Insert new slug mapping
-        add_dynamodb_put_transact(transacts, (f"USER_SLUG#{new_slug}", "META"), {"user_id": user.id},
-                                  raise_on_existing_pk=True)
+        add_dynamodb_put_transact(transacts, (f"USER_SLUG#{new_slug}", "META"), {"user_id": user.id}, new_pk_only=True)
 
     add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), changes)
 
@@ -2037,7 +2020,7 @@ async def update_post_impression(post: Post, update_post_impression_dto: UpdateP
         else:
             add_dynamodb_put_transact(transacts, post_imp_key,
                                       {**post_impression_item, "action": PostImpressionAction.LIKE},
-                                      raise_on_existing_pk=True)
+                                      new_pk_only=True)
             add_dynamodb_update_transact(transacts, post_key,
                                          deltas={"likes_count": 1, "rating_sk": compute_rating_sk(1)})
 
@@ -2053,7 +2036,7 @@ async def update_post_impression(post: Post, update_post_impression_dto: UpdateP
         else:
             add_dynamodb_put_transact(transacts, post_imp_key,
                                       {**post_impression_item, "action": PostImpressionAction.DISLIKE},
-                                      raise_on_existing_pk=True)
+                                      new_pk_only=True)
             add_dynamodb_update_transact(transacts, post_key,
                                          deltas={"dislikes_count": 1, "rating_sk": compute_rating_sk(-1)})
 
@@ -2096,7 +2079,7 @@ async def update_user_impression(
                                          deltas={"followers_count": 1, "rating_sk": compute_rating_sk(2)})
         else:
             # New follow
-            add_dynamodb_put_transact(transacts, relation_key, relation_item, raise_on_existing_pk=True)
+            add_dynamodb_put_transact(transacts, relation_key, relation_item, new_pk_only=True)
             add_dynamodb_update_transact(transacts, user_key, deltas={"following_count": 1})
             add_dynamodb_update_transact(transacts, target_user_key,
                                          deltas={"followers_count": 1, "rating_sk": compute_rating_sk(1)})
@@ -2114,7 +2097,7 @@ async def update_user_impression(
                                          deltas={"followers_count": -1, "rating_sk": compute_rating_sk(-2)})
         else:
             # New block
-            add_dynamodb_put_transact(transacts, relation_key, relation_item, raise_on_existing_pk=True)
+            add_dynamodb_put_transact(transacts, relation_key, relation_item, new_pk_only=True)
             add_dynamodb_update_transact(transacts, target_user_key, deltas={"rating_sk": compute_rating_sk(-1)})
 
     await dynamodb_transact_write(transacts)
