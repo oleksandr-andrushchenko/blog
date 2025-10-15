@@ -82,9 +82,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
         if (input.checked) data[input.name] = input.value
       } else {
         const value = input.value.trim()
-        if (value !== "") {
-          data[input.name] = value
-        }
+        data[input.name] = value === "" ? null : value
       }
       input.classList.remove("is-invalid") // reset invalid states
     })
