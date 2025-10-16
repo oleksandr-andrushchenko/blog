@@ -1,8 +1,5 @@
-{% set is_anonymous = not cur_user %}
-{% set has_permission = cur_user and check_auth(cur_user, Permission.UPDATE_POST_IMPRESSION, post) %}
-
 <div class="d-flex gap-1 align-items-center">
-    {% if has_permission %}
+    {% if cur_user and check_auth(cur_user, Permission.UPDATE_POST_IMPRESSION, post) %}
         <div class="btn-group">
             <!-- Like / Unlike Button -->
             {% set is_liked = post_impression and post_impression.action == PostImpressionAction.LIKE %}
@@ -29,6 +26,7 @@
             </button>
         </div>
     {% else %}
+        <!-- Counts -->
         <div><b>{{ post.likes_count }}</b> Likes</div>
         <div><b>{{ post.dislikes_count }}</b> Dislikes</div>
     {% endif %}

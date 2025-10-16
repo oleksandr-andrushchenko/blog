@@ -1,12 +1,9 @@
-{% set is_anonymous = not cur_user %}
-{% set has_permission = cur_user and check_auth(cur_user, Permission.UPDATE_USER_IMPRESSION, user) %}
-
 <div class="d-flex gap-1 align-items-center">
     <!-- Counts -->
     <div><b>{{ user.followers_count }}</b> Followers</div>
     <div><b>{{ user.following_count }}</b> Following</div>
 
-    {% if has_permission and not (cur_user.id == user.id) %}
+    {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER_IMPRESSION, user) and not (cur_user.id == user.id) %}
         <!-- Follow / Unfollow Button -->
         <div class="btn-group">
             {% set is_followed = user_impression and user_impression.action == UserImpressionAction.FOLLOW %}
