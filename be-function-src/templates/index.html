@@ -19,7 +19,7 @@
                     {% with limit=posts_query.limit,
                         offset=posts[-1].offset,
                         count=posts|length,
-                        url=url("posts-fragment", **dict(posts_query)),
+                        url=url("posts-fragment", **posts_query.get_dict()),
                         container="#posts",
                         auto_click=True %}
                         {% include "fragments/load-more-button.html" %}
