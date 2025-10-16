@@ -10,6 +10,11 @@
                         {{ user.name }}
                     </h3>
                 </a>
+
+                {% if user.status == UserStatus.BANNED %}
+                    <span class="badge text-bg-danger fs-5">Banned</span>
+                {% endif %}
+
                 <div class="card-text">
                     {% if user.headline %}
                         <h4 class="h5 mb-0">{{ user.headline }}</h4>

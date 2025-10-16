@@ -11,6 +11,7 @@
 
 {% block content %}
     <h1>{{ post.title }}</h1>
+
     {% include "fragments/post-meta.html" %}
 
     <div>{{ post.content }}</div>
@@ -19,7 +20,7 @@
         {% include "fragments/post-status.html" %}
         {% include "fragments/post-impressions.html" %}
         {% if post.status != PostStatus.PUBLISHED and cur_user and check_auth(cur_user, Permission.UPDATE_POST, post) %}
-            <a href="{{ url("edit-post", post_id=post.id) }}" class="btn btn-secondary btn-sm">
+            <a href="{{ url("edit-post", post_id=post.id) }}" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-pencil-square"></i> Edit post
             </a>
         {% endif %}

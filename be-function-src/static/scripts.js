@@ -418,7 +418,7 @@ const tooltipTriggerList = document.querySelectorAll("[data-bs-toggle=\"tooltip\
 const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
 
 // Publish post
-$(".btn-post-publish").on("click", function () {
+$(".btn-post-publish, .btn-post-unpublish").on("click", function () {
   const $btn = $(this)
   const postId = $btn.data("post-id")
   const status = $btn.data("status")
@@ -435,11 +435,10 @@ $(".btn-post-publish").on("click", function () {
       window.location.reload()
     },
     error: function (xhr) {
-      console.error("Error publishing post:", xhr.responseText)
-      alert("Failed to publish post.")
+      console.error(`Error on post ${status}:`, xhr.responseText)
+      alert(`Failed to ${status} post.`)
     },
     complete: function () {
-      // Re-enable button if reload didn’t happen
       $btn.prop("disabled", false).removeClass("disabled")
     }
   })

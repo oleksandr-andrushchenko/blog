@@ -74,7 +74,7 @@
             <div class="d-flex gap-2 align-items-center">
                 {% include "fragments/user-impressions.html" %}
                 {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
-                    <a href="{{ url("edit-user", user_id=user.id) }}" class="btn btn-secondary btn-sm">
+                    <a href="{{ url("edit-user", user_id=user.id) }}" class="btn btn-outline-secondary btn-sm">
                         <i class="bi bi-pencil-square"></i> Edit profile
                     </a>
                 {% endif %}
@@ -123,7 +123,7 @@
                 </div>
 
                 {% if posts_query.has_params() %}
-                    <a href="{{ user_url(user) }}" class="btn btn-secondary btn-sm">
+                    <a href="{{ user_url(user) }}" class="btn btn-outline-secondary btn-sm">
                         <i class="bi bi-x-lg"></i> Reset
                     </a>
                 {% endif %}

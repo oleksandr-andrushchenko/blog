@@ -1,29 +1,52 @@
 {% if post.status != PostStatus.PUBLISHED and cur_user and check_auth(cur_user, Permission.UPDATE_POST_STATUS, post) %}
-    <div class="d-flex gap-1 align-items-center">
+    <div class="input-group w-50">
         <!-- Publish Post -->
+        {% set is_published = post.status == PostStatus.PUBLISHED %}
         <button type="button"
-                class="btn btn-success btn-sm btn-post-publish flex-shrink-0"
+                class="btn btn-outline-success btn-sm {% if is_published %}active{% else %}btn-post-publish{% endif %}"
                 data-post-id="{{ post.id }}"
                 data-status="{{ PostStatus.PUBLISHED.value }}"
+                {% if not is_published %}
                 data-bs-toggle="tooltip"
-                data-bs-title="Publish this post">
-            <i class="bi bi-check-all"></i> Publish
+                data-bs-title="Publish this post"
+                {% endif %}>
+            {% if is_published %}<i class="bi bi-check2-all"></i>{% endif %}
+            {% if is_published %}Published{% else %}Publish{% endif %}
+        </button>
+
+        <!-- Unpublish Post -->
+        {% set is_unpublished = post.status == PostStatus.UNPUBLISHED %}
+        <button type="button"
+                class="btn btn-outline-warning btn-sm {% if is_unpublished %}active{% else %}btn-post-unpublish{% endif %}"
+                data-post-id="{{ post.id }}"
+                data-status="{{ PostStatus.UNPUBLISHED.value }}"
+                {% if not is_unpublished %}
+                data-bs-toggle="tooltip"
+                data-bs-title="Unpublish this post"
+                {% endif %}>
+            {% if is_unpublished %}<i class="bi bi-clock"></i>{% endif %}
+            {% if is_unpublished %}Unpublished{% else %}Unpublish{% endif %}
         </button>
 
         <!-- Reject Post -->
-        <div class="d-flex gap-0 align-items-center">
-            <input type="text"
-                   class="form-control form-control-sm"
-                   name="comment"
-                   id="comment"
-                   placeholder="Rejection reason..."
-                   value="{{ post.comment if post and post.comment else '' }}">
-            <button type="button"
-                    class="btn btn-danger btn-sm btn-post-reject flex-shrink-0"
-                    data-post-id="{{ post.id }}"
-                    data-status="{{ PostStatus.REJECTED.value }}">
-                <i class="bi bi-x-lg"></i> Reject
-            </button>
-        </div>
+        {% set is_rejected = post.status == PostStatus.REJECTED %}
+        <input type="text"
+               class="form-control form-control-sm"
+               name="comment"
+               id="comment"
+               placeholder="Rejection reason..."
+               value="{{ post.comment if post and post.comment else '' }}"
+               {% if is_rejected %}disabled{% endif %}>
+        <button type="button"
+                class="btn btn-outline-danger btn-sm {% if is_rejected %}active{% else %}btn-post-reject{% endif %}"
+                data-post-id="{{ post.id }}"
+                data-status="{{ PostStatus.REJECTED.value }}"
+                {% if not is_rejected %}
+                data-bs-toggle="tooltip"
+                data-bs-title="Reject this post"
+                {% endif %}>
+            {% if is_rejected %}<i class="bi bi-x-lg"></i>{% endif %}
+            {% if is_rejected %}Rejected{% else %}Reject{% endif %}
+        </button>
     </div>
 {% endif %}
