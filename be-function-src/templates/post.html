@@ -11,11 +11,11 @@
 
 {% block content %}
     <h1>{{ post.title }}</h1>
+    {% include "fragments/post-meta.html" %}
 
     <div>{{ post.content }}</div>
 
     <div class="d-flex gap-2 align-items-center">
-        {% include "fragments/post-meta.html" %}
         {% include "fragments/post-status.html" %}
         {% include "fragments/post-impressions.html" %}
         {% if post.status != PostStatus.PUBLISHED and cur_user and check_auth(cur_user, Permission.UPDATE_POST, post) %}
