@@ -36,8 +36,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./scripts:/app
-      - ./.env:/.env
+      - ./:/app
     networks:
       - network
 

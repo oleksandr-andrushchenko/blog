@@ -319,30 +319,19 @@ create-local-dynamodb:
 		--endpoint-url "http://localhost:$(DYNAMODB_PORT)" > /dev/null 2>&1; then \
 		echo "⚠️ Table $(DYNAMODB_TABLE) already exists, skipping creation."; \
 	else \
+		echo "🧩 Extracting DynamoDB schema from CloudFormation..."; \
+		docker exec $(SCRIPTS_CONTAINER) python3 scripts/extract_dynamodb_schema.py > /tmp/dynamodb_schema.json; \
+		if [ ! -s /tmp/dynamodb_schema.json ]; then echo '❌ Failed to generate valid DynamoDB schema JSON'; exit 1; fi; \
+		echo "📄 Generated schema:"; \
+		cat /tmp/dynamodb_schema.json | jq .; \
 		AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
 		aws dynamodb create-table \
 			--region "$(AWS_REGION)" \
+			--cli-input-json file:///tmp/dynamodb_schema.json \
 			--table-name "$(DYNAMODB_TABLE)" \
-			--billing-mode PAY_PER_REQUEST \
-			--attribute-definitions \
-				AttributeName=pk,AttributeType=S \
-				AttributeName=sk,AttributeType=S \
-				AttributeName=user_email_pk,AttributeType=S \
-				AttributeName=username,AttributeType=S \
-				AttributeName=post_status_pk,AttributeType=S \
-				AttributeName=post_slug,AttributeType=S \
-				AttributeName=tag_type_pk,AttributeType=S \
-				AttributeName=rating_sk,AttributeType=N \
-				AttributeName=tag_name_sk,AttributeType=S \
-				AttributeName=user_status_pk,AttributeType=S \
-				AttributeName=post_user_status_pk,AttributeType=S \
-				AttributeName=created_at_sk,AttributeType=N \
-			--key-schema \
-				AttributeName=pk,KeyType=HASH \
-				AttributeName=sk,KeyType=RANGE \
-			--global-secondary-indexes file://dynamodb_gsis.json \
 			--endpoint-url http://localhost:$(DYNAMODB_PORT) \
 			--no-cli-pager; \
+		rm -f /tmp/dynamodb_schema.json; \
 		echo "✅ DynamoDB table $(DYNAMODB_TABLE) initialized in local DynamoDB"; \
 	fi
 
