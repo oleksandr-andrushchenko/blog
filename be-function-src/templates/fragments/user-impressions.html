@@ -8,29 +8,29 @@
 
     {% if has_permission and not (cur_user.id == user.id) %}
         <!-- Follow / Unfollow Button -->
-        <span data-bs-toggle="tooltip"
-              data-bs-title="{% if user_impression and user_impression.action == UserImpressionAction.FOLLOW %}Unfollow this user{% else %}Follow this user{% endif %}">
+        <div class="btn-group">
+            {% set is_followed = user_impression and user_impression.action == UserImpressionAction.FOLLOW %}
             <button type="button"
-                    class="btn btn-success btn-sm btn-user-follow"
+                    class="btn btn-outline-success btn-sm btn-user-follow {% if is_followed %}active{% endif %}"
                     data-user-id="{{ user.id }}"
-                    data-action="{{ UserImpressionAction.FOLLOW.value }}">
-                    <i class="bi {% if user_impression and user_impression.action == UserImpressionAction.FOLLOW %}bi-check-lg{% else %}bi-follow{% endif %}"></i>
-                {% if user_impression and user_impression.action == UserImpressionAction.FOLLOW %}Unfollow{% else %}
-                    Follow{% endif %}
+                    data-action="{{ UserImpressionAction.FOLLOW.value }}"
+                    data-bs-toggle="tooltip"
+                    data-bs-title="{% if is_followed %}Unfollow this user{% else %}Follow this user{% endif %}">
+                <i class="bi {% if is_followed %}bi-check-lg{% else %}bi-follow{% endif %}"></i>
+                {% if is_followed %}Unfollow{% else %}Follow{% endif %}
             </button>
-        </span>
 
-        <!-- Block / Unblock Button -->
-        <span data-bs-toggle="tooltip"
-              data-bs-title="{% if user_impression and user_impression.action == UserImpressionAction.BLOCK %}Unblock this user{% else %}Block this user{% endif %}">
+            <!-- Block / Unblock Button -->
+            {% set is_blocked = user_impression and user_impression.action == UserImpressionAction.BLOCK %}
             <button type="button"
-                    class="btn btn-danger btn-sm btn-user-block"
+                    class="btn btn-outline-danger btn-sm btn-user-block {% if is_blocked %}active{% endif %}"
                     data-user-id="{{ user.id }}"
-                    data-action="{{ UserImpressionAction.BLOCK.value }}">
-                    <i class="bi {% if user_impression and user_impression.action == UserImpressionAction.BLOCK %}bi-check-lg{% else %}bi-block{% endif %}"></i>
-                {% if user_impression and user_impression.action == UserImpressionAction.BLOCK %}Unblock{% else %}
-                    Block{% endif %}
+                    data-action="{{ UserImpressionAction.BLOCK.value }}"
+                    data-bs-toggle="tooltip"
+                    data-bs-title="{% if is_followed %}Unblock this user{% else %}Block this user{% endif %}">
+                <i class="bi {% if is_followed %}bi-check-lg{% else %}bi-block{% endif %}"></i>
+                {% if is_blocked %}Unblock{% else %}Block{% endif %}
             </button>
-        </span>
+        </div>
     {% endif %}
 </div>
