@@ -57,7 +57,7 @@
         {% with limit=posts_query.limit,
             offset=posts[-1].offset,
             count=posts|length,
-            url=url("posts-fragment", **posts_query.ger_dict()),
+            url=url("posts-fragment", **posts_query.get_dict()),
             container="#posts" %}
             {% include "fragments/load-more-button.html" %}
         {% endwith %}
