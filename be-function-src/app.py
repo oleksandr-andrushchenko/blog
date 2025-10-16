@@ -7,6 +7,7 @@ from starlette.status import (
     HTTP_204_NO_CONTENT,
     HTTP_302_FOUND,
     HTTP_400_BAD_REQUEST,
+    HTTP_401_UNAUTHORIZED,
     HTTP_403_FORBIDDEN,
     HTTP_409_CONFLICT,
     HTTP_422_UNPROCESSABLE_ENTITY,
@@ -40,9 +41,9 @@ from utils import (
     update_post_status,
     get_active_users,
     get_latest_published_posts_by_user,
-    get_published_posts,
+    get_posts,
     get_popular_post_tags,
-    get_popular_published_posts,
+    get_popular_posts,
     find_user,
     jinja2_env,
     get_popular_active_users,
@@ -56,6 +57,7 @@ from utils import (
     update_user_impression,
     find_user_impression,
     get_user_url,
+    NotAuthenticatedError,
 )
 
 from deps import (
@@ -109,8 +111,8 @@ async def index(cur_user: OptCurUserDep) -> str:
         "cur_user": cur_user,
         "popular_post_tags": await get_popular_post_tags(),
         "posts_query": posts_query,
-        "posts": await get_published_posts(posts_query),
-        "popular_posts": await get_popular_published_posts(),
+        "posts": await get_posts(posts_query),
+        "popular_posts": await get_popular_posts(),
         "popular_users": await get_popular_active_users(),
     })
 
@@ -144,14 +146,14 @@ async def posts(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("posts.html", {
         "cur_user": cur_user,
         "posts_query": query_dto,
-        "posts": await get_published_posts(query_dto),
+        "posts": await get_posts(query_dto, cur_user),
     })
 
 
 @app.get("/posts-fragment", name="posts-fragment", response_class=HTMLResponse)
-async def posts_fragment(query_dto: PostQueryDep) -> str:
+async def posts_fragment(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("fragments/posts.html", {
-        "posts": await get_published_posts(query_dto)
+        "posts": await get_posts(query_dto, cur_user)
     })
 
 
@@ -357,6 +359,15 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         request,
         HTTP_422_UNPROCESSABLE_ENTITY,
         details,
+    )
+
+
+@app.exception_handler(NotAuthenticatedError)
+async def not_authenticated_error_handler(request: Request, exc: NotAuthenticatedError):
+    logger.warning(f"Not authenticated: {str(exc)}")
+    return await get_error_response(
+        request,
+        HTTP_401_UNAUTHORIZED,
     )
 
 

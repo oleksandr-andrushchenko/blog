@@ -192,7 +192,7 @@ async def _get_post_by_slugs(user_slug: str, post_slug: str) -> Post:
 PostBySlugsDep = Annotated[Post, Depends(_get_post_by_slugs)]
 
 
-async def get_error_response(request: Request, status_code: int, details: dict | str):
+async def get_error_response(request: Request, status_code: int, details: dict | str = None):
     status_enum = HTTPStatus(status_code)
     public_data = {
         "code": status_code,

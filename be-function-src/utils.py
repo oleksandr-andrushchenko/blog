@@ -257,12 +257,14 @@ class PostStatus(str, Enum):
 
 
 class PostQueryType(str, Enum):
+    LATEST = "latest"
     POPULAR = "popular"
 
 
 class PostQueryDTO(BaseQueryDTO):
     tags: list[str] | None = Field(default_factory=list)  # noqa
-    type: PostQueryType | None = None
+    type: PostQueryType = PostQueryType.LATEST
+    status: PostStatus = PostStatus.PUBLISHED
 
 
 class UpdatePostStatusDTO(BaseModel):
@@ -330,6 +332,7 @@ class Permission(str, Enum):
     UPDATE_POST_STATUS = "update_post_status"
     CREATE_CONTACT_MESSAGE = "create_contact_message"
     UPDATE_POST_IMPRESSION = "toggle_post_impression"
+    READ_NON_PUBLISHED_POSTS = "read_non_published_posts"
 
 
 class BaseError(Exception):
@@ -381,6 +384,11 @@ class PostAlreadyPublishedError(BaseError):
 
 class UserNotFoundError(BaseError):
     pass
+
+
+class NotAuthenticatedError(BaseError):
+    def __init__(self, message: str = None):
+        super().__init__(message=message if message else f"Not authenticated")
 
 
 class NotAuthorizedError(BaseError):
@@ -1643,16 +1651,16 @@ def decode_offset(token: str) -> dict | None:
     )
 
 
-async def get_published_posts(query_dto: PostQueryDTO = None) -> list[Post]:
+async def get_posts(query_dto: PostQueryDTO = None, cur_user: User = None) -> list[Post]:
     if query_dto is None:
         query_dto = PostQueryDTO()
     if query_dto.type == PostQueryType.POPULAR:
         if query_dto.tags:
-            return await get_popular_published_posts_by_tags(query_dto)
-        return await get_popular_published_posts(query_dto)
+            return await get_popular_posts_by_tags(query_dto, cur_user)
+        return await get_popular_posts(query_dto, cur_user)
     if query_dto.tags:
-        return await get_latest_published_posts_by_tags(query_dto)
-    return await get_latest_published_posts(query_dto)
+        return await get_latest_posts_by_tags(query_dto, cur_user)
+    return await get_latest_posts(query_dto, cur_user)
 
 
 T = TypeVar("T")
@@ -1688,35 +1696,45 @@ async def query_dynamodb_items(
     return results
 
 
-async def get_latest_published_posts(query_dto: PostQueryDTO = None) -> list[Post]:
+async def get_latest_posts(query_dto: PostQueryDTO = None, cur_user: User = None) -> list[Post]:
     if query_dto is None:
         query_dto = PostQueryDTO()
+
+    if query_dto.status != PostStatus.PUBLISHED:
+        if not cur_user:
+            raise NotAuthenticatedError()
+        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POSTS)
 
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="POSTS_BY_STATUS_CREATED_AT",
-        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{PostStatus.PUBLISHED.value}"),
+        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{query_dto.status.value}"),
         map_fn=post_from_dynamodb,
     )
 
 
-async def get_popular_published_posts(query_dto: PostQueryDTO = None) -> list[Post]:
+async def get_popular_posts(query_dto: PostQueryDTO = None, cur_user: User = None) -> list[Post]:
     if query_dto is None:
         query_dto = PostQueryDTO()
+
+    if query_dto.status != PostStatus.PUBLISHED:
+        if not cur_user:
+            raise NotAuthenticatedError()
+        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POSTS)
 
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="POSTS_BY_STATUS_RATING",
-        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{PostStatus.PUBLISHED.value}"),
+        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{query_dto.status.value}"),
         map_fn=post_from_dynamodb,
     )
 
 
-async def get_latest_published_posts_by_tags(query_dto: PostQueryDTO = None) -> list[Post]:
+async def get_latest_posts_by_tags(query_dto: PostQueryDTO = None, cur_user: User = None) -> list[Post]:
     if query_dto is None:
         query_dto = PostQueryDTO()
     if not query_dto.tags:
-        return await get_latest_published_posts(query_dto)
+        return await get_latest_posts(query_dto, cur_user)
 
     table = await get_dynamodb_table()
     query_args = {
@@ -1748,7 +1766,7 @@ async def get_latest_published_posts_by_tags(query_dto: PostQueryDTO = None) -> 
     return posts
 
 
-async def get_popular_published_posts_by_tags(query_dto: PostQueryDTO = None) -> list[Post]:
+async def get_popular_posts_by_tags(query_dto: PostQueryDTO = None, cur_user: User = None) -> list[Post]:
     if query_dto is None:
         query_dto = PostQueryDTO()
 
@@ -1756,7 +1774,7 @@ async def get_popular_published_posts_by_tags(query_dto: PostQueryDTO = None) ->
     query_dto_copy = copy.copy(query_dto)
     query_dto_copy.limit = max(query_dto.limit * 5, 100)
 
-    posts = await get_popular_published_posts(query_dto_copy)
+    posts = await get_popular_posts(query_dto_copy, cur_user)
 
     if not query_dto.tags:
         return posts
@@ -2309,3 +2327,42 @@ async def create_dummy_fixtures() -> None:
             if user.id != user2.id:
                 await update_user_impression(user, UpdateUserImpressionDTO(
                     action=UserImpressionAction.FOLLOW if random.random() < .5 else UserImpressionAction.BLOCK), user2)
+    unpublished_posts = [
+        PostDTO(
+            title="Unpublished Post title #111111111111111111111111",
+            content="Post content #111111111111111111111111" * 100,
+            tags=["tag1", "tag2", "tag3"]
+        ),
+        PostDTO(
+            title="Unpublished Post title #22222222222222222222222",
+            content="Post content #2222222222222222222222" * 100,
+            tags=["tag2", "tag3"]
+        ),
+        PostDTO(
+            title="Unpublished Post title #3333333333333333333333333",
+            content="Post content #333333333333333333333" * 100,
+            tags=["tag1", "tag3"]
+        ),
+    ]
+    for post in unpublished_posts:
+        await create_post(post, root_user)
+    rejected_posts = [
+        PostDTO(
+            title="Rejected Post title #111111111111111111111111",
+            content="Post content #111111111111111111111111" * 100,
+            tags=["tag1", "tag2", "tag3"]
+        ),
+        PostDTO(
+            title="Rejected Post title #22222222222222222222222",
+            content="Post content #2222222222222222222222" * 100,
+            tags=["tag2", "tag3"]
+        ),
+        PostDTO(
+            title="Rejected Post title #3333333333333333333333333",
+            content="Post content #333333333333333333333" * 100,
+            tags=["tag1", "tag3"]
+        ),
+    ]
+    for post in rejected_posts:
+        created_post = await create_post(post, root_user)
+        await update_post_status(created_post, UpdatePostStatusDTO(status=PostStatus.REJECTED, comment="Some rejection reason"), root_user)

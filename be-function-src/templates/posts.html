@@ -1,19 +1,21 @@
 {% extends "layout.html" %}
 
 {% set val_map = {
-(None): {"title": "Latest posts", "breadcrumb": "Posts", "subtitle": "Recently added articles"},
-(PostQueryType.POPULAR): {"title": "Popular posts", "breadcrumb" : "Popular posts", "subtitle": "Most rated articles"}} %}
+    (PostQueryType.LATEST): {"title": "Latest", "subtitle": "Recently added"},
+    (PostQueryType.POPULAR): {"title": "Popular", "subtitle": "Most rated"},
+    (PostStatus.PUBLISHED): {"title": "Published", "subtitle": "Published"},
+    (PostStatus.UNPUBLISHED): {"title": "Unpublished", "subtitle": "Unpublished"},
+    (PostStatus.REJECTED): {"title": "Rejected", "subtitle": "Rejected"}
+} %}
 
-{% set title = " ".join(posts_query.tags + [val_map[posts_query.type]["title"]]) %}
-{% set subtitle = val_map[posts_query.type]["subtitle"] %}
-{% set breadcrumb = val_map[posts_query.type]["breadcrumb"] %}
-{% set is_popular = posts_query.type == PostQueryType.POPULAR %}
+{% set title = " ".join(posts_query.tags + [val_map[posts_query.type]["title"]] + [val_map[posts_query.status]["title"]] + ["Posts"]) %}
+{% set subtitle = " ".join(posts_query.tags + [val_map[posts_query.type]["subtitle"]] + [val_map[posts_query.status]["subtitle"]] + ["Articles"]) %}
 
 {% block title %}{{ title }} | {{ site_name }}{% endblock %}
 {% block canonical_url %}{{ full_url("posts") }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), (breadcrumb): None} %}
+    {% with breadcrumbs = {"Home": url("index"), (title): None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
@@ -24,26 +26,54 @@
     <p class="small text-secondary">{{ subtitle }}</p>
 
     <form action="{{ url("posts") }}" method="get">
-        {% if posts_query.type %}
-            <input type="hidden" name="type" value="{{ posts_query.type.value }}">
-        {% endif %}
+        <input type="hidden" name="type" value="{{ posts_query.type.value }}">
+        <input type="hidden" name="status" value="{{ posts_query.status.value }}">
 
         <div class="d-flex justify-content-start align-items-center gap-1">
-            <a href="{{ url("posts", **posts_query.get_dict({"type": None if is_popular else PostQueryType.POPULAR.value, "limit": None})) }}"
-               class="btn btn-secondary btn-sm {% if is_popular %}active{% endif %}">
-                <i class="bi bi-star{{ "-fill" if is_popular else "" }}"></i> {{ val_map[PostQueryType.POPULAR]["title"] }}
-            </a>
-            <div>Search by:</div>
+            {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_POSTS) %}
+                <div>Filter by status:</div>
+                <div class="btn-group">
+                    {% set is_published = posts_query.status == PostStatus.PUBLISHED %}
+                    <a href="{{ url("posts", **posts_query.get_dict({"status": None if is_published else PostStatus.PUBLISHED.value})) }}"
+                       class="btn btn-outline-success btn-sm {% if is_published %}active{% endif %}">
+                        {{ val_map[PostStatus.PUBLISHED]["title"] }}
+                    </a>
+
+                    {% set is_unpublished = posts_query.status == PostStatus.UNPUBLISHED %}
+                    <a href="{{ url("posts", **posts_query.get_dict({"status": None if is_unpublished else PostStatus.UNPUBLISHED.value})) }}"
+                       class="btn btn-outline-warning btn-sm {% if is_unpublished %}active{% endif %}">
+                        {{ val_map[PostStatus.UNPUBLISHED]["title"] }}
+                    </a>
+
+                    {% set is_rejected = posts_query.status == PostStatus.REJECTED %}
+                    <a href="{{ url("posts", **posts_query.get_dict({"status": None if is_rejected else PostStatus.REJECTED.value})) }}"
+                       class="btn btn-outline-danger btn-sm {% if is_rejected %}active{% endif %}">
+                        {{ val_map[PostStatus.REJECTED]["title"] }}
+                    </a>
+                </div>
+            {% endif %}
+
+            <div>Filter by tags:</div>
             {% with url=url("get-post-tags"),
                 value=posts_query.tags,
-                class_name="w-50",
+                class_name="w-25",
                 auto_submit=False,
                 inject_hidden=True %}
                 {% include "fragments/tags-input.html" %}
             {% endwith %}
+
             <button class="btn btn-secondary btn-sm" type="submit">
                 <i class="bi bi-search"></i> Search
             </button>
+
+            <div>Show:</div>
+            {% set is_popular = posts_query.type == PostQueryType.POPULAR %}
+            <a href="{{ url("posts", **posts_query.get_dict({"type": None if is_popular else PostQueryType.POPULAR.value})) }}"
+               class="btn btn-outline-primary btn-sm {% if is_popular %}active{% endif %}">
+                <i class="bi bi-star{{ "-fill" if is_popular else "" }}"></i> {{ val_map[PostQueryType.POPULAR]["title"] }}
+                first
+            </a>
+
             {% if posts_query.has_params() %}
                 <a href="{{ url("posts") }}" class="btn btn-secondary btn-sm">
                     <i class="bi bi-x-lg"></i> Reset
