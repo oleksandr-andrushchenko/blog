@@ -86,6 +86,7 @@
         <div id="posts">
             {% include "fragments/posts.html" %}
         </div>
+
         {% with limit=posts_query.limit,
             offset=posts[-1].offset,
             count=posts|length,
@@ -94,6 +95,6 @@
             {% include "fragments/load-more-button.html" %}
         {% endwith %}
     {% else %}
-        N/A
+        <div>N/A</div>
     {% endif %}
 {% endblock %}

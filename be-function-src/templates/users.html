@@ -29,8 +29,8 @@
         {% endif %}
 
         <div class="d-flex justify-content-start align-items-center gap-1">
-            <a href="{{ url("users", **users_query.get_dict({"type": None if is_popular else UserQueryType.POPULAR.value, "limit": None})) }}"
-               class="btn btn-secondary btn-sm {% if is_popular %}active{% endif %}">
+            <a href="{{ url("users", **users_query.get_dict({"type": None if is_popular else UserQueryType.POPULAR.value})) }}"
+               class="btn btn-outline-primary btn-sm {% if is_popular %}active{% endif %}">
                 <i class="bi bi-star{{ "-fill" if is_popular else "" }}"></i> {{ val_map[UserQueryType.POPULAR]["title"] }}
             </a>
             {% if users_query.has_params() %}
@@ -45,6 +45,7 @@
         <div class="row g-3" id="users">
             {% include "fragments/users.html" %}
         </div>
+
         {% with limit=users_query.limit,
             offset=users[-1].offset,
             count=users|length,
@@ -53,6 +54,6 @@
             {% include "fragments/load-more-button.html" %}
         {% endwith %}
     {% else %}
-        N/A
+        <div>N/A</div>
     {% endif %}
 {% endblock %}
