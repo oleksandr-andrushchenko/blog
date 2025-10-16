@@ -200,7 +200,7 @@ class BaseQueryDTO(BaseModel):
     DEFAULT_LIMIT: ClassVar[int] = 20
 
     offset: str | None = None
-    limit: int = Field(default=DEFAULT_LIMIT, ge=1)
+    limit: int = Field(default=DEFAULT_LIMIT, ge=1, le=20)
 
     def get_dict(self, rewrite: dict[str, any] | None = None) -> dict[str, any]:
         """Return a dictionary representation of the model."""
