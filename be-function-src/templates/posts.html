@@ -30,7 +30,7 @@
         <input type="hidden" name="status" value="{{ posts_query.status.value }}">
 
         <div class="d-flex justify-content-start align-items-center gap-1">
-            {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_POSTS) %}
+            {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_POST) %}
                 <div>Filter by status:</div>
                 <div class="btn-group">
                     {% set is_published = posts_query.status == PostStatus.PUBLISHED %}

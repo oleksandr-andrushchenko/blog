@@ -332,7 +332,7 @@ class Permission(str, Enum):
     UPDATE_POST_STATUS = "update_post_status"
     CREATE_CONTACT_MESSAGE = "create_contact_message"
     UPDATE_POST_IMPRESSION = "toggle_post_impression"
-    READ_NON_PUBLISHED_POSTS = "read_non_published_posts"
+    READ_NON_PUBLISHED_POST = "read_non_published_posts"
 
 
 class BaseError(Exception):
@@ -1243,7 +1243,7 @@ async def read_post(post: Post, cur_user: User) -> None:
     if post.status != PostStatus.PUBLISHED:
         if not cur_user:
             raise NotAuthenticatedError()
-        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POSTS, post)
+        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POST, post)
 
 
 async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User) -> None:
@@ -1711,7 +1711,7 @@ async def get_latest_posts(query_dto: PostQueryDTO = None, cur_user: User = None
     if query_dto.status != PostStatus.PUBLISHED:
         if not cur_user:
             raise NotAuthenticatedError()
-        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POSTS)
+        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POST)
 
     return await query_dynamodb_items(
         query_dto=query_dto,
@@ -1728,7 +1728,7 @@ async def get_popular_posts(query_dto: PostQueryDTO = None, cur_user: User = Non
     if query_dto.status != PostStatus.PUBLISHED:
         if not cur_user:
             raise NotAuthenticatedError()
-        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POSTS)
+        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POST)
 
     return await query_dynamodb_items(
         query_dto=query_dto,
@@ -2087,7 +2087,7 @@ async def get_latest_posts_by_user(user: User, query_dto: PostQueryDTO = None, c
     if query_dto.status != PostStatus.PUBLISHED:
         if not cur_user:
             raise NotAuthenticatedError()
-        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POSTS, user)
+        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POST, user)
 
     if getattr(user, f"{query_dto.status.value}_posts_count") == 0:
         return []

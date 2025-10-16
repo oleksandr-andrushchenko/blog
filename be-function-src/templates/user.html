@@ -99,7 +99,7 @@
         <h2>{{ posts_title }}</h2>
         <p class="small text-secondary">{{ posts_subtitle }}</p>
 
-        {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_POSTS, user) %}
+        {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_POST, user) %}
             <div class="d-flex justify-content-start align-items-center gap-1">
                 <div>Filter by status:</div>
                 <div class="btn-group">
