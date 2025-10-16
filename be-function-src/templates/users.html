@@ -27,7 +27,7 @@
         {% endif %}
 
         <div class="d-flex justify-content-start align-items-center gap-1">
-            <a href="{{ url("users", **users_query.get_dict({"type": None if is_popular else UserQueryType.POPULAR.value})) }}"
+            <a href="{{ url("users", **users_query.get_dict({"type": None if is_popular else UserQueryType.POPULAR.value, "limit": None})) }}"
                class="btn btn-secondary btn-sm {% if is_popular %}active{% endif %}">
                 <i class="bi bi-star{{ "-fill" if is_popular else "" }}"></i> {{ popular_title }}
             </a>
