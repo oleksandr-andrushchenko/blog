@@ -112,7 +112,7 @@ Resources:
               KeyType: HASH
           Projection:
             ProjectionType: ALL
-        - IndexName: USERS_BY_USERNAME # get_user_by_username (get user by username)
+        - IndexName: USERS_BY_USERNAME # get_user_by_slug (get user by username)
           KeySchema:
             - AttributeName: username # e.g. "user-123"
               KeyType: HASH

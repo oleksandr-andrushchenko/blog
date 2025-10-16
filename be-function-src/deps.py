@@ -29,7 +29,7 @@ from utils import (
     UpdatePostStatusDTO,
     UpdatePostImpressionDTO,
     UpdateUserImpressionDTO,
-    get_user_by_username,
+    get_user_by_slug,
     get_post_by_slugs,
 )
 
@@ -53,6 +53,9 @@ async def get_cur_user(request: Request) -> User:
         )
 
 
+CurUserDep = Annotated[User, Depends(get_cur_user)]
+
+
 async def get_opt_cur_user(request: Request) -> Optional[User]:
     try:
         return await get_user_by_plain_token(
@@ -66,9 +69,12 @@ async def get_opt_cur_user(request: Request) -> Optional[User]:
         )
 
 
-async def get_post_by_id(post_id: str) -> Post:
+OptCurUserDep = Annotated[Optional[User], Depends(get_opt_cur_user)]
+
+
+async def get_post_by_id(post_id: str, cur_user: OptCurUserDep = None) -> Post:
     try:
-        return await get_post(post_id)
+        return await get_post(post_id, cur_user)
     except PostNotFoundError as e:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
@@ -76,9 +82,12 @@ async def get_post_by_id(post_id: str) -> Post:
         )
 
 
-async def get_user_by_id(user_id: str) -> User:
+PostDep = Annotated[Post, Depends(get_post_by_id)]
+
+
+async def get_user_by_id(user_id: str, cur_user: OptCurUserDep = None) -> User:
     try:
-        return await get_user(user_id)
+        return await get_user(user_id, cur_user)
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
@@ -86,9 +95,6 @@ async def get_user_by_id(user_id: str) -> User:
         )
 
 
-CurUserDep = Annotated[User, Depends(get_cur_user)]
-OptCurUserDep = Annotated[Optional[User], Depends(get_opt_cur_user)]
-PostDep = Annotated[Post, Depends(get_post_by_id)]
 UserDep = Annotated[User, Depends(get_user_by_id)]
 UserQueryDep = Annotated[UserQueryDTO, Depends()]
 
@@ -161,9 +167,9 @@ def get_update_user_impression_dto(
 UpdateUserImpressionDTODep = Annotated[UpdateUserImpressionDTO, Depends(get_update_user_impression_dto)]
 
 
-async def _get_user_by_username(username: str) -> User:
+async def _get_user_by_slug(slug: str, cur_user: OptCurUserDep = None) -> User:
     try:
-        return await get_user_by_username(username)
+        return await get_user_by_slug(slug, cur_user)
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
@@ -171,12 +177,12 @@ async def _get_user_by_username(username: str) -> User:
         )
 
 
-UserByUsernameDep = Annotated[User, Depends(_get_user_by_username)]
+UserBySlugDep = Annotated[User, Depends(_get_user_by_slug)]
 
 
-async def _get_post_by_slugs(user_slug: str, post_slug: str) -> Post:
+async def _get_post_by_slugs(user_slug: str, post_slug: str, cur_user: OptCurUserDep = None) -> Post:
     try:
-        return await get_post_by_slugs(user_slug, post_slug)
+        return await get_post_by_slugs(user_slug, post_slug, cur_user)
     except PostNotFoundError as e:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,

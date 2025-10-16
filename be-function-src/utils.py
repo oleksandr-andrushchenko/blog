@@ -229,11 +229,13 @@ class BaseQueryDTO(BaseModel):
 
 
 class UserQueryType(str, Enum):
+    LATEST = "latest"
     POPULAR = "popular"
 
 
 class UserQueryDTO(BaseQueryDTO):
-    type: UserQueryType | None = None
+    type: UserQueryType = UserQueryType.LATEST
+    status: UserStatus = UserStatus.ACTIVE
 
 
 class TagQueryDTO(BaseQueryDTO):
@@ -326,6 +328,7 @@ class Permission(str, Enum):
 
     UPDATE_USER = "update_user"
     UPDATE_USER_IMPRESSION = "update_user_impression"
+    READ_NON_ACTIVE_USER = "read_non_active_user"
 
     CREATE_POST = "create_post"
     UPDATE_POST = "update_post"
@@ -682,13 +685,13 @@ def jinja2_url_for(ctx, name: str, **params) -> str:
 @pass_context
 def jinja2_user_url(ctx, user: User, **params) -> str:
     if user.username:
-        return jinja2_url_for(ctx, "user-by-username", username=user.username, **params)
+        return jinja2_url_for(ctx, "user-by-slug", slug=user.username, **params)
     return jinja2_url_for(ctx, "user", user_id=user.id, **params)
 
 
 def get_user_url(request, user: User, **params) -> str:
     if user.username:
-        return get_url(request, "user-by-username", username=user.username, **params)
+        return get_url(request, "user-by-slug", slug=user.username, **params)
     return get_url(request, "user", user_id=user.id, **params)
 
 
@@ -749,6 +752,7 @@ def get_jinja2_env():
         "UserImpressionAction": UserImpressionAction,
         "PostQueryType": PostQueryType,
         "UserQueryType": UserQueryType,
+        "UserStatus": UserStatus,
     })
     return jinja2_env
 
@@ -1239,13 +1243,6 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
     return post_from_dynamodb(post_item)
 
 
-async def read_post(post: Post, cur_user: User) -> None:
-    if post.status != PostStatus.PUBLISHED:
-        if not cur_user:
-            raise NotAuthenticatedError()
-        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POST, post)
-
-
 async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User) -> None:
     verify_authorization(cur_user, Permission.UPDATE_POST, post)
 
@@ -1297,10 +1294,14 @@ async def find_post(post_id: str) -> Post | None:
     return post_from_dynamodb(item)
 
 
-async def get_post(post_id: str) -> Post:
+async def get_post(post_id: str, cur_user: User = None) -> Post:
     post = await find_post(post_id)
     if post is None:
         raise PostNotFoundError(f"Post '{post_id}' not found")
+    if post.status != PostStatus.PUBLISHED:
+        if not cur_user:
+            raise NotAuthenticatedError()
+        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POST, post)
     return post
 
 
@@ -1319,12 +1320,16 @@ async def find_post_by_slug(slug: str) -> Post | None:
     return post_from_dynamodb(item)
 
 
-async def get_post_by_slugs(user_slug: str, post_slug: str) -> Post:
+async def get_post_by_slugs(user_slug: str, post_slug: str, cur_user: User = None) -> Post:
     post = await find_post_by_slug(post_slug)
     if post is None:
         raise PostNotFoundError(f"Post '{post_slug}' not found")
     if post.user_slug != user_slug:
         raise UserNotFoundError(f"User '{user_slug}' not found")
+    if post.status != PostStatus.PUBLISHED:
+        if not cur_user:
+            raise NotAuthenticatedError()
+        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POST, post)
     return post
 
 
@@ -1604,10 +1609,14 @@ async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User
         setattr(user, key, value)
 
 
-async def get_user(user_id: str) -> User:
+async def get_user(user_id: str, cur_user: User = None) -> User:
     user = await find_user(user_id)
     if user is None:
         raise UserNotFoundError(f"User '{user_id}' not found")
+    if user.status != UserStatus.ACTIVE:
+        if not cur_user:
+            raise NotAuthenticatedError()
+        verify_authorization(cur_user, Permission.READ_NON_ACTIVE_USER, user)
     return user
 
 
@@ -1626,10 +1635,14 @@ async def find_user_by_username(username: str) -> User | None:
     return user_from_dynamodb(item)
 
 
-async def get_user_by_username(username: str) -> User:
+async def get_user_by_slug(username: str, cur_user: User = None) -> User:
     user = await find_user_by_username(username)
     if user is None:
         raise UserNotFoundError(f"User '{username}' not found")
+    if user.status != UserStatus.ACTIVE:
+        if not cur_user:
+            raise NotAuthenticatedError()
+        verify_authorization(cur_user, Permission.READ_NON_ACTIVE_USER, user)
     return user
 
 
@@ -1736,6 +1749,10 @@ async def get_popular_posts(query_dto: PostQueryDTO = None, cur_user: User = Non
         key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{query_dto.status.value}"),
         map_fn=post_from_dynamodb,
     )
+
+
+async def get_popular_published_posts() -> list[Post]:
+    return await get_popular_posts()
 
 
 async def get_latest_posts_by_tags(query_dto: PostQueryDTO = None, cur_user: User = None) -> list[Post]:
@@ -2036,24 +2053,29 @@ async def get_logout_redirect_url(callback_url: str) -> str:
     return callback_url
 
 
-async def get_latest_active_users(query_dto: UserQueryDTO = None) -> list[User]:
+async def get_latest_users(query_dto: UserQueryDTO = None, cur_user: User = None) -> list[User]:
     if query_dto is None:
         query_dto = UserQueryDTO()
+
+    if query_dto.status != UserStatus.ACTIVE:
+        if not cur_user:
+            raise NotAuthenticatedError()
+        verify_authorization(cur_user, Permission.READ_NON_ACTIVE_USER)
 
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="USERS_BY_STATUS_CREATED_AT",
-        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{UserStatus.ACTIVE.value}"),
+        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{query_dto.status.value}"),
         map_fn=user_from_dynamodb,
     )
 
 
-async def get_active_users(query_dto: UserQueryDTO = None) -> list[User]:
+async def get_users(query_dto: UserQueryDTO = None, cur_user: User = None) -> list[User]:
     if query_dto is None:
         query_dto = PostQueryDTO()
     if query_dto.type == UserQueryType.POPULAR:
-        return await get_popular_active_users(query_dto)
-    return await get_latest_active_users(query_dto)
+        return await get_popular_users(query_dto, cur_user)
+    return await get_latest_users(query_dto, cur_user)
 
 
 def unix_to_month_year(timestamp: int, tz: str | None = None) -> str:
@@ -2100,16 +2122,25 @@ async def get_latest_posts_by_user(user: User, query_dto: PostQueryDTO = None, c
     )
 
 
-async def get_popular_active_users(query_dto: UserQueryDTO = None) -> list[User]:
+async def get_popular_users(query_dto: UserQueryDTO = None, cur_user: User = None) -> list[User]:
     if query_dto is None:
         query_dto = UserQueryDTO()
+
+    if query_dto.status != UserStatus.ACTIVE:
+        if not cur_user:
+            raise NotAuthenticatedError()
+        verify_authorization(cur_user, Permission.READ_NON_ACTIVE_USER)
 
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="USERS_BY_STATUS_RATING",
-        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{UserStatus.ACTIVE.value}"),
+        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{query_dto.status.value}"),
         map_fn=user_from_dynamodb,
     )
+
+
+async def get_popular_active_users() -> list[User]:
+    return await get_popular_users()
 
 
 def post_impression_from_dynamodb(d_item: dict[str, any]) -> PostImpression:

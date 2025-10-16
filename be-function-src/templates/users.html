@@ -1,19 +1,21 @@
 {% extends "layout.html" %}
 
 {% set val_map = {
-(None): {"title": "Latest users", "breadcrumb": "Users", "subtitle": "Recently registered users"},
-(UserQueryType.POPULAR): {"title": "Popular users", "breadcrumb" : "Popular users", "subtitle": "Most followed users"}} %}
+    (UserQueryType.LATEST): {"title": "Latest", "subtitle": "Recently registered"},
+    (UserQueryType.POPULAR): {"title": "Popular", "subtitle": "Most followed"},
+    (UserStatus.ACTIVE): {"title": "Active", "subtitle": "Active"},
+    (UserStatus.BANNED): {"title": "Banned", "subtitle": "Banned"}
+} %}
 
-{% set title = val_map[users_query.type]["title"] %}
-{% set subtitle = val_map[users_query.type]["subtitle"] %}
-{% set breadcrumb = val_map[users_query.type]["breadcrumb"] %}
-{% set is_popular = users_query.type == UserQueryType.POPULAR %}
+
+{% set title = " ".join([val_map[users_query.type]["title"]] + [val_map[users_query.status]["title"]] + ["Users"]) %}
+{% set subtitle = " ".join([val_map[users_query.type]["subtitle"]] + [val_map[users_query.status]["subtitle"]] + ["Users"]) %}
 
 {% block title %}{{ title }} | {{ site_name }}{% endblock %}
 {% block canonical_url %}{{ full_url("users") }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), (breadcrumb): None} %}
+    {% with breadcrumbs = {"Home": url("index"), (title): None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
@@ -24,15 +26,35 @@
     <p class="small text-secondary">{{ subtitle }}</p>
 
     <form action="{{ url("users") }}" method="get">
-        {% if users_query.type %}
-            <input type="hidden" name="type" value="{{ users_query.type.value }}">
-        {% endif %}
+        <input type="hidden" name="type" value="{{ users_query.type.value }}">
+        <input type="hidden" name="status" value="{{ users_query.status.value }}">
 
         <div class="d-flex justify-content-start align-items-center gap-1">
+            {% if cur_user and check_auth(cur_user, Permission.READ_NON_ACTIVE_USER) %}
+                <div>Filter by status:</div>
+                <div class="btn-group">
+                    {% set is_active = users_query.status == UserStatus.ACTIVE %}
+                    <a href="{{ url("users", **users_query.get_dict({"status": None if is_active else UserStatus.ACTIVE.value})) }}"
+                       class="btn btn-outline-success btn-sm {% if is_active %}active{% endif %}">
+                        {{ val_map[UserStatus.ACTIVE]["title"] }}
+                    </a>
+
+                    {% set is_banned = users_query.status == UserStatus.BANNED %}
+                    <a href="{{ url("users", **users_query.get_dict({"status": None if is_banned else UserStatus.BANNED.value})) }}"
+                       class="btn btn-outline-danger btn-sm {% if is_banned %}active{% endif %}">
+                        {{ val_map[UserStatus.BANNED]["title"] }}
+                    </a>
+                </div>
+            {% endif %}
+
+            <div>Show:</div>
+            {% set is_popular = users_query.type == UserQueryType.POPULAR %}
             <a href="{{ url("users", **users_query.get_dict({"type": None if is_popular else UserQueryType.POPULAR.value})) }}"
                class="btn btn-outline-primary btn-sm {% if is_popular %}active{% endif %}">
                 <i class="bi bi-star{{ "-fill" if is_popular else "" }}"></i> {{ val_map[UserQueryType.POPULAR]["title"] }}
+                first
             </a>
+
             {% if users_query.has_params() %}
                 <a href="{{ url("users") }}" class="btn btn-secondary btn-sm">
                     <i class="bi bi-x-lg"></i> Reset

@@ -39,11 +39,11 @@ from utils import (
     get_post_tags,
     create_dummy_fixtures,
     update_post_status,
-    get_active_users,
+    get_users,
     get_latest_posts_by_user,
     get_posts,
     get_popular_post_tags,
-    get_popular_posts,
+    get_popular_published_posts,
     find_user,
     jinja2_env,
     get_popular_active_users,
@@ -58,7 +58,6 @@ from utils import (
     find_user_impression,
     get_user_url,
     NotAuthenticatedError,
-    read_post,
 )
 
 from deps import (
@@ -76,7 +75,7 @@ from deps import (
     UpdatePostStatusDTODep,
     UpdatePostImpressionDTODep,
     UpdateUserImpressionDTODep,
-    UserByUsernameDep,
+    UserBySlugDep,
     PostBySlugsDep,
 )
 from urllib.parse import quote
@@ -113,7 +112,7 @@ async def index(cur_user: OptCurUserDep) -> str:
         "popular_post_tags": await get_popular_post_tags(),
         "posts_query": posts_query,
         "posts": await get_posts(posts_query),
-        "popular_posts": await get_popular_posts(),
+        "popular_posts": await get_popular_published_posts(),
         "popular_users": await get_popular_active_users(),
     })
 
@@ -160,7 +159,6 @@ async def posts_fragment(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> st
 
 @app.get("/posts/{post_id}", name="post", response_class=HTMLResponse)
 async def post_page(post: PostDep, cur_user: OptCurUserDep) -> str:
-    await read_post(post, cur_user)
     return get_html_content("post.html", {
         "cur_user": cur_user,
         "post": post,
@@ -225,14 +223,14 @@ async def users(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("users.html", {
         "cur_user": cur_user,
         "users_query": query_dto,
-        "users": await get_active_users(query_dto)
+        "users": await get_users(query_dto, cur_user)
     })
 
 
 @app.get("/users-fragment", name="users-fragment", response_class=HTMLResponse)
-async def users_fragment(query_dto: UserQueryDep) -> str:
+async def users_fragment(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("fragments/users.html", {
-        "users": await get_active_users(query_dto)
+        "users": await get_users(query_dto, cur_user)
     })
 
 
@@ -329,8 +327,8 @@ async def _create_dummy_fixtures() -> None:
     return await create_dummy_fixtures()
 
 
-@app.get("/{username}", name="user-by-username", response_class=HTMLResponse)
-async def user_page_by_username(user: UserByUsernameDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
+@app.get("/{slug}", name="user-by-slug", response_class=HTMLResponse)
+async def user_page_by_slug(user: UserBySlugDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
     return await user_page(user, posts_query_dto, cur_user)
 
 
