@@ -293,8 +293,6 @@ class UpdatePostStatusDTO(BaseModel):
         status = info.data.get("status")
         if status == PostStatus.REJECTED and not value:
             raise ValueError("Comment is required when rejecting a post")
-        if status != PostStatus.REJECTED and value:
-            raise ValueError("Comment is only allowed when rejecting a post")
         return value
 
 
@@ -1858,9 +1856,9 @@ async def get_popular_posts_by_tags(query_dto: PostQueryDTO = None, cur_user: Us
     return filtered_posts
 
 
-async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, user: User) -> None:
-    # logger.debug(f"update_post_status: user: {user}")
-    verify_authorization(user, Permission.UPDATE_POST_STATUS)
+async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, cur_user: User) -> None:
+    # logger.debug(f"update_post_status: post: {post}, cur_user: {cur_user}")
+    verify_authorization(cur_user, Permission.UPDATE_POST_STATUS)
 
     if post.status == PostStatus.PUBLISHED:
         raise PostAlreadyPublishedError()
