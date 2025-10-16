@@ -1,5 +1,16 @@
 {% extends "layout.html" %}
 
+{% set val_map = {
+    (PostQueryType.LATEST): {"title": "Latest", "subtitle": "Recently added"},
+    (PostQueryType.POPULAR): {"title": "Popular", "subtitle": "Most rated"},
+    (PostStatus.PUBLISHED): {"title": "Published", "subtitle": "Published"},
+    (PostStatus.UNPUBLISHED): {"title": "Unpublished", "subtitle": "Unpublished"},
+    (PostStatus.REJECTED): {"title": "Rejected", "subtitle": "Rejected"}
+} %}
+
+{% set posts_title = " ".join([val_map[posts_query.type]["title"]] + [val_map[posts_query.status]["title"]] + ["Posts"]) %}
+{% set posts_subtitle = " ".join([val_map[posts_query.type]["subtitle"]] + [val_map[posts_query.status]["subtitle"]] + ["Articles"]) %}
+
 {% block title %}{{ user.name }} | {{ site_name }}{% endblock %}
 {% block canonical_url %}{{ user_url(user) }}{% endblock %}
 
@@ -85,20 +96,54 @@
     {% endif %}
 
     <div>
-        <h2>Latest posts</h2>
+        <h2>{{ posts_title }}</h2>
+        <p class="small text-secondary">{{ posts_subtitle }}</p>
+
+        {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_POSTS, user) %}
+            <div class="d-flex justify-content-start align-items-center gap-1">
+                <div>Filter by status:</div>
+                <div class="btn-group">
+                    {% set is_published = posts_query.status == PostStatus.PUBLISHED %}
+                    <a href="{{ user_url(user, **posts_query.get_dict({"status": None if is_published else PostStatus.PUBLISHED.value})) }}"
+                       class="btn btn-outline-success btn-sm {% if is_published %}active{% endif %}">
+                        {{ val_map[PostStatus.PUBLISHED]["title"] }}
+                    </a>
+
+                    {% set is_unpublished = posts_query.status == PostStatus.UNPUBLISHED %}
+                    <a href="{{ user_url(user, **posts_query.get_dict({"status": None if is_unpublished else PostStatus.UNPUBLISHED.value})) }}"
+                       class="btn btn-outline-warning btn-sm {% if is_unpublished %}active{% endif %}">
+                        {{ val_map[PostStatus.UNPUBLISHED]["title"] }}
+                    </a>
+
+                    {% set is_rejected = posts_query.status == PostStatus.REJECTED %}
+                    <a href="{{ user_url(user, **posts_query.get_dict({"status": None if is_rejected else PostStatus.REJECTED.value})) }}"
+                       class="btn btn-outline-danger btn-sm {% if is_rejected %}active{% endif %}">
+                        {{ val_map[PostStatus.REJECTED]["title"] }}
+                    </a>
+                </div>
+
+                {% if posts_query.has_params() %}
+                    <a href="{{ user_url(user) }}" class="btn btn-secondary btn-sm">
+                        <i class="bi bi-x-lg"></i> Reset
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
+
         {% if posts %}
             <div id="posts">
                 {% include "fragments/posts.html" %}
             </div>
+
             {% with limit=posts_query.limit,
                 offset=posts[-1].offset,
                 count=posts|length,
-                url=url("user-posts-fragment", user_id=user.id),
+                url=url("user-posts-fragment", user_id=user.id, **posts_query.get_dict()),
                 container="#posts" %}
                 {% include "fragments/load-more-button.html" %}
             {% endwith %}
         {% else %}
-            N/A
+            <div>N/A</div>
         {% endif %}
     </div>
 {% endblock %}

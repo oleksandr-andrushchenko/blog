@@ -1226,6 +1226,7 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
         post_item["user_slug"] = user.username
     add_dynamodb_put_transact(transacts, (f"POST#{post_id}", "META"), post_item, new_pk_only=True)
     add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), deltas={"unpublished_posts_count": 1})
+    # todo: should be unique in combination with username (user, post)
     add_dynamodb_put_transact(transacts, (f"POST_SLUG#{slug}", "META"), {"post_id": post_id}, new_pk_only=True)
 
     try:
@@ -1236,6 +1237,13 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
         raise
 
     return post_from_dynamodb(post_item)
+
+
+async def read_post(post: Post, cur_user: User) -> None:
+    if post.status != PostStatus.PUBLISHED:
+        if not cur_user:
+            raise NotAuthenticatedError()
+        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POSTS, post)
 
 
 async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User) -> None:
@@ -2067,16 +2075,26 @@ def unix_to_full_date(timestamp: int, tz: str | None = None) -> str:
     return dt.strftime("%b %d, %Y")
 
 
-async def get_latest_published_posts_by_user(user: User, query_dto: PostQueryDTO = None) -> list[Post]:
-    if user.published_posts_count == 0:
-        return []
+async def get_latest_published_posts_by_user(user: User) -> list[Post]:
+    return await get_latest_posts_by_user(user)
+
+
+async def get_latest_posts_by_user(user: User, query_dto: PostQueryDTO = None, cur_user: User = None) -> list[Post]:
     if query_dto is None:
         query_dto = PostQueryDTO()
+
+    if query_dto.status != PostStatus.PUBLISHED:
+        if not cur_user:
+            raise NotAuthenticatedError()
+        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POSTS, user)
+
+    if getattr(user, f"{query_dto.status.value}_posts_count") == 0:
+        return []
 
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="POSTS_BY_USER_STATUS_CREATED_AT",
-        key_condition_expr=Key("post_user_status_pk").eq(f"POST#USER#{user.id}#STATUS#{PostStatus.PUBLISHED.value}"),
+        key_condition_expr=Key("post_user_status_pk").eq(f"POST#USER#{user.id}#STATUS#{query_dto.status.value}"),
         map_fn=post_from_dynamodb,
     )
 
@@ -2345,7 +2363,7 @@ async def create_dummy_fixtures() -> None:
         ),
     ]
     for post in unpublished_posts:
-        await create_post(post, root_user)
+        await create_post(post, user2)
     rejected_posts = [
         PostDTO(
             title="Rejected Post title #111111111111111111111111",
@@ -2364,5 +2382,7 @@ async def create_dummy_fixtures() -> None:
         ),
     ]
     for post in rejected_posts:
-        created_post = await create_post(post, root_user)
-        await update_post_status(created_post, UpdatePostStatusDTO(status=PostStatus.REJECTED, comment="Some rejection reason"), root_user)
+        created_post = await create_post(post, user3)
+        await update_post_status(created_post,
+                                 UpdatePostStatusDTO(status=PostStatus.REJECTED, comment="Some rejection reason"),
+                                 root_user)

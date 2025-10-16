@@ -126,7 +126,7 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
-        - IndexName: POSTS_BY_STATUS_CREATED_AT # get_latest_published_posts
+        - IndexName: POSTS_BY_STATUS_CREATED_AT # get_latest_posts
           KeySchema:
             - AttributeName: post_status_pk # e.g. "POST#STATUS#published"
               KeyType: HASH
@@ -148,7 +148,7 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
-        - IndexName: POSTS_BY_STATUS_RATING # get_popular_published_posts
+        - IndexName: POSTS_BY_STATUS_RATING # get_popular_posts
           KeySchema:
             - AttributeName: post_status_pk # e.g. "POST#STATUS#published"
               KeyType: HASH
@@ -172,7 +172,7 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
-        - IndexName: POSTS_BY_USER_STATUS_CREATED_AT # get_latest_published_posts_by_user
+        - IndexName: POSTS_BY_USER_STATUS_CREATED_AT # get_latest_posts_by_user
           KeySchema:
             - AttributeName: post_user_status_pk # e.g. "POST#USER#1#STATUS#published"
               KeyType: HASH

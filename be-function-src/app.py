@@ -40,7 +40,7 @@ from utils import (
     create_dummy_fixtures,
     update_post_status,
     get_active_users,
-    get_latest_published_posts_by_user,
+    get_latest_posts_by_user,
     get_posts,
     get_popular_post_tags,
     get_popular_posts,
@@ -58,6 +58,7 @@ from utils import (
     find_user_impression,
     get_user_url,
     NotAuthenticatedError,
+    read_post,
 )
 
 from deps import (
@@ -159,6 +160,7 @@ async def posts_fragment(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> st
 
 @app.get("/posts/{post_id}", name="post", response_class=HTMLResponse)
 async def post_page(post: PostDep, cur_user: OptCurUserDep) -> str:
+    await read_post(post, cur_user)
     return get_html_content("post.html", {
         "cur_user": cur_user,
         "post": post,
@@ -235,13 +237,12 @@ async def users_fragment(query_dto: UserQueryDep) -> str:
 
 
 @app.get("/users/{user_id}", name="user", response_class=HTMLResponse)
-async def user_page(user: UserDep, cur_user: OptCurUserDep) -> str:
-    posts_query_dto = PostQueryDTO()
+async def user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("user.html", {
         "cur_user": cur_user,
         "user": user,
         "posts_query": posts_query_dto,
-        "posts": await get_latest_published_posts_by_user(user),
+        "posts": await get_latest_posts_by_user(user, posts_query_dto, cur_user),
         "user_impression": await find_user_impression(user, cur_user) if cur_user else None
     })
 
@@ -268,10 +269,10 @@ async def _update_user(update_user_dto: UpdateUserDTODep, user: UserDep, cur_use
 
 
 @app.get("/users/{user_id}/posts-fragment", name="user-posts-fragment", response_class=HTMLResponse)
-async def user_posts_fragment(user: UserDep, query_dto: PostQueryDep) -> str:
+async def user_posts_fragment(user: UserDep, query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("fragments/posts.html", {
         "query": query_dto,
-        "posts": await get_latest_published_posts_by_user(user, query_dto)
+        "posts": await get_latest_posts_by_user(user, query_dto, cur_user)
     })
 
 
@@ -329,8 +330,8 @@ async def _create_dummy_fixtures() -> None:
 
 
 @app.get("/{username}", name="user-by-username", response_class=HTMLResponse)
-async def user_page_by_username(user: UserByUsernameDep, cur_user: OptCurUserDep) -> str:
-    return await user_page(user, cur_user)
+async def user_page_by_username(user: UserByUsernameDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
+    return await user_page(user, posts_query_dto, cur_user)
 
 
 @app.get("/{user_slug}/{post_slug}", name="post-by-slugs", response_class=HTMLResponse)
