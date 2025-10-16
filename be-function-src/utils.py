@@ -665,7 +665,8 @@ def jinja2_url_for(ctx, name: str, **params) -> str:
                 items.extend((k, int(i) if isinstance(i, bool) else i) for i in v)
             else:
                 items.append((k, v))
-        url = f"{url}?{urlencode(items)}"
+        if items:
+            url = f"{url}?{urlencode(items)}"
 
     return url
 
