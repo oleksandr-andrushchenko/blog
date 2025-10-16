@@ -1,5 +1,7 @@
 from fastapi import Request, Depends, HTTPException, Query, UploadFile, File, Body
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from starlette.status import (
     HTTP_401_UNAUTHORIZED,
     HTTP_404_NOT_FOUND,
@@ -94,7 +96,10 @@ UserQueryDep = Annotated[UserQueryDTO, Depends()]
 async def get_post_query(request: Request, tags: list[str] = Query([])) -> PostQueryDTO:
     data = dict(request.query_params)
     data['tags'] = tags
-    return PostQueryDTO(**data)
+    try:
+        return PostQueryDTO(**data)
+    except ValidationError as e:
+        raise RequestValidationError(e.errors())
 
 
 PostQueryDep = Annotated[PostQueryDTO, Depends(get_post_query)]
