@@ -1816,13 +1816,6 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
 
     transacts = []
 
-    # Update post
-    add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {
-        **changes,
-        "post_status_pk": f"POST#STATUS#{status.value}",
-        "post_user_status_pk": f"POST#USER#{post.user_id}#STATUS#{status.value}",
-    })
-
     # User post counters
     owner = await find_user(post.user_id)
     if owner:
@@ -1835,6 +1828,8 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
             setattr(owner, key, getattr(owner, key) + delta)
 
     if status == PostStatus.PUBLISHED:
+        if owner:
+            changes["user_slug"] = owner.username
         # Upsert tags
         for tag in post.tags:
             transacts.append({
@@ -1874,6 +1869,12 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
                 add_dynamodb_put_transact(transacts, ("POST_TAG_COMBO#" + "#".join(combo), str(now)), {
                     "post_id": post.id
                 })
+
+    add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {
+        **changes,
+        "post_status_pk": f"POST#STATUS#{status.value}",
+        "post_user_status_pk": f"POST#USER#{post.user_id}#STATUS#{status.value}",
+    })
 
     # logger.debug(transacts)
 
