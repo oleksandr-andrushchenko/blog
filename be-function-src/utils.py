@@ -383,10 +383,10 @@ class UserNotFoundError(BaseError):
     pass
 
 
-class AuthorizationFailedError(BaseError):
+class NotAuthorizedError(BaseError):
     def __init__(self, permission: str, message: str = None):
         self.permission = permission
-        super().__init__(message=message if message else f"User lacks required permission: {permission}")
+        super().__init__(message=message if message else f"Not authorized: {permission}")
 
 
 def get_live_config(load_env=False):
@@ -559,7 +559,7 @@ def verify_authorization(
                 return True
 
     # No match → fail
-    raise AuthorizationFailedError(permission)
+    raise NotAuthorizedError(permission)
 
 
 def check_authorization(
@@ -572,7 +572,7 @@ def check_authorization(
     try:
         verify_authorization(user, permission, resource, permissions, hierarchy)
         return True
-    except AuthorizationFailedError:
+    except NotAuthorizedError:
         return False
 
 

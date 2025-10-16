@@ -24,7 +24,7 @@ from utils import (
     InvalidCodeError,
     CodeExchangeFailedError,
     SlugDuplicationError,
-    AuthorizationFailedError,
+    NotAuthorizedError,
     logger,
     get_html_content,
     get_full_url,
@@ -360,9 +360,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
-@app.exception_handler(AuthorizationFailedError)
-async def authorization_failed_handler(request: Request, exc: AuthorizationFailedError):
-    logger.warning(f"Authorization failed: {exc}")
+@app.exception_handler(NotAuthorizedError)
+async def not_authorized_error_handler(request: Request, exc: NotAuthorizedError):
+    logger.warning(f"Not authorized: {str(exc)}")
     return await get_error_response(
         request,
         HTTP_403_FORBIDDEN,
