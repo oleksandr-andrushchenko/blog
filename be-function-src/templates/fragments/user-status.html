@@ -1,0 +1,38 @@
+{% if cur_user and check_auth(cur_user, Permission.UPDATE_USER_STATUS, user) %}
+    <div class="input-group w-50">
+        <!-- Activate User -->
+        {% set is_activated = user.status == UserStatus.ACTIVE %}
+        <button type="button"
+                class="btn btn-outline-success btn-sm {% if is_activated %}active{% else %}btn-user-activate{% endif %}"
+                data-user-id="{{ user.id }}"
+                data-status="{{ UserStatus.ACTIVE.value }}"
+                {% if not is_activated %}
+                data-bs-toggle="tooltip"
+                data-bs-title="Activate this user"
+                {% endif %}>
+            {% if is_activated %}<i class="bi bi-check2-all"></i>{% endif %}
+            {% if is_activated %}Activated{% else %}Activate{% endif %}
+        </button>
+
+        <!-- Ban User -->
+        {% set is_banned = user.status == UserStatus.BANNED %}
+        <input type="text"
+               class="form-control form-control-sm"
+               name="comment"
+               id="comment"
+               placeholder="Ban reason..."
+               value="{{ user.comment if user and user.comment else '' }}"
+               {% if is_banned %}disabled{% endif %}>
+        <button type="button"
+                class="btn btn-outline-danger btn-sm {% if is_banned %}active{% else %}btn-user-ban{% endif %}"
+                data-user-id="{{ user.id }}"
+                data-status="{{ UserStatus.BANNED.value }}"
+                {% if not is_banned %}
+                data-bs-toggle="tooltip"
+                data-bs-title="Ban this post"
+                {% endif %}>
+            {% if is_banned %}<i class="bi bi-x-lg"></i>{% endif %}
+            {% if is_banned %}Banned{% else %}Ban{% endif %}
+        </button>
+    </div>
+{% endif %}

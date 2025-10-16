@@ -31,6 +31,7 @@ from utils import (
     UpdateUserImpressionDTO,
     get_user_by_slug,
     get_post_by_slugs,
+    UpdateUserStatusDTO,
 )
 
 
@@ -129,6 +130,15 @@ def get_update_user_dto(
 
 
 UpdateUserDTODep = Annotated[UpdateUserDTO, Depends(get_update_user_dto)]
+
+
+def get_update_user_status_dto(
+        update_user_status_dto: UpdateUserStatusDTO = Body(...)
+) -> UpdateUserStatusDTO:
+    return update_user_status_dto
+
+
+UpdateUserStatusDTODep = Annotated[UpdateUserStatusDTO, Depends(get_update_user_status_dto)]
 
 
 def get_update_post_dto(

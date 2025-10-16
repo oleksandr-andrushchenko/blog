@@ -58,6 +58,7 @@ from utils import (
     find_user_impression,
     get_user_url,
     NotAuthenticatedError,
+    update_user_status,
 )
 
 from deps import (
@@ -77,6 +78,7 @@ from deps import (
     UpdateUserImpressionDTODep,
     UserBySlugDep,
     PostBySlugsDep,
+    UpdateUserStatusDTODep,
 )
 from urllib.parse import quote
 
@@ -243,6 +245,13 @@ async def user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user: OptC
         "posts": await get_latest_posts_by_user(user, posts_query_dto, cur_user),
         "user_impression": await find_user_impression(user, cur_user) if cur_user else None
     })
+
+
+@app.post("/users/{user_id}/status", name="update-user-status", response_class=JSONResponse)
+async def _update_user_status(user: UserDep, update_user_status_dto: UpdateUserStatusDTODep,
+                              cur_user: CurUserDep, request: Request) -> str:
+    await update_user_status(user, update_user_status_dto, cur_user)
+    return get_url(request, "user", user_id=user.id)
 
 
 @app.post("/users/{user_id}/impression", name="update-user-impression", status_code=HTTP_204_NO_CONTENT)

@@ -72,6 +72,7 @@ class User(BaseModel):
     rating: int
     followers_count: int
     following_count: int
+    comment: str | None = None
     created_at: int
     updated_at: int | None = None
     offset: str | None = None
@@ -141,6 +142,19 @@ class UpdateUserDTO(UserDTO):
     about: str | None = Field(None, max_length=2000)
     website: HttpUrl | None = None
     address: str | None = Field(None, max_length=255)
+
+
+class UpdateUserStatusDTO(BaseModel):
+    status: UserStatus = Field(...)
+    comment: str = Field(None)
+
+    @field_validator("comment")
+    @classmethod
+    def validate_comment(cls, value, info):
+        status = info.data.get("status")
+        if status == UserStatus.BANNED and not value:
+            raise ValueError("Comment is required when banning a user")
+        return value
 
 
 class UserImpressionAction(str, Enum):
@@ -327,6 +341,7 @@ class Permission(str, Enum):
     ALL = "*"
 
     UPDATE_USER = "update_user"
+    UPDATE_USER_STATUS = "update_user_status"
     UPDATE_USER_IMPRESSION = "update_user_impression"
     READ_NON_ACTIVE_USER = "read_non_active_user"
 
@@ -1355,6 +1370,7 @@ def user_from_dynamodb(d_item: dict[str, any]) -> User:
         rating=d_item["rating_sk"],
         followers_count=d_item.get("followers_count", 0),
         following_count=d_item.get("following_count", 0),
+        comment=d_item.get("comment"),
         created_at=d_item["created_at_sk"],
         updated_at=d_item.get("updated_at")
     )
@@ -1607,6 +1623,34 @@ async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User
 
     for key, value in changes.items():
         setattr(user, key, value)
+
+
+async def update_user_status(user: User, update_user_status_dto: UpdateUserStatusDTO, cur_user: User) -> None:
+    # logger.debug(f"update_user_status: user: {user}, cur_user: {cur_user}")
+    verify_authorization(cur_user, Permission.UPDATE_USER_STATUS)
+
+    changes = update_user_status_dto.model_dump(exclude_unset=True)
+    if not changes:
+        return
+
+    if not "comment" in changes:
+        changes["comment"] = None
+
+    status = changes["status"]
+
+    await get_dynamodb_table()
+
+    transacts = []
+
+    add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), {
+        **changes,
+        "user_status_pk": f"USER#STATUS#{status.value}",
+    })
+
+    # logger.debug(transacts)
+
+    await dynamodb_transact_write(transacts)
+    user.status = status
 
 
 async def get_user(user_id: str, cur_user: User = None) -> User:

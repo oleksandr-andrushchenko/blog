@@ -72,6 +72,7 @@
             </div>
 
             <div class="d-flex gap-2 align-items-center">
+                {% include "fragments/user-status.html" %}
                 {% include "fragments/user-impressions.html" %}
                 {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
                     <a href="{{ url("edit-user", user_id=user.id) }}" class="btn btn-outline-secondary btn-sm">
