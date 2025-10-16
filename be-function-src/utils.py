@@ -105,10 +105,10 @@ class UserDTO(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     username: str | None = Field(None, min_length=3, max_length=30)
 
-    _username_pattern: ClassVar[re.Pattern] = re.compile(r"^[a-z0-9-]+$")
-    _username_blacklist: ClassVar[set[str]] = {"posts", "posts-fragment", "contacts", "post-tags", "users",
-                                               "users-fragment",
-                                               "dummy-fixtures"}
+    USERNAME_PATTERN: ClassVar[re.Pattern] = re.compile(r"^[a-z0-9-]+$")
+    USERNAME_BLACKLIST: ClassVar[set[str]] = {"posts", "posts-fragment", "contacts", "post-tags", "users",
+                                              "users-fragment",
+                                              "dummy-fixtures"}
 
     @field_validator("username")
     @classmethod
@@ -118,7 +118,7 @@ class UserDTO(BaseModel):
 
         value = value.strip()
 
-        if not cls._username_pattern.match(value):
+        if not cls.USERNAME_PATTERN.match(value):
             raise ValueError("Username must be lowercase alphanumeric and may include single dashes only")
 
         if value.startswith("-") or value.endswith("-"):
@@ -127,7 +127,7 @@ class UserDTO(BaseModel):
         if "--" in value:
             raise ValueError("Username cannot contain consecutive dashes")
 
-        if value in cls._username_blacklist:
+        if value in cls.USERNAME_BLACKLIST:
             raise ValueError(f"'{value}' is a reserved word")
 
         return value
