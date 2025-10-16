@@ -332,7 +332,7 @@ class Permission(str, Enum):
     UPDATE_POST_STATUS = "update_post_status"
     CREATE_CONTACT_MESSAGE = "create_contact_message"
     UPDATE_POST_IMPRESSION = "toggle_post_impression"
-    READ_NON_PUBLISHED_POST = "read_non_published_posts"
+    READ_NON_PUBLISHED_POST = "read_non_published_post"
 
 
 class BaseError(Exception):
