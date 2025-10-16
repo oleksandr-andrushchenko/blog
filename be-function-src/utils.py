@@ -641,7 +641,7 @@ logger = get_logger()
 
 
 @pass_context
-def url_for(ctx, name: str, **params) -> str:
+def jinja2_url_for(ctx, name: str, **params) -> str:
     request = ctx.get("request")
     if not request:
         raise ValueError("Request not found in context")
@@ -673,8 +673,8 @@ def url_for(ctx, name: str, **params) -> str:
 @pass_context
 def jinja2_user_url(ctx, user: User, **params) -> str:
     if user.username:
-        return url_for(ctx, "user-by-username", username=user.username, **params)
-    return url_for(ctx, "user", user_id=user.id, **params)
+        return jinja2_url_for(ctx, "user-by-username", username=user.username, **params)
+    return jinja2_url_for(ctx, "user", user_id=user.id, **params)
 
 
 def get_user_url(request, user: User, **params) -> str:
@@ -729,7 +729,7 @@ def get_jinja2_env():
     jinja2_env.globals.update(get_config())
     jinja2_env.globals.update({
         "static_url": static_url,
-        "url": url_for,
+        "url": jinja2_url_for,
         "user_url": jinja2_user_url,
         "full_url": full_url_for,
         "post_url": jinja2_post_url,
