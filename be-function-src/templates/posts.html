@@ -2,15 +2,16 @@
 
 {% set latest_title = "Latest posts" %}
 {% set popular_title = "Popular posts" %}
+{% set is_popular = posts_query.type == PostQueryType.POPULAR %}
 {% set tags_title = " ".join(posts_query.tags) %}
-{% set title = (tags_title ~ " " ~ (popular_title if posts_query.popular else latest_title)) | trim %}
-{% set sub_title = "Most rated articles" if posts_query.popular else "Recently added articles" %}
+{% set title = (tags_title ~ " " ~ (popular_title if is_popular else latest_title)) | trim %}
+{% set sub_title = "Most rated articles" if is_popular else "Recently added articles" %}
 
 {% block title %}{{ title }} | {{ site_name }}{% endblock %}
 {% block canonical_url %}{{ full_url("posts") }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), (popular_title if posts_query.popular else "Posts"): None} %}
+    {% with breadcrumbs = {"Home": url("index"), (popular_title if is_popular else "Posts"): None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
@@ -21,13 +22,14 @@
     <p class="small text-secondary">{{ sub_title }}</p>
 
     <form action="{{ url("posts") }}" method="get">
-        {% if posts_query.popular %}
-            <input type="hidden" name="popular" value="1">
+        {% if posts_query.type %}
+            <input type="hidden" name="type" value="{{ posts_query.type.value }}">
         {% endif %}
+
         <div class="d-flex justify-content-start align-items-center gap-1">
-            <a href="{{ url("posts", **posts_query.get_dict({"popular": None if posts_query.popular else 1})) }}"
-               class="btn btn-secondary btn-sm {% if posts_query.popular %}active{% endif %}">
-                <i class="bi bi-star{{ "-fill" if posts_query.popular else "" }}"></i> {{ popular_title }}
+            <a href="{{ url("posts", **posts_query.get_dict({"type": None if is_popular else PostQueryType.POPULAR.value})) }}"
+               class="btn btn-secondary btn-sm {% if is_popular %}active{% endif %}">
+                <i class="bi bi-star{{ "-fill" if is_popular else "" }}"></i> {{ popular_title }}
             </a>
             <div>Search by:</div>
             {% with url=url("get-post-tags"),
@@ -55,7 +57,7 @@
         {% with limit=posts_query.limit,
             offset=posts[-1].offset,
             count=posts|length,
-            url=url("posts-fragment", **dict(posts_query)),
+            url=url("posts-fragment", **posts_query.ger_dict()),
             container="#posts" %}
             {% include "fragments/load-more-button.html" %}
         {% endwith %}

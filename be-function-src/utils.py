@@ -197,15 +197,17 @@ class UpdatePostDTO(PostDTO):
 
 
 class BaseQueryDTO(BaseModel):
-    offset: str | None = Field(None)
-    limit: int = Field(default=20, ge=1)
+    DEFAULT_LIMIT: ClassVar[int] = 20
+
+    offset: str | None = None
+    limit: int = Field(default=DEFAULT_LIMIT, ge=1)
 
     def get_dict(self, rewrite: dict[str, any] | None = None) -> dict[str, any]:
         """Return a dictionary representation of the model."""
         data = self.model_dump()
         if rewrite:
             data.update(rewrite)
-        return data
+        return enum_to_value(data)
 
     def has_params(self) -> bool:
         """Return True if any field differs from its default value."""
@@ -226,13 +228,21 @@ class BaseQueryDTO(BaseModel):
         return False
 
 
+class PostQueryType(str, Enum):
+    POPULAR = "popular"
+
+
 class PostQueryDTO(BaseQueryDTO):
     tags: list[str] | None = Field(default_factory=list)  # noqa
-    popular: bool | None = None
+    type: PostQueryType | None = None
+
+
+class UserQueryType(str, Enum):
+    POPULAR = "popular"
 
 
 class UserQueryDTO(BaseQueryDTO):
-    popular: bool | None = None
+    type: UserQueryType | None = None
 
 
 class TagQueryDTO(BaseQueryDTO):
@@ -728,6 +738,8 @@ def get_jinja2_env():
         "PostStatus": PostStatus,
         "PostImpressionAction": PostImpressionAction,
         "UserImpressionAction": UserImpressionAction,
+        "PostQueryType": PostQueryType,
+        "UserQueryType": UserQueryType,
     })
     return jinja2_env
 
@@ -1633,7 +1645,7 @@ def decode_offset(token: str) -> dict | None:
 async def get_published_posts(query_dto: PostQueryDTO = None) -> list[Post]:
     if query_dto is None:
         query_dto = PostQueryDTO()
-    if query_dto.popular:
+    if query_dto.type == PostQueryType.POPULAR:
         if query_dto.tags:
             return await get_popular_published_posts_by_tags(query_dto)
         return await get_popular_published_posts(query_dto)
@@ -2011,7 +2023,7 @@ async def get_latest_active_users(query_dto: UserQueryDTO = None) -> list[User]:
 async def get_active_users(query_dto: UserQueryDTO = None) -> list[User]:
     if query_dto is None:
         query_dto = PostQueryDTO()
-    if query_dto.popular:
+    if query_dto.type == UserQueryType.POPULAR:
         return await get_popular_active_users(query_dto)
     return await get_latest_active_users(query_dto)
 
@@ -2198,6 +2210,19 @@ async def update_user_impression(
             add_dynamodb_update_transact(transacts, target_user_key, deltas={"rating_sk": compute_rating_sk(-1)})
 
     await dynamodb_transact_write(transacts)
+
+
+def enum_to_value(obj):
+    if isinstance(obj, Enum):
+        return obj.value
+    elif isinstance(obj, dict):
+        return {k: enum_to_value(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [enum_to_value(v) for v in obj]
+    elif isinstance(obj, tuple):
+        return tuple(enum_to_value(v) for v in obj)
+    else:
+        return obj
 
 
 async def create_dummy_fixtures() -> None:
