@@ -1,17 +1,19 @@
 {% extends "layout.html" %}
 
-{% set latest_title = "Latest users" %}
-{% set popular_title = "Popular users" %}
-{% set is_popular = users_query.type == UserQueryType.POPULAR %}
+{% set val_map = {
+(None): {"title": "Latest users", "breadcrumb": "Users", "subtitle": "Recently registered users"},
+(UserQueryType.POPULAR): {"title": "Popular users", "breadcrumb" : "Popular users", "subtitle": "Most followed users"}} %}
 
-{% set title = (popular_title if is_popular else latest_title) | trim %}
-{% set sub_title = "Most followed users" if is_popular else "Recently registered users" %}
+{% set title = val_map[users_query.type]["title"] %}
+{% set subtitle = val_map[users_query.type]["subtitle"] %}
+{% set breadcrumb = val_map[users_query.type]["breadcrumb"] %}
+{% set is_popular = users_query.type == UserQueryType.POPULAR %}
 
 {% block title %}{{ title }} | {{ site_name }}{% endblock %}
 {% block canonical_url %}{{ full_url("users") }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), (popular_title if is_popular else "Users"): None} %}
+    {% with breadcrumbs = {"Home": url("index"), (breadcrumb): None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
@@ -19,7 +21,7 @@
 {% block content %}
     <h1>{{ title }}</h1>
 
-    <p class="small text-secondary">{{ sub_title }}</p>
+    <p class="small text-secondary">{{ subtitle }}</p>
 
     <form action="{{ url("users") }}" method="get">
         {% if users_query.type %}
@@ -29,7 +31,7 @@
         <div class="d-flex justify-content-start align-items-center gap-1">
             <a href="{{ url("users", **users_query.get_dict({"type": None if is_popular else UserQueryType.POPULAR.value, "limit": None})) }}"
                class="btn btn-secondary btn-sm {% if is_popular %}active{% endif %}">
-                <i class="bi bi-star{{ "-fill" if is_popular else "" }}"></i> {{ popular_title }}
+                <i class="bi bi-star{{ "-fill" if is_popular else "" }}"></i> {{ val_map[UserQueryType.POPULAR]["title"] }}
             </a>
             {% if users_query.has_params() %}
                 <a href="{{ url("users") }}" class="btn btn-secondary btn-sm">

@@ -228,15 +228,6 @@ class BaseQueryDTO(BaseModel):
         return False
 
 
-class PostQueryType(str, Enum):
-    POPULAR = "popular"
-
-
-class PostQueryDTO(BaseQueryDTO):
-    tags: list[str] | None = Field(default_factory=list)  # noqa
-    type: PostQueryType | None = None
-
-
 class UserQueryType(str, Enum):
     POPULAR = "popular"
 
@@ -263,6 +254,15 @@ class PostStatus(str, Enum):
     UNPUBLISHED = "unpublished"
     PUBLISHED = "published"
     REJECTED = "rejected"
+
+
+class PostQueryType(str, Enum):
+    POPULAR = "popular"
+
+
+class PostQueryDTO(BaseQueryDTO):
+    tags: list[str] | None = Field(default_factory=list)  # noqa
+    type: PostQueryType | None = None
 
 
 class UpdatePostStatusDTO(BaseModel):

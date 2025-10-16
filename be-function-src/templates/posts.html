@@ -1,17 +1,19 @@
 {% extends "layout.html" %}
 
-{% set latest_title = "Latest posts" %}
-{% set popular_title = "Popular posts" %}
+{% set val_map = {
+(None): {"title": "Latest posts", "breadcrumb": "Posts", "subtitle": "Recently added articles"},
+(PostQueryType.POPULAR): {"title": "Popular posts", "breadcrumb" : "Popular posts", "subtitle": "Most rated articles"}} %}
+
+{% set title = " ".join(posts_query.tags + [val_map[posts_query.type]["title"]]) %}
+{% set subtitle = val_map[posts_query.type]["subtitle"] %}
+{% set breadcrumb = val_map[posts_query.type]["breadcrumb"] %}
 {% set is_popular = posts_query.type == PostQueryType.POPULAR %}
-{% set tags_title = " ".join(posts_query.tags) %}
-{% set title = (tags_title ~ " " ~ (popular_title if is_popular else latest_title)) | trim %}
-{% set sub_title = "Most rated articles" if is_popular else "Recently added articles" %}
 
 {% block title %}{{ title }} | {{ site_name }}{% endblock %}
 {% block canonical_url %}{{ full_url("posts") }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), (popular_title if is_popular else "Posts"): None} %}
+    {% with breadcrumbs = {"Home": url("index"), (breadcrumb): None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
@@ -19,7 +21,7 @@
 {% block content %}
     <h1>{{ title }}</h1>
 
-    <p class="small text-secondary">{{ sub_title }}</p>
+    <p class="small text-secondary">{{ subtitle }}</p>
 
     <form action="{{ url("posts") }}" method="get">
         {% if posts_query.type %}
@@ -29,7 +31,7 @@
         <div class="d-flex justify-content-start align-items-center gap-1">
             <a href="{{ url("posts", **posts_query.get_dict({"type": None if is_popular else PostQueryType.POPULAR.value, "limit": None})) }}"
                class="btn btn-secondary btn-sm {% if is_popular %}active{% endif %}">
-                <i class="bi bi-star{{ "-fill" if is_popular else "" }}"></i> {{ popular_title }}
+                <i class="bi bi-star{{ "-fill" if is_popular else "" }}"></i> {{ val_map[PostQueryType.POPULAR]["title"] }}
             </a>
             <div>Search by:</div>
             {% with url=url("get-post-tags"),
