@@ -1867,6 +1867,9 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
     if not changes:
         return
 
+    if not "comment" in changes:
+        changes["comment"] = None
+
     old_status = post.status
     status = changes["status"]
 
