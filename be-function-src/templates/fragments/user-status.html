@@ -1,4 +1,4 @@
-{% if cur_user and check_auth(cur_user, Permission.UPDATE_USER_STATUS, user) %}
+{% if cur_user and check_auth(cur_user, Permission.UPDATE_USER_STATUS, user) and cur_user.id != user.id %}
     <div class="input-group w-50">
         <!-- Activate User -->
         {% set is_activated = user.status == UserStatus.ACTIVE %}
