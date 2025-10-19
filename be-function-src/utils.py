@@ -51,6 +51,8 @@ class UserStatus(str, Enum):
     ACTIVE = "active"
     BANNED = "banned"
 
+class Me(BaseModel):
+    id: str
 
 class User(BaseModel):
     id: str
@@ -414,11 +416,12 @@ class NotAuthorizedError(BaseError):
 
 
 def get_live_config(load_env=False):
-    if load_env:
-        dotenv.load_dotenv(dotenv_path="/.env", override=True)
+    # if load_env:
+    #     dotenv.load_dotenv(dotenv_path="/.env", override=True)
 
     return {
         "env": os.getenv("ENV"),
+        "base_url": os.getenv("BASE_URL"),
         "cloudfront_base_url": os.getenv("CLOUDFRONT_BASE_URL"),
         "aws_region": os.getenv("AWS_REGION"),
         "dynamodb_endpoint": os.getenv("DYNAMODB_ENDPOINT"),
@@ -1143,7 +1146,7 @@ def get_dummy_user_token(
         exp=None,
         max_age=None,
         aud="",
-        plain_token="dummy"
+        plain_token=encode_offset(dict(locals()))
     )
 
 
@@ -1151,7 +1154,8 @@ async def get_user_token_by_plain_token(plain_token: str | None, app_state: Stat
     if not plain_token:
         return None
     if not is_prod():
-        return get_dummy_user_token()
+        token_args = decode_offset(plain_token) if plain_token else {}
+        return get_dummy_user_token(**token_args)
     try:
         unverified_header = jwt.get_unverified_header(plain_token)
         kid = unverified_header.get("kid")
@@ -2081,7 +2085,9 @@ async def get_user_token_by_code(code: str, callback_url: str) -> UserToken:
         claims = jwt.get_unverified_claims(token)
         user_token = user_token_from_jwt_claims(claims, token)
     else:
-        user_token = get_dummy_user_token()
+        token_args = decode_offset(code)if code else {}
+        logger.critical(token_args)
+        user_token = get_dummy_user_token(**token_args)
 
     await upsert_user_by_user_token(user_token)
     return user_token

@@ -69,7 +69,7 @@
     <nav class="navbar navbar-expand-md bg-{{ header_bg }}"
          data-bs-theme="{{ header_bs }}">
         <div class="container">
-            <a class="navbar-brand link-secondary" style="outline:none" href="/">{{ site_name }}</a>
+            <a class="navbar-brand link-secondary lnk-index" style="outline:none" href="/">{{ site_name }}</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar"
                     aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
@@ -77,20 +77,20 @@
             <div class="collapse navbar-collapse" id="navbar">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url("posts") }}">Posts</a>
+                        <a class="nav-link lnk-posts" href="{{ url("posts") }}">Posts</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url("users") }}">Users</a>
+                        <a class="nav-link lnk-users" href="{{ url("users") }}">Users</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url("contacts") }}">Contacts</a>
+                        <a class="nav-link lnk-contacts" href="{{ url("contacts") }}">Contacts</a>
                     </li>
                 </ul>
                 <ul class="navbar-nav">
                     {% if cur_user %}
                         {% if check_auth(cur_user, Permission.CREATE_POST) %}
                             <li class="nav-item">
-                                <a class="nav-link" href="{{ url("new-post") }}">
+                                <a class="nav-link lnk-create-post" href="{{ url("new-post") }}">
                                     <i class="bi bi-pencil-square"></i> Create post
                                 </a>
                             </li>
@@ -104,13 +104,13 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url("logout") }}">
+                            <a class="nav-link lnk-logout" href="{{ url("logout") }}">
                                 Sign out <i class="bi bi-box-arrow-right"></i>
                             </a>
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url('login') }}">
+                            <a class="nav-link lnk-login" href="{{ url('login') }}">
                                 <i class="bi bi-box-arrow-in-right"></i> Sign in
                             </a>
                         </li>

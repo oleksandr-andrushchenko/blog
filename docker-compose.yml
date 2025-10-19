@@ -17,6 +17,26 @@ services:
     networks:
       - network
 
+  be-function-test:
+    build:
+      context: ./
+      dockerfile: Dockerfile-be-function
+    container_name: "${DOCKER_NAME}-be-function-test"
+    ports:
+      - "${TEST_BE_FUNCTION_PORT}:5000"
+    env_file:
+      - .env
+    environment:
+      ENV: ${TEST_ENV}
+      BASE_URL: "http://localhost:${TEST_BE_FUNCTION_PORT}"
+      DYNAMODB_ENDPOINT: "http://${DOCKER_NAME}-dynamodb:8000"
+      DYNAMODB_TABLE: ${TEST_DYNAMODB_TABLE}
+    volumes:
+      - ./be-function-src:/app
+      - ./.env:/.env
+    networks:
+      - network
+
   dynamodb:
     image: amazon/dynamodb-local
     container_name: "${DOCKER_NAME}-dynamodb"
@@ -35,6 +55,9 @@ services:
     container_name: "${DOCKER_NAME}-scripts"
     env_file:
       - .env
+    environment:
+      TEST_BASE_URL: "http://${DOCKER_NAME}-be-function-test:5000"
+      DYNAMODB_ENDPOINT: "http://${DOCKER_NAME}-dynamodb:8000"
     volumes:
       - ./:/app
     networks:

@@ -4,6 +4,7 @@ export
 
 DC = docker-compose
 BE_FUNCTION_CONTAINER = $(DOCKER_NAME)-be-function
+BE_FUNCTION_TEST_CONTAINER = $(DOCKER_NAME)-be-function-test
 SCRIPTS_CONTAINER = $(DOCKER_NAME)-scripts
 CODE_STACK_NAME = $(STACK_NAME)-code
 CERT_STACK_NAME = $(STACK_NAME)-cert
@@ -340,7 +341,7 @@ fetch-local-dynamodb: ## Fetch 100 records from local DynamoDB
 	@echo "📦 Fetching 100 records from $(DYNAMODB_TABLE)..."
 	AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
 	aws dynamodb scan \
-		--table-name "$(DYNAMODB_TABLE)" \
+		--table-name "$(TEST_DYNAMODB_TABLE)" \
 		--limit 100 \
 		--endpoint-url "http://localhost:$(DYNAMODB_PORT)" \
 		--region "$(AWS_REGION)" \
@@ -373,3 +374,15 @@ create-local-dynamodb-dummy-fixtures: ## Populate local DynamoDB with dummy data
 
 .PHONY: recreate-local-dynamodb
 recreate-local-dynamodb: drop-local-dynamodb create-local-dynamodb create-local-dynamodb-dummy-fixtures ## Recreate DynamoDB table in local DynamoDB & populate dummy data
+
+.PHONY: tests
+tests:
+	docker exec $(SCRIPTS_CONTAINER) pytest -o log_cli_level=INFO -o log_cli=true -v scripts/test_be.py -v -s
+
+.PHONY: tail-test-logs
+tail-test-logs: ## Tail test logs
+	docker logs -f $(BE_FUNCTION_TEST_CONTAINER)
+
+.PHONY: tail-scripts-logs
+tail-scripts-logs: ## Tail scripts logs
+	docker logs -f $(SCRIPTS_CONTAINER)

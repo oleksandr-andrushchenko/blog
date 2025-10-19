@@ -59,6 +59,7 @@ from utils import (
     get_user_url,
     NotAuthenticatedError,
     update_user_status,
+    Me,
 )
 
 from deps import (
@@ -308,7 +309,7 @@ async def login_callback(request: Request) -> RedirectResponse:
             key="session_token",
             value=user_token.plain_token,
             httponly=True,
-            secure=True,
+            secure=is_prod(),
             samesite="lax",
             max_age=user_token.max_age
         )
@@ -334,6 +335,11 @@ async def logout(request: Request) -> RedirectResponse:
 @app.post("/dummy-fixtures", name="create-dummy-fixtures")
 async def _create_dummy_fixtures() -> None:
     return await create_dummy_fixtures()
+
+
+@app.get("/me", name="me", response_model=Me, response_class=JSONResponse)
+async def post_page_by_slugs(cur_user: CurUserDep) -> Me:
+    return cur_user
 
 
 @app.get("/{slug}", name="user-by-slug", response_class=HTMLResponse)
