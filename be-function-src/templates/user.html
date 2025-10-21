@@ -75,7 +75,7 @@
                 {% include "fragments/user-status.html" %}
                 {% include "fragments/user-impressions.html" %}
                 {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
-                    <a href="{{ url("edit-user", user_id=user.id) }}" class="btn btn-outline-secondary btn-sm btn-user-edit">
+                    <a href="{{ url("edit-user", user_id=user.id) }}" class="btn btn-outline-secondary btn-sm">
                         <i class="bi bi-pencil-square"></i> Edit profile
                     </a>
                 {% endif %}
@@ -101,7 +101,7 @@
         <p class="small text-secondary">{{ posts_subtitle }}</p>
 
         {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_POST, user) %}
-            <div class="d-flex justify-content-start align-items-center gap-1 blk-posts-filter">
+            <div class="d-flex justify-content-start align-items-center gap-1">
                 <div>Filter by status:</div>
                 <div class="btn-group">
                     {% set is_published = posts_query.status == PostStatus.PUBLISHED %}

@@ -3,3 +3,4 @@ pytest
 requests
 python-dotenv
 boto3
+pyquery

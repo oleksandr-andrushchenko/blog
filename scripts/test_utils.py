@@ -48,6 +48,7 @@ def set_dynamodb_user_permissions(user_id: str, permissions: list[str]) -> None:
 
 
 def get_dynamodb_user(user_id: str) -> dict:
+    # todo: cache
     res = dynamodb_table.get_item(
         Key={
             "pk": f"USER#{user_id}",
@@ -58,6 +59,7 @@ def get_dynamodb_user(user_id: str) -> dict:
 
 
 def get_dynamodb_post(post_id: str) -> dict:
+    # todo: cache
     res = dynamodb_table.get_item(
         Key={
             "pk": f"POST#{post_id}",

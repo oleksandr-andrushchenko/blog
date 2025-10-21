@@ -34,39 +34,45 @@
             <div>
                 <h2>Popular posts</h2>
                 {% if popular_posts %}
-                    {% for post in popular_posts %}
-                        <div>
-                            <a href="{{ post_url(post) }}">
+                    <div id="popular-posts">
+                        {% for post in popular_posts %}
+                            <a href="{{ post_url(post) }}" class="post d-block">
                                 {{ post.title }}
                             </a>
-                        </div>
-                    {% endfor %}
+                        {% endfor %}
+                    </div>
                 {% else %}
-                    N/A
+                    <div>N/A</div>
                 {% endif %}
             </div>
 
             <div>
                 <h2>Popular post tags</h2>
                 {% if popular_post_tags %}
-                    {% for tag in popular_post_tags %}
-                        <a href="{{ url("posts", tags=tag.name) }}" class="btn btn-light btn-sm">
-                            {{ tag.name }}
-                        </a>
-                    {% endfor %}
+                    <div id="popular-post-tags">
+                        {% for tag in popular_post_tags %}
+                            <a href="{{ url("posts", tags=tag.name) }}" class="btn btn-light btn-sm post-tag">
+                                {{ tag.name }}
+                            </a>
+                        {% endfor %}
+                    </div>
                 {% else %}
-                    N/A
+                    <div>N/A</div>
                 {% endif %}
             </div>
 
             <div>
                 <h2>Popular users</h2>
                 {% if popular_users %}
-                    {% for user in popular_users %}
-                        {% include "fragments/user-inline.html" %}
-                    {% endfor %}
+                    <div id="popular-users">
+                        {% for user in popular_users %}
+                            {% with class_name="user" %}
+                                {% include "fragments/user-inline.html" %}
+                            {% endwith %}
+                        {% endfor %}
+                    </div>
                 {% else %}
-                    N/A
+                    <div>N/A</div>
                 {% endif %}
             </div>
         </div>
