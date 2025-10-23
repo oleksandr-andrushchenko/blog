@@ -11,10 +11,9 @@
 
 {% block content %}
     <h1>{{ post.title }}</h1>
+    <div>{{ post.content }}</div>
 
     {% include "fragments/post-meta.html" %}
-
-    <div>{{ post.content }}</div>
 
     <div class="d-flex gap-2 align-items-center">
         {% include "fragments/post-status.html" %}
