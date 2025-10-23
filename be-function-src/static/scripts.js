@@ -126,20 +126,10 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
       for (const input of fileInputs) {
         if (input.files.length === 0) continue
 
-        const publicFile = input.dataset.hasOwnProperty("publicFile")
-
-        const formData = new FormData()
-        formData.append("file", input.files[0])
-
-        const uploadResponse = await fetch(publicFile ? "/public-file" : "/private-file", {
-          method: "POST",
-          body: formData
-        })
-
-        if (!uploadResponse.ok) throw new Error("File upload failed")
+        const filename = await uploadPublicFile(input.files[0])
 
         delete data[input.name]
-        data[input.name + "name"] = await uploadResponse.json()
+        data[input.name + "name"] = filename
       }
 
       // Submit the JSON payload
@@ -590,3 +580,109 @@ $(".btn-user-ban").on("click", function () {
     }
   })
 })
+
+const uploadPublicFile = async function (file, progress = undefined) {
+  try {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    // Upload to your existing endpoint
+    const uploadResponse = await fetch("/public-file", {
+      method: "POST", body: formData
+    })
+
+    if (!uploadResponse.ok) throw new Error("File upload failed")
+
+    return await uploadResponse.json()
+  } catch (err) {
+    console.error("Image upload failed:", err)
+    throw err
+  }
+}
+
+if (window.CONFIG.init_tinymce) {
+  $("textarea.editor").tinymce({
+    skin: "bootstrap", // icons: "bootstrap",
+    plugins: "importcss insertdatetime preview autolink code fullscreen image link codesample table charmap advlist lists autosave",
+    menubar: false,
+    toolbar: "undo redo | h2 h3 blockquote | bold italic underline strikethrough | align numlist bullist | outdent indent |" + " link image table charmap codesample insertdatetime | code fullscreen preview",
+    autosave_ask_before_unload: true,
+    contextmenu: false,
+    content_css: ["default", ...window.CONFIG.css_filenames],
+    width: "100%",
+    height: 1000,
+    content_style: "body { min-height: 100%; margin: .75rem!important }",
+    browser_spellcheck: true,
+    powerpaste_allow_local_images: true,
+    powerpaste_word_import: "clean",
+    powerpaste_html_import: "clean",
+    valid_elements: "" + "img[src|alt|title|class|width|height|style]," + "h2,h3,h4,h5,h6," + "a[href|target|rel|title]," + "b/strong,i/em,u,span[class]," + "ul,ol,li," + "table[class|border|cellpadding|cellspacing],thead,tbody,tfoot,tr,th[colspan|rowspan],td[colspan|rowspan]," + "div[class],br,p,pre,code,blockquote",
+    document_base_url: window.CONFIG.base_url + "/",
+    table_default_attributes: {"class": "table"},
+    table_default_styles: {},
+    table_class_list: [{title: "Regular", value: "table"}, {
+      title: "Striped",
+      value: "table table-striped"
+    }, {title: "Bordered", value: "table table-bordered"}],
+    link_default_target: "_blank",
+    link_target_list: false,
+    link_context_toolbar: true, // image_uploadtab: true,
+    images_upload_url: "/public-file",
+    images_reuse_filename: true,
+    image_title: true,
+    images_upload_handler: async (blobInfo, progress) => {
+      const filename = await uploadPublicFile(blobInfo.blob(), progress)
+      return window.CONFIG.static_relative_url.replace("{filename}", filename)
+    },
+    image_class_list: [{title: "Responsive", value: "img-fluid"}, {
+      title: "Left",
+      value: "float-start"
+    }, {title: "Right", value: "float-end"}, {title: "Rounded", value: "rounded"}, {
+      title: "Thumbnail",
+      value: "img-thumbnail"
+    }],
+    setup: (editor) => {
+      editor.on("init", () => {
+        editor.getContainer().style.transition = "border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out"
+      })
+      editor.on("focus", () => {
+        editor.getContainer().style.boxShadow = "0 0 0 .2rem rgba(0, 123, 255, .25)"
+        editor.getContainer().style.borderColor = "#80bdff"
+      })
+      editor.on("blur", () => {
+        editor.getContainer().style.boxShadow = ""
+        editor.getContainer().style.borderColor = ""
+      })
+      editor.on("NodeChange", (e) => {
+        if (e && e.element.nodeName === "TABLE" && !e.element.className) {
+          e.element.className = "table"
+        }
+        if (e && e.element.nodeName === "IMG" && !e.element.className) {
+          e.element.className = "img-fluid"
+        }
+        if (e && e.element.nodeName === "A") {
+          e.element.target = "_blank"
+          e.element.rel = "noopener noreferrer"
+        }
+      })
+      editor.on("GetContent", function (e) {
+        e.content = e.content
+          // replace empty <p></p> with <br>
+          .replace(/<p>\s*<\/p>/g, "<br>")
+          // replace paragraph separators </p><p> with <br>
+          .replace(/<\/p>\s*<p>/g, "<br>")
+          // collapse multiple <br> or <br /> into one
+          .replace(/(<br\s*\/?>\s*){2,}/gi, "<br>")
+          // remove leading <br>s
+          .replace(/^(<br\s*\/?>\s*)+/i, "")
+          // remove trailing <br>s
+          .replace(/(<br\s*\/?>\s*)+$/i, "")
+          // final trim for extra whitespace or newlines
+          .trim()
+      })
+      editor.on("change keyup", () => {
+        tinymce.triggerSave()
+      })
+    }
+  })
+}

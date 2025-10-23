@@ -11,7 +11,7 @@
 
 {% block content %}
     <h1>{{ post.title }}</h1>
-    <div>{{ post.content }}</div>
+    <div class="overflow-auto">{{ post.content }}</div>
 
     {% include "fragments/post-meta.html" %}
 

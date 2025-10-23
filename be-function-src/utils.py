@@ -32,6 +32,8 @@ import imghdr
 from io import BytesIO
 import struct
 import random
+import bleach
+import html
 
 
 class UserToken(BaseModel):
@@ -51,8 +53,10 @@ class UserStatus(str, Enum):
     ACTIVE = "active"
     BANNED = "banned"
 
+
 class Me(BaseModel):
     id: str
+
 
 class User(BaseModel):
     id: str
@@ -192,6 +196,63 @@ class ContactMessage(BaseModel):
     created_at: int
 
 
+def sanitize_html(value):
+    if not value or not isinstance(value, str):
+        return value
+
+    escaped = html.escape(value)
+    return escaped.strip()
+
+
+def sanitize_forbidden_html(value):
+    if not value or not isinstance(value, str):
+        return value
+
+    cleaned = bleach.clean(
+        text=value,
+        tags=[
+            "h2", "h3", "h4", "h5", "h6",
+            "p", "br",
+            "b", "strong", "i", "em", "u", "span",
+            "ul", "ol", "li",
+            "a",
+            "img",
+            "blockquote",
+            "table", "thead", "tbody", "tfoot", "tr", "th", "td",
+            "div", "pre", "code"
+        ],
+        attributes={
+            "a": ["href", "title", "target", "rel"],
+            "img": ["src", "alt", "width", "height", "class", "style"],
+            "span": ["class"],
+            "div": ["class"],
+            "table": ["class", "border", "cellpadding", "cellspacing"],
+            "th": ["colspan", "rowspan"],
+            "td": ["colspan", "rowspan"]
+        },
+        protocols=["http", "https"],
+        strip=True,
+        strip_comments=True
+    )
+
+    normalized = re.sub(r"<p>\s*</p>", "<br>", cleaned, flags=re.IGNORECASE)
+    normalized = re.sub(r"</p>\s*<p>", "<br>", normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"(?:<br\s*/?>\s*){2,}", "<br>", normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"^(?:<br\s*/?>\s*)+", "", normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"(?:<br\s*/?>\s*)+$", "", normalized, flags=re.IGNORECASE)
+    normalized = normalized.strip()
+
+    return normalized
+
+
+def sanitize_tags(value):
+    if not value:
+        return []
+    # lowercase, kebab-case, dedupe
+    normalized = [to_kebab_case(t) for t in value]
+    return list(dict.fromkeys(normalized))
+
+
 class PostDTO(BaseModel):
     title: str = Field(..., min_length=20, max_length=500)
     content: str = Field(..., min_length=1000, max_length=10000)
@@ -200,11 +261,7 @@ class PostDTO(BaseModel):
     @field_validator("tags", mode="before")
     @classmethod
     def normalize_tags(cls, value):
-        if not value:
-            return []
-        # lowercase, kebab-case, dedupe
-        normalized = [to_kebab_case(t) for t in value]
-        return list(dict.fromkeys(normalized))
+        return sanitize_tags(value)
 
 
 # todo: rename to ReplacePostDTO (?)
@@ -427,6 +484,7 @@ def get_live_config(load_env=False):
         "dynamodb_endpoint": os.getenv("DYNAMODB_ENDPOINT"),
         "dynamodb_table": os.getenv("DYNAMODB_TABLE"),
         "google_analytics_id": os.getenv("GOOGLE_ANALYTICS_ID"),
+        "tinymce_api_key": os.getenv("TINYMCE_API_KEY"),
         "contact_topic_arn": os.getenv("CONTACT_TOPIC_ARN"),
         "allowed_origin": os.getenv("ALLOWED_ORIGIN"),
         "cognito_domain": os.getenv("COGNITO_DOMAIN"),  # e.g. myapp-auth.auth.us-east-1.amazoncognito.com
@@ -738,7 +796,7 @@ def get_full_url(request, name: str, **params) -> str:
     return str(url).rstrip("/")
 
 
-def static_url(path: str, with_base: bool = False) -> str:
+def get_static_url(path: str, with_base: bool = False) -> str:
     path = path.lstrip("/")
     base = get_base_url() if with_base else ""
     return f"{base}/static/{path}"
@@ -756,7 +814,7 @@ def get_jinja2_env():
     })
     jinja2_env.globals.update(get_config())
     jinja2_env.globals.update({
-        "static_url": static_url,
+        "static_url": get_static_url,
         "url": jinja2_url_for,
         "user_url": jinja2_user_url,
         "full_url": full_url_for,
@@ -1070,17 +1128,18 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
         add_dynamodb_update_transact(transacts, (f"USER#{user_id}", "META"), {"providers": providers})
         user.providers = providers
     else:
+        name = sanitize_html(build_user_name(token.name, now))
         user_item = {
             "id": user_id,
             "user_email_pk": token.email,
-            "name": build_user_name(token.name, now),
+            "name": name,
             "providers": providers,
             "status": status,
             "rating_sk": compute_rating_sk(0, now),
             "created_at_sk": now,
             "user_status_pk": f"USER#STATUS#{status.value}",
         }
-        username = build_user_username(token.name, token.username, now)
+        username = sanitize_html(build_user_username(token.name, token.username, now))
         if username:
             user_item["username"] = username
             add_dynamodb_put_transact(transacts, (f"USER_SLUG#{username}", "META"), {"user_id": user_id},
@@ -1226,17 +1285,20 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
     now = utc_now()
     status = PostStatus.UNPUBLISHED
     post_id = str(uuid.uuid4())
-    slug = to_kebab_case(post_dto.title)
+    title = sanitize_html(post_dto.title)
+    content = sanitize_forbidden_html(post_dto.content)
+    tags = sanitize_tags(post_dto.tags)
+    slug = to_kebab_case(title)
 
     transacts = []
 
     post_item = {
         "id": post_id,
-        "title": post_dto.title,
+        "title": title,
         "post_slug": slug,
         "user_id": user.id,
-        "content": post_dto.content,
-        "tags": post_dto.tags,
+        "content": content,
+        "tags": tags,
         "rating_sk": compute_rating_sk(0, now),
         "status": status,
         "created_at_sk": now,
@@ -1269,18 +1331,23 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
     changes = update_post_dto.model_dump(exclude_unset=True)
     if not changes:
         return
+    for k, v in changes.items():
+        if k == "title":
+            changes[k] = sanitize_html(v)
+        elif k == "content":
+            changes[k] = sanitize_forbidden_html(v)
+        elif k == "tags":
+            changes[k] = sanitize_tags(v)
 
     await get_dynamodb_table()
     transacts = []
 
     if "title" in changes:
-        # todo: normalize like username
         new_slug = to_kebab_case(changes["title"])
         old_slug = post.slug
         if old_slug == new_slug:
             pass
-        add_dynamodb_delete_transact(transacts, (f"POST_SLUG#{old_slug}", "META"))
-        add_dynamodb_put_transact(transacts, (f"POST_SLUG#{new_slug}", "META"), {"post_id": post.id}, new_pk_only=True)
+        add_dynamodb_put_transact(transacts, (f"POST_SLUG#{new_slug}", "META"), {"post_id": post.id})
         changes["post_slug"] = new_slug
 
     add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), changes)
@@ -1293,6 +1360,8 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
         raise
 
     for key, value in changes.items():
+        if key == "post_slug":
+            key = "slug"
         setattr(post, key, value)
 
 
@@ -1576,12 +1645,14 @@ async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User
     changes = update_user_dto.model_dump(exclude_unset=True)
     if not changes:
         return
-
-    await get_dynamodb_table()
-    transacts = []
+    for k, v in changes.items():
+        changes[k] = sanitize_html(v)
 
     if changes.get("website"):
         changes["website"] = str(changes["website"])
+
+    await get_dynamodb_table()
+    transacts = []
 
     avatar_action = changes.pop("avatar_action", "keep")
 
@@ -1599,8 +1670,7 @@ async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User
         old_slug = user.username
         if old_slug == new_slug:
             pass
-        add_dynamodb_delete_transact(transacts, (f"USER_SLUG#{old_slug}", "META"))
-        add_dynamodb_put_transact(transacts, (f"USER_SLUG#{new_slug}", "META"), {"user_id": user.id}, new_pk_only=True)
+        add_dynamodb_put_transact(transacts, (f"USER_SLUG#{new_slug}", "META"), {"user_id": user.id})
         posts = await get_latest_published_posts_by_user(user)
         for post in posts:
             add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {"user_slug": new_slug})
@@ -1634,7 +1704,8 @@ async def update_user_status(user: User, update_user_status_dto: UpdateUserStatu
     changes = update_user_status_dto.model_dump(exclude_unset=True)
     if not changes:
         return
-
+    for k, v in changes.items():
+        changes[k] = sanitize_html(v)
     if not "comment" in changes:
         changes["comment"] = None
 
@@ -1870,7 +1941,8 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
     changes = update_post_status_dto.model_dump(exclude_unset=True)
     if not changes:
         return
-
+    for k, v in changes.items():
+        changes[k] = sanitize_html(v)
     if not "comment" in changes:
         changes["comment"] = None
 
@@ -1997,14 +2069,17 @@ async def create_contact_message(message_dto: ContactMessageDTO, user: User = No
     now = utc_now()
     message_id = str(uuid.uuid4())
 
+    name = sanitize_html(message_dto.name)
+    message = sanitize_html(message_dto.message)
+
     if is_prod():
         async with aioboto3_session().client("sns") as sns_client:
             text = (
                 f"New contact form submission:\n"
                 f"ID: {message_id}\n"
-                f"Name: {message_dto.name}\n"
+                f"Name: {name}\n"
                 f"Email: {message_dto.email}\n"
-                f"Message: {message_dto.message}\n"
+                f"Message: {message}\n"
                 f"User ID: {user.id if user else 'N/A'}"
             )
             await sns_client.publish(
@@ -2017,9 +2092,9 @@ async def create_contact_message(message_dto: ContactMessageDTO, user: User = No
         "pk": f"CONTACT_MESSAGE#{message_id}",
         "sk": "META",
         "message_id": message_id,
-        "name": message_dto.name,
+        "name": name,
         "email": message_dto.email,
-        "message": message_dto.message,
+        "message": message,
         # todo: rename to created_at
         "created_at_sk": now,
     }
@@ -2085,7 +2160,7 @@ async def get_user_token_by_code(code: str, callback_url: str) -> UserToken:
         claims = jwt.get_unverified_claims(token)
         user_token = user_token_from_jwt_claims(claims, token)
     else:
-        token_args = decode_offset(code)if code else {}
+        token_args = decode_offset(code) if code else {}
         logger.critical(token_args)
         user_token = get_dummy_user_token(**token_args)
 

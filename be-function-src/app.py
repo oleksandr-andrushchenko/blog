@@ -30,7 +30,7 @@ from utils import (
     get_html_content,
     get_full_url,
     configure_app_state,
-    get_url,
+    get_post_url,
     create_post,
     create_contact_message,
     get_user_token_by_code,
@@ -136,7 +136,7 @@ async def new_post(cur_user: CurUserDep) -> str:
 async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request) -> str:
     try:
         post = await create_post(post_dto, cur_user)
-        return get_url(request, "post", post_id=post.id)
+        return get_post_url(request, post)
     except SlugDuplicationError as e:
         raise HTTPException(
             status_code=HTTP_409_CONFLICT,
@@ -183,7 +183,7 @@ async def edit_post(post: PostDep, cur_user: CurUserDep) -> str:
 async def _update_post(post: PostDep, update_post_dto: UpdatePostDTODep, cur_user: CurUserDep, request: Request) -> str:
     try:
         await update_post(post, update_post_dto, cur_user)
-        return get_url(request, "post", post_id=post.id)
+        return get_post_url(request, post)
     except SlugDuplicationError as e:
         raise HTTPException(
             status_code=HTTP_409_CONFLICT,
@@ -195,7 +195,7 @@ async def _update_post(post: PostDep, update_post_dto: UpdatePostDTODep, cur_use
 async def _update_post_status(post: PostDep, update_post_status_dto: UpdatePostStatusDTODep,
                               cur_user: CurUserDep, request: Request) -> str:
     await update_post_status(post, update_post_status_dto, cur_user)
-    return get_url(request, "post", post_id=post.id)
+    return get_post_url(request, post)
 
 
 @app.post("/posts/{post_id}/impression", name="update-post-impression", status_code=HTTP_204_NO_CONTENT)
@@ -252,7 +252,7 @@ async def user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user: OptC
 async def _update_user_status(user: UserDep, update_user_status_dto: UpdateUserStatusDTODep,
                               cur_user: CurUserDep, request: Request) -> str:
     await update_user_status(user, update_user_status_dto, cur_user)
-    return get_url(request, "user", user_id=user.id)
+    return get_user_url(request, user)
 
 
 @app.post("/users/{user_id}/impression", name="update-user-impression", status_code=HTTP_204_NO_CONTENT)

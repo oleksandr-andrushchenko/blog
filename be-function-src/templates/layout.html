@@ -1,7 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 
+{% set css_filenames = [
+    "https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css",
+    "https://fonts.googleapis.com/css2?family=Figtree:wght@400;700&family=Cal+Sans&display=swap",
+    static_url('styles.css'),
+] %}
+
 <head>
+    <base href="{{ base_url }}">
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -55,12 +62,9 @@
 
     <link rel="canonical" href="{% block canonical_url %}{% endblock %}">
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css"
-          integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    <link rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;700&family=Cal+Sans&display=swap">
-    <link rel="stylesheet" href="{{ static_url('styles.css') }}">
+    {% for css_filename in css_filenames %}
+        <link rel="stylesheet" href="{{ css_filename }}">
+    {% endfor %}
 </head>
 
 <body class="d-flex flex-column min-vh-100">
@@ -91,7 +95,7 @@
                         {% if check_auth(cur_user, Permission.CREATE_POST) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url("new-post") }}">
-                                    <i class="bi bi-pencil-square"></i> Create post
+                                    <i class="bi bi-pencil-square"></i> New post
                                 </a>
                             </li>
                         {% endif %}
@@ -142,6 +146,7 @@
         {% endif %}
     </div>
 </footer>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
 <!--bs-->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q"
@@ -156,6 +161,12 @@
 <!--jquery-->
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"
         integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+<!--editor-->
+{% if tinymce_api_key %}
+    <script src="https://cdn.tiny.cloud/1/{{ tinymce_api_key }}/tinymce/8/tinymce.min.js" referrerpolicy="origin"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tinymce/tinymce-jquery/dist/tinymce-jquery.min.js"></script>
+{% endif %}
 <!--custom-->
 <script>
   window.CONFIG = {
@@ -163,7 +174,11 @@
     "update_post_status_url": "{{ url("update-post-status", post_id="{post_id}") }}",
     "update_post_impression_url": "{{ url("update-post-impression", post_id="{post_id}") }}",
     "update_user_status_url": "{{ url("update-user-status", user_id="{user_id}") }}",
-    "update_user_impression_url": "{{ url("update-user-impression", user_id="{user_id}") }}"
+    "update_user_impression_url": "{{ url("update-user-impression", user_id="{user_id}") }}",
+    "init_tinymce": {% if tinymce_api_key %}true{% else %}false{% endif %},
+    "css_filenames": {{ css_filenames | tojson | safe }},
+    "base_url": "{{ base_url }}",
+    "static_relative_url": "{{ static_url("{filename}") }}"
   }
 </script>
 <script src="{{ static_url('scripts.js') }}"></script>

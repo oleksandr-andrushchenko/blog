@@ -7,6 +7,18 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .navbar-brand {
     font-optical-sizing: auto;
 }
 
+.tox-tinymce .tox-statusbar {
+    display: none !important;
+}
+
+.breadcrumb {
+    margin: 1rem 0
+}
+
+.form-control.h1 {
+    font-size: 2.5rem;
+}
+
 .avatar-letter {
     font-weight: bold;
 }
