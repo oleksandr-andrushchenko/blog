@@ -7,7 +7,7 @@ import datetime
 import logging
 import sys
 import httpx
-from enum import Enum
+from enum import StrEnum
 from urllib.parse import quote
 from jose import jwt
 from jose.exceptions import JWTError
@@ -49,7 +49,7 @@ class UserToken(BaseModel):
     plain_token: str | None = None  # plain token
 
 
-class UserStatus(str, Enum):
+class UserStatus(StrEnum):
     ACTIVE = "active"
     BANNED = "banned"
 
@@ -163,7 +163,7 @@ class UpdateUserStatusDTO(BaseModel):
         return value
 
 
-class UserImpressionAction(str, Enum):
+class UserImpressionAction(StrEnum):
     FOLLOW = "follow"
     BLOCK = "block"
 
@@ -301,7 +301,7 @@ class BaseQueryDTO(BaseModel):
         return False
 
 
-class UserQueryType(str, Enum):
+class UserQueryType(StrEnum):
     LATEST = "latest"
     POPULAR = "popular"
 
@@ -325,13 +325,13 @@ class PublicTag(BaseModel):
     name: str
 
 
-class PostStatus(str, Enum):
+class PostStatus(StrEnum):
     UNPUBLISHED = "unpublished"
     PUBLISHED = "published"
     REJECTED = "rejected"
 
 
-class PostQueryType(str, Enum):
+class PostQueryType(StrEnum):
     LATEST = "latest"
     POPULAR = "popular"
 
@@ -355,7 +355,7 @@ class UpdatePostStatusDTO(BaseModel):
         return value
 
 
-class PostImpressionAction(str, Enum):
+class PostImpressionAction(StrEnum):
     LIKE = "like"
     DISLIKE = "dislike"
 
@@ -392,7 +392,7 @@ class Post(BaseModel):
     offset: str | None = None
 
 
-class Permission(str, Enum):
+class Permission(StrEnum):
     REGULAR = "regular"
     ROOT = "root"
     ALL = "*"
@@ -1137,7 +1137,7 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
             "status": status,
             "rating_sk": compute_rating_sk(0, now),
             "created_at_sk": now,
-            "user_status_pk": f"USER#STATUS#{status.value}",
+            "user_status_pk": f"USER#STATUS#{status}",
         }
         username = sanitize_html(build_user_username(token.name, token.username, now))
         if username:
@@ -1302,8 +1302,8 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
         "rating_sk": compute_rating_sk(0, now),
         "status": status,
         "created_at_sk": now,
-        "post_status_pk": f"POST#STATUS#{status.value}",
-        "post_user_status_pk": f"POST#USER#{user.id}#STATUS#{status.value}",
+        "post_status_pk": f"POST#STATUS#{status}",
+        "post_user_status_pk": f"POST#USER#{user.id}#STATUS#{status}",
     }
     if user.username:
         post_item["user_slug"] = user.username
@@ -1717,7 +1717,7 @@ async def update_user_status(user: User, update_user_status_dto: UpdateUserStatu
 
     add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), {
         **changes,
-        "user_status_pk": f"USER#STATUS#{status.value}",
+        "user_status_pk": f"USER#STATUS#{status}",
     })
 
     # logger.debug(transacts)
@@ -1846,7 +1846,7 @@ async def get_latest_posts(query_dto: PostQueryDTO = None, cur_user: User = None
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="POSTS_BY_STATUS_CREATED_AT",
-        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{query_dto.status.value}"),
+        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{query_dto.status}"),
         map_fn=post_from_dynamodb,
     )
 
@@ -1863,7 +1863,7 @@ async def get_popular_posts(query_dto: PostQueryDTO = None, cur_user: User = Non
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="POSTS_BY_STATUS_RATING",
-        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{query_dto.status.value}"),
+        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{query_dto.status}"),
         map_fn=post_from_dynamodb,
     )
 
@@ -1958,8 +1958,8 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
     owner = await find_user(post.user_id)
     if owner:
         deltas = {
-            f"{old_status.value}_posts_count": -1,
-            f"{status.value}_posts_count": 1,
+            f"{old_status}_posts_count": -1,
+            f"{status}_posts_count": 1,
         }
         add_dynamodb_update_transact(transacts, (f"USER#{owner.id}", "META"), deltas=deltas)
         for key, delta in deltas.items():
@@ -2010,8 +2010,8 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
 
     add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {
         **changes,
-        "post_status_pk": f"POST#STATUS#{status.value}",
-        "post_user_status_pk": f"POST#USER#{post.user_id}#STATUS#{status.value}",
+        "post_status_pk": f"POST#STATUS#{status}",
+        "post_user_status_pk": f"POST#USER#{post.user_id}#STATUS#{status}",
     })
 
     # logger.debug(transacts)
@@ -2191,7 +2191,7 @@ async def get_latest_users(query_dto: UserQueryDTO = None, cur_user: User = None
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="USERS_BY_STATUS_CREATED_AT",
-        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{query_dto.status.value}"),
+        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{query_dto.status}"),
         map_fn=user_from_dynamodb,
     )
 
@@ -2237,13 +2237,13 @@ async def get_latest_posts_by_user(user: User, query_dto: PostQueryDTO = None, c
             raise NotAuthenticatedError()
         verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POST, user)
 
-    if getattr(user, f"{query_dto.status.value}_posts_count") == 0:
+    if getattr(user, f"{query_dto.status}_posts_count") == 0:
         return []
 
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="POSTS_BY_USER_STATUS_CREATED_AT",
-        key_condition_expr=Key("post_user_status_pk").eq(f"POST#USER#{user.id}#STATUS#{query_dto.status.value}"),
+        key_condition_expr=Key("post_user_status_pk").eq(f"POST#USER#{user.id}#STATUS#{query_dto.status}"),
         map_fn=post_from_dynamodb,
     )
 
@@ -2260,7 +2260,7 @@ async def get_popular_users(query_dto: UserQueryDTO = None, cur_user: User = Non
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="USERS_BY_STATUS_RATING",
-        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{query_dto.status.value}"),
+        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{query_dto.status}"),
         map_fn=user_from_dynamodb,
     )
 
@@ -2408,8 +2408,8 @@ async def update_user_impression(
 
 
 def enum_to_value(obj):
-    if isinstance(obj, Enum):
-        return obj.value
+    if isinstance(obj, StrEnum):
+        return obj
     elif isinstance(obj, dict):
         return {k: enum_to_value(v) for k, v in obj.items()}
     elif isinstance(obj, list):
