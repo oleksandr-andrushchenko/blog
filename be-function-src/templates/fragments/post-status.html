@@ -1,9 +1,9 @@
 {% if post.status != PostStatus.PUBLISHED and cur_user and check_auth(cur_user, Permission.UPDATE_POST_STATUS, post) %}
-    <div class="input-group w-50">
+    <div class="input-group">
         <!-- Publish Post -->
         {% set is_published = post.status == PostStatus.PUBLISHED %}
         <button type="button"
-                class="btn btn-outline-success btn-sm {% if is_published %}active{% else %}btn-post-publish{% endif %}"
+                class="btn {% if is_published %}btn-light active{% else %}btn-light btn-post-publish{% endif %}"
                 data-post-id="{{ post.id }}"
                 data-status="{{ PostStatus.PUBLISHED.value }}"
                 {% if not is_published %}
@@ -17,7 +17,7 @@
         <!-- Unpublish Post -->
         {% set is_unpublished = post.status == PostStatus.UNPUBLISHED %}
         <button type="button"
-                class="btn btn-outline-warning btn-sm {% if is_unpublished %}active{% else %}btn-post-unpublish{% endif %}"
+                class="btn {% if is_unpublished %}btn-light active{% else %}btn-light btn-post-unpublish{% endif %}"
                 data-post-id="{{ post.id }}"
                 data-status="{{ PostStatus.UNPUBLISHED.value }}"
                 {% if not is_unpublished %}
@@ -31,14 +31,14 @@
         <!-- Reject Post -->
         {% set is_rejected = post.status == PostStatus.REJECTED %}
         <input type="text"
-               class="form-control form-control-sm"
+               class="form-control"
                name="comment"
                id="comment"
                placeholder="Rejection reason..."
                value="{{ post.comment if post and post.comment else '' }}"
                {% if is_rejected %}disabled{% endif %}>
         <button type="button"
-                class="btn btn-outline-danger btn-sm {% if is_rejected %}active{% else %}btn-post-reject{% endif %}"
+                class="btn {% if is_rejected %}btn-light active{% else %}btn-light btn-post-reject{% endif %}"
                 data-post-id="{{ post.id }}"
                 data-status="{{ PostStatus.REJECTED.value }}"
                 {% if not is_rejected %}

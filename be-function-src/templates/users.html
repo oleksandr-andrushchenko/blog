@@ -25,57 +25,76 @@
 
     <p class="small text-secondary">{{ subtitle }}</p>
 
-    <form action="{{ url("users") }}" method="get">
-        <input type="hidden" name="type" value="{{ users_query.type.value }}">
-        <input type="hidden" name="status" value="{{ users_query.status.value }}">
-
-        <div class="d-flex justify-content-start align-items-center gap-1">
-            {% if cur_user and check_auth(cur_user, Permission.READ_NON_ACTIVE_USER) %}
-                <div>Filter by status:</div>
-                <div class="btn-group">
-                    {% set is_active = users_query.status == UserStatus.ACTIVE %}
-                    <a href="{{ url("users", **users_query.get_dict({"status": None if is_active else UserStatus.ACTIVE.value})) }}"
-                       class="btn btn-outline-success btn-sm {% if is_active %}active{% endif %}">
-                        {{ val_map[UserStatus.ACTIVE]["title"] }}
-                    </a>
-
-                    {% set is_banned = users_query.status == UserStatus.BANNED %}
-                    <a href="{{ url("users", **users_query.get_dict({"status": None if is_banned else UserStatus.BANNED.value})) }}"
-                       class="btn btn-outline-danger btn-sm {% if is_banned %}active{% endif %}">
-                        {{ val_map[UserStatus.BANNED]["title"] }}
-                    </a>
+    <div class="row">
+        <div class="col col-8">
+            {% if users %}
+                <div class="row g-3" id="users">
+                    {% include "fragments/users.html" %}
                 </div>
-            {% endif %}
 
-            <div>Show:</div>
-            {% set is_popular = users_query.type == UserQueryType.POPULAR %}
-            <a href="{{ url("users", **users_query.get_dict({"type": None if is_popular else UserQueryType.POPULAR.value})) }}"
-               class="btn btn-outline-primary btn-sm {% if is_popular %}active{% endif %}">
-                <i class="bi bi-star{{ "-fill" if is_popular else "" }}"></i> {{ val_map[UserQueryType.POPULAR]["title"] }}
-                first
-            </a>
-
-            {% if users_query.has_params() %}
-                <a href="{{ url("users") }}" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-x-lg"></i> Reset
-                </a>
-            {% endif %}
-        </div>
-    </form>
-
-    {% if users %}
-        <div class="row g-3" id="users">
-            {% include "fragments/users.html" %}
-        </div>
-
-        {% with limit=users_query.limit,
+                {% with limit=users_query.limit,
             offset=users[-1].offset,
             count=users|length,
             url=url("users-fragment", **users_query.get_dict()),
             container="#users" %}
-            {% include "fragments/load-more-button.html" %}
-        {% endwith %}
-    {% else %}
-        <div>N/A</div>
-    {% endif %}
+                    {% include "fragments/load-more-button.html" %}
+                {% endwith %}
+            {% else %}
+                <div>N/A</div>
+            {% endif %}
+        </div>
+        <div class="col col-4">
+            <form action="{{ url("users") }}" method="get">
+                <input type="hidden" name="type" value="{{ users_query.type }}">
+                <input type="hidden" name="status" value="{{ users_query.status }}">
+
+                <div class="d-flex flex-column gap-1">
+                    {% if cur_user and check_auth(cur_user, Permission.READ_NON_ACTIVE_USER) %}
+                        <div>
+                            Filter by status:
+                            <div class="btn-group">
+                                {% set is_active = users_query.status == UserStatus.ACTIVE %}
+                                <a href="{{ url("users", **users_query.get_dict({"status": None if is_active else UserStatus.ACTIVE})) }}"
+                                   class="btn {% if is_active %}btn-success active{% else %}btn-light{% endif %}">
+                                    {{ val_map[UserStatus.ACTIVE]["title"] }}
+                                </a>
+
+                                {% set is_banned = users_query.status == UserStatus.BANNED %}
+                                <a href="{{ url("users", **users_query.get_dict({"status": None if is_banned else UserStatus.BANNED})) }}"
+                                   class="btn {% if is_banned %}btn-danger active{% else %}btn-light{% endif %}">
+                                    {{ val_map[UserStatus.BANNED]["title"] }}
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <div>
+                        Show:
+                        <div class="btn-group">
+                            {% set is_latest = users_query.type == UserQueryType.LATEST %}
+                            <a href="{{ url("users", **users_query.get_dict({"type": None if is_latest else UserQueryType.LATEST})) }}"
+                               class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %}">
+                                <i class="bi bi-clock{{ "-fill" if is_latest else "" }}"></i> {{ val_map[UserQueryType.LATEST]["title"] }}
+                                first
+                            </a>
+                            {% set is_popular = users_query.type == UserQueryType.POPULAR %}
+                            <a href="{{ url("users", **users_query.get_dict({"type": None if is_popular else UserQueryType.POPULAR})) }}"
+                               class="btn {% if is_popular %}btn-primary active{% else %}btn-light{% endif %}">
+                                <i class="bi bi-star{{ "-fill" if is_popular else "" }}"></i> {{ val_map[UserQueryType.POPULAR]["title"] }}
+                                first
+                            </a>
+                        </div>
+                    </div>
+
+                    {% if users_query.has_params() %}
+                        <div>
+                            <a href="{{ url("users") }}" class="btn btn-light">
+                                <i class="bi bi-x-lg"></i> Reset
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
 {% endblock %}

@@ -14,7 +14,7 @@
     <p class="small text-secondary">Contact us</p>
 
     <div class="row">
-        <div class="col-12 col-md-6">
+        <div class="col col-8">
             <form class="row g-3" id="contact-form" novalidate>
                 <label class="col-12">
                     <input type="text" class="form-control" id="name" name="name" placeholder="Your Name"
@@ -29,14 +29,14 @@
                               required></textarea>
                 </label>
                 <div class="col-12">
-                    <button type="submit" class="btn btn-secondary">
+                    <button type="submit" class="btn btn-btn-light">
                         Send Message <i class="bi bi-chevron-right"></i>
                     </button>
                 </div>
             </form>
         </div>
 
-        <div class="col-12 col-md-6 mt-5 mt-md-0 text-center text-md-start">
+        <div class="col col-4">
             <h3 class="mb-4">Contact details</h3>
             <div class="d-flex flex-column gap-3">
                 {% if contact_phone_id %}

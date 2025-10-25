@@ -1,10 +1,5 @@
-body, * {
-    font-family: 'Figtree', sans-serif;
-}
-
-h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .navbar-brand {
-    font-family: "Cal Sans", sans-serif;
-    font-optical-sizing: auto;
+.tox-tinymce {
+    border: 0 !important;
 }
 
 .tox-tinymce .tox-statusbar {
@@ -17,6 +12,7 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .navbar-brand {
 
 .form-control.h1 {
     font-size: 2.5rem;
+    font-weight: 500;
 }
 
 .avatar-letter {

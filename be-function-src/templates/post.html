@@ -10,18 +10,32 @@
 {% endblock %}
 
 {% block content %}
-    <h1>{{ post.title }}</h1>
-    <div class="overflow-auto">{{ post.content }}</div>
+    <div class="row">
+        <h1 class="col col-8">{{ post.title }}</h1>
+    </div>
 
-    {% include "fragments/post-meta.html" %}
+    <p class="small text-secondary">
+        By <a href="{{ user_url(post_author) }}" class="link-secondary">{{ post_author.name }}</a>,
+        Published on
+        <time>{{ (post.created_at / 1000) | unix_to_full_date }}</time>
+    </p>
 
-    <div class="d-flex gap-2 align-items-center">
-        {% include "fragments/post-status.html" %}
-        {% include "fragments/post-impressions.html" %}
-        {% if post.status != PostStatus.PUBLISHED and cur_user and check_auth(cur_user, Permission.UPDATE_POST, post) %}
-            <a href="{{ url("edit-post", post_id=post.id) }}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-pencil-square"></i> Edit post
-            </a>
-        {% endif %}
+    <div class="row">
+        <section class="col col-8 overflow-auto">
+            {{ post.content }}
+        </section>
+
+        <div class="col col-4 d-flex flex-column gap-1">
+            {% include "fragments/post-meta.html" %}
+            {% include "fragments/post-status.html" %}
+            {% include "fragments/post-impressions.html" %}
+            {% if post.status != PostStatus.PUBLISHED and cur_user and check_auth(cur_user, Permission.UPDATE_POST, post) %}
+                <div>
+                    <a href="{{ url("edit-post", post_id=post.id) }}" class="btn btn-light">
+                        <i class="bi bi-pencil-square"></i> Edit post
+                    </a>
+                </div>
+            {% endif %}
+        </div>
     </div>
 {% endblock %}

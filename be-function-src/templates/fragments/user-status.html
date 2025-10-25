@@ -1,9 +1,9 @@
 {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER_STATUS, user) and cur_user.id != user.id %}
-    <div class="input-group w-50">
+    <div class="input-group">
         <!-- Activate User -->
         {% set is_activated = user.status == UserStatus.ACTIVE %}
         <button type="button"
-                class="btn btn-outline-success btn-sm {% if is_activated %}active{% else %}btn-user-activate{% endif %}"
+                class="btn {% if is_activated %}btn-success active{% else %}btn-light btn-user-activate{% endif %}"
                 data-user-id="{{ user.id }}"
                 data-status="{{ UserStatus.ACTIVE.value }}"
                 {% if not is_activated %}
@@ -17,14 +17,14 @@
         <!-- Ban User -->
         {% set is_banned = user.status == UserStatus.BANNED %}
         <input type="text"
-               class="form-control form-control-sm"
+               class="form-control"
                name="comment"
                id="comment"
                placeholder="Ban reason..."
                value="{{ user.comment if user and user.comment else '' }}"
                {% if is_banned %}disabled{% endif %}>
         <button type="button"
-                class="btn btn-outline-danger btn-sm {% if is_banned %}active{% else %}btn-user-ban{% endif %}"
+                class="btn {% if is_banned %}btn-danger active{% else %}btn-light btn-user-ban{% endif %}"
                 data-user-id="{{ user.id }}"
                 data-status="{{ UserStatus.BANNED.value }}"
                 {% if not is_banned %}

@@ -4,11 +4,11 @@
     <div><b class="following-count">{{ user.following_count }}</b> Following</div>
 
     {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER_IMPRESSION, user) and cur_user.id != user.id %}
-        <!-- Follow / Unfollow Button -->
         <div class="btn-group">
+            <!-- Follow / Unfollow Button -->
             {% set is_followed = user_impression and user_impression.action == UserImpressionAction.FOLLOW %}
             <button type="button"
-                    class="btn btn-outline-success btn-sm btn-user-follow {% if is_followed %}active{% endif %}"
+                    class="btn btn-user-follow {% if is_followed %}btn-success active{% else %}btn-light{% endif %}"
                     data-user-id="{{ user.id }}"
                     data-action="{{ UserImpressionAction.FOLLOW.value }}"
                     data-bs-toggle="tooltip"
@@ -20,7 +20,7 @@
             <!-- Block / Unblock Button -->
             {% set is_blocked = user_impression and user_impression.action == UserImpressionAction.BLOCK %}
             <button type="button"
-                    class="btn btn-outline-danger btn-sm btn-user-block {% if is_blocked %}active{% endif %}"
+                    class="btn btn-user-block {% if is_blocked %}btn-danger active{% else %}btn-light{% endif %}"
                     data-user-id="{{ user.id }}"
                     data-action="{{ UserImpressionAction.BLOCK.value }}"
                     data-bs-toggle="tooltip"

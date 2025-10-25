@@ -1,0 +1,211 @@
+<div class="row">
+    <div class="col col-8">
+        <form class="d-flex flex-column gap-2" id="user-form" novalidate>
+            <div class="row align-items-center g-3">
+                <div class="col col-2">
+                    {% include "fragments/user-avatar.html" %}
+                </div>
+
+                <div class="col col-2">
+                    <div class="form-check text-decoration-underline">
+                        Avatar action
+                    </div>
+
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="avatar_action" id="keep-avatar" value="keep"
+                               checked>
+                        <label class="form-check-label" for="keep-avatar">Keep current</label>
+                    </div>
+
+                    {% if user and user.avatar_filename %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="avatar_action" id="delete-avatar"
+                                   value="delete">
+                            <label class="form-check-label" for="delete-avatar">Delete current</label>
+                        </div>
+                    {% endif %}
+
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="avatar_action" id="replace-avatar"
+                               value="replace">
+                        <label class="form-check-label" for="replace-avatar">Upload new</label>
+                    </div>
+                </div>
+
+                <div class="col col-8" id="upload-avatar" style="display:none">
+                    <input type="file" class="form-control" id="avatar_file" name="avatar_file"
+                           placeholder="Avatar" data-public-file>
+                </div>
+            </div>
+
+            <div class="row">
+                <label for="name" class="col-sm-2 col-form-label">Name</label>
+                <div class="col-sm-10">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person-circle"></i></span>
+                        <input type="text" class="form-control" id="name" name="name" placeholder="Name"
+                               value="{{ user.name if user and user.name else "" }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <label for="username" class="col-sm-2 col-form-label">Username</label>
+                <div class="col-sm-10">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
+                        <input type="text" class="form-control" id="username" name="username" placeholder="Username"
+                               value="{{ user.username if user and user.username else "" }}">
+                    </div>
+                    <div class="form-text">Your public page URL</div>
+                </div>
+            </div>
+
+            <div class="row">
+                <label for="headline" class="col-sm-2 col-form-label">Headline</label>
+                <div class="col-sm-10">
+                    <input type="text" class="form-control" id="headline" name="headline" placeholder="Headline"
+                           value="{{ user.headline if user and user.headline else "" }}">
+                </div>
+            </div>
+
+            <div class="row">
+                <label for="about" class="col-sm-2 col-form-label">About</label>
+                <div class="col-sm-10">
+                    <textarea class="form-control" id="about" name="about" placeholder="About"
+                              rows="6">{{ user.about if user and user.about else "" }}</textarea>
+                </div>
+            </div>
+
+            <div class="row">
+                <label for="website" class="col-sm-2 col-form-label">Website</label>
+                <div class="col-sm-10">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="website" name="website" placeholder="Website"
+                               value="{{ user.website if user and user.website else "" }}">
+                        <span class="input-group-text"><i class="bi bi-box-arrow-up-right"></i></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <label for="address" class="col-sm-2 col-form-label">Address</label>
+                <div class="col-sm-10">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-geo"></i></span>
+                        <input type="text" class="form-control" id="address" name="address" placeholder="Address"
+                               value="{{ user.address if user and user.address else "" }}">
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <button type="submit" class="btn btn-light">
+                    Update profile <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const uploadDiv = document.getElementById("upload-avatar")
+    const avatarRadios = document.querySelectorAll("input[name=\"avatar_action\"]")
+
+    // Initially hide the upload div
+    uploadDiv.style.display = "none"
+
+    avatarRadios.forEach(radio => {
+      radio.addEventListener("change", () => {
+        if (radio.value === "replace" && radio.checked) {
+          uploadDiv.style.display = "block"
+        } else if (radio.checked) {
+          uploadDiv.style.display = "none"
+        }
+      })
+    })
+
+    handleFormSubmit("#user-form", "{{ url('update-user', user_id=user.id) if user else '' }}", {
+      method: "{{ 'PATCH' if user else 'POST' }}",
+      rules: {
+        avatar_file: [
+          {
+            rule: "required",
+            errorMessage: "Avatar is required"
+          },
+          {
+            rule: "files",
+            value: {
+              files: {
+                extensions: ["jpeg", "jpg", "png"],
+                maxSize: 10000000,
+                minSize: 1000,
+                types: ["image/jpeg", "image/jpg", "image/png"]
+              }
+            }
+          }
+        ],
+        name: [
+          {rule: "required"},
+          {rule: "minLength", value: 1},
+          {rule: "maxLength", value: 100}
+        ],
+        username: [
+          {rule: "minLength", value: 3},
+          {rule: "maxLength", value: 30},
+          {
+            rule: "customRegexp",
+            value: /^[a-z0-9-]+$/,
+            errorMessage: "Username must be lowercase alphanumeric and may include single dashes only"
+          },
+          {
+            rule: "custom",
+            validator: (value) => !value.startsWith("-") && !value.endsWith("-"),
+            errorMessage: "Username cannot start or end with a dash"
+          },
+          {
+            rule: "custom",
+            validator: (value) => !value.includes("--"),
+            errorMessage: "Username cannot contain consecutive dashes"
+          },
+          {
+            rule: "custom",
+            validator: (value) => {
+              const _username_blacklist = [
+                "posts", "posts-fragment", "contacts",
+                "post-tags", "users", "users-fragment",
+                "dummy-fixtures"
+              ]
+              return !_username_blacklist.includes(value)
+            },
+            errorMessage: "This username is reserved"
+          }
+        ],
+        headline: [
+          {rule: "minLength", value: 1},
+          {rule: "maxLength", value: 150}
+        ],
+        about: [
+          {rule: "minLength", value: 1},
+          {rule: "maxLength", value: 2000}
+        ],
+        website: [
+          {
+            rule: "customRegexp",
+            value: /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/,
+            errorMessage: "Website must be a valid URL"
+          }
+        ],
+        address: [
+          {rule: "minLength", value: 1},
+          {rule: "maxLength", value: 255}
+        ]
+      },
+      onSuccess: (res) => {
+        if (res) window.location.href = res
+      },
+      successMessage: "Profile updated!"
+    })
+  })
+</script>

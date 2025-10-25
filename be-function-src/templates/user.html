@@ -22,40 +22,101 @@
 
 {% block content %}
     <div class="row">
-        <div class="col col-2">
-            {% include "fragments/user-avatar.html" %}
-        </div>
-        <div class="col col-10">
-            <h1 class="m-0">{{ user.name }}</h1>
-
-            {% if user.username %}
-                <div>
-                    @{{ user.username }}
+        <div class="col col-8">
+            <div class="row align-items-center">
+                <div class="col col-2">
+                    {% include "fragments/user-avatar.html" %}
                 </div>
+                <div class="col col-10">
+                    <h1 class="m-0">{{ user.name }}</h1>
+
+                    {% if user.username %}
+                        <div>
+                            @{{ user.username }}
+                        </div>
+                    {% endif %}
+
+                    {% if user.headline %}
+                        <h2 class="h5">{{ user.headline }}</h2>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col col-8">
+            {% if user.about %}
+                <section>
+                    <h2 class="mb-2 text-center mb-sm-2 mb-md-2 mb-lg-2 text-lg-start mb-xl-3 mb-xxl-3">
+                        <i class="bi bi-info-circle-fill"></i> About
+                    </h2>
+                    <div class="card text-bg-light">
+                        <div class="card-body">
+                            <div class="card-text">{{ user.about }}</div>
+                        </div>
+                    </div>
+                </section>
             {% endif %}
 
-            {% if user.headline %}
-                <h2 class="h5">{{ user.headline }}</h2>
-            {% endif %}
+            <div>
+                <h2>{{ posts_title }}</h2>
+                <p class="small text-secondary">{{ posts_subtitle }}</p>
 
+                {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_POST, user) %}
+                    <div class="d-flex justify-content-start align-items-center gap-1">
+                        Filter by status:
+                        <div class="btn-group">
+                            {% set is_published = posts_query.status == PostStatus.PUBLISHED %}
+                            <a href="{{ user_url(user, **posts_query.get_dict({"status": None if is_published else PostStatus.PUBLISHED.value})) }}"
+                               class="btn {% if is_published %}btn-success active{% else %}btn-light{% endif %}">
+                                {{ val_map[PostStatus.PUBLISHED]["title"] }}
+                            </a>
+
+                            {% set is_unpublished = posts_query.status == PostStatus.UNPUBLISHED %}
+                            <a href="{{ user_url(user, **posts_query.get_dict({"status": None if is_unpublished else PostStatus.UNPUBLISHED.value})) }}"
+                               class="btn {% if is_unpublished %}btn-warning active{% else %}btn-light{% endif %}">
+                                {{ val_map[PostStatus.UNPUBLISHED]["title"] }}
+                            </a>
+
+                            {% set is_rejected = posts_query.status == PostStatus.REJECTED %}
+                            <a href="{{ user_url(user, **posts_query.get_dict({"status": None if is_rejected else PostStatus.REJECTED.value})) }}"
+                               class="btn {% if is_rejected %}btn-danger active{% else %}btn-light{% endif %}">
+                                {{ val_map[PostStatus.REJECTED]["title"] }}
+                            </a>
+                        </div>
+
+                        {% if posts_query.has_params() %}
+                            <a href="{{ user_url(user) }}" class="btn btn-light">
+                                <i class="bi bi-x-lg"></i> Reset
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+                {% if posts %}
+                    <div id="posts">
+                        {% include "fragments/posts.html" %}
+                    </div>
+
+                    {% with limit=posts_query.limit,
+                offset=posts[-1].offset,
+                count=posts|length,
+                url=url("user-posts-fragment", user_id=user.id, **posts_query.get_dict()),
+                container="#posts" %}
+                        {% include "fragments/load-more-button.html" %}
+                    {% endwith %}
+                {% else %}
+                    <div>N/A</div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col col-4 d-flex flex-column gap-1">
             <div>
                 {% if user.website %}
                     <i class="bi bi-box-arrow-up-right"></i>
                     <a class="link-dark d-inline-block me-2" href="{{ user.website }}" target="_blank"
                        rel="noopener noreferrer">
                         {{ user.website }}
-                    </a>
-                {% endif %}
-
-                {% if False and user.phone %}
-                    <a class="link-dark d-inline-block me-2" href="tel{{ user.phone }}">
-                        {{ user.phone }}
-                    </a>
-                {% endif %}
-
-                {% if False and user.email %}
-                    <a class="link-dark d-inline-block me-2" href="mailto:{{ user.email }}">
-                        {{ user.email }}
                     </a>
                 {% endif %}
 
@@ -66,85 +127,18 @@
                     </span>
                 {% endif %}
             </div>
-
             <div class="small text-secondary">
                 Joined: {{ (user.created_at / 1000) | unix_to_full_date() }}
             </div>
-
-            <div class="d-flex gap-2 align-items-center">
-                {% include "fragments/user-status.html" %}
-                {% include "fragments/user-impressions.html" %}
-                {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
-                    <a href="{{ url("edit-user", user_id=user.id) }}" class="btn btn-outline-secondary btn-sm">
+            {% include "fragments/user-status.html" %}
+            {% include "fragments/user-impressions.html" %}
+            {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
+                <div>
+                    <a href="{{ url("edit-user", user_id=user.id) }}" class="btn btn-light">
                         <i class="bi bi-pencil-square"></i> Edit profile
                     </a>
-                {% endif %}
-            </div>
+                </div>
+            {% endif %}
         </div>
-    </div>
-
-    {% if user.about %}
-        <section>
-            <h2 class="mb-2 text-center mb-sm-2 mb-md-2 mb-lg-2 text-lg-start mb-xl-3 mb-xxl-3">
-                <i class="bi bi-info-circle-fill"></i> About
-            </h2>
-            <div class="card text-bg-light">
-                <div class="card-body">
-                    <div class="card-text">{{ user.about }}</div>
-                </div>
-            </div>
-        </section>
-    {% endif %}
-
-    <div>
-        <h2>{{ posts_title }}</h2>
-        <p class="small text-secondary">{{ posts_subtitle }}</p>
-
-        {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_POST, user) %}
-            <div class="d-flex justify-content-start align-items-center gap-1">
-                <div>Filter by status:</div>
-                <div class="btn-group">
-                    {% set is_published = posts_query.status == PostStatus.PUBLISHED %}
-                    <a href="{{ user_url(user, **posts_query.get_dict({"status": None if is_published else PostStatus.PUBLISHED.value})) }}"
-                       class="btn btn-outline-success btn-sm {% if is_published %}active{% endif %}">
-                        {{ val_map[PostStatus.PUBLISHED]["title"] }}
-                    </a>
-
-                    {% set is_unpublished = posts_query.status == PostStatus.UNPUBLISHED %}
-                    <a href="{{ user_url(user, **posts_query.get_dict({"status": None if is_unpublished else PostStatus.UNPUBLISHED.value})) }}"
-                       class="btn btn-outline-warning btn-sm {% if is_unpublished %}active{% endif %}">
-                        {{ val_map[PostStatus.UNPUBLISHED]["title"] }}
-                    </a>
-
-                    {% set is_rejected = posts_query.status == PostStatus.REJECTED %}
-                    <a href="{{ user_url(user, **posts_query.get_dict({"status": None if is_rejected else PostStatus.REJECTED.value})) }}"
-                       class="btn btn-outline-danger btn-sm {% if is_rejected %}active{% endif %}">
-                        {{ val_map[PostStatus.REJECTED]["title"] }}
-                    </a>
-                </div>
-
-                {% if posts_query.has_params() %}
-                    <a href="{{ user_url(user) }}" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-x-lg"></i> Reset
-                    </a>
-                {% endif %}
-            </div>
-        {% endif %}
-
-        {% if posts %}
-            <div id="posts">
-                {% include "fragments/posts.html" %}
-            </div>
-
-            {% with limit=posts_query.limit,
-                offset=posts[-1].offset,
-                count=posts|length,
-                url=url("user-posts-fragment", user_id=user.id, **posts_query.get_dict()),
-                container="#posts" %}
-                {% include "fragments/load-more-button.html" %}
-            {% endwith %}
-        {% else %}
-            <div>N/A</div>
-        {% endif %}
     </div>
 {% endblock %}

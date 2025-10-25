@@ -605,7 +605,9 @@ if (window.CONFIG.init_tinymce) {
     skin: "bootstrap", // icons: "bootstrap",
     plugins: "importcss insertdatetime preview autolink code fullscreen image link codesample table charmap advlist lists autosave",
     menubar: false,
-    toolbar: "undo redo | h2 h3 blockquote | bold italic underline strikethrough | align numlist bullist | outdent indent |" + " link image table charmap codesample insertdatetime | code fullscreen preview",
+    toolbar: ""
+      + "undo redo | h2 h3 blockquote | bold italic underline strikethrough | align numlist bullist | outdent indent | "
+      + "link image table charmap codesample insertdatetime | code fullscreen preview",
     autosave_ask_before_unload: true,
     contextmenu: false,
     content_css: ["default", ...window.CONFIG.css_filenames],
@@ -616,7 +618,14 @@ if (window.CONFIG.init_tinymce) {
     powerpaste_allow_local_images: true,
     powerpaste_word_import: "clean",
     powerpaste_html_import: "clean",
-    valid_elements: "" + "img[src|alt|title|class|width|height|style]," + "h2,h3,h4,h5,h6," + "a[href|target|rel|title]," + "b/strong,i/em,u,span[class]," + "ul,ol,li," + "table[class|border|cellpadding|cellspacing],thead,tbody,tfoot,tr,th[colspan|rowspan],td[colspan|rowspan]," + "div[class],br,p,pre,code,blockquote",
+    valid_elements: ""
+      + "img[src|alt|title|class|width|height|style],"
+      + "h2,h3,h4,h5,h6,"
+      + "a[href|target|rel|title],"
+      + "b/strong,i/em,u,span[class],"
+      + "ul,ol,li,"
+      + "table[class|border|cellpadding|cellspacing],thead,tbody,tfoot,tr,th[colspan|rowspan],td[colspan|rowspan],"
+      + "div[class],br,p,pre,code,blockquote",
     document_base_url: window.CONFIG.base_url + "/",
     table_default_attributes: {"class": "table"},
     table_default_styles: {},
