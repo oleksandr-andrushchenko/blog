@@ -1377,11 +1377,11 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
     if "title" in changes:
         new_slug = to_kebab_case(changes["title"])
         old_slug = post.slug
-        if old_slug == new_slug:
-            pass
-        # todo: return slug uniqueness checks (+ for creation)
-        add_dynamodb_put_transact(transacts, (f"POST_SLUG#{new_slug}", "META"), {"post_id": post.id})
-        changes["post_slug"] = new_slug
+        if old_slug != new_slug:
+            add_dynamodb_delete_transact(transacts, (f"POST_SLUG#{old_slug}", "META"))
+            add_dynamodb_put_transact(transacts, (f"POST_SLUG#{new_slug}", "META"), {"post_id": post.id},
+                                      new_pk_only=True)
+            changes["post_slug"] = new_slug
 
     if "content" in changes:
         changes["image_filename"] = find_static_image_filename(changes["content"])
@@ -1700,18 +1700,18 @@ async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User
         changes.pop("avatar_filename", None)
 
     old_avatar = user.avatar_filename
+    old_slug = user.username
 
     if "username" in changes:
         new_slug = changes["username"]
-        old_slug = user.username
-        if old_slug == new_slug:
-            pass
-        add_dynamodb_put_transact(transacts, (f"USER_SLUG#{new_slug}", "META"), {"user_id": user.id})
-        posts = await get_latest_published_posts_by_user(user)
-        for post in posts:
-            add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {"user_slug": new_slug})
+        if old_slug != new_slug:
+            add_dynamodb_delete_transact(transacts, (f"USER_SLUG#{old_slug}", "META"))
+            add_dynamodb_put_transact(transacts, (f"USER_SLUG#{new_slug}", "META"), {"user_id": user.id},
+                                      new_pk_only=True)
+            posts = await get_latest_published_posts_by_user(user)
+            for post in posts:
+                add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {"user_slug": new_slug})
     else:
-        old_slug = user.username
         add_dynamodb_delete_transact(transacts, (f"USER_SLUG#{old_slug}", "META"))
         posts = await get_latest_published_posts_by_user(user)
         for post in posts:
