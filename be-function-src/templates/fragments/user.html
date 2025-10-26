@@ -1,3 +1,27 @@
 <div class="col col-4 user" {% if user.offset %}data-offset="{{ user.offset }}"{% endif %}>
-    {% include "fragments/user-card.html" %}
+    <div class="row g-2 g-sm-2 g-md-3 g-xl-3 g-xxl-3">
+        <div class="col col-2 col-sm-2 col-md-2 col-xl-2 col-xxl-2">
+            {% include "fragments/user-avatar.html" %}
+        </div>
+        <div class="col col-10 col-sm-10 col-md-10 col-xl-10 col-xxl-10">
+            <a href="{{ user_url(user) }}">
+                <h3 class="h4 card-title mb-0">
+                    {{ user.name }}
+                </h3>
+            </a>
+
+            {% if user.status == UserStatus.BANNED %}
+                <span class="badge text-bg-danger fs-5">Banned</span>
+            {% endif %}
+
+            <div class="card-text">
+                {% if user.headline %}
+                    <h4 class="h5 mb-0">{{ user.headline }}</h4>
+                {% endif %}
+                <small class="text-body-secondary">
+                    Joined: {{ (user.created_at / 1000) | unix_to_full_date() }}
+                </small>
+            </div>
+        </div>
+    </div>
 </div>
