@@ -909,11 +909,16 @@ async def get_dynamodb_table():
     return dynamodb_table
 
 
-# todo: replace with global variable (like dynamodb table)
-async def with_s3_client(fn: Callable[[any], Awaitable[any]]):
-    session = aioboto3_session()
-    async with session.client("s3", **get_s3_client_kwargs()) as s3_client:
-        return await fn(s3_client)
+s3_client = None
+
+
+async def get_s3_client():
+    global s3_client
+    if s3_client is None:
+        session = aioboto3_session()
+        async with session.client("s3", **get_s3_client_kwargs()) as s3_client:
+            logger.debug("S3 client loaded")
+    return s3_client
 
 
 def get_html_content(template: str, data: dict[str, any]) -> str:
@@ -993,14 +998,12 @@ async def save_public_file(file_dto: FileDTO) -> str:
             f.write(file_dto.content)
         return filename
 
-    async def fn(s3_client):
-        stream = BytesIO(file_dto.content)
-        stream.seek(0)
+    s3 = await get_s3_client()
+    stream = BytesIO(file_dto.content)
+    stream.seek(0)
 
-        await s3_client.upload_fileobj(stream, get_public_s3_bucket(), filename)
-        return filename
-
-    return await with_s3_client(fn)
+    await s3.upload_fileobj(stream, get_public_s3_bucket(), filename)
+    return filename
 
 
 async def drop_public_file(filename: str) -> None:
@@ -1010,10 +1013,8 @@ async def drop_public_file(filename: str) -> None:
             os.remove(path)
         return
 
-    async def fn(s3_client):
-        await s3_client.delete_object(Bucket=get_public_s3_bucket(), Key=filename)
-
-    await with_s3_client(fn)
+    s3 = await get_s3_client()
+    await s3.delete_object(Bucket=get_public_s3_bucket(), Key=filename)
 
 
 async def configure_app_state(app_state: State) -> None:
