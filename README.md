@@ -40,7 +40,10 @@
 
 - optimize Projections for DynamoDB indexes
 - optimize DynamoDB attributes
-- add user tags, filter users by tags (?)
+- perform I/O ops in parallel (dynamodb reads) 
+- add post comments (simple)
+- add post statistic (likes/dislikes, comments count, etc.)
+- add user statistic (followers/following/blocks, posts count, etc.)
 
 ## Links
 
