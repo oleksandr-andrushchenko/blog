@@ -26,7 +26,35 @@
         </section>
 
         <div class="col col-4 d-flex flex-column gap-1">
-            {% include "fragments/post-meta.html" %}
+            {% if post_author %}
+                {% with user=post_author %}
+                    {% include "fragments/user-inline.html" %}
+                {% endwith %}
+            {% endif %}
+
+            {% if post.tags %}
+                <div>
+                    <span class="small text-secondary">Tags:</span>
+
+                    {% for tag in post.tags %}
+                        <a href="{{ url("posts", tags=tag) }}" class="btn btn-light btn-sm">
+                            {{ tag }}
+                        </a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% if post.status == PostStatus.REJECTED %}
+                <span class="badge text-bg-danger fs-5">Rejected</span>
+            {% elif post.status == PostStatus.UNPUBLISHED %}
+                <span class="badge text-bg-warning fs-6">Unpublished (Pending)</span>
+            {% endif %}
+
+            <div>
+        <span class="small text-secondary">
+            Created: {{ (post.created_at / 1000) | unix_to_full_date }}
+        </span>
+            </div>
             {% include "fragments/post-status.html" %}
             {% include "fragments/post-impressions.html" %}
             {% if post.status != PostStatus.PUBLISHED and cur_user and check_auth(cur_user, Permission.UPDATE_POST, post) %}
