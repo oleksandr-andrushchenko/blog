@@ -11,7 +11,7 @@
 
 {% block content %}
     <div class="row">
-        <h1 class="col col-8">{{ post.title }}</h1>
+        <h1 class="col col-12 col-lg-6 col-xl-8">{{ post.title }}</h1>
     </div>
 
     <p class="small text-secondary">
@@ -20,50 +20,84 @@
         <time>{{ (post.created_at / 1000) | unix_to_full_date }}</time>
     </p>
 
-    <div class="row">
-        <section class="col col-8 overflow-auto">
+    <div class="row g-5">
+        <section class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-4 overflow-auto">
             {{ post.content }}
         </section>
+        <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
+            <h2 class="mb-0 text-decoration-underline">
+                <i class="bi bi-info-circle"></i>
+                Post info
+            </h2>
 
-        <div class="col col-4 d-flex flex-column gap-1">
-            {% if post_author %}
-                {% with user=post_author %}
-                    {% include "fragments/user-inline.html" %}
-                {% endwith %}
-            {% endif %}
+            <div class="d-flex flex-column gap-1">
+                {% if post_author %}
+                    <div>
+                        <small class="text-secondary">
+                            <i class="bi bi-person-circle"></i>
+                            Author:
+                        </small>
+                        <div class="d-inline-block">
+                            {% with user=post_author,
+                            image_col_size=3 %}
+                                {% include "fragments/user.html" %}
+                            {% endwith %}
+                        </div>
+                    </div>
+                {% endif %}
 
-            {% if post.tags %}
+                {% if post.tags %}
+                    <div>
+                        <small class="text-secondary">
+                            <i class="bi bi-tags"></i>
+                            Tags:
+                        </small>
+
+                        {% for tag in post.tags %}
+                            <a href="{{ url("posts", tags=tag) }}" class="btn btn-light btn-sm">
+                                {{ tag }}
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% if post.status == PostStatus.REJECTED %}
+                    <div>
+                        <small class="text-secondary">Status:</small>
+                        <span class="badge text-bg-danger fs-5">Rejected</span>
+                    </div>
+                {% elif post.status == PostStatus.UNPUBLISHED %}
+                    <div>
+                        <small class="text-secondary">Status:</small>
+                        <span class="badge text-bg-warning fs-6">Unpublished (Pending)</span>
+                    </div>
+                {% endif %}
+
                 <div>
-                    <span class="small text-secondary">Tags:</span>
-
-                    {% for tag in post.tags %}
-                        <a href="{{ url("posts", tags=tag) }}" class="btn btn-light btn-sm">
-                            {{ tag }}
-                        </a>
-                    {% endfor %}
+                    <small class="text-secondary">
+                        <i class="bi bi-calendar-date"></i>
+                        Created:
+                    </small>
+                    {{ (post.created_at / 1000) | unix_to_full_date }}
                 </div>
-            {% endif %}
-
-            {% if post.status == PostStatus.REJECTED %}
-                <span class="badge text-bg-danger fs-5">Rejected</span>
-            {% elif post.status == PostStatus.UNPUBLISHED %}
-                <span class="badge text-bg-warning fs-6">Unpublished (Pending)</span>
-            {% endif %}
-
-            <div>
-        <span class="small text-secondary">
-            Created: {{ (post.created_at / 1000) | unix_to_full_date }}
-        </span>
             </div>
-            {% include "fragments/post-status.html" %}
-            {% include "fragments/post-impressions.html" %}
-            {% if post.status != PostStatus.PUBLISHED and cur_user and check_auth(cur_user, Permission.UPDATE_POST, post) %}
-                <div>
-                    <a href="{{ url("edit-post", post_id=post.id) }}" class="btn btn-light">
-                        <i class="bi bi-pencil-square"></i> Edit post
-                    </a>
-                </div>
-            {% endif %}
+
+            <h2 class="mb-0 text-decoration-underline">
+                <i class="bi bi-box"></i>
+                Post actions
+            </h2>
+
+            <div class="d-flex flex-column gap-1">
+                {% include "fragments/post-status.html" %}
+                {% include "fragments/post-impressions.html" %}
+                {% if post.status != PostStatus.PUBLISHED and cur_user and check_auth(cur_user, Permission.UPDATE_POST, post) %}
+                    <div>
+                        <a href="{{ url("edit-post", post_id=post.id) }}" class="btn btn-light">
+                            <i class="bi bi-pencil"></i> Edit post
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
         </div>
     </div>
 {% endblock %}

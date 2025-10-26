@@ -1,34 +1,61 @@
-<div class="post row g-2" {% if post.offset %}data-offset="{{ post.offset }}"{% endif %}>
-    <div class="col col-{{ 10 if post.image_filename else 12 }}">
-        <a href="{{ post_url(post) }}">
-            <h2>{{ post.title }}</h2>
-        </a>
+{% set image = image|default(True) and post.image_filename %}
+{% set vert_gap = vert_gap|default(1) %}
+{% set h_tag_size = h_tag_size|default(2) %}
+{% set h_display_size = h_display_size|default(3) %}
+{% set image_col_size = image_col_size|default(3) if image else 0 %}
+{% set body_col_size = 12 - image_col_size %}
+{% set border = border|default(True) %}
 
-        {% if post.tags %}
-            <span class="small text-secondary">Tags:</span>
-
-            {% for tag in post.tags %}
-                <a href="{{ url("posts", tags=tag) }}" class="btn btn-light btn-sm">
-                    {{ tag }}
-                </a>
-            {% endfor %}
-        {% endif %}
-
-        {% if post.status == PostStatus.REJECTED %}
-            <span class="badge text-bg-danger fs-5">Rejected</span>
-        {% elif post.status == PostStatus.UNPUBLISHED %}
-            <span class="badge text-bg-warning fs-6">Unpublished (Pending)</span>
-        {% endif %}
-
-        <span class="small text-secondary">
-            Created: {{ (post.created_at / 1000) | unix_to_full_date }}
-        </span>
-    </div>
-    {% if post.image_filename %}
-        <div class="col col-2">
+<div class="post row g-3 {% if border %}pb-3 border-bottom{% endif %}"
+     {% if post.offset %}data-offset="{{ post.offset }}"{% endif %}>
+    {% if image %}
+        <div class="col col-{{ image_col_size }}">
             <a href="{{ post_url(post) }}">
                 <img class="img-fluid" src="{{ static_url(post.image_filename) }}" alt="{{ post.title }}">
             </a>
         </div>
     {% endif %}
+
+    <div class="col col-{{ body_col_size }} d-flex flex-column gap-{{ vert_gap }}">
+        <a class="link-body-emphasis text-decoration-none d-flex flex-column gap-{{ vert_gap }}"
+           href="{{ post_url(post) }}">
+            <h{{ h_tag_size }} class="h{{ h_display_size|default(3) }} mb-0">{{ post.title }}</h{{ h_tag_size }}>
+
+            {% if preview|default(True) %}
+                <div class="two-line-ellipsis">
+                    {% set mock_preview = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the
+                industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and
+                scrambled it to make a type specimen book."[:range(150,300)|random] %}
+                    {{ mock_preview }}
+                </div>
+            {% endif %}
+        </a>
+
+        <div class="d-flex align-items-center gap-3">
+            <small class="text-secondary" title="Created at">
+                {{ (post.created_at / 1000) | unix_to_full_date }}
+            </small>
+
+            {% if post.status == PostStatus.REJECTED %}
+                <span class="badge text-bg-danger fs-6" title="{{ post.comment }}">Rejected</span>
+            {% elif post.status == PostStatus.UNPUBLISHED %}
+                <span class="badge text-bg-warning fs-6" title="Pending">Unpublished</span>
+            {% endif %}
+
+            <small class="text-secondary">
+                <span title="Likes"><i class="bi bi-hand-thumbs-up"></i> {{ post.likes_count }}</span>
+                <span title="Dislikes"><i class="bi bi-hand-thumbs-down"></i> {{ post.dislikes_count }}</span>
+            </small>
+
+            {% if tags|default(True) and post.tags %}
+                <div class="d-flex gap-2">
+                    {% for tag in post.tags %}
+                        <a href="{{ url("posts", tags=tag) }}" class="link-secondary text-decoration-none small">
+                            {{ tag }}
+                        </a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
 </div>

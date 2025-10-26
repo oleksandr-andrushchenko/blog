@@ -7,8 +7,7 @@
                 data-post-id="{{ post.id }}"
                 data-status="{{ PostStatus.PUBLISHED.value }}"
                 {% if not is_published %}
-                data-bs-toggle="tooltip"
-                data-bs-title="Publish this post"
+                title="Publish this post"
                 {% endif %}>
             {% if is_published %}<i class="bi bi-check2-all"></i>{% endif %}
             {% if is_published %}Published{% else %}Publish{% endif %}
@@ -21,8 +20,7 @@
                 data-post-id="{{ post.id }}"
                 data-status="{{ PostStatus.UNPUBLISHED.value }}"
                 {% if not is_unpublished %}
-                data-bs-toggle="tooltip"
-                data-bs-title="Unpublish this post"
+                title="Unpublish this post"
                 {% endif %}>
             {% if is_unpublished %}<i class="bi bi-clock"></i>{% endif %}
             {% if is_unpublished %}Unpublished{% else %}Unpublish{% endif %}
@@ -42,8 +40,7 @@
                 data-post-id="{{ post.id }}"
                 data-status="{{ PostStatus.REJECTED.value }}"
                 {% if not is_rejected %}
-                data-bs-toggle="tooltip"
-                data-bs-title="Reject this post"
+                title="Reject this post"
                 {% endif %}>
             {% if is_rejected %}<i class="bi bi-x-lg"></i>{% endif %}
             {% if is_rejected %}Rejected{% else %}Reject{% endif %}

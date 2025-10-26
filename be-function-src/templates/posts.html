@@ -1,15 +1,16 @@
 {% extends "layout.html" %}
 
 {% set val_map = {
-    (PostQueryType.LATEST): {"title": "Latest", "subtitle": "Recently added"},
-    (PostQueryType.POPULAR): {"title": "Popular", "subtitle": "Most rated"},
+    (PostQueryType.LATEST): {"title": "Latest", "subtitle": "Recently added", "icon": "clock-fill"},
+    (PostQueryType.POPULAR): {"title": "Popular", "subtitle": "Most rated", "icon": "star-fill"},
     (PostStatus.PUBLISHED): {"title": "Published", "subtitle": "Published"},
     (PostStatus.UNPUBLISHED): {"title": "Unpublished", "subtitle": "Unpublished"},
     (PostStatus.REJECTED): {"title": "Rejected", "subtitle": "Rejected"}
 } %}
 
-{% set title = " ".join(posts_query.tags + [val_map[posts_query.type]["title"]] + [val_map[posts_query.status]["title"]] + ["Posts"]) %}
-{% set subtitle = " ".join(posts_query.tags + [val_map[posts_query.type]["subtitle"]] + [val_map[posts_query.status]["subtitle"]] + ["Articles"]) %}
+{% set icon = val_map[posts_query.type]["icon"] if "icon" in val_map[posts_query.type] else None %}
+{% set title = " ".join(posts_query.tags + [val_map[posts_query.type]["title"]] + [val_map[posts_query.status]["title"]] + ["Posts"]) | capitalize %}
+{% set subtitle = " ".join(posts_query.tags + [val_map[posts_query.type]["subtitle"]] + [val_map[posts_query.status]["subtitle"]] + ["Articles"]) | capitalize %}
 
 {% block title %}{{ title }} | {{ site_name }}{% endblock %}
 {% block canonical_url %}{{ full_url("posts") }}{% endblock %}
@@ -21,29 +22,34 @@
 {% endblock %}
 
 {% block content %}
-    <h1>{{ title }}</h1>
-
+    <h1>{{ ('<i class="bi bi-'~icon~'"></i> ') if icon else "" }}{{ title }}</h1>
     <p class="small text-secondary">{{ subtitle }}</p>
 
-    <div class="row">
-        <div class="col col-8">
+    <div class="row g-5">
+        <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-4">
             {% if posts %}
-                <div id="posts">
+                <div id="posts" class="d-flex flex-column gap-3">
                     {% include "fragments/posts.html" %}
                 </div>
 
                 {% with limit=posts_query.limit,
-            offset=posts[-1].offset,
-            count=posts|length,
-            url=url("posts-fragment", **posts_query.get_dict()),
-            container="#posts" %}
+                    offset=posts[-1].offset,
+                    count=posts|length,
+                    url=url("posts-fragment", **posts_query.get_dict()),
+                    container="#posts" %}
                     {% include "fragments/load-more-button.html" %}
                 {% endwith %}
             {% else %}
                 <div>N/A</div>
             {% endif %}
         </div>
-        <div class="col col-4">
+
+        <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
+            <h2 class="mb-0 text-decoration-underline">
+                <i class="bi bi-filter"></i>
+                Filter posts
+            </h2>
+
             <form action="{{ url("posts") }}" method="get">
                 <input type="hidden" name="type" value="{{ posts_query.type }}">
                 <input type="hidden" name="status" value="{{ posts_query.status }}">
@@ -51,7 +57,10 @@
                 <div class="d-flex flex-column gap-1">
                     {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_POST) %}
                         <div>
-                            Filter by status:
+                            <small class="text-secondary">
+                                <i class="bi bi-flag"></i>
+                                Filter by status:
+                            </small>
                             <div class="btn-group">
                                 {% set is_published = posts_query.status == PostStatus.PUBLISHED %}
                                 <a href="{{ url("posts", **posts_query.get_dict({"status": None if is_published else PostStatus.PUBLISHED})) }}"
@@ -75,12 +84,15 @@
                     {% endif %}
 
                     <div>
-                        Filter by tags:
+                        <small class="text-secondary">
+                            <i class="bi bi-tags"></i>
+                            Filter by tags:
+                        </small>
+
                         {% with url=url("get-post-tags"),
-                value=posts_query.tags,
-                class_name="w-75",
-                auto_submit=False,
-                inject_hidden=True %}
+                            value=posts_query.tags,
+                            auto_submit=False,
+                            inject_hidden=True %}
                             {% include "fragments/tags-input.html" %}
                         {% endwith %}
 
@@ -90,7 +102,11 @@
                     </div>
 
                     <div>
-                        Show:
+                        <small class="text-secondary">
+                            <i class="bi bi-sort-down"></i>
+                            Show:
+                        </small>
+
                         <div class="btn-group">
                             {% set is_latest = posts_query.type == PostQueryType.LATEST %}
                             <a href="{{ url("posts", **posts_query.get_dict({"type": None if is_latest else PostQueryType.LATEST})) }}"

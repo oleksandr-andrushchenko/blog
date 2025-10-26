@@ -1,28 +1,31 @@
 <form class="row" id="post-form" novalidate>
-    <div class="col col-12">
-        <div class="row">
-            <label class="col col-8">
-                <textarea type="text" class="form-control h1 border-0" id="title" name="title" placeholder="Title"
-                          required minlength="20" maxlength="500" rows="3">{{ post.title if post else "" }}</textarea>
-            </label>
-        </div>
-    </div>
-
-    <div class="col col-8 d-flex flex-column gap-2">
-        <label>
-                <textarea class="form-control editor" id="content" name="content" placeholder="Content" rows="12"
-                          required minlength="1000" maxlength="10000">{{ post.content if post else "" }}</textarea>
+    <div class="col col-12 col-lg-6 col-xl-8">
+        <label class="w-100">
+            <textarea type="text" class="form-control h1 border-0" id="title" name="title" placeholder="Title"
+                      required minlength="20" maxlength="500" rows="1">{{ post.title if post else "" }}</textarea>
         </label>
     </div>
 
-    <div class="col col-4 d-flex flex-column gap-2">
+    <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-2">
+        <label class="w-100">
+            <textarea class="form-control editor" id="content" name="content" placeholder="Content" rows="12"
+                      required minlength="1000" maxlength="10000">{{ post.content if post else "" }}</textarea>
+        </label>
+    </div>
+
+    <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-2">
+        <small class="text-secondary">
+            <i class="bi bi-tags"></i>
+            Tags:
+        </small>
         {% with url=url("get-post-tags"), value=post.tags if post else [] %}
             {% include "fragments/tags-input.html" %}
         {% endwith %}
 
         <div>
             <button type="submit" class="btn btn-light">
-                {% if post %}Update{% else %}Create{% endif %} Post <i class="bi bi-chevron-right"></i>
+                <i class="bi bi-save"></i>
+                {% if post %}Update{% else %}Create{% endif %} post
             </button>
         </div>
     </div>

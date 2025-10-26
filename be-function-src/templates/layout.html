@@ -89,12 +89,13 @@
                         <a class="nav-link" href="{{ url("contacts") }}">Contacts</a>
                     </li>
                 </ul>
+
                 <ul class="navbar-nav">
                     {% if cur_user %}
                         {% if check_auth(cur_user, Permission.CREATE_POST) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url("new-post") }}">
-                                    <i class="bi bi-pencil-square"></i> New post
+                                    <i class="bi bi-pencil-square"></i> Write
                                 </a>
                             </li>
                         {% endif %}
@@ -113,6 +114,11 @@
                         </li>
                     {% else %}
                         <li class="nav-item">
+                            <a class="nav-link" href="{{ url("login", redirect_url=url("new-post")|urlencode) }}">
+                                <i class="bi bi-pencil-square"></i> Write
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="{{ url('login') }}">
                                 <i class="bi bi-box-arrow-in-right"></i> Sign in
                             </a>
@@ -125,7 +131,7 @@
 </header>
 
 <main>
-    <div class="container">
+    <div class="container pb-3">
         {% block breadcrumbs %}{% endblock %}
         {% block content %}{% endblock %}
     </div>

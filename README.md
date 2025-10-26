@@ -42,8 +42,8 @@
 - optimize DynamoDB attributes
 - perform I/O ops in parallel (dynamodb reads) 
 - add post comments (simple)
-- add post statistic (likes/dislikes, comments count, etc.)
-- add user statistic (followers/following/blocks, posts count, etc.)
+- add post short preview for lists
+- robots.txt (whitelist what to index only)
 
 ## Links
 

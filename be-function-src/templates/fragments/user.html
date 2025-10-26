@@ -1,27 +1,47 @@
-<div class="col col-4 user" {% if user.offset %}data-offset="{{ user.offset }}"{% endif %}>
-    <div class="row g-2 g-sm-2 g-md-3 g-xl-3 g-xxl-3">
-        <div class="col col-2 col-sm-2 col-md-2 col-xl-2 col-xxl-2">
-            {% include "fragments/user-avatar.html" %}
-        </div>
-        <div class="col col-10 col-sm-10 col-md-10 col-xl-10 col-xxl-10">
+{% set image = image|default(True) %}
+{% set vert_gap = vert_gap|default(1) %}
+{% set h_tag_size = h_tag_size|default(2) %}
+{% set h_display_size = h_display_size|default(3) %}
+{% set image_col_size = image_col_size|default(1) if image else 0 %}
+{% set body_col_size = 12 - image_col_size %}
+{% set border = border|default(True) %}
+
+<div class="user row g-3 {% if border %}pb-3 border-bottom{% endif %}"
+     {% if user.offset %}data-offset="{{ user.offset }}"{% endif %}>
+    {% if image %}
+        <div class="col col-{{ image_col_size }}">
             <a href="{{ user_url(user) }}">
-                <h3 class="h4 card-title mb-0">
-                    {{ user.name }}
-                </h3>
+                {% include "fragments/user-avatar.html" %}
             </a>
+        </div>
+    {% endif %}
+
+    <div class="col col-{{ body_col_size }} d-flex flex-column gap-{{ vert_gap }}">
+        <a class="link-body-emphasis text-decoration-none d-flex flex-column gap-{{ vert_gap }}"
+           href="{{ user_url(user) }}">
+            <h{{ h_tag_size }} class="h{{ h_display_size|default(3) }} mb-0">{{ user.name }}</h{{ h_tag_size }}>
+
+            {% if user.headline %}
+                <div>{{ user.headline }}</div>
+            {% endif %}
+        </a>
+
+        <div class="d-flex align-items-center gap-3">
+            <small class="text-secondary" title="Joined at">
+                {{ (user.created_at / 1000) | unix_to_full_date() }}
+            </small>
 
             {% if user.status == UserStatus.BANNED %}
-                <span class="badge text-bg-danger fs-5">Banned</span>
+                <span class="badge text-bg-danger fs-6" title="{{ user.comment }}">Banned</span>
             {% endif %}
 
-            <div class="card-text">
-                {% if user.headline %}
-                    <h4 class="h5 mb-0">{{ user.headline }}</h4>
-                {% endif %}
-                <small class="text-body-secondary">
-                    Joined: {{ (user.created_at / 1000) | unix_to_full_date() }}
-                </small>
-            </div>
+            <small class="text-secondary">
+                <span title="Followers"><i class="bi bi-heart"></i> {{ user.followers_count }}</span>
+            </small>
+
+            <small class="text-secondary">
+                <span title="Posts"><i class="bi bi-pencil-square"></i> {{ user.published_posts_count }}</span>
+            </small>
         </div>
     </div>
 </div>

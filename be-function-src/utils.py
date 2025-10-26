@@ -1904,8 +1904,9 @@ async def get_popular_posts(query_dto: PostQueryDTO = None, cur_user: User = Non
     )
 
 
-async def get_popular_published_posts() -> list[Post]:
-    return await get_popular_posts()
+async def get_popular_published_posts(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[Post]:
+    query_dto = PostQueryDTO(limit=limit)
+    return await get_popular_posts(query_dto)
 
 
 async def get_latest_posts_by_tags(query_dto: PostQueryDTO = None, cur_user: User = None) -> list[Post]:
@@ -2301,8 +2302,9 @@ async def get_popular_users(query_dto: UserQueryDTO = None, cur_user: User = Non
     )
 
 
-async def get_popular_active_users() -> list[User]:
-    return await get_popular_users()
+async def get_popular_active_users(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[User]:
+    query_dto = UserQueryDTO(limit=limit)
+    return await get_popular_users(query_dto)
 
 
 def post_impression_from_dynamodb(d_item: dict[str, any]) -> PostImpression:

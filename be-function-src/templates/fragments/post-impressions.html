@@ -6,8 +6,7 @@
                 class="btn btn-post-like {% if is_liked %}btn-success active{% else %}btn-light{% endif %}"
                 data-post-id="{{ post.id }}"
                 data-action="{{ PostImpressionAction.LIKE.value }}"
-                data-bs-toggle="tooltip"
-                data-bs-title="{% if is_liked %}Unlike this post{% else %}Like this post{% endif %}">
+                title="{% if is_liked %}Unlike this post{% else %}Like this post{% endif %}">
             <i class="bi {% if is_liked %}bi-hand-thumbs-up-fill{% else %}bi-hand-thumbs-up{% endif %}"></i>
             {{ post.likes_count }} {% if is_liked %}- Liked{% endif %}
         </button>
@@ -18,8 +17,7 @@
                 class="btn btn-post-dislike {% if is_disliked %}btn-danger active{% else %}btn-light{% endif %}"
                 data-post-id="{{ post.id }}"
                 data-action="{{ PostImpressionAction.DISLIKE.value }}"
-                data-bs-toggle="tooltip"
-                data-bs-title="{% if is_disliked %}Undislike this post{% else %}Dislike this post{% endif %}">
+                title="{% if is_disliked %}Undislike this post{% else %}Dislike this post{% endif %}">
             <i class="bi {% if is_disliked %}bi-hand-thumbs-down-fill{% else %}bi-hand-thumbs-down{% endif %}"></i>
             {{ post.dislikes_count }} {% if is_disliked %}- Disliked{% endif %}
         </button>

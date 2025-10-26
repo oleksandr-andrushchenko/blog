@@ -13,43 +13,48 @@
     <h1>Contacts</h1>
     <p class="small text-secondary">Contact us</p>
 
-    <div class="row">
-        <div class="col col-8">
+    <div class="row g-5">
+        <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-4">
             <form class="row g-3" id="contact-form" novalidate>
-                <label class="col-12">
+                <label class="col col-12">
                     <input type="text" class="form-control" id="name" name="name" placeholder="Your Name"
                            value="{{ cur_user.name if cur_user else '' }}" required>
                 </label>
-                <label class="col-12">
+
+                <label class="col col-12">
                     <input type="email" class="form-control" id="email" name="email" placeholder="Your Email"
                            value="{{ cur_user.email if cur_user else '' }}" required>
                 </label>
-                <label class="col-12">
+
+                <label class="col col-12">
                     <textarea class="form-control" id="message" name="message" placeholder="Your Message" rows="10"
                               required></textarea>
                 </label>
-                <div class="col-12">
-                    <button type="submit" class="btn btn-btn-light">
-                        Send Message <i class="bi bi-chevron-right"></i>
+
+                <div class="col col-12">
+                    <button type="submit" class="btn btn-light">
+                        Send message
+                        <i class="bi bi-chevron-right"></i>
                     </button>
                 </div>
             </form>
         </div>
-
-        <div class="col col-4">
-            <h3 class="mb-4">Contact details</h3>
+        <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4">
+            <h2 class="mb-0 text-decoration-underline">
+                Contact details
+            </h2>
             <div class="d-flex flex-column gap-3">
                 {% if contact_phone_id %}
                     <div>
                         <i class="bi bi-telephone-outbound"></i> Phone
-                        <a class="d-block" href="tel:{{ contact_phone_id }}">{{ contact_phone_id }}</a>
+                        <a class="d-block link-body-emphasis" href="tel:{{ contact_phone_id }}">{{ contact_phone_id }}</a>
                     </div>
                 {% endif %}
 
                 {% if contact_email_id %}
                     <div>
                         <i class="bi bi-envelope-at"></i> Email
-                        <a class="d-block" href="mailto:{{ contact_email_id }}">{{ contact_email_id }}</a>
+                        <a class="d-block link-body-emphasis" href="mailto:{{ contact_email_id }}">{{ contact_email_id }}</a>
                     </div>
                 {% endif %}
 

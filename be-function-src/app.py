@@ -82,7 +82,7 @@ from deps import (
     PostBySlugsDep,
     UpdateUserStatusDTODep,
 )
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 
 @asynccontextmanager
@@ -117,8 +117,8 @@ async def index(cur_user: OptCurUserDep) -> str:
         "popular_post_tags": await get_popular_post_tags(),
         "posts_query": posts_query,
         "posts": await get_posts(posts_query),
-        "popular_posts": await get_popular_published_posts(),
-        "popular_users": await get_popular_active_users(),
+        "popular_posts": await get_popular_published_posts(limit=5),
+        "popular_users": await get_popular_active_users(limit=5),
     })
 
 
@@ -288,10 +288,12 @@ async def user_posts_fragment(user: UserDep, query_dto: PostQueryDep, cur_user: 
 
 @app.get("/auth/login", name="login", response_class=RedirectResponse)
 async def login(request: Request) -> str:
+    redirect_url = request.query_params.get("redirect_url")
     # todo: make sure referer belongs to the website
-    referer = request.headers.get('referer')
-    index_url = get_full_url(request, 'index')
-    callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={quote(referer if referer else index_url)}"
+    referer = request.headers.get("referer")
+    index_url = get_full_url(request, "index")
+    post_redirect_url = redirect_url or referer or index_url
+    callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={quote(post_redirect_url)}"
     redirect_url = await get_login_redirect_url(callback_url)
     return redirect_url
 
@@ -299,7 +301,7 @@ async def login(request: Request) -> str:
 @app.get("/auth/callback", name="login-callback", response_class=RedirectResponse)
 async def login_callback(request: Request) -> RedirectResponse:
     try:
-        redirect_url = request.query_params.get('redirect_url')
+        redirect_url = unquote(request.query_params.get('redirect_url'))
         callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={redirect_url}"
 
         user_token = await get_user_token_by_code(

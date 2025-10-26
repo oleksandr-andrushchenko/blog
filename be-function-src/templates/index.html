@@ -7,14 +7,18 @@
     <h1>{{ site_name }}</h1>
     <p class="small text-secondary">{{ site_about }}</p>
 
-    <div class="row">
-        <div class="col-8">
+    <div class="row g-5">
+        <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-4">
             <img src="{{ static_url('pikachu.webp') }}" alt="test" class="w-50"/>
-            <div>
-                <h2>Latest posts</h2>
+            <div class="d-flex flex-column gap-3">
+                <h2 class="mb-0 text-decoration-underline">
+                    <i class="bi bi-clock-fill"></i> Latest posts
+                </h2>
                 {% if posts %}
-                    <div id="posts">
-                        {% include "fragments/posts.html" %}
+                    <div id="posts" class="d-flex flex-column gap-3">
+                        {% with h_tag_size=3 %}
+                            {% include "fragments/posts.html" %}
+                        {% endwith %}
                     </div>
 
                     {% with limit=posts_query.limit,
@@ -25,51 +29,127 @@
                         auto_click=True %}
                         {% include "fragments/load-more-button.html" %}
                     {% endwith %}
+
+                    <div>
+                        <a href="{{ url("posts", type=PostQueryType.LATEST) }}" class="btn btn-light btn-sm">
+                            <i class="bi bi-clock"></i>
+                            See all latest posts
+                        </a>
+                        <a href="{{ url("posts", type=PostQueryType.LATEST) }}" class="btn btn-light btn-sm">
+                            <i class="bi bi-tags"></i>
+                            Search latest posts by tags
+                        </a>
+                    </div>
                 {% else %}
                     <div>N/A</div>
                 {% endif %}
             </div>
         </div>
-        <div class="col-4">
-            <div>
-                <h2>Popular posts</h2>
+
+        <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
+            <div class="d-flex flex-column gap-3">
+                <h2 class="mb-0 text-decoration-underline">
+                    <i class="bi bi-star-fill"></i>
+                    Popular posts
+                </h2>
                 {% if popular_posts %}
-                    <div id="popular-posts">
-                        {% for post in popular_posts %}
-                            <a href="{{ post_url(post) }}" class="post d-block">
-                                {{ post.title }}
+                    <div id="popular-posts" class="d-flex flex-column gap-3">
+                        {% with posts=popular_posts,
+                            preview=False,
+                            border=False,
+                            vert_gap=0,
+                            h_tag_size=3,
+                            h_display_size=6 %}
+                            {% include "fragments/posts.html" %}
+                        {% endwith %}
+
+                        <div>
+                            <a href="{{ url("posts", type=PostQueryType.POPULAR) }}" class="btn btn-light btn-sm">
+                                <i class="bi bi-star"></i>
+                                See all popular posts
                             </a>
-                        {% endfor %}
+                            <a href="{{ url("posts", type=PostQueryType.POPULAR) }}" class="btn btn-light btn-sm">
+                                <i class="bi bi-tags"></i>
+                                Search popular posts by tags
+                            </a>
+                        </div>
                     </div>
                 {% else %}
                     <div>N/A</div>
                 {% endif %}
             </div>
 
-            <div>
-                <h2>Popular post tags</h2>
+            <div class="d-flex flex-column gap-3">
+                <h2 class="mb-0 text-decoration-underline">
+                    <i class="bi bi-tags-fill"></i>
+                    Popular tags
+                </h2>
                 {% if popular_post_tags %}
                     <div id="popular-post-tags">
                         {% for tag in popular_post_tags %}
-                            <a href="{{ url("posts", tags=tag.name) }}" class="btn btn-light btn-sm post-tag">
-                                {{ tag.name }}
+                            <a href="{{ url("posts", tags=tag.name) }}" class="btn btn-secondary btn-sm post-tag mb-3">
+                                <h3 class="h6 mb-0">{{ tag.name }}</h3>
                             </a>
                         {% endfor %}
+
+                        <div>
+                            <a href="{{ url("posts") }}" class="btn btn-light btn-sm">
+                                <i class="bi bi-tags"></i>
+                                Search posts by tags
+                            </a>
+                        </div>
                     </div>
                 {% else %}
                     <div>N/A</div>
                 {% endif %}
             </div>
 
-            <div>
-                <h2>Popular users</h2>
+            {% if cur_user and cur_user.published_posts_count==0 %}
+                <div class="alert alert-secondary" role="alert">
+                    <h2 class="h4 alert-heading">
+                        <i class="bi bi-pencil-square"></i> Become an author!
+                    </h2>
+                    <p>You haven’t written any posts yet. Start sharing your ideas now!</p>
+                    <a href="{{ url("new-post") }}" class="btn btn-dark btn-sm">
+                        Write a post
+                    </a>
+                </div>
+            {% endif %}
+
+            {% if not cur_user %}
+                <div class="alert alert-secondary" role="alert">
+                    <h2 class="h4 alert-heading">
+                        <i class="bi bi-pencil-square"></i> Become an author!
+                    </h2>
+                    <p>Join our community of authors and start sharing your ideas with the world!</p>
+                    <a href="{{ url("login", redirect_url=url("new-post")|urlencode) }}" class="btn btn-dark btn-sm">
+                        Write a post
+                    </a>
+                </div>
+            {% endif %}
+
+            <div class="d-flex flex-column gap-3">
+                <h2 class="mb-0 text-decoration-underline">
+                    <i class="bi bi-heart-fill"></i>
+                    Popular authors
+                </h2>
                 {% if popular_users %}
-                    <div id="popular-users">
-                        {% for user in popular_users %}
-                            {% with class_name="user" %}
-                                {% include "fragments/user-inline.html" %}
-                            {% endwith %}
-                        {% endfor %}
+                    <div id="popular-users" class="d-flex flex-column gap-3">
+                        {% with users=popular_users,
+                            border=False,
+                            vert_gap=0,
+                            h_tag_size=3,
+                            h_display_size=6,
+                            image_col_size=2 %}
+                            {% include "fragments/users.html" %}
+                        {% endwith %}
+
+                        <div>
+                            <a href="{{ url("users", type=UserQueryType.POPULAR) }}" class="btn btn-light btn-sm">
+                                <i class="bi bi-heart"></i>
+                                See all popular authors
+                            </a>
+                        </div>
                     </div>
                 {% else %}
                     <div>N/A</div>

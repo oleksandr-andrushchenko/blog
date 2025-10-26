@@ -1,5 +1,5 @@
 <div class="row">
-    <div class="col col-8">
+    <div class="col col-12 col-lg-6 col-xl-8">
         <form class="d-flex flex-column gap-2" id="user-form" novalidate>
             <div class="row align-items-center g-3">
                 <div class="col col-2">
@@ -101,7 +101,8 @@
 
             <div>
                 <button type="submit" class="btn btn-light">
-                    Update profile <i class="bi bi-chevron-right"></i>
+                    <i class="bi bi-save"></i>
+                    {% if user %}Update{% else %}Create{% endif %} profile
                 </button>
             </div>
         </form>
