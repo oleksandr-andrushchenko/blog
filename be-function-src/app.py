@@ -60,6 +60,7 @@ from utils import (
     NotAuthenticatedError,
     update_user_status,
     Me,
+    get_static_files_dir,
 )
 
 from deps import (
@@ -96,7 +97,8 @@ app = FastAPI(lifespan=lifespan)
 
 # Serve local static files
 if not is_prod():
-    app.mount("/static", StaticFiles(directory="static"), name="static")
+    static_dir = get_static_files_dir()
+    app.mount(f"/{static_dir}", StaticFiles(directory=static_dir), name="static")
 
 
 # TODO: add CORS middleware if needed (fastapi.middleware.cors.CORSMiddleware)

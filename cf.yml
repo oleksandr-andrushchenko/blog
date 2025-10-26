@@ -17,6 +17,9 @@ Parameters:
   NotificationPhone:
     Type: String
     Description: Phone for contact form notifications
+  StaticFilesDir:
+    Type: String
+    Description: Static files directory name
   TagProject:
     Type: String
     Description: Logical project identifier (e.g. blog)
@@ -189,6 +192,7 @@ Resources:
           Value: !Ref TagEnvironment
 
 
+  # todo: inject ENV variables
   BackendFunctionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -462,7 +466,7 @@ Resources:
           CachePolicyId: !Ref ApiCachePolicy
           OriginRequestPolicyId: !Ref ApiOriginRequestPolicy
         CacheBehaviors:
-          - PathPattern: /static/*
+          - PathPattern: !Sub "/${StaticFilesDir}/*"
             TargetOriginId: s3Origin
             ViewerProtocolPolicy: redirect-to-https
             AllowedMethods: [ GET, HEAD ]

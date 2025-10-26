@@ -164,6 +164,7 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 			CertificateArn="$(CLOUDFRONT_CERTIFICATE_ARN)" \
 			NotificationEmail="$(NOTIFICATION_EMAIL)" \
 			NotificationPhone="$(NOTIFICATION_PHONE)" \
+			StaticFilesDir="$(STATIC_FILES_DIR)" \
 			TagProject="$(TAG_PROJECT)" \
 			TagOwner="$(TAG_OWNER)" \
 			TagEnvironment="$(TAG_ENVIRONMENT)" \

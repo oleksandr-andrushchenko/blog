@@ -40,9 +40,7 @@
 
 - optimize Projections for DynamoDB indexes
 - optimize DynamoDB attributes
-- create post: add optional image input
 - add user tags, filter users by tags (?)
-- post image
 
 ## Links
 

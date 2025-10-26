@@ -1,6 +1,15 @@
-<div class="post" {% if post.offset %}data-offset="{{ post.offset }}"{% endif %}>
-    <a href="{{ post_url(post) }}">
-        <h2>{{ post.title }}</h2>
-    </a>
-    {% include "fragments/post-meta.html" %}
+<div class="post row g-2" {% if post.offset %}data-offset="{{ post.offset }}"{% endif %}>
+    <div class="col col-{{ 10 if post.image_filename else 12 }}">
+        <a href="{{ post_url(post) }}">
+            <h2>{{ post.title }}</h2>
+        </a>
+        {% include "fragments/post-meta.html" %}
+    </div>
+    {% if post.image_filename %}
+        <div class="col col-2">
+            <a href="{{ post_url(post) }}">
+                <img class="img-fluid" src="{{ static_url(post.image_filename) }}" alt="{{ post.title }}">
+            </a>
+        </div>
+    {% endif %}
 </div>
