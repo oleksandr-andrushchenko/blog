@@ -26,3 +26,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+.post-content img {
+    max-width: 100%
+}

@@ -3,7 +3,7 @@
         <!-- Publish Post -->
         {% set is_published = post.status == PostStatus.PUBLISHED %}
         <button type="button"
-                class="btn {% if is_published %}btn-light active{% else %}btn-light btn-post-publish{% endif %}"
+                class="btn {% if is_published %}btn-success active{% else %}btn-light btn-post-publish{% endif %}"
                 data-post-id="{{ post.id }}"
                 data-status="{{ PostStatus.PUBLISHED.value }}"
                 {% if not is_published %}
@@ -16,7 +16,7 @@
         <!-- Unpublish Post -->
         {% set is_unpublished = post.status == PostStatus.UNPUBLISHED %}
         <button type="button"
-                class="btn {% if is_unpublished %}btn-light active{% else %}btn-light btn-post-unpublish{% endif %}"
+                class="btn {% if is_unpublished %}btn-warning active{% else %}btn-light btn-post-unpublish{% endif %}"
                 data-post-id="{{ post.id }}"
                 data-status="{{ PostStatus.UNPUBLISHED.value }}"
                 {% if not is_unpublished %}
@@ -36,7 +36,7 @@
                value="{{ post.comment if post and post.comment else '' }}"
                {% if is_rejected %}disabled{% endif %}>
         <button type="button"
-                class="btn {% if is_rejected %}btn-light active{% else %}btn-light btn-post-reject{% endif %}"
+                class="btn {% if is_rejected %}btn-danger active{% else %}btn-light btn-post-reject{% endif %}"
                 data-post-id="{{ post.id }}"
                 data-status="{{ PostStatus.REJECTED.value }}"
                 {% if not is_rejected %}

@@ -2,7 +2,7 @@
 
 {% set val_map = {
     (UserQueryType.LATEST): {"title": "Latest", "subtitle": "Recently registered", "icon": "clock-fill"},
-    (UserQueryType.POPULAR): {"title": "Popular", "subtitle": "Most followed", "icon": "star-fill"},
+    (UserQueryType.POPULAR): {"title": "Popular", "subtitle": "Most followed", "icon": "heart-fill"},
     (UserStatus.ACTIVE): {"title": "Active", "subtitle": "Active"},
     (UserStatus.BANNED): {"title": "Banned", "subtitle": "Banned"}
 } %}
@@ -91,7 +91,7 @@
                             {% set is_popular = users_query.type == UserQueryType.POPULAR %}
                             <a href="{{ url("users", **users_query.get_dict({"type": None if is_popular else UserQueryType.POPULAR})) }}"
                                class="btn {% if is_popular %}btn-primary active{% else %}btn-light{% endif %}">
-                                <i class="bi bi-star{{ "-fill" if is_popular else "" }}"></i> {{ val_map[UserQueryType.POPULAR]["title"] }}
+                                <i class="bi bi-heart{{ "-fill" if is_popular else "" }}"></i> {{ val_map[UserQueryType.POPULAR]["title"] }}
                                 first
                             </a>
                         </div>
