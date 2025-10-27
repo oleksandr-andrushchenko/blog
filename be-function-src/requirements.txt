@@ -10,3 +10,4 @@ python-jose
 aioboto3>=11.0.0
 python-multipart
 bleach
+bs4

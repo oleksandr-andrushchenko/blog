@@ -34,6 +34,7 @@ import struct
 import random
 import bleach
 import html
+from bs4 import BeautifulSoup
 
 
 class UserToken(BaseModel):
@@ -381,6 +382,7 @@ class Post(BaseModel):
     user_id: str
     user_slug: str | None
     content: str
+    preview: str | None
     tags: list[str]
     status: PostStatus = PostStatus.UNPUBLISHED
     comment: str | None = None
@@ -1263,13 +1265,15 @@ async def get_user_by_plain_token(plain_token: str | None, app_state: State) -> 
 
 def post_from_dynamodb(d_item: dict[str, any]) -> Post:
     owner_id = d_item["user_id"]
+    content = d_item["content"]
     return Post(
         id=d_item["id"],
         owner_id=owner_id,
         title=d_item["title"],
         slug=d_item["post_slug"],
         user_id=owner_id,
-        content=d_item["content"],
+        content=content,
+        preview=d_item.get("preview") or find_preview(content),
         tags=d_item.get("tags", []),
         status=d_item["status"],
         comment=d_item.get("comment"),
@@ -1285,6 +1289,19 @@ def post_from_dynamodb(d_item: dict[str, any]) -> Post:
 
 def compute_rating_sk(rating: int, created_at: int = 0) -> int:
     return rating * 10_000_000_000_000 + created_at
+
+
+def find_preview(html_content: str) -> str | None:
+    soup = BeautifulSoup(html_content, "html.parser")
+    paragraphs = soup.find_all("p")
+
+    # Join all <p> contents into one string
+    text = " ".join(p.get_text(strip=True) for p in paragraphs)
+
+    if not text:
+        return None
+
+    return text[:300]
 
 
 def find_static_image_filename(html_content: str) -> str | None:
@@ -1316,6 +1333,7 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
     post_id = str(uuid.uuid4())
     title = sanitize_html(post_dto.title)
     content = sanitize_forbidden_html(post_dto.content)
+    preview = find_preview(content)
     image_filename = find_static_image_filename(content)
     tags = sanitize_tags(post_dto.tags)
     slug = to_kebab_case(title)
@@ -1335,6 +1353,8 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
         "post_status_pk": f"POST#STATUS#{status}",
         "post_user_status_pk": f"POST#USER#{user.id}#STATUS#{status}",
     }
+    if preview:
+        post_item["preview"] = preview
     if image_filename:
         post_item["image_filename"] = image_filename
     if user.username:
@@ -1384,7 +1404,9 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
             changes["post_slug"] = new_slug
 
     if "content" in changes:
-        changes["image_filename"] = find_static_image_filename(changes["content"])
+        content = changes["content"]
+        changes["preview"] = find_preview(content)
+        changes["image_filename"] = find_static_image_filename(content)
 
     add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), changes)
 

@@ -1,4 +1,5 @@
 {% set image = image|default(True) and post.image_filename %}
+{% set preview = preview|default(True) and post.preview %}
 {% set vert_gap = vert_gap|default(1) %}
 {% set h_tag_size = h_tag_size|default(2) %}
 {% set h_display_size = h_display_size|default(3) %}
@@ -21,12 +22,9 @@
            href="{{ post_url(post) }}">
             <h{{ h_tag_size }} class="h{{ h_display_size|default(3) }} mb-0">{{ post.title }}</h{{ h_tag_size }}>
 
-            {% if preview|default(True) %}
+            {% if preview %}
                 <div class="two-line-ellipsis">
-                    {% set mock_preview = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the
-                industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and
-                scrambled it to make a type specimen book."[:range(150,300)|random] %}
-                    {{ mock_preview }}
+                    {{ post.preview }}
                 </div>
             {% endif %}
         </a>
