@@ -62,7 +62,6 @@ from utils import (
     Me,
     get_static_files_dir,
 )
-
 from deps import (
     OptCurUserDep,
     FileDTODep,
@@ -83,6 +82,7 @@ from deps import (
     UpdateUserStatusDTODep,
 )
 from urllib.parse import quote, unquote
+import asyncio
 
 
 @asynccontextmanager
@@ -112,13 +112,24 @@ async def inject_template_global_vars(request: Request, call_next):
 @app.get("/", name="index", response_class=HTMLResponse)
 async def index(cur_user: OptCurUserDep) -> str:
     posts_query = PostQueryDTO()
+    (
+        popular_post_tags,
+        posts,
+        popular_posts,
+        popular_users
+    ) = await asyncio.gather(
+        get_popular_post_tags(),
+        get_posts(posts_query),
+        get_popular_published_posts(limit=5),
+        get_popular_active_users(limit=5),
+    )
     return get_html_content("index.html", {
         "cur_user": cur_user,
-        "popular_post_tags": await get_popular_post_tags(),
+        "popular_post_tags": popular_post_tags,
         "posts_query": posts_query,
-        "posts": await get_posts(posts_query),
-        "popular_posts": await get_popular_published_posts(limit=5),
-        "popular_users": await get_popular_active_users(limit=5),
+        "posts": posts,
+        "popular_posts": popular_posts,
+        "popular_users": popular_users,
     })
 
 
@@ -147,7 +158,7 @@ async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request
 
 
 @app.get("/posts", name="posts", response_class=HTMLResponse)
-async def posts(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
+async def posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("posts.html", {
         "cur_user": cur_user,
         "posts_query": query_dto,
@@ -164,11 +175,22 @@ async def posts_fragment(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> st
 
 @app.get("/posts/{post_id}", name="post", response_class=HTMLResponse)
 async def post_page(post: PostDep, cur_user: OptCurUserDep) -> str:
+    if cur_user:
+        post_author_task = find_user(post.user_id)
+        post_impression_task = find_post_impression(post, cur_user)
+
+        post_author, post_impression = await asyncio.gather(
+            post_author_task, post_impression_task
+        )
+    else:
+        post_author = await find_user(post.user_id)
+        post_impression = None
+
     return get_html_content("post.html", {
         "cur_user": cur_user,
         "post": post,
-        "post_author": await find_user(post.user_id),
-        "post_impression": await find_post_impression(post, cur_user) if cur_user else None
+        "post_author": post_author,
+        "post_impression": post_impression,
     })
 
 
@@ -241,12 +263,23 @@ async def users_fragment(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> st
 
 @app.get("/users/{user_id}", name="user", response_class=HTMLResponse)
 async def user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
+    if cur_user:
+        posts_task = get_latest_posts_by_user(user, posts_query_dto, cur_user)
+        user_impression_task = find_user_impression(user, cur_user)
+
+        posts, user_impression = await asyncio.gather(
+            posts_task, user_impression_task
+        )
+    else:
+        posts = await get_latest_posts_by_user(user, posts_query_dto, cur_user)
+        user_impression = None
+
     return get_html_content("user.html", {
         "cur_user": cur_user,
         "user": user,
         "posts_query": posts_query_dto,
-        "posts": await get_latest_posts_by_user(user, posts_query_dto, cur_user),
-        "user_impression": await find_user_impression(user, cur_user) if cur_user else None
+        "posts": posts,
+        "user_impression": user_impression,
     })
 
 

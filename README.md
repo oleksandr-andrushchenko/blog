@@ -40,7 +40,6 @@
 
 - optimize Projections for DynamoDB indexes
 - optimize DynamoDB attributes
-- perform I/O ops in parallel (dynamodb reads) 
 - add post comments (simple)
 - add post short preview for lists
 - robots.txt (whitelist what to index only)
