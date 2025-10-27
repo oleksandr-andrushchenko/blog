@@ -12,11 +12,10 @@ from urllib.parse import quote
 from jose import jwt
 from jose.exceptions import JWTError
 import base64
-from typing import Callable, Awaitable, ClassVar, Literal, TypeVar
+from typing import Callable, ClassVar, Literal, TypeVar
 from starlette.datastructures import State
 from starlette.status import HTTP_200_OK
 from jinja2 import Environment, FileSystemLoader, pass_context
-import dotenv
 import json
 from datetime import datetime, timezone
 from pydantic import BaseModel, EmailStr, Field, field_validator, conlist, constr, HttpUrl, computed_field

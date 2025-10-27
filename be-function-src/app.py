@@ -116,7 +116,7 @@ async def index(cur_user: OptCurUserDep) -> str:
         popular_post_tags,
         posts,
         popular_posts,
-        popular_users
+        popular_users,
     ) = await asyncio.gather(
         get_popular_post_tags(),
         get_posts(posts_query),
@@ -176,11 +176,12 @@ async def posts_fragment(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> st
 @app.get("/posts/{post_id}", name="post", response_class=HTMLResponse)
 async def post_page(post: PostDep, cur_user: OptCurUserDep) -> str:
     if cur_user:
-        post_author_task = find_user(post.user_id)
-        post_impression_task = find_post_impression(post, cur_user)
-
-        post_author, post_impression = await asyncio.gather(
-            post_author_task, post_impression_task
+        (
+            post_author,
+            post_impression,
+        ) = await asyncio.gather(
+            find_user(post.user_id),
+            find_post_impression(post, cur_user),
         )
     else:
         post_author = await find_user(post.user_id)
@@ -264,11 +265,12 @@ async def users_fragment(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> st
 @app.get("/users/{user_id}", name="user", response_class=HTMLResponse)
 async def user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
     if cur_user:
-        posts_task = get_latest_posts_by_user(user, posts_query_dto, cur_user)
-        user_impression_task = find_user_impression(user, cur_user)
-
-        posts, user_impression = await asyncio.gather(
-            posts_task, user_impression_task
+        (
+            posts,
+            user_impression,
+        ) = await asyncio.gather(
+            get_latest_posts_by_user(user, posts_query_dto, cur_user),
+            find_user_impression(user, cur_user),
         )
     else:
         posts = await get_latest_posts_by_user(user, posts_query_dto, cur_user)
