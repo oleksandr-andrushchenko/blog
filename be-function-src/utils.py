@@ -896,19 +896,15 @@ def get_s3_client_kwargs():
 
 
 aioboto3_session = Lazy(get_aioboto3_session)
-
-# Global DynamoDB table
-dynamodb_table = None
+dynamodb_resource = None
 
 
 async def get_dynamodb_table():
-    global dynamodb_table
-    if dynamodb_table is None:
-        session = aioboto3_session()
-        async with session.resource("dynamodb", **get_dynamodb_resource_kwargs()) as dynamodb:
-            dynamodb_table = await dynamodb.Table(get_dynamodb_table_name())
-            logger.debug("DynamoDB table resource loading")
-    return dynamodb_table
+    global dynamodb_resource
+    if dynamodb_resource is None:
+        dynamodb_resource = await aioboto3_session().resource("dynamodb", **get_dynamodb_resource_kwargs()).__aenter__()
+        logger.info("DynamoDB table resource loaded")
+    return await dynamodb_resource.Table(get_dynamodb_table_name())
 
 
 s3_client = None
@@ -918,8 +914,8 @@ async def get_s3_client():
     global s3_client
     if s3_client is None:
         session = aioboto3_session()
-        async with session.client("s3", **get_s3_client_kwargs()) as s3_client:
-            logger.debug("S3 client loaded")
+        s3_client = await session.client("s3", **get_s3_client_kwargs()).__aenter__()
+        logger.info("S3 client loaded")
     return s3_client
 
 
@@ -1559,7 +1555,7 @@ def build_dynamodb_put_item_params(
 
     pk, sk = key
     params = {
-        "TableName": dynamodb_table.name,
+        "TableName": get_dynamodb_table_name(),
         "Item": {
             **values,
             "pk": pk,
@@ -1641,7 +1637,7 @@ def build_dynamodb_update_item_params(
 
     return {
         "Update": {
-            "TableName": dynamodb_table.name,
+            "TableName": get_dynamodb_table_name(),
             "Key": {"pk": pk, "sk": sk},
             "UpdateExpression": update_expr,
             "ExpressionAttributeNames": expr_attr_names,
@@ -1667,7 +1663,7 @@ def build_dynamodb_delete_item_params(key: tuple[str, str]) -> dict[str, any]:
 
     return {
         "Delete": {
-            "TableName": dynamodb_table.name,
+            "TableName": get_dynamodb_table_name(),
             "Key": {
                 "pk": pk,
                 "sk": sk
