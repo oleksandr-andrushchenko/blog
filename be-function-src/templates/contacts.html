@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 
-{% block title %}Contacts | {{ site_name }}{% endblock %}
-{% block canonical_url %}{{ full_url("contacts") }}{% endblock %}
+{% block meta_title %}Contacts | {{ site_name }}{% endblock %}
+{% block meta_canonical %}{{ url("contacts") }}{% endblock %}
 
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), "Contacts": None} %}

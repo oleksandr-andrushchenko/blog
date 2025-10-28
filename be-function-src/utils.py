@@ -391,6 +391,8 @@ class Post(BaseModel):
     image_filename: str | None
     created_at: int
     updated_at: int | None = None
+    published_at: int | None = None
+    is_premium: bool | None = None
     offset: str | None = None
 
 
@@ -733,11 +735,36 @@ logger = get_logger()
 
 
 @pass_context
-def jinja2_url_for(ctx, name: str, **params) -> str:
+def jinja2_url(ctx, name: str, **params) -> str:
     request = ctx.get("request")
     if not request:
         raise ValueError("Request not found in context")
+    return get_url(request, name, **params)
 
+
+@pass_context
+def jinja2_user_url(ctx, user: User, **params) -> str:
+    return get_user_url(ctx.get("request"), user, **params)
+
+
+def get_user_url(request, user: User, **params) -> str:
+    if user.username:
+        return get_url(request, "user-by-slug", slug=user.username, **params)
+    return get_url(request, "user", user_id=user.id, **params)
+
+
+@pass_context
+def jinja2_post_url(ctx, post: Post, **params) -> str:
+    return get_post_url(ctx.get("request"), post, **params)
+
+
+def get_post_url(request, post: Post, **params) -> str:
+    if post.user_slug:
+        return get_url(request, "post-by-slugs", user_slug=post.user_slug, post_slug=post.slug, **params)
+    return get_url(request, "post", post_id=post.id, **params)
+
+
+def get_url(request, name: str, **params) -> str:
     # find the route
     route = next(r for r in request.app.routes if getattr(r, "name", None) == name)
     path_param_names = getattr(route, "param_convertors", {}).keys()
@@ -764,67 +791,28 @@ def jinja2_url_for(ctx, name: str, **params) -> str:
 
 
 @pass_context
-def jinja2_user_url(ctx, user: User, **params) -> str:
-    if user.username:
-        return jinja2_url_for(ctx, "user-by-slug", slug=user.username, **params)
-    return jinja2_url_for(ctx, "user", user_id=user.id, **params)
-
-
-def get_user_url(request, user: User, **params) -> str:
-    if user.username:
-        return get_url(request, "user-by-slug", slug=user.username, **params)
-    return get_url(request, "user", user_id=user.id, **params)
-
-
-@pass_context
-def jinja2_post_url(ctx, post: Post, **params) -> str:
-    return get_post_url(ctx.get("request"), post, **params)
-
-
-def get_post_url(request, post: Post, **params) -> str:
-    if post.user_slug:
-        return get_url(request, "post-by-slugs", user_slug=post.user_slug, post_slug=post.slug, **params)
-    return get_url(request, "post", post_id=post.id, **params)
-
-
-def get_url(request, name: str, **params) -> str:
-    url = request.url_for(name, **params) if request else f"/{name}"
-    return str(url).rstrip("/")
-
-
-@pass_context
-def full_url_for(ctx, name: str, **params) -> str:
-    request = ctx.get("request")
-    return get_full_url(request, name, **params)
-
-
-def get_full_url(request, name: str, **params) -> str:
-    url = request.url_for(name, **params) if request else f"/{name}"
-    return str(url).rstrip("/")
-
-
-@pass_context
 def jinja2_static_url(ctx, filename, **params) -> str:
-    req = ctx.get("request")
-    return get_url(req, "static", path=filename, **params)
+    return get_url(ctx.get("request"), "static", path=filename, **params)
 
 
 def get_jinja2_env():
     templates_dir = os.path.join(os.path.dirname(__file__), "templates")
     jinja2_env = Environment(
         loader=FileSystemLoader(templates_dir),
+        trim_blocks=True,
+        lstrip_blocks=True,
         auto_reload=not is_prod()
     )
     jinja2_env.filters.update({
         "unix_to_month_year": unix_to_month_year,
-        "unix_to_full_date": unix_to_full_date
+        "unix_to_full_date": unix_to_full_date,
+        "iso_utc": jinja2_iso_utc,
     })
     jinja2_env.globals.update(get_config())
     jinja2_env.globals.update({
         "static_url": jinja2_static_url,
-        "url": jinja2_url_for,
+        "url": jinja2_url,
         "user_url": jinja2_user_url,
-        "full_url": full_url_for,
         "post_url": jinja2_post_url,
         "Permission": Permission,
         "check_auth": check_authorization,
@@ -1261,6 +1249,7 @@ async def get_user_by_plain_token(plain_token: str | None, app_state: State) -> 
 def post_from_dynamodb(d_item: dict[str, any]) -> Post:
     owner_id = d_item["user_id"]
     content = d_item["content"]
+    created_at = d_item["created_at_sk"]
     return Post(
         id=d_item["id"],
         owner_id=owner_id,
@@ -1277,8 +1266,10 @@ def post_from_dynamodb(d_item: dict[str, any]) -> Post:
         dislikes_count=d_item.get("dislikes_count", 0),
         user_slug=d_item.get("user_slug"),
         image_filename=d_item.get("image_filename"),
-        created_at=d_item["created_at_sk"],
+        created_at=created_at,
         updated_at=d_item.get("updated_at"),
+        published_at=created_at,
+        is_premium=False
     )
 
 
@@ -2276,6 +2267,11 @@ def unix_to_full_date(timestamp: int, tz: str | None = None) -> str:
     if tz:
         dt = dt.astimezone(ZoneInfo(tz))
     return dt.strftime("%b %d, %Y")
+
+
+def jinja2_iso_utc(timestamp_ms: int) -> str:
+    dt = datetime.fromtimestamp(timestamp_ms / 1000, tz=timezone.utc)
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 async def get_latest_published_posts_by_user(user: User) -> list[Post]:

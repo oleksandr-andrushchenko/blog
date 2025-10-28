@@ -31,7 +31,6 @@ bootstrap-icons-1.13.1/
 
 be-function-src/data.json
 be-function-src/static/*
-!be-function-src/static/pikachu.webp
 !be-function-src/static/styles.css
 !be-function-src/static/scripts.js
 

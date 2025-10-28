@@ -11,8 +11,8 @@
 {% set title = " ".join([val_map[users_query.type]["title"]] + [val_map[users_query.status]["title"]] + ["Users"]) | capitalize %}
 {% set subtitle = " ".join([val_map[users_query.type]["subtitle"]] + [val_map[users_query.status]["subtitle"]] + ["Users"]) | capitalize %}
 
-{% block title %}{{ title }} | {{ site_name }}{% endblock %}
-{% block canonical_url %}{{ full_url("users") }}{% endblock %}
+{% block meta_title %}{{ title }} | {{ site_name }}{% endblock %}
+{% block meta_canonical %}{{ url("users") }}{% endblock %}
 
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), (title): None} %}

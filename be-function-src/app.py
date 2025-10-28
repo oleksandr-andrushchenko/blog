@@ -28,7 +28,7 @@ from utils import (
     NotAuthorizedError,
     logger,
     get_html_content,
-    get_full_url,
+    get_url,
     configure_app_state,
     get_post_url,
     create_post,
@@ -177,20 +177,20 @@ async def posts_fragment(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> st
 async def post_page(post: PostDep, cur_user: OptCurUserDep) -> str:
     if cur_user:
         (
-            post_author,
+            author,
             post_impression,
         ) = await asyncio.gather(
             find_user(post.user_id),
             find_post_impression(post, cur_user),
         )
     else:
-        post_author = await find_user(post.user_id)
+        author = await find_user(post.user_id)
         post_impression = None
 
     return get_html_content("post.html", {
         "cur_user": cur_user,
         "post": post,
-        "post_author": post_author,
+        "author": author,
         "post_impression": post_impression,
     })
 
@@ -326,9 +326,9 @@ async def login(request: Request) -> str:
     redirect_url = request.query_params.get("redirect_url")
     # todo: make sure referer belongs to the website
     referer = request.headers.get("referer")
-    index_url = get_full_url(request, "index")
+    index_url = get_url(request, "index")
     post_redirect_url = redirect_url or referer or index_url
-    callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={quote(post_redirect_url)}"
+    callback_url = f"{get_url(request, 'login-callback')}?redirect_url={quote(post_redirect_url)}"
     redirect_url = await get_login_redirect_url(callback_url)
     return redirect_url
 
@@ -337,7 +337,7 @@ async def login(request: Request) -> str:
 async def login_callback(request: Request) -> RedirectResponse:
     try:
         redirect_url = unquote(request.query_params.get('redirect_url'))
-        callback_url = f"{get_full_url(request, 'login-callback')}?redirect_url={redirect_url}"
+        callback_url = f"{get_url(request, 'login-callback')}?redirect_url={redirect_url}"
 
         user_token = await get_user_token_by_code(
             code=request.query_params.get("code"),
@@ -364,7 +364,7 @@ async def login_callback(request: Request) -> RedirectResponse:
 async def logout(request: Request) -> RedirectResponse:
     # todo: make sure referer belongs to the website
     referer = request.headers.get("referer")
-    callback_url = referer if referer else get_full_url(request, 'index')
+    callback_url = referer if referer else get_url(request, 'index')
     redirect_url = await get_logout_redirect_url(callback_url)
     response = RedirectResponse(redirect_url)
     response.delete_cookie("session_token")

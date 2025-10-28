@@ -1,11 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-
+{% set index_url = url("index") %}
 {% set css_filenames = [
     "https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css",
     static_url('styles.css'),
 ] %}
 
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <base href="{{ base_url }}">
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -16,48 +16,45 @@
         <script async src="https://www.googletagmanager.com/gtag/js?id={{ google_analytics_id }}"></script>
         <script>
           window.dataLayer = window.dataLayer || []
-
-          function gtag() {
-            dataLayer.push(arguments)
-          }
-
-          gtag("js", new Date())
-          gtag("config", "{{ google_analytics_id }}")
+          dataLayer.push("js", new Date())
+          dataLayer.push("config", "{{ google_analytics_id }}")
         </script>
     {% endif %}
 
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>{% block title %}{% endblock %}</title>
+    <title>{% block meta_title %}{{ meta_title }}{% endblock %}</title>
+    <meta name="description" content="
+        {%- block meta_description %}{{ meta_description | truncate(155, True, '...') }}{% endblock %}"/>
+    <meta name="keywords" content="{% block meta_keywords %}{{ meta_keywords }}{% endblock %}"/>
+    <meta name="author" content="{% block meta_author %}{{ meta_author }}{% endblock %}"/>
+    <link rel="canonical" href="{% block meta_canonical %}{% endblock %}">
+    <link rel="alternate" href="{% block meta_alternate %}{% endblock %}">
 
-    {% if head_meta_name %}
-        {% for key, val in head_meta_name.items() %}
-            <meta name="{{ key }}" content="{{ val }}"/>
-        {% endfor %}
-    {% endif %}
+    <meta name="application-name" content="{{ site_name }}"/>
+    <meta name="mobile-web-app-capable" content="yes"/>
+    <meta name="apple-mobile-web-app-title" content="{{ site_name }}"/>
 
-    {% if head_meta_property %}
-        {% for key, val in head_meta_property.items() %}
-            <meta property="{{ key }}" content="{{ val }}"/>
-        {% endfor %}
-    {% endif %}
+    <meta property="og:title" content="{{ site_title }}"/>
+    <meta property="og:description" content="{{ site_desc }}"/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:url" content="{{ index_url }}"/>
+    <meta property="og:image" content="{{ static_url(site_img_filename) }}"/>
+    <meta property="og:image:width" content="{{ site_img_width }}"/>
+    <meta property="og:image:height" content="{{ site_img_height }}"/>
+    <meta property="og:image:alt" content="{{ site_img_alt }}"/>
+    <meta property="article:author" content="{{ site_name }}"/>
 
-    {% if head_schema_org %}
-        <script type="application/ld+json">{{ head_schema_org | tojson | safe }}</script>
-    {% endif %}
+    <script type="application/ld+json">{% block meta_schema %}{{ meta_schema | tojson | safe }}{% endblock %}</script>
 
-    {% if head_favicon and head_favicon.active %}
-        {% if head_favicon.generator == "realfavicongenerator" %}
-            <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96"/>
-            <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
-            <link rel="shortcut icon" href="/favicon.ico"/>
-            <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"/>
-            <link rel="manifest" href="/site.webmanifest"/>
-        {% endif %}
-    {% endif %}
-
-    <link rel="canonical" href="{% block canonical_url %}{% endblock %}">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ static_url("favicon-96x96.png") }}" sizes="96x96"/>
+    <link rel="icon" type="image/svg+xml" href="{{ static_url("favicon.svg") }}"/>
+    <link rel="shortcut icon" href="{{ static_url("favicon.ico") }}"/>
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ static_url("apple-touch-icon.png") }}"/>
+    <meta name="apple-mobile-web-app-title" content="{{ site_name }}"/>
+    <link rel="manifest" href="{{ static_url("site.webmanifest") }}"/>
 
     {% for css_filename in css_filenames %}
         <link rel="stylesheet" href="{{ css_filename }}">
@@ -70,7 +67,9 @@
     <nav class="navbar navbar-expand-md bg-{{ header_bg }}"
          data-bs-theme="{{ header_bs }}">
         <div class="container">
-            <a class="navbar-brand link-secondary" style="outline:none" href="/">{{ site_name }}</a>
+            <a class="navbar-brand link-secondary" style="outline:none" href="{{ index_url }}">
+                {{ site_name }} <i class="bi bi-{{ site_icon }}"></i>
+            </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar"
                     aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>

@@ -41,8 +41,10 @@
 - optimize Projections for DynamoDB indexes
 - optimize DynamoDB attributes
 - add post comments (simple)
-- robots.txt (whitelist what to index only)
+- robots.txt (blacklist)
+- fonts from Mm
 
 ## Links
 
+- favicon - https://realfavicongenerator.net
 - chatgpt - https://chatgpt.com/c/68a63567-ab48-832d-8d2e-ff1e01da03d7
