@@ -42,7 +42,6 @@
 - optimize DynamoDB attributes
 - add post comments (simple)
 - robots.txt (blacklist)
-- fonts from Mm
 
 ## Links
 

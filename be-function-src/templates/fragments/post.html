@@ -2,7 +2,7 @@
 {% set preview = preview|default(True) and post.preview %}
 {% set vert_gap = vert_gap|default(1) %}
 {% set h_tag_size = h_tag_size|default(2) %}
-{% set h_display_size = h_display_size|default(3) %}
+{% set h_display_size = h_display_size|default(4) %}
 {% set image_col_size = image_col_size|default(3) if image else 0 %}
 {% set body_col_size = 12 - image_col_size %}
 {% set border = border|default(True) %}
@@ -23,7 +23,7 @@
             <h{{ h_tag_size }} class="h{{ h_display_size|default(3) }} mb-0">{{ post.title }}</h{{ h_tag_size }}>
 
             {% if preview %}
-                <div class="two-line-ellipsis">
+                <div class="text-secondary two-line-ellipsis">
                     {{ post.preview }}
                 </div>
             {% endif %}
