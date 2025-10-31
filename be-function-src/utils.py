@@ -1895,6 +1895,11 @@ async def get_latest_posts(query_dto: PostQueryDTO = None, cur_user: User = None
     )
 
 
+async def get_latest_published_posts(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[Post]:
+    query_dto = PostQueryDTO(limit=limit)
+    return await get_latest_posts(query_dto)
+
+
 async def get_popular_posts(query_dto: PostQueryDTO = None, cur_user: User = None) -> list[Post]:
     if query_dto is None:
         query_dto = PostQueryDTO()

@@ -14,17 +14,17 @@
                 <h2 class="mb-0 text-decoration-underline">
                     <i class="bi bi-clock-fill"></i> Latest posts
                 </h2>
-                {% if posts %}
+                {% if latest_posts %}
                     <div id="posts" class="d-flex flex-column gap-3">
-                        {% with h_tag_size=3 %}
+                        {% with posts=latest_posts, h_tag_size=3 %}
                             {% include "fragments/posts.html" %}
                         {% endwith %}
                     </div>
 
-                    {% with limit=posts_query.limit,
-                        offset=posts[-1].offset,
-                        count=posts|length,
-                        url=url("posts-fragment", **posts_query.get_dict()),
+                    {% with limit=latest_posts_query.limit,
+                        offset=latest_posts[-1].offset,
+                        count=latest_posts|length,
+                        url=url("posts-fragment", **latest_posts_query.get_dict()),
                         container="#posts",
                         auto_click=True %}
                         {% include "fragments/load-more-button.html" %}

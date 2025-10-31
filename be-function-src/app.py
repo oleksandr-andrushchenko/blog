@@ -41,6 +41,7 @@ from utils import (
     get_users,
     get_latest_posts_by_user,
     get_posts,
+    get_latest_published_posts,
     get_popular_post_tags,
     get_popular_published_posts,
     find_user,
@@ -117,23 +118,24 @@ async def inject_template_global_vars(request: Request, call_next):
 
 @app.get("/", name="index", response_class=HTMLResponse)
 async def index(cur_user: OptCurUserDep) -> str:
-    posts_query = PostQueryDTO()
+    latest_posts_query = PostQueryDTO()
     (
         popular_post_tags,
-        posts,
+        latest_posts,
         popular_posts,
         popular_users,
     ) = await asyncio.gather(
         get_popular_post_tags(),
-        get_posts(posts_query),
+        get_latest_published_posts(limit=latest_posts_query.limit),
         get_popular_published_posts(limit=5),
         get_popular_active_users(limit=5),
     )
+    print(len(latest_posts))
     return get_html_content("index.html", {
         "cur_user": cur_user,
         "popular_post_tags": popular_post_tags,
-        "posts_query": posts_query,
-        "posts": posts,
+        "latest_posts_query": latest_posts_query,
+        "latest_posts": latest_posts,
         "popular_posts": popular_posts,
         "popular_users": popular_users,
     })
