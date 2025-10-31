@@ -17,9 +17,6 @@ Parameters:
   NotificationPhone:
     Type: String
     Description: Phone for contact form notifications
-  StaticFilesDir:
-    Type: String
-    Description: Static files directory name
   TagProject:
     Type: String
     Description: Logical project identifier (e.g. blog)
