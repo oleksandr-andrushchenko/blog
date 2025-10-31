@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, FileResponse
 from fastapi.exceptions import RequestValidationError
-from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.status import (
     HTTP_204_NO_CONTENT,
@@ -83,6 +82,7 @@ from deps import (
 )
 from urllib.parse import quote, unquote
 import asyncio
+import os
 
 
 @asynccontextmanager
@@ -95,10 +95,16 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# Serve local static files
 if not is_prod():
-    static_dir = get_static_files_dir()
-    app.mount(f"/{static_dir}", StaticFiles(directory=static_dir), name="static")
+    @app.middleware("http")
+    async def serve_static(request: Request, call_next):
+        path = request.url.path.lstrip("/")
+        if "." in path:  # file-like (e.g. robots.txt, sitemap.xml)
+            static_dir = get_static_files_dir()
+            file_path = os.path.join(static_dir, path)
+            if os.path.isfile(file_path):
+                return FileResponse(file_path)
+        return await call_next(request)
 
 
 # TODO: add CORS middleware if needed (fastapi.middleware.cors.CORSMiddleware)

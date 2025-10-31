@@ -792,7 +792,7 @@ def get_url(request, name: str, **params) -> str:
 
 @pass_context
 def jinja2_static_url(ctx, filename, **params) -> str:
-    return get_url(ctx.get("request"), "static", path=filename, **params)
+    return get_url(ctx.get("request"), "user-by-slug", slug=filename, **params)
 
 
 def get_jinja2_env():

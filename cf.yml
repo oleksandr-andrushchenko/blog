@@ -455,7 +455,6 @@ Resources:
               OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOAI}"
           - Id: apiOrigin
             DomainName: !Sub "${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com"
-            OriginPath: "/"
             CustomOriginConfig:
               OriginProtocolPolicy: https-only
         DefaultCacheBehavior:
@@ -466,7 +465,7 @@ Resources:
           CachePolicyId: !Ref ApiCachePolicy
           OriginRequestPolicyId: !Ref ApiOriginRequestPolicy
         CacheBehaviors:
-          - PathPattern: !Sub "/${StaticFilesDir}/*"
+          - PathPattern: "/*.*"
             TargetOriginId: s3Origin
             ViewerProtocolPolicy: redirect-to-https
             AllowedMethods: [ GET, HEAD ]
