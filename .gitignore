@@ -33,5 +33,7 @@ be-function-src/data.json
 be-function-src/static/*
 !be-function-src/static/styles.css
 !be-function-src/static/scripts.js
+!be-function-src/static/robots.txt
+!be-function-src/static/license.xml
 
 dynamodb-data/

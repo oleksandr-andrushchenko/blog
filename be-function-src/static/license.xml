@@ -1,0 +1,11 @@
+<rsl xmlns="https://rslstandard.org/rsl">
+    <content url="/">
+        <license>
+            <permits type="usage">ai-use</permits>
+            <permits type="usage">ai-summarize</permits>
+            <permits type="usage">search</permits>
+            <prohibits type="usage">train-ai</prohibits>
+            <prohibits type="usage">train-genai</prohibits>
+        </license>
+    </content>
+</rsl>

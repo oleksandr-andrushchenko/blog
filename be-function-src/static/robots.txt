@@ -1,0 +1,44 @@
+User-agent: *
+
+# --- PUBLIC CONTENT (indexable) ---
+Allow: /
+Allow: /posts
+Allow: /contacts
+Allow: /users
+Allow: /robots.txt
+Allow: /sitemap.xml
+Allow: /license.xml
+
+# --- BLOCK query params (pagination, tracking, filtering) ---
+Disallow: /*?
+
+# --- BLOCK non-image static/file-like assets ---
+Disallow: /*.css
+Disallow: /*.js
+Disallow: /*.json
+Disallow: /*.txt
+Disallow: /*.ico
+Disallow: /*.svg
+
+# --- ALLOW images ---
+Allow: /*.png
+Allow: /*.jpg
+Allow: /*.jpeg
+Allow: /*.webp
+Allow: /*.gif
+
+# --- BLOCK dynamic, private, or duplicate routes ---
+Disallow: /posts-fragment
+Disallow: /users-fragment
+Disallow: /users/
+Disallow: /auth/
+Disallow: /me
+Disallow: /posts/new
+Disallow: /posts/edit
+Disallow: /posts/status
+Disallow: /posts/impression
+Disallow: /users/edit
+Disallow: /users/status
+Disallow: /users/impression
+Disallow: /dummy-fixtures
+Disallow: /contacts/message
