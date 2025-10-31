@@ -283,7 +283,7 @@ generate-site-files: ## Run content generator inside Docker container
 	@echo "📦 Generating Site files..."
 	mkdir -p $(SITE_BUILD_DIR)
 	rm -rf $(SITE_BUILD_DIR)/*
-	docker exec -it $(APP_CONTAINER) python generate.py
+	docker exec $(SCRIPTS_CONTAINER) python3 scripts/generate_site_files.py
 	@echo "✅ Site files saved to $(SITE_BUILD_DIR) successfully"
 
 .PHONY: generate-code-files
