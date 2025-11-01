@@ -92,7 +92,7 @@
                         {% if check_auth(cur_user, Permission.CREATE_POST) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url("new-post") }}">
-                                    <i class="bi bi-pencil-square"></i> Write
+                                    <i class="bi bi-pencil-fill"></i> New post
                                 </a>
                             </li>
                         {% endif %}
@@ -112,7 +112,7 @@
                     {% else %}
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url("login", redirect_url=url("new-post")|urlencode) }}">
-                                <i class="bi bi-pencil-square"></i> Write
+                                <i class="bi bi-pencil-fill"></i> New post
                             </a>
                         </li>
                         <li class="nav-item">

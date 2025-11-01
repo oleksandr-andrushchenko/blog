@@ -107,7 +107,7 @@
             {% if cur_user and cur_user.published_posts_count==0 %}
                 <div class="alert alert-secondary" role="alert">
                     <h2 class="h4 alert-heading">
-                        <i class="bi bi-pencil-square"></i> Become an author!
+                        <i class="bi bi-pencil-fill"></i> Become an author!
                     </h2>
                     <p>You haven’t written any posts yet. Start sharing your ideas now!</p>
                     <a href="{{ url("new-post") }}" class="btn btn-dark btn-sm">
@@ -119,7 +119,7 @@
             {% if not cur_user %}
                 <div class="alert alert-secondary" role="alert">
                     <h2 class="h4 alert-heading">
-                        <i class="bi bi-pencil-square"></i> Become an author!
+                        <i class="bi bi-pencil-fill"></i> Become an author!
                     </h2>
                     <p>Join our community of authors and start sharing your ideas with the world!</p>
                     <a href="{{ url("login", redirect_url=url("new-post")|urlencode) }}" class="btn btn-dark btn-sm">
