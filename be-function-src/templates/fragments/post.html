@@ -12,7 +12,7 @@
     {% if image %}
         <div class="col col-{{ image_col_size }}">
             <a href="{{ post_url(post) }}">
-                <img class="img-fluid" src="{{ static_url(post.image_filename) }}" alt="{{ post.title }}">
+                <img class="img-thumbnail" src="{{ static_url(post.image_filename) }}" alt="{{ post.title }}">
             </a>
         </div>
     {% endif %}

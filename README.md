@@ -41,6 +41,10 @@
 - optimize Projections for DynamoDB indexes
 - optimize DynamoDB attributes
 - add post comments (simple)
+- map app's endpoints to api gateway
+- delete public images func?
+- tinymce programming languages stylings
+- post rejected comment should be visible for owner
 
 ## Links
 

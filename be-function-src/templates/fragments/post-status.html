@@ -9,8 +9,8 @@
                 {% if not is_published %}
                 title="Publish this post"
                 {% endif %}>
-            {% if is_published %}<i class="bi bi-check2-all"></i>{% endif %}
-            {% if is_published %}Published{% else %}Publish{% endif %}
+            {% if is_published %}<i class="bi bi-check2-all"></i>{% endif %} {% if is_published %}Published{% else %}
+            Publish{% endif %}
         </button>
 
         <!-- Unpublish Post -->
@@ -22,8 +22,8 @@
                 {% if not is_unpublished %}
                 title="Unpublish this post"
                 {% endif %}>
-            {% if is_unpublished %}<i class="bi bi-clock"></i>{% endif %}
-            {% if is_unpublished %}Unpublished{% else %}Unpublish{% endif %}
+            {% if is_unpublished %}<i class="bi bi-clock"></i>{% endif %} {% if is_unpublished %}Unpublished{% else %}
+            Unpublish{% endif %}
         </button>
 
         <!-- Reject Post -->
@@ -42,8 +42,8 @@
                 {% if not is_rejected %}
                 title="Reject this post"
                 {% endif %}>
-            {% if is_rejected %}<i class="bi bi-x-lg"></i>{% endif %}
-            {% if is_rejected %}Rejected{% else %}Reject{% endif %}
+            {% if is_rejected %}<i class="bi bi-x-lg"></i>{% endif %} {% if is_rejected %}Rejected{% else %}
+            Reject{% endif %}
         </button>
     </div>
 {% endif %}
