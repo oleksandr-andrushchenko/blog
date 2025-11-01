@@ -587,7 +587,7 @@ const uploadPublicFile = async function (file, progress = undefined) {
     formData.append("file", file)
 
     // Upload to your existing endpoint
-    const uploadResponse = await fetch("/public-file", {
+    const uploadResponse = await fetch(window.CONFIG.upload_public_file_url, {
       method: "POST", body: formData
     })
 
@@ -636,7 +636,6 @@ if (window.CONFIG.init_tinymce) {
     link_default_target: "_blank",
     link_target_list: false,
     link_context_toolbar: true,
-    images_upload_url: "/public-file",
     images_reuse_filename: true,
     image_title: true,
     images_upload_handler: async (blobInfo, progress) => {

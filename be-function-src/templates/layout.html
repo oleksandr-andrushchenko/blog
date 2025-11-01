@@ -172,15 +172,16 @@
 <!--custom-->
 <script>
   window.CONFIG = {
-    "current_user": {{ ({"id": cur_user.id} | tojson) if cur_user else "null" }},
-    "update_post_status_url": "{{ url("update-post-status", post_id="{post_id}") }}",
-    "update_post_impression_url": "{{ url("update-post-impression", post_id="{post_id}") }}",
-    "update_user_status_url": "{{ url("update-user-status", user_id="{user_id}") }}",
-    "update_user_impression_url": "{{ url("update-user-impression", user_id="{user_id}") }}",
-    "init_tinymce": {% if tinymce_api_key %}true{% else %}false{% endif %},
-    "css_filenames": {{ css_filenames | tojson | safe }},
-    "base_url": "{{ base_url }}",
-    "static_relative_url": "{{ static_url("{filename}") }}"
+    current_user: {{ ({"id": cur_user.id} | tojson) if cur_user else "null" }},
+    update_post_status_url: "{{ url("update-post-status", post_id="{post_id}") }}",
+    update_post_impression_url: "{{ url("update-post-impression", post_id="{post_id}") }}",
+    update_user_status_url: "{{ url("update-user-status", user_id="{user_id}") }}",
+    update_user_impression_url: "{{ url("update-user-impression", user_id="{user_id}") }}",
+    init_tinymce: {% if tinymce_api_key %}true{% else %}false{% endif %},
+    css_filenames: {{ css_filenames | tojson | safe }},
+    base_url: "{{ base_url }}",
+    static_relative_url: "{{ static_url("{filename}") }}",
+    upload_public_file_url: "{{ url("upload-public-file") }}"
   }
 </script>
 <script src="{{ static_url('scripts.js') }}"></script>
