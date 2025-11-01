@@ -602,12 +602,12 @@ const uploadPublicFile = async function (file, progress = undefined) {
 
 if (window.CONFIG.init_tinymce) {
   $("textarea.editor").tinymce({
-    skin: "bootstrap", // icons: "bootstrap",
+    skin: "bootstrap",
     plugins: "importcss insertdatetime preview autolink code fullscreen image link codesample table charmap advlist lists autosave",
     menubar: false,
-    toolbar: ""
-      + "undo redo | h2 h3 blockquote | bold italic underline strikethrough | align numlist bullist | outdent indent | "
-      + "link image table charmap codesample insertdatetime | code fullscreen preview",
+    toolbar:
+      "undo redo | h2 h3 blockquote | bold italic underline strikethrough | align numlist bullist | outdent indent | " +
+      "link image table charmap codesample insertdatetime | code fullscreen preview",
     autosave_ask_before_unload: true,
     contextmenu: false,
     content_css: ["default", ...window.CONFIG.css_filenames],
@@ -618,24 +618,24 @@ if (window.CONFIG.init_tinymce) {
     powerpaste_allow_local_images: true,
     powerpaste_word_import: "clean",
     powerpaste_html_import: "clean",
-    valid_elements: ""
-      + "img[src|alt|title|class|width|height|style],"
-      + "h2,h3,h4,h5,h6,"
-      + "a[href|target|rel|title],"
-      + "b/strong,i/em,u,span[class],"
-      + "ul,ol,li,"
-      + "table[class|border|cellpadding|cellspacing],thead,tbody,tfoot,tr,th[colspan|rowspan],td[colspan|rowspan],"
-      + "div[class],br,p,pre,code,blockquote",
+    valid_elements:
+      "img[src|alt|title|class|width|height|style]," +
+      "h2,h3,h4,h5,h6," +
+      "a[href|target|rel|title]," +
+      "b/strong,i/em,u,span[class]," +
+      "ul,ol,li," +
+      "table[class|border|cellpadding|cellspacing],thead,tbody,tfoot,tr,th[colspan|rowspan],td[colspan|rowspan]," +
+      "div[class],br,p,pre,code,blockquote",
     document_base_url: window.CONFIG.base_url + "/",
-    table_default_attributes: {"class": "table"},
-    table_default_styles: {},
-    table_class_list: [{title: "Regular", value: "table"}, {
-      title: "Striped",
-      value: "table table-striped"
-    }, {title: "Bordered", value: "table table-bordered"}],
+    table_default_attributes: {class: "table"},
+    table_class_list: [
+      {title: "Regular", value: "table"},
+      {title: "Striped", value: "table table-striped"},
+      {title: "Bordered", value: "table table-bordered"}
+    ],
     link_default_target: "_blank",
     link_target_list: false,
-    link_context_toolbar: true, // image_uploadtab: true,
+    link_context_toolbar: true,
     images_upload_url: "/public-file",
     images_reuse_filename: true,
     image_title: true,
@@ -643,13 +643,13 @@ if (window.CONFIG.init_tinymce) {
       const filename = await uploadPublicFile(blobInfo.blob(), progress)
       return window.CONFIG.static_relative_url.replace("{filename}", filename)
     },
-    image_class_list: [{title: "Responsive", value: "img-fluid"}, {
-      title: "Left",
-      value: "float-start"
-    }, {title: "Right", value: "float-end"}, {title: "Rounded", value: "rounded"}, {
-      title: "Thumbnail",
-      value: "img-thumbnail"
-    }],
+    image_class_list: [
+      {title: "Responsive", value: "img-fluid"},
+      {title: "Left", value: "float-start"},
+      {title: "Right", value: "float-end"},
+      {title: "Rounded", value: "rounded"},
+      {title: "Thumbnail", value: "img-thumbnail"}
+    ],
     setup: (editor) => {
       editor.on("init", () => {
         editor.getContainer().style.transition = "border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out"
@@ -676,17 +676,11 @@ if (window.CONFIG.init_tinymce) {
       })
       editor.on("GetContent", function (e) {
         e.content = e.content
-          // replace empty <p></p> with <br>
           .replace(/<p>\s*<\/p>/g, "<br>")
-          // replace paragraph separators </p><p> with <br>
           .replace(/<\/p>\s*<p>/g, "<br>")
-          // collapse multiple <br> or <br /> into one
           .replace(/(<br\s*\/?>\s*){2,}/gi, "<br>")
-          // remove leading <br>s
           .replace(/^(<br\s*\/?>\s*)+/i, "")
-          // remove trailing <br>s
           .replace(/(<br\s*\/?>\s*)+$/i, "")
-          // final trim for extra whitespace or newlines
           .trim()
       })
       editor.on("change keyup", () => {
