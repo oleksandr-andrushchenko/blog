@@ -43,10 +43,8 @@
 - add post comments (simple)
 - map app's endpoints to api gateway
 - delete public images func?
-- post rejected comment should be visible for owner
-- user blocked comment should be visible for owner
-- add top images for pages
-
+- add users email/sms notifications (post published/liked/disliked, user followed/blocked etc.)
+- add meta info for tags and images (created_by, created_at)
 ## Links
 
 - favicon - https://realfavicongenerator.net
