@@ -232,6 +232,8 @@ def sanitize_forbidden_html(value):
             "td": ["colspan", "rowspan"],
             "figure": ["class"],
             "figcaption": ["class"],
+            "code": ["class"],
+            "pre": ["class"],
         },
         protocols=["http", "https"],
         strip=True,

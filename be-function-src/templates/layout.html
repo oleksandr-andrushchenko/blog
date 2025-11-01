@@ -169,6 +169,9 @@
             crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tinymce/tinymce-jquery/dist/tinymce-jquery.min.js"></script>
 {% endif %}
+<!-- Code samples highlight -->
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.x/components/prism-core.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.x/plugins/autoloader/prism-autoloader.min.js"></script>
 <!--custom-->
 <script>
   window.CONFIG = {
@@ -185,5 +188,7 @@
   }
 </script>
 <script src="{{ static_url('scripts.js') }}"></script>
+<!-- Code samples highlight -->
+<link href="https://cdn.jsdelivr.net/npm/prismjs@1.x/themes/prism.css" rel="stylesheet"/>
 </body>
 </html>

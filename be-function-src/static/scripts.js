@@ -626,7 +626,7 @@ if (window.CONFIG.init_tinymce) {
       "b/strong,i/em,u,span[class]," +
       "ul,ol,li," +
       "table[class|border|cellpadding|cellspacing],thead,tbody,tfoot,tr,th[colspan|rowspan],td[colspan|rowspan]," +
-      "div[class],br,p,pre,code,blockquote",
+      "div[class],br,p,pre[class],code[class],blockquote",
     document_base_url: window.CONFIG.base_url + "/",
     table_default_attributes: {class: "table"},
     table_class_list: [
@@ -649,6 +649,24 @@ if (window.CONFIG.init_tinymce) {
       {title: "Right", value: "float-end"},
       {title: "Rounded", value: "rounded"},
       {title: "Thumbnail", value: "img-thumbnail"}
+    ],
+    codesample_languages: [
+      {text: "HTML/XML", value: "markup"},
+      {text: "JavaScript", value: "javascript"},
+      {text: "TypeScript", value: "typescript"},
+      {text: "Python", value: "python"},
+      {text: "CSS", value: "css"},
+      {text: "SCSS", value: "scss"},
+      {text: "PHP", value: "php"},
+      {text: "Ruby", value: "ruby"},
+      {text: "Go", value: "go"},
+      {text: "C", value: "c"},
+      {text: "C++", value: "cpp"},
+      {text: "C#", value: "csharp"},
+      {text: "Java", value: "java"},
+      {text: "Bash/Shell", value: "bash"},
+      {text: "JSON", value: "json"},
+      {text: "YAML", value: "yaml"}
     ],
     setup: (editor) => {
       editor.on("init", () => {
@@ -709,3 +727,6 @@ if (window.CONFIG.init_tinymce) {
     }
   })
 }
+
+Prism.plugins.autoloader.languages_path = "https://cdn.jsdelivr.net/npm/prismjs@1.x/components/"
+Prism.highlightAll()
