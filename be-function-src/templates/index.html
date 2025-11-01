@@ -4,12 +4,24 @@
 {% block meta_canonical %}{{ url("index") }}{% endblock %}
 
 {% block content %}
-    <h1>{{ site_name }}</h1>
-    <p class="small text-secondary">{{ site_short_desc }}</p>
-
-    <div class="row g-5">
+    <div class="row g-5 pt-4">
         <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-4">
-            <img src="{{ static_url(site_img_filename) }}" alt="test" class="w-50"/>
+            <div class="p-2 p-lg-5 bg-body-secondary rounded-3">
+                <h1>{{ site_name }}</h1>
+                <small class="text-secondary">&mdash; {{ site_short_desc }}</small>
+                <p class="fs-5">{{ site_desc }}</p>
+                <a href="{{ url("new-post") if cur_user else url("login", redirect_url=url("new-post")|urlencode) }}"
+                   class="btn btn-dark">
+                    <i class="bi bi-pencil"></i> Write a post
+                </a>
+                <a href="{{ url("posts", type=PostQueryType.POPULAR) }}" class="btn btn-dark btn-sm">
+                    <i class="bi bi-star"></i> Popular posts
+                </a>
+                <a href="{{ url("users", type=UserQueryType.POPULAR) }}" class="btn btn-dark btn-sm">
+                    <i class="bi bi-heart"></i> Popular authors
+                </a>
+            </div>
+
             <div class="d-flex flex-column gap-3">
                 <h2 class="mb-0">
                     <a href="{{ url("posts") }}" class="link-body-emphasis">
@@ -34,12 +46,10 @@
 
                     <div>
                         <a href="{{ url("posts", type=PostQueryType.LATEST) }}" class="btn btn-light btn-sm">
-                            <i class="bi bi-clock"></i>
-                            See all latest posts
+                            <i class="bi bi-clock"></i> See all latest posts
                         </a>
                         <a href="{{ url("posts", type=PostQueryType.LATEST) }}" class="btn btn-light btn-sm">
-                            <i class="bi bi-tags"></i>
-                            Search latest posts by tags
+                            <i class="bi bi-tags"></i> Search latest posts by tags
                         </a>
                     </div>
                 {% else %}
@@ -52,8 +62,7 @@
             <div class="d-flex flex-column gap-3">
                 <h2 class="mb-0">
                     <a href="{{ url("posts", type=PostQueryType.POPULAR) }}" class="link-body-emphasis">
-                        <i class="bi bi-star-fill"></i>
-                        Popular posts
+                        <i class="bi bi-star-fill"></i> Popular posts
                     </a>
                 </h2>
                 {% if popular_posts %}
@@ -69,12 +78,10 @@
 
                         <div>
                             <a href="{{ url("posts", type=PostQueryType.POPULAR) }}" class="btn btn-light btn-sm">
-                                <i class="bi bi-star"></i>
-                                See all popular posts
+                                <i class="bi bi-star"></i> See all popular posts
                             </a>
                             <a href="{{ url("posts", type=PostQueryType.POPULAR) }}" class="btn btn-light btn-sm">
-                                <i class="bi bi-tags"></i>
-                                Search popular posts by tags
+                                <i class="bi bi-tags"></i> Search popular posts by tags
                             </a>
                         </div>
                     </div>
@@ -98,8 +105,7 @@
 
                         <div>
                             <a href="{{ url("posts") }}" class="btn btn-light btn-sm">
-                                <i class="bi bi-tags"></i>
-                                Search posts by tags
+                                <i class="bi bi-tags"></i> Search posts by tags
                             </a>
                         </div>
                     </div>
@@ -111,11 +117,12 @@
             {% if cur_user and cur_user.published_posts_count==0 %}
                 <div class="alert alert-secondary" role="alert">
                     <h2 class="h4 alert-heading">
-                        <i class="bi bi-pencil-fill"></i> Become an author!
+                        <i class="bi bi-lightbulb"></i> Become an author
                     </h2>
                     <p>You haven’t written any posts yet. Start sharing your ideas now!</p>
-                    <a href="{{ url("new-post") }}" class="btn btn-dark btn-sm{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}">
-                        Write a post
+                    <a href="{{ url("new-post") }}"
+                       class="btn btn-dark btn-sm{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}">
+                        <i class="bi bi-pencil-fill"></i> Write a post
                     </a>
                 </div>
             {% endif %}
@@ -123,11 +130,11 @@
             {% if not cur_user %}
                 <div class="alert alert-secondary" role="alert">
                     <h2 class="h4 alert-heading">
-                        <i class="bi bi-pencil-fill"></i> Become an author!
+                        <i class="bi bi-lightbulb"></i> Become an author
                     </h2>
                     <p>Join our community of authors and start sharing your ideas with the world!</p>
                     <a href="{{ url("login", redirect_url=url("new-post")|urlencode) }}" class="btn btn-dark btn-sm">
-                        Write a post
+                        <i class="bi bi-pencil-fill"></i> Write a post
                     </a>
                 </div>
             {% endif %}
@@ -135,8 +142,7 @@
             <div class="d-flex flex-column gap-3">
                 <h2 class="mb-0 text-decoration-underline">
                     <a href="{{ url("users", type=UserQueryType.POPULAR) }}" class="link-body-emphasis">
-                        <i class="bi bi-heart-fill"></i>
-                        Popular authors
+                        <i class="bi bi-heart-fill"></i> Popular authors
                     </a>
                 </h2>
                 {% if popular_users %}
@@ -152,8 +158,7 @@
 
                         <div>
                             <a href="{{ url("users", type=UserQueryType.POPULAR) }}" class="btn btn-light btn-sm">
-                                <i class="bi bi-heart"></i>
-                                See all popular authors
+                                <i class="bi bi-heart"></i> See all popular authors
                             </a>
                         </div>
                     </div>
