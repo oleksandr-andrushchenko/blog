@@ -219,7 +219,8 @@ def sanitize_forbidden_html(value):
             "img",
             "blockquote",
             "table", "thead", "tbody", "tfoot", "tr", "th", "td",
-            "div", "pre", "code"
+            "div", "pre", "code",
+            "figure", "figcaption",
         ],
         attributes={
             "a": ["href", "title", "target", "rel"],
@@ -228,7 +229,9 @@ def sanitize_forbidden_html(value):
             "div": ["class"],
             "table": ["class", "border", "cellpadding", "cellspacing"],
             "th": ["colspan", "rowspan"],
-            "td": ["colspan", "rowspan"]
+            "td": ["colspan", "rowspan"],
+            "figure": ["class"],
+            "figcaption": ["class"],
         },
         protocols=["http", "https"],
         strip=True,

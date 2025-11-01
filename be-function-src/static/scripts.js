@@ -619,6 +619,7 @@ if (window.CONFIG.init_tinymce) {
     powerpaste_word_import: "clean",
     powerpaste_html_import: "clean",
     valid_elements:
+      "figure[class],figcaption[class]," +
       "img[src|alt|title|class|width|height|style]," +
       "h2,h3,h4,h5,h6," +
       "a[href|target|rel|title]," +
@@ -667,6 +668,26 @@ if (window.CONFIG.init_tinymce) {
         }
         if (e && e.element.nodeName === "IMG" && !e.element.className) {
           e.element.className = "img-fluid"
+        }
+        if (e && e.element.nodeName === "IMG" && !e.element.alt) {
+          e.element.alt = prompt("Enter a short description (alt text) for the image:", "") || "Image"
+        }
+        if (e && e.element.nodeName === "IMG") {
+          const img = e.element
+          if (!img.classList.contains("figure-img")) {
+            img.classList.add("figure-img", "img-fluid", "rounded")
+          }
+          if (!img.alt) {
+            img.alt = prompt("Enter alt text (for accessibility & SEO):", "") || "Image"
+          }
+          if (!img.closest("figure")) {
+            const fig = editor.dom.create("figure", {class: "figure"}, "")
+            const frag = editor.dom.createFragment(img.outerHTML)
+            const caption = editor.dom.create("figcaption", {class: "figure-caption"}, "Image caption")
+            fig.appendChild(frag)
+            fig.appendChild(caption)
+            editor.dom.replace(fig, img)
+          }
         }
         if (e && e.element.nodeName === "A") {
           e.element.target = "_blank"
