@@ -12,8 +12,8 @@
                     data-user-id="{{ user.id }}"
                     data-action="{{ UserImpressionAction.FOLLOW.value }}"
                     title="{% if is_followed %}Unfollow this user{% else %}Follow this user{% endif %}">
-                {% if is_followed %}<i class="bi bi-heart-fill"></i>{% endif %}
-                {% if is_followed %}Following{% else %}Follow{% endif %}
+                {% if is_followed %}<i class="bi bi-heart-fill"></i>{% endif %} {% if is_followed %}Following{% else %}
+                Follow{% endif %}
             </button>
 
             <!-- Block / Unblock Button -->
@@ -23,8 +23,8 @@
                     data-user-id="{{ user.id }}"
                     data-action="{{ UserImpressionAction.BLOCK.value }}"
                     title="{% if is_blocked %}Unblock this user{% else %}Block this user{% endif %}">
-                {% if is_blocked %}<i class="bi bi-x-lg"></i>{% endif %}
-                {% if is_blocked %}Blocked{% else %}Block{% endif %}
+                {% if is_blocked %}<i class="bi bi-x-lg"></i>{% endif %} {% if is_blocked %}Blocked{% else %}
+                Block{% endif %}
             </button>
         </div>
     {% endif %}

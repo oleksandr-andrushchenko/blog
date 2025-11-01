@@ -9,8 +9,8 @@
                 {% if not is_activated %}
                 title="Activate this user"
                 {% endif %}>
-            {% if is_activated %}<i class="bi bi-check2-all"></i>{% endif %}
-            {% if is_activated %}Activated{% else %}Activate{% endif %}
+            {% if is_activated %}<i class="bi bi-check2-all"></i>{% endif %} {% if is_activated %}Activated{% else %}
+            Activate{% endif %}
         </button>
 
         <!-- Ban User -->
@@ -29,8 +29,7 @@
                 {% if not is_banned %}
                 title="Ban this post"
                 {% endif %}>
-            {% if is_banned %}<i class="bi bi-x-lg"></i>{% endif %}
-            {% if is_banned %}Banned{% else %}Ban{% endif %}
+            {% if is_banned %}<i class="bi bi-x-lg"></i>{% endif %} {% if is_banned %}Banned{% else %}Ban{% endif %}
         </button>
     </div>
 {% endif %}
