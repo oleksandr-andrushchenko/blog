@@ -117,7 +117,7 @@
                 {% if post.status == PostStatus.REJECTED %}
                     <div>
                         <small class="text-secondary">Status:</small>
-                        <span class="badge text-bg-danger fs-5">Rejected</span>
+                        <span class="badge text-bg-danger fs-5" title="{{ post.comment }}">Rejected</span>
                     </div>
                 {% elif post.status == PostStatus.UNPUBLISHED %}
                     <div>

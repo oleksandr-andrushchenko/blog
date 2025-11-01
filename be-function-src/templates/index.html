@@ -114,7 +114,7 @@
                         <i class="bi bi-pencil-fill"></i> Become an author!
                     </h2>
                     <p>You haven’t written any posts yet. Start sharing your ideas now!</p>
-                    <a href="{{ url("new-post") }}" class="btn btn-dark btn-sm">
+                    <a href="{{ url("new-post") }}" class="btn btn-dark btn-sm{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}">
                         Write a post
                     </a>
                 </div>

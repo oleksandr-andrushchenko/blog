@@ -91,7 +91,8 @@
                     {% if cur_user %}
                         {% if check_auth(cur_user, Permission.CREATE_POST) %}
                             <li class="nav-item">
-                                <a class="nav-link" href="{{ url("new-post") }}">
+                                <a class="nav-link{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}"
+                                   href="{{ url("new-post") }}">
                                     <i class="bi bi-pencil-fill"></i> New post
                                 </a>
                             </li>
@@ -101,6 +102,9 @@
                                 <i class="bi bi-person-circle"></i> {{ cur_user.name }}
                                 {% if check_auth(cur_user, Permission.ROOT) %}
                                     <span class="badge text-bg-success">root</span>
+                                {% endif %}
+                                {% if cur_user.status == UserStatus.BANNED %}
+                                    <span class="badge text-bg-danger" title="{{ cur_user.comment }}">banned</span>
                                 {% endif %}
                             </a>
                         </li>

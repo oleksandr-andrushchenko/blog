@@ -61,6 +61,8 @@ from utils import (
     update_user_status,
     Me,
     get_static_files_dir,
+    UserStatus,
+    UserBannedError,
 )
 from deps import (
     OptCurUserDep,
@@ -130,7 +132,6 @@ async def index(cur_user: OptCurUserDep) -> str:
         get_popular_published_posts(limit=5),
         get_popular_active_users(limit=5),
     )
-    print(len(latest_posts))
     return get_html_content("index.html", {
         "cur_user": cur_user,
         "popular_post_tags": popular_post_tags,
@@ -148,6 +149,9 @@ async def upload_public_file(file_dto: FileDTODep) -> str:
 
 @app.get("/posts/new", name="new-post", response_class=HTMLResponse)
 async def new_post(cur_user: CurUserDep) -> str:
+    verify_authorization(cur_user, Permission.CREATE_POST)
+    if cur_user.status == UserStatus.BANNED:
+        raise UserBannedError
     return get_html_content("new-post.html", {
         "cur_user": cur_user
     })
@@ -206,6 +210,8 @@ async def post_page(post: PostDep, cur_user: OptCurUserDep) -> str:
 @app.get("/posts/{post_id}/edit", name="edit-post", response_class=HTMLResponse)
 async def edit_post(post: PostDep, cur_user: CurUserDep) -> str:
     verify_authorization(cur_user, Permission.UPDATE_USER, post)
+    if cur_user.status == UserStatus.BANNED:
+        raise UserBannedError
     return get_html_content("edit-post.html", {
         "cur_user": cur_user,
         "post": post
@@ -309,6 +315,8 @@ async def _update_user_impression(user: UserDep, update_user_impression_dto: Upd
 @app.get("/users/{user_id}/edit", name="edit-user", response_class=HTMLResponse)
 async def edit_user(user: UserDep, cur_user: CurUserDep) -> str:
     verify_authorization(cur_user, Permission.UPDATE_USER, user)
+    if cur_user.status == UserStatus.BANNED:
+        raise UserBannedError
     return get_html_content("edit-user.html", {
         "cur_user": cur_user,
         "user": user
@@ -430,6 +438,11 @@ async def not_authenticated_error_handler(request: Request, exc: NotAuthenticate
         request,
         HTTP_401_UNAUTHORIZED,
     )
+
+
+@app.exception_handler(UserBannedError)
+async def user_banned_error_handler(request: Request, exc: UserBannedError):
+    raise NotAuthorizedError("BANNED")
 
 
 @app.exception_handler(NotAuthorizedError)

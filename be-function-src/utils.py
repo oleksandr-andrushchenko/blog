@@ -481,6 +481,10 @@ class NotAuthorizedError(BaseError):
         super().__init__(message=message if message else f"Not authorized: {permission}")
 
 
+class UserBannedError(BaseError):
+    pass
+
+
 def get_live_config(load_env=False):
     # if load_env:
     #     dotenv.load_dotenv(dotenv_path="/.env", override=True)
@@ -1316,6 +1320,9 @@ def find_static_image_filename(html_content: str) -> str | None:
 async def create_post(post_dto: PostDTO, user: User) -> Post:
     verify_authorization(user, Permission.CREATE_POST)
 
+    if user.status == UserStatus.BANNED:
+        raise UserBannedError
+
     await get_dynamodb_table()
     now = utc_now()
     status = PostStatus.UNPUBLISHED
@@ -1365,6 +1372,9 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
 
 async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User) -> None:
     verify_authorization(cur_user, Permission.UPDATE_POST, post)
+
+    if cur_user.status == UserStatus.BANNED:
+        raise UserBannedError
 
     if post.status == PostStatus.PUBLISHED:
         raise PostAlreadyPublishedError()
@@ -1689,6 +1699,9 @@ async def update_dynamodb_item(
 async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User) -> None:
     verify_authorization(cur_user, Permission.UPDATE_USER, user)
 
+    if cur_user.status == UserStatus.BANNED:
+        raise UserBannedError
+
     changes = update_user_dto.model_dump(exclude_unset=True)
     if not changes:
         return
@@ -1747,6 +1760,9 @@ async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User
 async def update_user_status(user: User, update_user_status_dto: UpdateUserStatusDTO, cur_user: User) -> None:
     # logger.debug(f"update_user_status: user: {user}, cur_user: {cur_user}")
     verify_authorization(cur_user, Permission.UPDATE_USER_STATUS)
+
+    if cur_user.status == UserStatus.BANNED:
+        raise UserBannedError
 
     changes = update_user_status_dto.model_dump(exclude_unset=True)
     if not changes:
@@ -1987,6 +2003,9 @@ async def get_popular_posts_by_tags(query_dto: PostQueryDTO = None, cur_user: Us
 async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, cur_user: User) -> None:
     # logger.debug(f"update_post_status: post: {post}, cur_user: {cur_user}")
     verify_authorization(cur_user, Permission.UPDATE_POST_STATUS)
+
+    if cur_user.status == UserStatus.BANNED:
+        raise UserBannedError
 
     if post.status == PostStatus.PUBLISHED:
         raise PostAlreadyPublishedError()
@@ -2358,6 +2377,9 @@ async def find_post_impression(post: Post, user: User) -> PostImpression | None:
 async def update_post_impression(post: Post, update_post_impression_dto: UpdatePostImpressionDTO, user: User) -> None:
     verify_authorization(user, Permission.UPDATE_POST_IMPRESSION, post)
 
+    if user.status == UserStatus.BANNED:
+        raise UserBannedError
+
     current_impression = await find_post_impression(post, user)
     current_action = current_impression.action if current_impression else None
     action = update_post_impression_dto.action
@@ -2412,6 +2434,9 @@ async def update_user_impression(
         cur_user: User,
 ) -> None:
     verify_authorization(cur_user, Permission.UPDATE_USER_IMPRESSION, user)
+
+    if user.status == UserStatus.BANNED:
+        raise UserBannedError
 
     current_relation = await find_user_impression(user, cur_user)
     current_action = current_relation.action if current_relation else None

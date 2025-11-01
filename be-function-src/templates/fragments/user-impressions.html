@@ -8,7 +8,7 @@
             <!-- Follow / Unfollow Button -->
             {% set is_followed = user_impression and user_impression.action == UserImpressionAction.FOLLOW %}
             <button type="button"
-                    class="btn btn-user-follow {% if is_followed %}btn-success active{% else %}btn-light{% endif %}"
+                    class="btn btn-user-follow {% if is_followed %}btn-success active{% else %}btn-light{% endif %}{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}"
                     data-user-id="{{ user.id }}"
                     data-action="{{ UserImpressionAction.FOLLOW.value }}"
                     title="{% if is_followed %}Unfollow this user{% else %}Follow this user{% endif %}">
@@ -19,7 +19,7 @@
             <!-- Block / Unblock Button -->
             {% set is_blocked = user_impression and user_impression.action == UserImpressionAction.BLOCK %}
             <button type="button"
-                    class="btn btn-user-block {% if is_blocked %}btn-danger active{% else %}btn-light{% endif %}"
+                    class="btn btn-user-block {% if is_blocked %}btn-danger active{% else %}btn-light{% endif %}{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}"
                     data-user-id="{{ user.id }}"
                     data-action="{{ UserImpressionAction.BLOCK.value }}"
                     title="{% if is_blocked %}Unblock this user{% else %}Block this user{% endif %}">

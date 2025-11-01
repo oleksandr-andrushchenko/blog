@@ -3,7 +3,7 @@
         <!-- Like / Unlike Button -->
         {% set is_liked = post_impression and post_impression.action == PostImpressionAction.LIKE %}
         <button type="button"
-                class="btn btn-post-like {% if is_liked %}btn-success active{% else %}btn-light{% endif %}"
+                class="btn btn-post-like {% if is_liked %}btn-success active{% else %}btn-light{% endif %}{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}"
                 data-post-id="{{ post.id }}"
                 data-action="{{ PostImpressionAction.LIKE.value }}"
                 title="{% if is_liked %}Unlike this post{% else %}Like this post{% endif %}">
@@ -14,7 +14,7 @@
         <!-- Dislike / Undislike Button -->
         {% set is_disliked = post_impression and post_impression.action == PostImpressionAction.DISLIKE %}
         <button type="button"
-                class="btn btn-post-dislike {% if is_disliked %}btn-danger active{% else %}btn-light{% endif %}"
+                class="btn btn-post-dislike {% if is_disliked %}btn-danger active{% else %}btn-light{% endif %}{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}"
                 data-post-id="{{ post.id }}"
                 data-action="{{ PostImpressionAction.DISLIKE.value }}"
                 title="{% if is_disliked %}Undislike this post{% else %}Dislike this post{% endif %}">
