@@ -43,8 +43,9 @@
 - add post comments (simple)
 - map app's endpoints to api gateway
 - delete public images func?
-- tinymce programming languages stylings
 - post rejected comment should be visible for owner
+- user blocked comment should be visible for owner
+- add top images for pages
 
 ## Links
 
