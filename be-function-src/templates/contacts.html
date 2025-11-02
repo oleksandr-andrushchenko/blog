@@ -44,35 +44,35 @@
                 Contact details
             </h2>
             <div class="d-flex flex-column gap-3">
-                {% if contact_phone_id %}
+                {% if contact_phone %}
                     <div>
                         <i class="bi bi-telephone-outbound"></i> Phone
-                        <a class="d-block link-body-emphasis" href="tel:{{ contact_phone_id }}">{{ contact_phone_id }}</a>
+                        <a class="d-block link-body-emphasis" href="tel:{{ contact_phone }}">{{ contact_phone }}</a>
                     </div>
                 {% endif %}
 
-                {% if contact_email_id %}
+                {% if contact_email %}
                     <div>
                         <i class="bi bi-envelope-at"></i> Email
-                        <a class="d-block link-body-emphasis" href="mailto:{{ contact_email_id }}">{{ contact_email_id }}</a>
+                        <a class="d-block link-body-emphasis" href="mailto:{{ contact_email }}">{{ contact_email }}</a>
                     </div>
                 {% endif %}
 
-                {% if contact_address_id %}
+                {% if contact_address %}
                     <div>
                         <i class="bi bi-geo"></i> Address
-                        <div>{{ contact_address_id }}</div>
+                        <div>{{ contact_address }}</div>
                     </div>
                 {% endif %}
 
-                {% if contact_social_ids %}
+                {% if contact_socials %}
                     <div>
                         <i class="bi bi-people"></i> Socials
                         <div class="h3">
-                            {% for contact_social_id in contact_social_ids %}
-                                <a href="{{ contact_social_id.url }}" class="link-dark" target="_blank"
+                            {% for contact_social in contact_socials %}
+                                <a href="{{ contact_social.url }}" class="link-dark" target="_blank"
                                    rel="noopener noreferrer">
-                                    <i class="bi bi-{{ contact_social_id.icon }}"></i>
+                                    <i class="bi bi-{{ contact_social.icon }}"></i>
                                 </a>
                             {% endfor %}
                         </div>
