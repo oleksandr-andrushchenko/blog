@@ -50,13 +50,15 @@
 
     <script type="application/ld+json">{% block meta_schema %}{{ meta_schema | tojson | safe }}{% endblock %}</script>
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="{{ static_url("favicon-96x96.png") }}" sizes="96x96"/>
-    <link rel="icon" type="image/svg+xml" href="{{ static_url("favicon.svg") }}"/>
-    <link rel="shortcut icon" href="{{ static_url("favicon.ico") }}"/>
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ static_url("apple-touch-icon.png") }}"/>
-    <meta name="apple-mobile-web-app-title" content="{{ site_name }}"/>
-    <link rel="manifest" href="{{ static_url("site.webmanifest") }}"/>
+    {% if show_favicon %}
+        <!-- Favicon -->
+        <link rel="icon" type="image/png" href="{{ static_url("favicon-96x96.png") }}" sizes="96x96"/>
+        <link rel="icon" type="image/svg+xml" href="{{ static_url("favicon.svg") }}"/>
+        <link rel="shortcut icon" href="{{ static_url("favicon.ico") }}"/>
+        <link rel="apple-touch-icon" sizes="180x180" href="{{ static_url("apple-touch-icon.png") }}"/>
+        <meta name="apple-mobile-web-app-title" content="{{ site_name }}"/>
+        <link rel="manifest" href="{{ static_url("site.webmanifest") }}"/>
+    {% endif %}
 
     {% for css_filename in css_filenames %}
         <link rel="stylesheet" href="{{ css_filename }}">
