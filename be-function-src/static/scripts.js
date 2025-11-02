@@ -48,8 +48,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
               if (!Array.isArray(values)) return true
               const items = values.map(item => item.value.trim()).filter(Boolean)
               return items.length >= minCnt && items.length <= maxCnt && items.every(t => t.length >= minLen && t.length <= maxLen)
-            },
-            errorMessage: `Tags must be ${minCnt}–${maxCnt} items, ${minLen}–${maxLen} chars each`
+            }, errorMessage: `Tags must be ${minCnt}–${maxCnt} items, ${minLen}–${maxLen} chars each`
           }
           hasTags = true
         }
@@ -134,9 +133,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
 
       // Submit the JSON payload
       const response = await fetch(submitUrl, {
-        method,
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(data)
+        method, headers: {"Content-Type": "application/json"}, body: JSON.stringify(data)
       })
 
       submitBtn.disabled = false
@@ -282,10 +279,8 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
   const form = input.closest("form")
 
   const tagify = new Tagify(input, {
-    whitelist: [],
-    // maxTags: 3,
-    enforceWhitelist: false,
-    // validate: tag => /^[0-9A-Za-z-.#]{2,20}$/.test(tag.value) || "Invalid tag",
+    whitelist: [], // maxTags: 3,
+    enforceWhitelist: false, // validate: tag => /^[0-9A-Za-z-.#]{2,20}$/.test(tag.value) || "Invalid tag",
     dropdown: {
       // enabled: 1,
       // maxItems: 10,
@@ -341,8 +336,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
     const u = new URL(url, window.location.origin)
     u.searchParams.set("prefix", value)
     fetch(u.toString(), {
-      headers: {"Content-Type": "application/json"},
-      signal: controller.signal
+      headers: {"Content-Type": "application/json"}, signal: controller.signal
     })
       .then(async res => {
         if (!res.ok) {
@@ -417,18 +411,12 @@ $(".btn-post-publish, .btn-post-unpublish").on("click", function () {
   $btn.prop("disabled", true).addClass("disabled")
 
   $.ajax({
-    url,
-    method: "POST",
-    contentType: "application/json",
-    data: JSON.stringify({status}),
-    success: function () {
+    url, method: "POST", contentType: "application/json", data: JSON.stringify({status}), success: function () {
       window.location.reload()
-    },
-    error: function (xhr) {
+    }, error: function (xhr) {
       console.error(`Error on post ${status}:`, xhr.responseText)
       alert(`Failed to ${status} post.`)
-    },
-    complete: function () {
+    }, complete: function () {
       $btn.prop("disabled", false).removeClass("disabled")
     }
   })
@@ -477,18 +465,12 @@ $(".btn-post-like, .btn-post-dislike").on("click", function () {
   $btn.prop("disabled", true).addClass("disabled")
 
   $.ajax({
-    url,
-    method: "POST",
-    contentType: "application/json",
-    data: JSON.stringify({action}),
-    success: function () {
+    url, method: "POST", contentType: "application/json", data: JSON.stringify({action}), success: function () {
       location.reload()
-    },
-    error: function (xhr) {
+    }, error: function (xhr) {
       console.error(`Error on post ${action}:`, xhr.responseText)
       alert(`Failed to ${action} post. Please try again.`)
-    },
-    complete: function () {
+    }, complete: function () {
       $btn.prop("disabled", false).removeClass("disabled")
     }
   })
@@ -504,18 +486,12 @@ $(".btn-user-follow, .btn-user-block").on("click", function () {
   $btn.prop("disabled", true).addClass("disabled")
 
   $.ajax({
-    url,
-    method: "POST",
-    contentType: "application/json",
-    data: JSON.stringify({action}),
-    success: function () {
+    url, method: "POST", contentType: "application/json", data: JSON.stringify({action}), success: function () {
       window.location.reload()
-    },
-    error: function (xhr) {
+    }, error: function (xhr) {
       console.error(`Error on user ${action}:`, xhr.responseText)
       alert(`Failed to ${action} user. Please try again.`)
-    },
-    complete: function () {
+    }, complete: function () {
       $btn.prop("disabled", false).removeClass("disabled")
     }
   })
@@ -531,18 +507,12 @@ $(".btn-user-activate").on("click", function () {
   $btn.prop("disabled", true).addClass("disabled")
 
   $.ajax({
-    url,
-    method: "POST",
-    contentType: "application/json",
-    data: JSON.stringify({status}),
-    success: function () {
+    url, method: "POST", contentType: "application/json", data: JSON.stringify({status}), success: function () {
       window.location.reload()
-    },
-    error: function (xhr) {
+    }, error: function (xhr) {
       console.error("Error activating user:", xhr.responseText)
       alert("Failed to activate user.")
-    },
-    complete: function () {
+    }, complete: function () {
       $btn.prop("disabled", false).removeClass("disabled")
     }
   })
@@ -605,9 +575,7 @@ if (window.CONFIG.init_tinymce) {
     skin: "bootstrap",
     plugins: "importcss insertdatetime preview autolink code fullscreen image link codesample table charmap advlist lists autosave",
     menubar: false,
-    toolbar:
-      "undo redo | h2 h3 blockquote | bold italic underline strikethrough | align numlist bullist | outdent indent | " +
-      "link image table charmap codesample insertdatetime | code fullscreen preview",
+    toolbar: "undo redo | h2 h3 blockquote | bold italic underline strikethrough | align numlist bullist | outdent indent | " + "link image table charmap codesample insertdatetime | code fullscreen preview",
     autosave_ask_before_unload: true,
     contextmenu: false,
     content_css: ["default", ...window.CONFIG.css_filenames],
@@ -618,22 +586,13 @@ if (window.CONFIG.init_tinymce) {
     powerpaste_allow_local_images: true,
     powerpaste_word_import: "clean",
     powerpaste_html_import: "clean",
-    valid_elements:
-      "figure[class],figcaption[class]," +
-      "img[src|alt|title|class|width|height|style]," +
-      "h2,h3,h4,h5,h6," +
-      "a[href|target|rel|title]," +
-      "b/strong,i/em,u,span[class]," +
-      "ul,ol,li," +
-      "table[class|border|cellpadding|cellspacing],thead,tbody,tfoot,tr,th[colspan|rowspan],td[colspan|rowspan]," +
-      "div[class],br,p,pre[class],code[class],blockquote",
+    valid_elements: "figure[class],figcaption[class]," + "img[src|alt|title|class|width|height|style]," + "h2,h3,h4,h5,h6," + "a[href|target|rel|title]," + "b/strong,i/em,u,span[class]," + "ul,ol,li," + "table[class|border|cellpadding|cellspacing],thead,tbody,tfoot,tr,th[colspan|rowspan],td[colspan|rowspan]," + "div[class],br,p,pre[class],code[class],blockquote",
     document_base_url: window.CONFIG.base_url + "/",
     table_default_attributes: {class: "table"},
-    table_class_list: [
-      {title: "Regular", value: "table"},
-      {title: "Striped", value: "table table-striped"},
-      {title: "Bordered", value: "table table-bordered"}
-    ],
+    table_class_list: [{title: "Regular", value: "table"}, {
+      title: "Striped",
+      value: "table table-striped"
+    }, {title: "Bordered", value: "table table-bordered"}],
     link_default_target: "_blank",
     link_target_list: false,
     link_context_toolbar: true,
@@ -643,31 +602,26 @@ if (window.CONFIG.init_tinymce) {
       const filename = await uploadPublicFile(blobInfo.blob(), progress)
       return window.CONFIG.static_relative_url.replace("{filename}", filename)
     },
-    image_class_list: [
-      {title: "Responsive", value: "img-fluid"},
-      {title: "Left", value: "float-start"},
-      {title: "Right", value: "float-end"},
-      {title: "Rounded", value: "rounded"},
-      {title: "Thumbnail", value: "img-thumbnail"}
-    ],
-    codesample_languages: [
-      {text: "HTML/XML", value: "markup"},
-      {text: "JavaScript", value: "javascript"},
-      {text: "TypeScript", value: "typescript"},
-      {text: "Python", value: "python"},
-      {text: "CSS", value: "css"},
-      {text: "SCSS", value: "scss"},
-      {text: "PHP", value: "php"},
-      {text: "Ruby", value: "ruby"},
-      {text: "Go", value: "go"},
-      {text: "C", value: "c"},
-      {text: "C++", value: "cpp"},
-      {text: "C#", value: "csharp"},
-      {text: "Java", value: "java"},
-      {text: "Bash/Shell", value: "bash"},
-      {text: "JSON", value: "json"},
-      {text: "YAML", value: "yaml"}
-    ],
+    image_class_list: [{title: "Responsive", value: "img-fluid"}, {
+      title: "Left",
+      value: "float-start"
+    }, {title: "Right", value: "float-end"}, {title: "Rounded", value: "rounded"}, {
+      title: "Thumbnail",
+      value: "img-thumbnail"
+    }],
+    codesample_languages: [{text: "HTML/XML", value: "markup"}, {
+      text: "JavaScript",
+      value: "javascript"
+    }, {text: "TypeScript", value: "typescript"}, {text: "Python", value: "python"}, {
+      text: "CSS",
+      value: "css"
+    }, {text: "SCSS", value: "scss"}, {text: "PHP", value: "php"}, {text: "Ruby", value: "ruby"}, {
+      text: "Go",
+      value: "go"
+    }, {text: "C", value: "c"}, {text: "C++", value: "cpp"}, {text: "C#", value: "csharp"}, {
+      text: "Java",
+      value: "java"
+    }, {text: "Bash/Shell", value: "bash"}, {text: "JSON", value: "json"}, {text: "YAML", value: "yaml"}],
     setup: (editor) => {
       editor.on("init", () => {
         editor.getContainer().style.transition = "border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out"
@@ -731,16 +685,21 @@ if (window.CONFIG.init_tinymce) {
 Prism.plugins.autoloader.languages_path = "https://cdn.jsdelivr.net/npm/prismjs@1.x/components/"
 Prism.highlightAll()
 
-const $cookieAlert = $("#cookie-alert")
-const $acceptBtn = $("#accept-cookies")
+$(function () {
+  const $cookieAlert = $("#cookie-alert")
+  const $acceptBtn = $("#accept-cookies")
 
-if (!localStorage.getItem("cookiesAccepted")) {
+  if (localStorage.getItem("cookiesAccepted")) {
+    $cookieAlert.remove()
+    return
+  }
+
   $cookieAlert.addClass("show")
-} else {
-  $cookieAlert.removeClass("show")
-}
 
-$acceptBtn.on("click", function () {
-  localStorage.setItem("cookiesAccepted", "true")
-  $cookieAlert.removeClass("show")
+  $acceptBtn.on("click", function () {
+    localStorage.setItem("cookiesAccepted", "true")
+    $cookieAlert.fadeOut(300, function () {
+      $(this).remove()
+    })
+  })
 })
