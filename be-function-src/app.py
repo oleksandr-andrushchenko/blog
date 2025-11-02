@@ -63,6 +63,7 @@ from utils import (
     get_static_files_dir,
     UserStatus,
     UserBannedError,
+    utc_now,
 )
 from deps import (
     OptCurUserDep,
@@ -272,7 +273,8 @@ async def users(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> str:
 @app.get("/users-fragment", name="users-fragment", response_class=HTMLResponse)
 async def users_fragment(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("fragments/users.html", {
-        "users": await get_users(query_dto, cur_user)
+        "users": await get_users(query_dto, cur_user),
+        "cur_user": cur_user,
     })
 
 
@@ -333,7 +335,8 @@ async def _update_user(update_user_dto: UpdateUserDTODep, user: UserDep, cur_use
 async def user_posts_fragment(user: UserDep, query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("fragments/posts.html", {
         "query": query_dto,
-        "posts": await get_latest_posts_by_user(user, query_dto, cur_user)
+        "posts": await get_latest_posts_by_user(user, query_dto, cur_user),
+        "cur_user": cur_user,
     })
 
 
@@ -395,6 +398,30 @@ async def _create_dummy_fixtures() -> None:
 @app.get("/me", name="me", response_model=Me, response_class=JSONResponse)
 async def post_page_by_slugs(cur_user: CurUserDep) -> Me:
     return cur_user
+
+
+@app.get("/privacy-policy", name="policy", response_class=HTMLResponse)
+async def policy(cur_user: OptCurUserDep) -> str:
+    return get_html_content("policy.html", {
+        "cur_user": cur_user,
+        "utc_now": utc_now(),
+    })
+
+
+@app.get("/rules", name="rules", response_class=HTMLResponse)
+async def rules(cur_user: OptCurUserDep) -> str:
+    return get_html_content("rules.html", {
+        "cur_user": cur_user,
+        "utc_now": utc_now(),
+    })
+
+
+@app.get("/terms-of-service", name="terms", response_class=HTMLResponse)
+async def terms(cur_user: OptCurUserDep) -> str:
+    return get_html_content("terms.html", {
+        "cur_user": cur_user,
+        "utc_now": utc_now(),
+    })
 
 
 @app.get("/{slug}", name="user-by-slug", response_class=HTMLResponse)

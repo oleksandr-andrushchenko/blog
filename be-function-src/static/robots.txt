@@ -5,6 +5,9 @@ Allow: /
 Allow: /posts
 Allow: /contacts
 Allow: /users
+Allow: /privacy-policy
+Allow: /rules
+Allow: /terms-of-service
 Allow: /robots.txt
 Allow: /sitemap.xml
 Allow: /license.xml

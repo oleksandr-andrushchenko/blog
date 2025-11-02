@@ -730,3 +730,17 @@ if (window.CONFIG.init_tinymce) {
 
 Prism.plugins.autoloader.languages_path = "https://cdn.jsdelivr.net/npm/prismjs@1.x/components/"
 Prism.highlightAll()
+
+const $cookieAlert = $("#cookie-alert")
+const $acceptBtn = $("#accept-cookies")
+
+if (!localStorage.getItem("cookiesAccepted")) {
+  $cookieAlert.addClass("show")
+} else {
+  $cookieAlert.removeClass("show")
+}
+
+$acceptBtn.on("click", function () {
+  localStorage.setItem("cookiesAccepted", "true")
+  $cookieAlert.removeClass("show")
+})

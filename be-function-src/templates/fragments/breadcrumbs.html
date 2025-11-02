@@ -1,11 +1,13 @@
 {% if breadcrumbs %}
+    <!-- Breadcrumbs -->
     <nav aria-label="breadcrumb" style="--bs-breadcrumb-divider: '>';">
         <ol class="breadcrumb">
             {% for label, url in breadcrumbs.items() %}
                 {% if loop.last or url is none %}
                     <li class="breadcrumb-item active" aria-current="page">{{ label }}</li>
                 {% else %}
-                    <li class="breadcrumb-item"><a href="{{ url }}" class="link-body-emphasis text-decoration-none">{{ label }}</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url }}"
+                                                   class="link-body-emphasis text-decoration-none">{{ label }}</a></li>
                 {% endif %}
             {% endfor %}
         </ol>

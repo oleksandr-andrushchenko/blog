@@ -1,0 +1,145 @@
+{% extends "layout.html" %}
+
+{% set title = "Privacy Policy" %}
+
+{% block meta_title %}{{ title }} | {{ site_name }}{% endblock %}
+{% block meta_canonical %}{{ url("policy") }}{% endblock %}
+
+{% block breadcrumbs %}
+    {% with breadcrumbs = {"Home": url("index"), (title): None} %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
+{% endblock %}
+
+{% block content %}
+    <article>
+        <header>
+            <h1>{{ site_name }} {{ title }}</h1>
+            <p class="text-secondary"><b>Last updated:</b> {{ (utc_now / 1000) | unix_to_full_date }}</p>
+            <p>Welcome to <b>{{ site_name }}</b> (“we,” “our,” or “us”). This Privacy Policy explains how we
+                collect, use, disclose, and protect your personal information when you visit <a
+                        href="{{ url("index") }}">{{ site_name }}</a>.</p>
+        </header>
+
+        <section>
+            <h2>1. Information We Collect</h2>
+            <p>We may collect the following categories of information:</p>
+            <ul>
+                <li><b>Personal Information:</b> Information you voluntarily provide, such as your name, email
+                    address, or other information submitted through contact forms, comments, or subscription forms.
+                </li>
+                <li><b>Usage Data:</b> Information automatically collected when you visit the site, including
+                    IP address, browser type, operating system, referring URLs, pages visited, and interaction data.
+                </li>
+                <li><b>Cookies and Tracking Technologies:</b> We use cookies and similar technologies to
+                    remember preferences, analyze site traffic, and improve the user experience.
+                </li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>2. How We Use Information</h2>
+            <p>We use personal information to:</p>
+            <ul>
+                <li>Operate, maintain, and improve {{ site_name }};</li>
+                <li>Respond to messages, comments, and inquiries;</li>
+                <li>Send newsletters or updates if you subscribe (you may opt out at any time);</li>
+                <li>Prevent spam, fraud, and abuse; and</li>
+                <li>Comply with legal obligations.</li>
+            </ul>
+            <p>We do not sell or rent your personal information.</p>
+        </section>
+
+        <section>
+            <h2>3. Legal Bases for Processing (GDPR)</h2>
+            <p>If you are located in the European Economic Area (EEA), the United Kingdom, or Switzerland, we process
+                personal data under one or more of these legal bases:</p>
+            <ul>
+                <li><b>Consent:</b> when you opt in (e.g., subscribing to a newsletter);</li>
+                <li><b>Performance of a contract:</b> when necessary to provide requested services;</li>
+                <li><b>Legitimate interests:</b> for site maintenance, analytics, and fraud prevention; and
+                </li>
+                <li><b>Legal obligation:</b> when required to comply with the law.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>4. Your Rights (GDPR, CCPA, and Canadian Law)</h2>
+            <p>Depending on where you live, you may have rights including:</p>
+            <ul>
+                <li>The right to access and receive a copy of your personal data;</li>
+                <li>The right to request correction or deletion of your data;</li>
+                <li>The right to withdraw consent (where processing is based on consent);</li>
+                <li>The right to restrict or object to certain processing activities;</li>
+                <li>The right to opt-out of the sale or sharing of personal information (California residents); and</li>
+                <li>The right to lodge a complaint with a supervisory authority in your jurisdiction.</li>
+            </ul>
+            <p>To exercise these rights, please contact us via the <a href="{{ url("contacts") }}">Contacts</a>
+                section below.</p>
+        </section>
+
+        <section>
+            <h2>5. Data Retention</h2>
+            <p>We retain personal data only as long as necessary to fulfill the purposes described in this Policy or to
+                meet legal or accounting obligations. If you request deletion, we will take reasonable steps to remove
+                your data unless we are required to retain it by law.</p>
+        </section>
+
+        <section>
+            <h2>6. Cookies &amp; Tracking</h2>
+            <p>We use cookies and similar technologies for functional, analytical, and optional advertising purposes.
+                You can manage cookies through your browser settings. Disabling cookies may reduce functionality on the
+                site.</p>
+            <p>If you would like a more detailed cookie disclosure (cookie categories, duration, third-party cookies),
+                let us know and we will provide a matching Cookie Policy section.</p>
+            <p>
+                We use essential cookies to maintain your session when you log in. These cookies store a secure
+                authentication token that allows you to remain signed in as you navigate between pages.
+                They do not contain your password or personal data and are automatically deleted when you log out or
+                when the session expires.
+            </p>
+        </section>
+
+        <section>
+            <h2>7. Third-Party Services</h2>
+            <p>We may use third-party service providers for analytics, hosting, email delivery, and embedded content
+                (e.g., video or social embeds). These providers may collect or receive information about your use of the
+                site and have their own privacy policies. We recommend reviewing their privacy notices.</p>
+        </section>
+
+        <section>
+            <h2>8. International Data Transfers</h2>
+            <p>Your data may be transferred to, stored, or processed in countries other than your own. When transfers
+                occur, we take steps to ensure an adequate level of protection, such as using standard contractual
+                clauses, where appropriate.</p>
+        </section>
+
+        <section>
+            <h2>9. Data Security</h2>
+            <p>We employ reasonable administrative, technical, and organizational safeguards to protect your personal
+                data. However, no system is entirely secure. If a data breach affecting your information occurs, we will
+                follow applicable legal requirements for notification.</p>
+        </section>
+
+        <section>
+            <h2>10. Children’s Privacy</h2>
+            <p>{{ site_name }} is not intended for children under the age of 13 (or under 16 where the higher age
+                applies). We do not knowingly collect personal information from children. If you believe we have
+                collected personal information from a child, please <a href="{{ url("contacts") }}">contact</a> us and
+                we will delete the data.</p>
+        </section>
+
+        <section>
+            <h2>11. Changes to This Policy</h2>
+            <p>We may update this Privacy Policy from time to time. We will post the updated Policy on this page and
+                update the “Last updated” date. Significant changes will be made clear.</p>
+        </section>
+
+        <footer>
+            <h2>Contact</h2>
+            <p>If you have questions, requests, or concerns about this Privacy Policy or your personal data, please
+                contact us via the <a href="{{ url("contacts") }}">Contacts</a> area on our site or using the
+                contact details provided on {{ site_name }}.</p>
+        </footer>
+    </article>
+{% endblock %}

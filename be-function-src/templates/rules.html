@@ -1,0 +1,85 @@
+{% extends "layout.html" %}
+
+{% set title = "Rules" %}
+
+{% block meta_title %}{{ title }} | {{ site_name }}{% endblock %}
+{% block meta_canonical %}{{ url("rules") }}{% endblock %}
+
+{% block breadcrumbs %}
+    {% with breadcrumbs = {"Home": url("index"), (title): None} %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
+{% endblock %}
+
+{% block content %}
+    <article>
+        <header>
+            <h1>{{ site_name }} {{ title }}</h1>
+            <p class="text-secondary"><b>Last updated:</b> {{ (utc_now / 1000) | unix_to_full_date }}</p>
+            <p>Welcome to <b>{{ site_name }}</b>! These guidelines describe how we expect users to behave when
+                interacting on our site. By participating (commenting, posting, sharing), you agree to follow these
+                rules.</p>
+        </header>
+
+        <section>
+            <h2>1. Be Respectful</h2>
+            <p>You should treat other members of our community with respect. Do not harass, bully, intimidate or
+                discriminate against others. Constructive disagreement is fine — personal attacks or hateful language
+                are not.</p>
+        </section>
+
+        <section>
+            <h2>2. Use Appropriate Language and Content</h2>
+            <p>Avoid profanity, obscenity, or content that is sexually explicit, violent, or otherwise inappropriate for
+                a general audience. If you share images or media, they must be appropriate for public viewing.</p>
+        </section>
+
+        <section>
+            <h2>3. No Hate Speech, Harassment or Discrimination</h2>
+            <p>We do not tolerate content or behavior that targets a person or group based on race, ethnicity, national
+                origin, religion, gender, sexual orientation, disability, age or other protected characteristic.</p>
+        </section>
+
+        <section>
+            <h2>4. No Illegal or Dangerous Behavior</h2>
+            <p>Do not post or promote content that is unlawful, or encourages illegal or harmful behavior (including
+                self-harm, violence, or exploitation).</p>
+        </section>
+
+        <section>
+            <h2>5. No Spam, Fake Engagement or Misleading Behavior</h2>
+            <p>Do not post unsolicited promotions, repetitive content, or try to manipulate user engagement (e.g., fake
+                comments, bots, excessive linking). Be honest and transparent.</p>
+        </section>
+
+        <section>
+            <h2>6. Respect Intellectual Property</h2>
+            <p>Only share content you have rights to. Do not repost someone else’s work without permission. If you use
+                copyrighted material, provide proper attribution or ensure you have the right to use it.</p>
+        </section>
+
+        <section>
+            <h2>7. Privacy &amp; Personal Information</h2>
+            <p>Do not share private or sensitive personal information about others (e.g., precise location, financial
+                data, medical details) without consent. Respect people’s privacy.</p>
+        </section>
+
+        <section>
+            <h2>8. Enforcement</h2>
+            <p>Violations of these guidelines may result in actions such as comment removal, account suspension, or
+                content deletion, at our discretion. Repeated or severe violations may result in permanent bans.</p>
+        </section>
+
+        <section>
+            <h2>9. Changes to These Guidelines</h2>
+            <p>We may update these guidelines at any time. The latest version will always be available at this page, and
+                your continued participation constitutes acceptance of the revised rules.</p>
+        </section>
+
+        <footer>
+            <h2>Contact</h2>
+            <p>If you have questions or would like to report a violation, please contact us at the <a
+                    href="{{ url('contacts') }}">Contacts</a> page of {{ site_name }}.</p>
+        </footer>
+    </article>
+{% endblock %}
