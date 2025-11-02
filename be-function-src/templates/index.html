@@ -6,9 +6,16 @@
 {% block content %}
     <div class="row g-5 pt-4">
         <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-4">
-            <div class="p-2 p-lg-4 bg-body-tertiary rounded-3">
-                <h1>{{ site_name }}</h1>
-                <p class="small text-secondary">&mdash; {{ site_short_desc }}</p>
+            <div class="p-2 p-lg-4 bg-body-secondary rounded-3">
+                <div class="d-flex gap-3">
+                    <div>
+                        <i class="bi bi-{{ site_icon }}" style="font-size:500%;line-height:1"></i>
+                    </div>
+                    <div>
+                        <h1>{{ site_name }}</h1>
+                        <p class="text-secondary">&mdash; {{ site_short_desc }}</p>
+                    </div>
+                </div>
                 <p class="fs-5">{{ site_desc }}</p>
                 <a href="{{ url("new-post") if cur_user else url("login", redirect_url=url("new-post")|urlencode) }}"
                    class="btn btn-dark">
