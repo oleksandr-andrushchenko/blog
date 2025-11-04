@@ -1,4 +1,3 @@
-import htmlmin
 import re
 import os
 import aioboto3
@@ -34,6 +33,7 @@ import random
 import bleach
 import html
 from bs4 import BeautifulSoup
+from urllib.parse import urlparse
 
 
 class UserToken(BaseModel):
@@ -486,17 +486,18 @@ class UserBannedError(BaseError):
 
 
 def get_live_config(load_env=False):
+    env = os.getenv("ENV")
+    _is_prod = env == "prod"
     # if load_env:
     #     dotenv.load_dotenv(dotenv_path="/.env", override=True)
 
     return {
-        "env": os.getenv("ENV"),
+        "env": env,
         "base_url": os.getenv("BASE_URL"),
-        "cloudfront_base_url": os.getenv("CLOUDFRONT_BASE_URL"),
         "aws_region": os.getenv("AWS_REGION"),
         "dynamodb_endpoint": os.getenv("DYNAMODB_ENDPOINT"),
         "dynamodb_table": os.getenv("DYNAMODB_TABLE"),
-        "google_analytics_id": os.getenv("GOOGLE_ANALYTICS_ID"),
+        "google_analytics_id": os.getenv("GOOGLE_ANALYTICS_ID") if _is_prod else None,
         "tinymce_api_key": os.getenv("TINYMCE_API_KEY"),
         "contact_topic_arn": os.getenv("CONTACT_TOPIC_ARN"),
         "allowed_origin": os.getenv("ALLOWED_ORIGIN"),
@@ -504,8 +505,10 @@ def get_live_config(load_env=False):
         "cognito_client_id": os.getenv("COGNITO_CLIENT_ID"),
         "cognito_client_secret": os.getenv("COGNITO_CLIENT_SECRET"),
         "cognito_user_pool_id": os.getenv("COGNITO_USER_POOL_ID"),
-        "public_s3_bucket": os.getenv("PUBLIC_S3_BUCKET"),
+        "static_s3_bucket": os.getenv("STATIC_S3_BUCKET"),
         "static_files_dir": os.getenv("STATIC_FILES_DIR", "static"),
+        "css_cache_counter": os.getenv("CSS_CACHE_COUNTER", 0),
+        "js_cache_counter": os.getenv("JS_CACHE_COUNTER", 0),
         "permission_hierarchy": {
             Permission.REGULAR: [
                 Permission.UPDATE_USER_IMPRESSION,
@@ -566,8 +569,8 @@ def get_static_files_dir() -> str:
     return config.get("static_files_dir")
 
 
-def get_public_s3_bucket() -> str:
-    return config.get("public_s3_bucket")
+def get_static_s3_bucket() -> str:
+    return config.get("static_s3_bucket")
 
 
 def get_base_url():
@@ -590,8 +593,10 @@ def get_contact_topic_arn():
     return get_config().get("contact_topic_arn")
 
 
-def get_allowed_origin():
-    return get_config().get("allowed_origin")
+def get_allowed_origins() -> list[str]:
+    return [
+        get_config().get("allowed_origin"),
+    ]
 
 
 def get_cognito_domain():
@@ -773,30 +778,43 @@ def get_post_url(request, post: Post, **params) -> str:
     return get_url(request, "post", post_id=post.id, **params)
 
 
-def get_url(request, name: str, **params) -> str:
-    # find the route
+def get_url(request, name: str, full_url: bool = False, **params) -> str:
+    """
+    Generate a URL for a named route.
+    By default, returns path-only URLs; set full_url=True to prepend base_url.
+    """
+    # Find the route
     route = next(r for r in request.app.routes if getattr(r, "name", None) == name)
     path_param_names = getattr(route, "param_convertors", {}).keys()
 
-    # split params into path vs query, skipping None
+    # Split params into path vs query, skipping None
     path_params = {k: v for k, v in params.items() if k in path_param_names and v is not None}
     query_params = {k: v for k, v in params.items() if k not in path_param_names and v is not None}
 
-    url = str(request.url_for(name, **path_params))
+    # Use request.url_for to get the path
+    url_path = request.url_for(name, **path_params).path
 
+    if full_url and url_path == "/":
+        url_path = ""
+
+    # Handle query parameters
     if query_params:
         items = []
         for k, v in query_params.items():
             if isinstance(v, bool):
-                v = int(v)  # True -> 1, False -> 0
+                v = int(v)
             if isinstance(v, (list, tuple)):
                 items.extend((k, int(i) if isinstance(i, bool) else i) for i in v)
             else:
                 items.append((k, v))
         if items:
-            url = f"{url}?{urlencode(items)}"
+            url_path = f"{url_path}?{urlencode(items)}"
 
-    return url
+    if full_url:
+        base_url = get_base_url()
+        return f"{base_url}{url_path}"
+
+    return url_path
 
 
 @pass_context
@@ -838,33 +856,6 @@ def get_jinja2_env():
 jinja2_env = Lazy(get_jinja2_env)
 
 
-def minify_html(html: str) -> str:
-    # Step 1: Minify using htmlmin
-    html = htmlmin.minify(
-        html,
-        remove_comments=True,
-        remove_empty_space=True,
-        remove_all_empty_space=True,
-        reduce_empty_attributes=True,
-        reduce_boolean_attributes=True,
-        remove_optional_attribute_quotes=True,
-        keep_pre=False
-    )
-
-    # Step 2: Normalize attribute values — collapse inner whitespace and strip leading/trailing
-    def clean_attr_value(match):
-        attr = match.group(1)
-        quote = match.group(2)
-        value = match.group(3)
-        cleaned = re.sub(r'\s+', ' ', value).strip()
-        return f'{attr}={quote}{cleaned}{quote}'
-
-    # This handles key="value with   spaces\nand lines"
-    html = re.sub(r'(\w+)=([\'"])(.*?)\2', clean_attr_value, html, flags=re.DOTALL)
-
-    return html.strip()
-
-
 def get_aioboto3_session():
     # logger.debug(f"aws_region: {get_aws_region()}")
     args = {} if is_prod() else {
@@ -886,7 +877,7 @@ def get_dynamodb_resource_kwargs():
 
 
 def get_s3_client_kwargs():
-    return {
+    return {} if is_prod() else {
         "region_name": get_aws_region()
     }
 
@@ -919,8 +910,7 @@ def get_html_content(template: str, data: dict[str, any]) -> str:
     if data is None:
         data = {}
     template = jinja2_env().get_template(template)
-    html = template.render(data)
-    return minify_html(html) if is_prod() else html
+    return template.render(data)
 
 
 async def get_cognito_jwks() -> dict:
@@ -996,7 +986,7 @@ async def save_public_file(file_dto: FileDTO) -> str:
     stream = BytesIO(file_dto.content)
     stream.seek(0)
 
-    await s3.upload_fileobj(stream, get_public_s3_bucket(), filename)
+    await s3.upload_fileobj(stream, get_static_s3_bucket(), filename)
     return filename
 
 
@@ -1008,7 +998,7 @@ async def drop_public_file(filename: str) -> None:
         return
 
     s3 = await get_s3_client()
-    await s3.delete_object(Bucket=get_public_s3_bucket(), Key=filename)
+    await s3.delete_object(Bucket=get_static_s3_bucket(), Key=filename)
 
 
 async def configure_app_state(app_state: State) -> None:
@@ -1054,11 +1044,10 @@ async def get_user_by_user_token(token: UserToken) -> User | None:
     # 2: Fallback: lookup user by email
     # todo: user_item instead of provider_user_item (?)
     if not provider_user_item and token.email:
-        resp = await table.query(
-            IndexName="USERS_BY_EMAIL",
-            KeyConditionExpression=Key("user_email_pk").eq(token.email),
-            Limit=1
-        )
+        resp = await safe_query_dynamodb_index("USERS_BY_EMAIL", {
+            "KeyConditionExpression": Key("user_email_pk").eq(token.email),
+            "Limit": 1
+        })
         items = resp.get("Items", [])
         if items:
             user_item = items[0]
@@ -1449,12 +1438,10 @@ async def get_post(post_id: str, cur_user: User = None) -> Post:
 
 
 async def find_post_by_slug(slug: str) -> Post | None:
-    table = await get_dynamodb_table()
-    resp = await table.query(
-        IndexName="POSTS_BY_SLUG",
-        KeyConditionExpression=Key("post_slug").eq(slug),
-        Limit=1
-    )
+    resp = await safe_query_dynamodb_index("POSTS_BY_SLUG", {
+        "KeyConditionExpression": Key("post_slug").eq(slug),
+        "Limit": 1
+    })
     items = resp.get("Items", [])
     if not items:
         return None
@@ -1801,12 +1788,10 @@ async def get_user(user_id: str, cur_user: User = None) -> User:
 
 
 async def find_user_by_username(username: str) -> User | None:
-    table = await get_dynamodb_table()
-    resp = await table.query(
-        IndexName="USERS_BY_USERNAME",
-        KeyConditionExpression=Key("username").eq(username),
-        Limit=1
-    )
+    resp = await safe_query_dynamodb_index("USERS_BY_USERNAME", {
+        "KeyConditionExpression": Key("username").eq(username),
+        "Limit": 1
+    })
     items = resp.get("Items", [])
     if not items:
         return None
@@ -1864,6 +1849,21 @@ async def get_posts(query_dto: PostQueryDTO = None, cur_user: User = None) -> li
     return await get_latest_posts(query_dto, cur_user)
 
 
+async def safe_query_dynamodb_index(index_name: str, query_args: dict[str, any]) -> dict[str, any]:
+    table = await get_dynamodb_table()
+    try:
+        return await table.query(**{**query_args, "IndexName": index_name})
+    except ClientError as e:
+        error_code = e.response["Error"]["Code"]
+        # Happens if the index doesn't exist yet (e.g., table is empty)
+        if error_code == "ValidationException":
+            logger.warning(
+                f"DynamoDB index '{index_name}' not ready or empty. Returning empty list."
+            )
+            return {}
+        raise
+
+
 T = TypeVar("T")
 
 
@@ -1874,10 +1874,7 @@ async def query_dynamodb_items(
         map_fn: Callable[[dict], T],
 ) -> list[T]:
     """Generic DynamoDB query executor with pagination and mapping."""
-
-    table = await get_dynamodb_table()
     query_args = {
-        "IndexName": index_name,
         "KeyConditionExpression": key_condition_expr,
         "ScanIndexForward": False,
         "Limit": query_dto.limit,
@@ -1886,7 +1883,8 @@ async def query_dynamodb_items(
     if query_dto.offset:
         query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
 
-    resp = await table.query(**query_args)
+    resp = await safe_query_dynamodb_index(index_name, query_args)
+
     items = resp.get("Items", [])
     results = [map_fn(item) for item in items]
 
@@ -2115,13 +2113,10 @@ async def get_popular_post_tags(query_dto: TagQueryDTO = None) -> list[Tag]:
 async def get_post_tags_by_prefix(query_dto: TagQueryDTO = None) -> list[Tag]:
     if query_dto is None:
         query_dto = TagQueryDTO()
-
-    table = await get_dynamodb_table()
-    resp = await table.query(
-        IndexName="TAGS_BY_TYPE_NAME",
-        KeyConditionExpression=Key("tag_type_pk").eq("POST_TAG") & Key("tag_name_sk").begins_with(query_dto.prefix),
-        Limit=query_dto.limit
-    )
+    resp = await safe_query_dynamodb_index("TAGS_BY_TYPE_NAME", {
+        "KeyConditionExpression": Key("tag_type_pk").eq("POST_TAG") & Key("tag_name_sk").begins_with(query_dto.prefix),
+        "Limit": query_dto.limit
+    })
     items = resp.get("Items", [])
     # logger.debug(f"Tags: {items}")
     return [tag_from_dynamodb(item) for item in items]
@@ -2210,7 +2205,7 @@ async def get_user_token_by_code(code: str, callback_url: str) -> UserToken:
             "grant_type": "authorization_code",
             "client_id": cognito_client_id,
             "code": code,
-            "redirect_uri": quote(callback_url, safe=''),
+            "redirect_uri": callback_url,
         }
         headers = {
             "Content-Type": "application/x-www-form-urlencoded",
@@ -2222,15 +2217,21 @@ async def get_user_token_by_code(code: str, callback_url: str) -> UserToken:
         async with httpx.AsyncClient() as client:
             token_resp = await client.post(token_url, data=data, headers=headers)
             if token_resp.status_code != HTTP_200_OK:
+                logger.error(f"Token exchange failed: {token_resp.status_code} {token_resp.text}")
                 raise CodeExchangeFailedError("Failed to exchange code")
             tokens = token_resp.json()
+            logger.debug(f"Cognito token response: {tokens}")
 
-        token = tokens.get("id_token")
+        token = tokens.get("access_token")
         if not token:
-            raise InvalidTokenError("Missing token")
+            raise InvalidTokenError("Missing access token in Cognito response")
 
-        claims = jwt.get_unverified_claims(token)
-        user_token = user_token_from_jwt_claims(claims, token)
+        # Verify the token_use field before using it
+        unverified_claims = jwt.get_unverified_claims(token)
+        if unverified_claims.get("token_use") != "access":
+            raise InvalidTokenError(f"Unexpected token_use: {unverified_claims.get('token_use')}")
+
+        user_token = user_token_from_jwt_claims(unverified_claims, token)
     else:
         token_args = decode_offset(code) if code else {}
         logger.critical(token_args)
@@ -2245,11 +2246,32 @@ async def get_logout_redirect_url(callback_url: str) -> str:
         return (
             f"https://{get_cognito_domain()}/logout"
             f"?client_id={get_cognito_client_id()}"
+            # f"&response_type=code"
             f"&logout_uri={quote(callback_url, safe='')}"
+            # f"&scope=openid+email+profile"
         )
 
     return callback_url
 
+
+def get_redirect_url(request) -> str:
+    redirect_url = request.query_params.get("redirect_url")
+
+    if not redirect_url:
+        referer = request.headers.get("referer")
+        if referer:
+            parsed = urlparse(referer)
+            base_url = urlparse(get_base_url())
+
+            # If referer has no netloc (relative path) → safe
+            # If referer belongs to your domain → safe
+            if not parsed.netloc or parsed.netloc == base_url.netloc:
+                redirect_url = referer
+
+    if not redirect_url:
+        redirect_url = get_url(request, "index")
+
+    return redirect_url
 
 async def get_latest_users(query_dto: UserQueryDTO = None, cur_user: User = None) -> list[User]:
     if query_dto is None:

@@ -52,9 +52,9 @@ def get_users(client):
     resp = get(client, "/users")
     assert resp.status_code == 200
     doc = pq(resp.text)
-    assert "Users" in doc("head title").text()
+    assert "users" in doc("head title").text()
     main_el = doc("main")
-    assert "Users" in main_el("h1").text()
+    assert "users" in main_el("h1").text()
     return doc
 
 
@@ -74,9 +74,9 @@ def get_posts(client):
     resp = get(client, "/posts")
     assert resp.status_code == 200
     doc = pq(resp.text)
-    assert "Posts" in doc("head title").text()
+    assert "posts" in doc("head title").text()
     main_el = doc("main")
-    assert "Posts" in main_el("h1").text()
+    assert "posts" in main_el("h1").text()
     return doc
 
 
@@ -118,11 +118,11 @@ def check_header(doc, user_alias: str | None):
     assert header_el('a[href$="/contacts"]')
     if user_alias:
         assert header_el('a[href$="/posts/new"]')
-        assert header_el('a[href$="/auth/logout"]')
+        assert header_el('a[href$="/logout"]')
         user = get_dynamodb_user(user_ids[user_alias])
         assert header_el('a[href$="' + get_user_href(user) + '"]')
     else:
-        assert header_el('a[href$="/auth/login"]')
+        assert header_el('a[href$="/login"]')
         # todo: "*=" - contains
         user_view_el = header_el('a[href="/users/*"]')
         assert not user_view_el
@@ -397,5 +397,5 @@ def test_not_found(guest_client, path):
 @pytest.mark.parametrize("user_alias", ["regular", "root"])
 def test_logout(request, user_alias):
     client = get_client(request, user_alias)
-    resp = get(client, "/auth/logout")
+    resp = get(client, "/logout")
     assert resp.status_code == 200

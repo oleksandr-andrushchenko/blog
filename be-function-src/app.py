@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, FileResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.status import (
     HTTP_204_NO_CONTENT,
@@ -64,6 +65,8 @@ from utils import (
     UserStatus,
     UserBannedError,
     utc_now,
+    get_allowed_origins,
+    get_redirect_url,
 )
 from deps import (
     OptCurUserDep,
@@ -110,8 +113,14 @@ if not is_prod():
                 return FileResponse(file_path)
         return await call_next(request)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_allowed_origins(),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# TODO: add CORS middleware if needed (fastapi.middleware.cors.CORSMiddleware)
 
 @app.middleware("http")
 async def inject_template_global_vars(request: Request, call_next):
@@ -340,23 +349,21 @@ async def user_posts_fragment(user: UserDep, query_dto: PostQueryDep, cur_user: 
     })
 
 
-@app.get("/auth/login", name="login", response_class=RedirectResponse)
-async def login(request: Request) -> str:
-    redirect_url = request.query_params.get("redirect_url")
-    # todo: make sure referer belongs to the website
-    referer = request.headers.get("referer")
-    index_url = get_url(request, "index")
-    post_redirect_url = redirect_url or referer or index_url
-    callback_url = f"{get_url(request, 'login-callback')}?redirect_url={quote(post_redirect_url)}"
-    redirect_url = await get_login_redirect_url(callback_url)
-    return redirect_url
+@app.get("/login", name="login", response_class=RedirectResponse)
+async def login(request: Request) -> RedirectResponse:
+    redirect_url = get_redirect_url(request)
+    callback_url = get_url(request, 'login-callback', full_url=True)
+    provider_redirect_url = await get_login_redirect_url(callback_url)
+    response = RedirectResponse(provider_redirect_url)
+    response.set_cookie("redirect_url", redirect_url, httponly=True, secure=True)
+    return response
 
 
-@app.get("/auth/callback", name="login-callback", response_class=RedirectResponse)
+@app.get("/login-callback", name="login-callback", response_class=RedirectResponse)
 async def login_callback(request: Request) -> RedirectResponse:
     try:
-        redirect_url = unquote(request.query_params.get('redirect_url'))
-        callback_url = f"{get_url(request, 'login-callback')}?redirect_url={redirect_url}"
+        redirect_url = request.cookies.get("redirect_url") or get_url(request, "index")
+        callback_url = get_url(request, 'login-callback', full_url=True)
 
         user_token = await get_user_token_by_code(
             code=request.query_params.get("code"),
@@ -379,15 +386,21 @@ async def login_callback(request: Request) -> RedirectResponse:
         )
 
 
-@app.get("/auth/logout", name="logout", response_class=RedirectResponse)
+@app.get("/logout", name="logout", response_class=RedirectResponse)
 async def logout(request: Request) -> RedirectResponse:
-    # todo: make sure referer belongs to the website
-    referer = request.headers.get("referer")
-    callback_url = referer if referer else get_url(request, 'index')
-    redirect_url = await get_logout_redirect_url(callback_url)
-    response = RedirectResponse(redirect_url)
+    redirect_url = get_redirect_url(request)
+    callback_url = get_url(request, 'logout-callback', full_url=True)
+    provider_redirect_url = await get_logout_redirect_url(callback_url)
+    response = RedirectResponse(provider_redirect_url)
+    response.set_cookie("redirect_url", redirect_url, httponly=True, secure=True)
     response.delete_cookie("session_token")
     return response
+
+
+@app.get("/logout-callback", name="logout-callback", response_class=RedirectResponse)
+async def logout_callback(request: Request) -> str:
+    redirect_url = request.cookies.get("redirect_url") or get_url(request, "index")
+    return redirect_url
 
 
 @app.post("/dummy-fixtures", name="create-dummy-fixtures")
@@ -436,7 +449,7 @@ async def post_page_by_slugs(post: PostBySlugsDep, cur_user: OptCurUserDep) -> s
 
 @app.exception_handler(StarletteHTTPException)
 async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
-    logger.warning(f"HTTP exception: {exc}")
+    logger.error(f"HTTP exception: {str(exc)}")
     return await get_error_response(
         request,
         exc.status_code,
@@ -446,7 +459,7 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.warning(f"Validation failed: {exc}")
+    logger.error(f"Validation failed: {str(exc)}")
     details = {}
     for error in exc.errors():
         field = error["loc"][-1] if len(error["loc"]) > 1 else error["loc"][0]
@@ -460,7 +473,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(NotAuthenticatedError)
 async def not_authenticated_error_handler(request: Request, exc: NotAuthenticatedError):
-    logger.warning(f"Not authenticated: {str(exc)}")
+    logger.error(f"Not authenticated: {str(exc)}")
     return await get_error_response(
         request,
         HTTP_401_UNAUTHORIZED,
@@ -474,7 +487,7 @@ async def user_banned_error_handler(request: Request, exc: UserBannedError):
 
 @app.exception_handler(NotAuthorizedError)
 async def not_authorized_error_handler(request: Request, exc: NotAuthorizedError):
-    logger.warning(f"Not authorized: {str(exc)}")
+    logger.error(f"Not authorized: {str(exc)}")
     return await get_error_response(
         request,
         HTTP_403_FORBIDDEN,

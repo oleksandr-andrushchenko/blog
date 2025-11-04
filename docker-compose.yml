@@ -9,6 +9,7 @@ services:
     env_file:
       - .env
     environment:
+      ENV: local
       BASE_URL: "http://localhost:${BE_FUNCTION_PORT}"
       DYNAMODB_ENDPOINT: "http://${DOCKER_NAME}-dynamodb:8000"
     volumes:
@@ -27,7 +28,7 @@ services:
     env_file:
       - .env
     environment:
-      ENV: ${TEST_ENV}
+      ENV: test
       BASE_URL: "http://localhost:${TEST_BE_FUNCTION_PORT}"
       DYNAMODB_ENDPOINT: "http://${DOCKER_NAME}-dynamodb:8000"
       DYNAMODB_TABLE: ${TEST_DYNAMODB_TABLE}

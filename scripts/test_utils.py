@@ -101,7 +101,7 @@ def get_guest_client() -> Session:
 def get_logged_in_client(user: dict) -> Session:
     fake_code = encode_offset(user)
     session = Session()
-    resp = get(session, f"/auth/callback?redirect_url={quote(TEST_BASE_URL)}&code={fake_code}")
+    resp = get(session, f"/login-callback?redirect_url={quote(TEST_BASE_URL)}&code={fake_code}")
     # print("Resp:",resp.content)
     # print("Cookies:", resp.cookies.get_dict())
     return session

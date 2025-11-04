@@ -4,6 +4,9 @@ FROM python:3.12-slim
 # Set working directory
 WORKDIR /app
 
+# Install make and zip
+RUN apt-get update && apt-get install -y zip && rm -rf /var/lib/apt/lists/*
+
 # Copy requirements first for caching
 COPY requirements.txt .
 

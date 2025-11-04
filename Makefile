@@ -10,7 +10,7 @@ CODE_STACK_NAME = $(STACK_NAME)-code
 CERT_STACK_NAME = $(STACK_NAME)-cert
 SITE_BUILD_DIR=.site-build
 CODE_BUILD_DIR=.code-build
-LAMBDAS = be-function
+CACHE_DIR=.cache
 
 .PHONY: help
 help: ## Show this help
@@ -159,11 +159,18 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 		--capabilities CAPABILITY_NAMED_IAM \
 		--no-fail-on-empty-changeset \
 		--parameter-overrides \
+			Env="$(ENV)" \
 			DomainName="$(DOMAIN_NAME)" \
 			HostedZoneId="$(HOSTED_ZONE_ID)" \
 			CertificateArn="$(CLOUDFRONT_CERTIFICATE_ARN)" \
 			NotificationEmail="$(NOTIFICATION_EMAIL)" \
 			NotificationPhone="$(NOTIFICATION_PHONE)" \
+			GoogleAnalyticsId="$(GOOGLE_ANALYTICS_ID)" \
+			GoogleOauthClientId="$(GOOGLE_OAUTH_CLIENT_ID)" \
+			GoogleOauthClientSecret="$(GOOGLE_OAUTH_CLIENT_SECRET)" \
+			TinyMceApiKey="$(TINYMCE_API_KEY)" \
+			CssCacheCounter="$(CSS_CACHE_COUNTER)" \
+			JsCacheCounter="$(JS_CACHE_COUNTER)" \
 			TagProject="$(TAG_PROJECT)" \
 			TagOwner="$(TAG_OWNER)" \
 			TagEnvironment="$(TAG_ENVIRONMENT)" \
@@ -200,25 +207,8 @@ delete-infra: check-env check-aws ## Delete CF stack
 		--profile "$(AWS_PROFILE_NAME)"
 	@echo "✅ Stack $(STACK_NAME) deleted."
 
-.PHONY: get-contact-form-function-url
-get-contact-form-function-url: check-env check-aws ## Fetch Lambda function URL and save to .env
-	@echo "📡 Fetching Lambda Function URL..."
-	@LAMBDA_URL=$$(aws cloudformation describe-stacks \
-		--stack-name "$(STACK_NAME)" \
-		--query "Stacks[0].Outputs[?OutputKey=='ContactFormEndpoint'].OutputValue" \
-		--output text \
-		--region "$(AWS_REGION)" \
-		--profile "$(AWS_PROFILE)"); \
-	if grep -q "^CONTACT_FORM_FUNCTION_URL=" .env; then \
-		sed -i.bak "s|^CONTACT_FORM_FUNCTION_URL=.*|CONTACT_FORM_FUNCTION_URL=$$LAMBDA_URL|" .env; \
-		rm -f .env.bak; \
-	else \
-		echo "\nCONTACT_FORM_FUNCTION_URL=$$LAMBDA_URL" >> .env; \
-	fi; \
-	echo "✅ Saved CONTACT_FORM_FUNCTION_URL=$$LAMBDA_URL to .env"
-
 .PHONY: deploy-code-files
-deploy-code-files: check-env check-aws generate-code-files ## Zip and upload Lambda code to S3
+deploy-code-files: check-env check-aws ## Zip and upload Lambda code to S3
 	@echo "📤 Uploading Lambda code to s3://$(CODE_STACK_NAME)..."
 	aws s3 sync ./$(CODE_BUILD_DIR) s3://$(CODE_STACK_NAME) \
 		--delete \
@@ -282,29 +272,29 @@ generate-site-files: ## Run content generator inside Docker container
 	@echo "📦 Generating Site files..."
 	mkdir -p $(SITE_BUILD_DIR)
 	rm -rf $(SITE_BUILD_DIR)/*
-	docker exec $(SCRIPTS_CONTAINER) python3 scripts/generate_site_files.py
+	docker exec $(SCRIPTS_CONTAINER) python3 scripts/generate_site_build.py
 	@echo "✅ Site files saved to $(SITE_BUILD_DIR) successfully"
 
 .PHONY: generate-code-files
-generate-code-files: ## Build Lambda zips for all listed LAMBDAS
-	@echo "📦 Building Lambda zips for: $(LAMBDAS)..."
+generate-code-files: ## Build Lambda zip for be-function
+	@echo "📦 Generating Code files..."
 	mkdir -p $(CODE_BUILD_DIR)
 	rm -rf $(CODE_BUILD_DIR)/*
 
-	@for lambda_name in $(LAMBDAS); do \
-		echo "🛠 Building $$lambda_name..."; \
-		LAMBDA_DIR="$$lambda_name-src"; \
-		TMP_DIR="$(CODE_BUILD_DIR)/tmp_$$lambda_name"; \
-		mkdir -p "$$TMP_DIR"; \
-		cp -r "$$LAMBDA_DIR/." "$$TMP_DIR/"; \
-		if [ -f "$$LAMBDA_DIR/requirements.txt" ]; then \
-			pip install -r "$$LAMBDA_DIR/requirements.txt" -t "$$TMP_DIR"; \
-		fi; \
-		cd "$$TMP_DIR" && zip -r "../$$lambda_name.zip" . && cd - > /dev/null; \
-		rm -rf "$$TMP_DIR"; \
-	done
+	# Install dependencies only if vendor folder doesn't exist
+	docker exec $(SCRIPTS_CONTAINER) bash -c "\
+		if [ ! -d /app/$(CACHE_DIR)/vendor ]; then \
+			echo '📥 Installing dependencies into $(CACHE_DIR)/vendor folder...'; \
+			mkdir -p /app/$(CACHE_DIR)/vendor; \
+			pip install -r /app/be-function-src/requirements.txt -t /app/$(CACHE_DIR)/vendor; \
+		else \
+			echo '✅ Using cached $(CACHE_DIR)/vendor folder'; \
+		fi"
 
-	@echo "✅ All Lambda zips created in $(CODE_BUILD_DIR)"
+	# Run the build script to copy source, merge vendor, remove static, and zip
+	docker exec $(SCRIPTS_CONTAINER) python3 /app/scripts/generate_code_build.py
+
+	@echo "✅ Code files saved to $(CODE_BUILD_DIR) successfully"
 
 .PHONY: open
 open: ## Show local site URL

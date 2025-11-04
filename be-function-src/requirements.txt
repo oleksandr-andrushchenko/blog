@@ -2,7 +2,6 @@ fastapi
 uvicorn
 mangum
 Jinja2>=3.1.3
-htmlmin
 python-dotenv
 pydantic[email]
 httpx

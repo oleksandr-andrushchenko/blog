@@ -33,15 +33,8 @@ Allow: /*.gif
 # --- BLOCK dynamic, private, or duplicate routes ---
 Disallow: /posts-fragment
 Disallow: /users-fragment
-Disallow: /users/
 Disallow: /auth/
 Disallow: /me
 Disallow: /posts/new
-Disallow: /posts/edit
-Disallow: /posts/status
-Disallow: /posts/impression
-Disallow: /users/edit
-Disallow: /users/status
-Disallow: /users/impression
 Disallow: /dummy-fixtures
 Disallow: /contacts/message

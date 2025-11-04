@@ -26,6 +26,7 @@ env/
 info.txt
 .site-build/
 .code-build/
+.cache
 bootstrap-5.3.7-dist/
 bootstrap-icons-1.13.1/
 
