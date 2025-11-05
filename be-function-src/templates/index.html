@@ -5,29 +5,10 @@
 
 {% block content %}
     <div class="row g-5 pt-4">
-        <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-4">
-            <div class="p-2 p-lg-4 bg-body-secondary rounded-3">
-                <div class="d-flex gap-3">
-                    <div>
-                        <i class="bi bi-box" style="font-size:500%;line-height:0.5"></i>
-                    </div>
-                    <div>
-                        <h1>{{ site_name }}</h1>
-                        <p class="text-secondary">&mdash; {{ site_short_desc }}</p>
-                    </div>
-                </div>
-                <p>{{ site_desc }}</p>
-                <a href="{{ url("new-post") if cur_user else url("login", redirect_url=url("new-post")|urlencode) }}"
-                   class="btn btn-dark">
-                    <i class="bi bi-pencil"></i> Write a post
-                </a>
-                <a href="{{ url("posts", type=PostQueryType.POPULAR) }}" class="btn btn-dark btn-sm">
-                    <i class="bi bi-star"></i> Popular posts
-                </a>
-                <a href="{{ url("users", type=UserQueryType.POPULAR) }}" class="btn btn-dark btn-sm">
-                    <i class="bi bi-heart"></i> Popular authors
-                </a>
-            </div>
+        <div class="col col-12 col-lg-6 col-xl-8">
+            <h1>{{ site_name }}</h1>
+            <p class="small text-secondary">&mdash; {{ site_short_desc }}</p>
+            <p>{{ site_desc }}</p>
 
             <div class="d-flex flex-column gap-3">
                 <h2 class="mb-0">
