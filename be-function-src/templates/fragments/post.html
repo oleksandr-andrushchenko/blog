@@ -29,7 +29,7 @@
             {% endif %}
         </a>
 
-        <div class="d-flex align-items-center gap-3">
+        <div>
             <small class="text-secondary" title="Created at">
                 {{ (post.created_at / 1000) | unix_to_full_date }}
             </small>
@@ -46,13 +46,11 @@
             </small>
 
             {% if tags|default(True) and post.tags %}
-                <div class="d-flex gap-2">
-                    {% for tag in post.tags %}
-                        <a href="{{ url("posts", tags=tag) }}" class="link-secondary text-decoration-none small">
-                            {{ tag }}
-                        </a>
-                    {% endfor %}
-                </div>
+                {% for tag in post.tags %}
+                    <a href="{{ url("posts", tags=tag) }}" class="link-secondary text-decoration-none small">
+                        {{ tag }}
+                    </a>
+                {% endfor %}
             {% endif %}
         </div>
     </div>
