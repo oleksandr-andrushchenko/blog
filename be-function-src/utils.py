@@ -261,7 +261,7 @@ def sanitize_tags(value):
 class PostDTO(BaseModel):
     title: str = Field(..., min_length=20, max_length=500)
     content: str = Field(..., min_length=1000, max_length=10000)
-    tags: conlist(constr(min_length=2, max_length=20), min_length=1, max_length=3)
+    tags: conlist(constr(min_length=2, max_length=40), min_length=1, max_length=3)
 
     @field_validator("tags", mode="before")
     @classmethod
