@@ -220,7 +220,6 @@ deploy-code-files: check-env check-aws ## Zip and upload Lambda code to S3
 deploy-site-files: check-env check-aws generate-site-files ## Sync local site files to S3
 	@echo "📤 Uploading Site files to s3://$(STACK_NAME)-site..."
 	aws s3 sync ./$(SITE_BUILD_DIR) s3://$(STACK_NAME)-site \
-		--delete \
 		--profile "$(AWS_PROFILE_NAME)" \
 		--region "$(AWS_REGION)"
 	@echo "✅ Site files uploaded successfully"
