@@ -46,6 +46,8 @@
 - add users email/sms notifications (post published/liked/disliked, user followed/blocked etc.)
 - add meta info for tags and images (created_by, created_at)
 - add SEO meta tags (image, other property/name metas)
+- add clear formatting to tinymce
+- implement instant lambda deployments
 ## Links
 
 - favicon - https://realfavicongenerator.net
