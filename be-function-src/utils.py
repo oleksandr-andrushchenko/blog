@@ -1158,7 +1158,6 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
 
 
 def user_token_from_jwt_claims(claims: dict[str, any], plain_token: str = None) -> UserToken:
-    # logger.critical(f"user_token_from_jwt_claims: claims: {claims}; plain_token: {plain_token}")
     exp = to_datetime(claims.get("exp"))
     max_age = None
 
@@ -1212,9 +1211,8 @@ async def get_user_token_by_plain_token(plain_token: str | None, app_state: Stat
     try:
         tokens = decode_offset(plain_token)
         id_token = tokens.get("id_token")
-        access_token = tokens.get("access_token")
-        # logger.critical(f"get_user_token_by_plain_token: plain_token: {plain_token}; id_token: {id_token}; access_token: {access_token}")
-        unverified_header = jwt.get_unverified_header(access_token)
+        # access_token = tokens.get("access_token")
+        unverified_header = jwt.get_unverified_header(id_token)
         kid = unverified_header.get("kid")
 
         key = next((k for k in app_state.jwks.get("keys", []) if k["kid"] == kid), None)
@@ -1226,11 +1224,13 @@ async def get_user_token_by_plain_token(plain_token: str | None, app_state: Stat
 
         issuer = f"https://cognito-idp.{get_aws_region()}.amazonaws.com/{get_cognito_user_pool_id()}"
         claims = jwt.decode(
-            access_token,
-            key,  # pass the JWK dict
+            id_token,
+            key,
             algorithms=["RS256"],
             audience=get_cognito_client_id(),
             issuer=issuer,
+            # access_token=access_token,
+            options={"verify_at_hash": False},
         )
         return user_token_from_jwt_claims(claims, plain_token)
     except JWTError:
@@ -2229,19 +2229,17 @@ async def get_user_token_by_code(code: str, callback_url: str) -> UserToken:
             tokens = token_resp.json()
             logger.debug(f"Cognito token response: {tokens}")
 
-        access_token = tokens.get("access_token")
-        if not access_token:
-            raise InvalidTokenError("Missing access token in Cognito response")
+        id_token = tokens.get("id_token")
+        if not id_token:
+            raise InvalidTokenError("Missing id_token in Cognito response")
+        claims = jwt.get_unverified_claims(id_token)
+        if claims.get("token_use") != "id":
+            raise InvalidTokenError(f"Unexpected token_use: {claims.get('token_use')}")
 
-        # Verify the token_use field before using it
-        unverified_claims = jwt.get_unverified_claims(access_token)
-        if unverified_claims.get("token_use") != "access":
-            raise InvalidTokenError(f"Unexpected token_use: {unverified_claims.get('token_use')}")
-
-        user_token = user_token_from_jwt_claims(unverified_claims, encode_offset(tokens))
+        tokens = {"id_token": id_token}
+        user_token = user_token_from_jwt_claims(claims, encode_offset(tokens))
     else:
         token_args = decode_offset(code) if code else {}
-        # logger.critical(token_args)
         user_token = get_dummy_user_token(**token_args)
 
     await upsert_user_by_user_token(user_token)
@@ -2279,6 +2277,7 @@ def get_redirect_url(request) -> str:
         redirect_url = get_url(request, "index")
 
     return redirect_url
+
 
 async def get_latest_users(query_dto: UserQueryDTO = None, cur_user: User = None) -> list[User]:
     if query_dto is None:
