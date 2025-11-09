@@ -301,7 +301,7 @@ Resources:
           COGNITO_DOMAIN: !Sub "${CognitoUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
           COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient
           COGNITO_CLIENT_SECRET: !GetAtt CognitoUserPoolClient.ClientSecret
-          COGNITO_USER_POOL_ID: !Ref CognitoUserPool
+          COGNITO_USER_POOL_ID: !Ref CognitoUserPoolV2
           STATIC_S3_BUCKET: !Ref SiteBucket
           CSS_CACHE_COUNTER: !Ref CssCacheCounter
           JS_CACHE_COUNTER: !Ref JsCacheCounter
@@ -364,7 +364,7 @@ Resources:
         Owner: !Ref TagOwner
         Region: !Ref TagRegion
 
-  CognitoUserPool:
+  CognitoUserPoolV2:
     Type: AWS::Cognito::UserPool
     Properties:
       UserPoolName: !Sub "${AWS::StackName}-user-pool"
@@ -378,7 +378,7 @@ Resources:
     Properties:
       ProviderName: Google
       ProviderType: Google
-      UserPoolId: !Ref CognitoUserPool
+      UserPoolId: !Ref CognitoUserPoolV2
       ProviderDetails:
         client_id: !Ref GoogleOauthClientId
         client_secret: !Ref GoogleOauthClientSecret
@@ -391,7 +391,7 @@ Resources:
     Type: AWS::Cognito::UserPoolClient
     Properties:
       ClientName: !Sub "${AWS::StackName}-user-pool-client"
-      UserPoolId: !Ref CognitoUserPool
+      UserPoolId: !Ref CognitoUserPoolV2
       GenerateSecret: true
       AllowedOAuthFlowsUserPoolClient: true
       AllowedOAuthFlows:
@@ -413,8 +413,8 @@ Resources:
   CognitoUserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
     Properties:
-      UserPoolId: !Ref CognitoUserPool
-      Domain: !Sub "${AWS::StackName}-user-pool-domain"
+      UserPoolId: !Ref CognitoUserPoolV2
+      Domain: !Ref AWS::StackName
 
   # API Gateway – no caching, forward everything
   ApiCachePolicy:
@@ -600,7 +600,7 @@ Outputs:
     Value: !Ref DynamoDBTable
     Description: Name of the DynamoDB table used by the backend
   CognitoUserPoolId:
-    Value: !Ref CognitoUserPool
+    Value: !Ref CognitoUserPoolV2
     Description: ID of the Cognito User Pool
   CognitoUserPoolClientId:
     Value: !Ref CognitoUserPoolClient
