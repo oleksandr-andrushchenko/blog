@@ -1022,9 +1022,10 @@ async def get_user_by_user_token(token: UserToken) -> User | None:
 
     # 1: Lookup provider user record
     if token.sub:
+        iss = token.iss.split("/")[-1]
         resp = await table.get_item(
             Key={
-                "pk": f"PROVIDER_USER#{token.iss}#{token.sub}",
+                "pk": f"PROVIDER_USER#{iss}#{token.sub}",
                 "sk": "META"
             }
         )
@@ -1138,7 +1139,8 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
         add_dynamodb_put_transact(transacts, (f"USER#{user_id}", "META"), user_item)
         user = user_from_dynamodb(user_item)
 
-    add_dynamodb_put_transact(transacts, (f"PROVIDER_USER#{token.iss}#{token.sub}", "META"), {
+    iss = token.iss.split("/")[-1]
+    add_dynamodb_put_transact(transacts, (f"PROVIDER_USER#{iss}#{token.sub}", "META"), {
         "user_id": user_id,
         "email": token.email,
         "created_at": now,
