@@ -576,7 +576,7 @@ if (window.CONFIG.init_tinymce) {
     plugins: "importcss insertdatetime preview autolink code fullscreen image link codesample table charmap advlist lists autosave",
     menubar: false,
     toolbar: "undo redo | h2 h3 blockquote | bold italic underline strikethrough | align numlist bullist | outdent indent | "
-      + "link image table charmap codesample insertdatetime | code fullscreen preview",
+      + "link image table charmap codesample insertdatetime | removeformat code fullscreen preview",
     autosave_ask_before_unload: true,
     contextmenu: false,
     content_css: ["default", ...window.CONFIG.css_filenames],
