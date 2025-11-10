@@ -54,7 +54,6 @@
 - implement instant lambda deployments
 - add redirects from UUid page versions to seo versions
 - increase auth token lifetime
-- index page: if latest posts === popular posts - do not show popular posts
 - posts sharing functionality
 - add aria attributes
 - add footer tag for post/articles, put related articles (Like "Futher reading", based on tags)

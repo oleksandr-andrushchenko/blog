@@ -47,36 +47,38 @@
         </div>
 
         <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
-            <div class="d-flex flex-column gap-3">
-                <h2 class="mb-0">
-                    <a href="{{ url("posts", type=PostQueryType.POPULAR) }}" class="link-body-emphasis">
-                        <i class="bi bi-star-fill"></i> Popular posts
-                    </a>
-                </h2>
-                {% if popular_posts %}
-                    <div id="popular-posts" class="d-flex flex-column gap-3">
-                        {% with posts=popular_posts,
+            {% if show_popular_posts %}
+                <div class="d-flex flex-column gap-3">
+                    <h2 class="mb-0">
+                        <a href="{{ url("posts", type=PostQueryType.POPULAR) }}" class="link-body-emphasis">
+                            <i class="bi bi-star-fill"></i> Popular posts
+                        </a>
+                    </h2>
+                    {% if popular_posts %}
+                        <div id="popular-posts" class="d-flex flex-column gap-3">
+                            {% with posts=popular_posts,
                             preview=False,
                             border=False,
                             vert_gap=0,
                             h_tag_size=3,
                             h_display_size=6 %}
-                            {% include "fragments/posts.html" %}
-                        {% endwith %}
+                                {% include "fragments/posts.html" %}
+                            {% endwith %}
 
-                        <div>
-                            <a href="{{ url("posts", type=PostQueryType.POPULAR) }}" class="btn btn-light btn-sm">
-                                <i class="bi bi-star"></i> See all popular posts
-                            </a>
-                            <a href="{{ url("posts", type=PostQueryType.POPULAR) }}" class="btn btn-light btn-sm">
-                                <i class="bi bi-tags"></i> Search popular posts by tags
-                            </a>
+                            <div>
+                                <a href="{{ url("posts", type=PostQueryType.POPULAR) }}" class="btn btn-light btn-sm">
+                                    <i class="bi bi-star"></i> See all popular posts
+                                </a>
+                                <a href="{{ url("posts", type=PostQueryType.POPULAR) }}" class="btn btn-light btn-sm">
+                                    <i class="bi bi-tags"></i> Search popular posts by tags
+                                </a>
+                            </div>
                         </div>
-                    </div>
-                {% else %}
-                    <div>N/A</div>
-                {% endif %}
-            </div>
+                    {% else %}
+                        <div>N/A</div>
+                    {% endif %}
+                </div>
+            {% endif %}
 
             <div class="d-flex flex-column gap-3">
                 <h2 class="mb-0 text-decoration-underline">

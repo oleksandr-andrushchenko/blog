@@ -67,6 +67,7 @@ from utils import (
     utc_now,
     get_allowed_origins,
     get_redirect_url,
+    should_show_popular_posts,
 )
 from deps import (
     OptCurUserDep,
@@ -148,6 +149,7 @@ async def index(cur_user: OptCurUserDep) -> str:
         "latest_posts_query": latest_posts_query,
         "latest_posts": latest_posts,
         "popular_posts": popular_posts,
+        "show_popular_posts": should_show_popular_posts(latest_posts, popular_posts),
         "popular_users": popular_users,
     })
 

@@ -1941,6 +1941,18 @@ async def get_popular_posts(query_dto: PostQueryDTO = None, cur_user: User = Non
     )
 
 
+def should_show_popular_posts(latest_posts: list[Post], popular_posts: list[Post]) -> bool:
+    """
+    Show popular posts only if popular_posts differ from latest_posts.
+    Comparison is based on post IDs.
+    """
+    latest_ids = [post.id for post in latest_posts]
+    popular_ids = [post.id for post in popular_posts]
+
+    # Show popular posts only if the lists are not exactly equal
+    return latest_ids != popular_ids
+
+
 async def get_popular_published_posts(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[Post]:
     query_dto = PostQueryDTO(limit=limit)
     return await get_popular_posts(query_dto)
