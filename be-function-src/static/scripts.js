@@ -743,3 +743,13 @@ $(function () {
     })
   })
 })
+
+$(function () {
+  const pageUrl = encodeURIComponent(window.location.href)
+  const pageTitle = encodeURIComponent(document.title)
+
+  $(".share-btn.twitter").attr("href", `https://twitter.com/intent/tweet?url=${pageUrl}&text=${pageTitle}`)
+  $(".share-btn.facebook").attr("href", `https://www.facebook.com/sharer/sharer.php?u=${pageUrl}`)
+  $(".share-btn.linkedin").attr("href", `https://www.linkedin.com/shareArticle?mini=true&url=${pageUrl}&title=${pageTitle}`)
+  $(".share-btn.email").attr("href", `mailto:?subject=${pageTitle}&body=Check out this article: ${pageUrl}`)
+})
