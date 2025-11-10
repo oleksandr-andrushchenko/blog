@@ -9,14 +9,6 @@
 
 <div class="post row g-3 {% if border %}pb-3 border-bottom{% endif %}"
      {% if post.offset %}data-offset="{{ post.offset }}"{% endif %}>
-    {% if image %}
-        <div class="col col-{{ image_col_size }}">
-            <a href="{{ post_url(post) }}">
-                <img class="img-thumbnail" src="{{ static_url(post.image_filename) }}" alt="{{ post.title }}">
-            </a>
-        </div>
-    {% endif %}
-
     <div class="col col-{{ body_col_size }} d-flex flex-column gap-{{ vert_gap }}">
         <a class="link-body-emphasis text-decoration-none d-flex flex-column gap-{{ vert_gap }}"
            href="{{ post_url(post) }}">
@@ -54,4 +46,12 @@
             {% endif %}
         </div>
     </div>
+
+    {% if image %}
+        <div class="col col-{{ image_col_size }}">
+            <a href="{{ post_url(post) }}">
+                <img class="img-thumbnail" src="{{ static_url(post.image_filename) }}" alt="{{ post.title }}">
+            </a>
+        </div>
+    {% endif %}
 </div>
