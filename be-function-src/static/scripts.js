@@ -703,3 +703,36 @@ $(function () {
     })
   })
 })
+
+$(function () {
+  $(".copy-url button").on("click", function () {
+    const $btn = $(this)
+    const $input = $btn.closest(".input-group").find("input")
+    const textToCopy = $input.val()
+
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      // Temporary icon swap for visual feedback
+      $btn.find("i").removeClass("bi-copy").addClass("bi-check")
+
+      // Create tooltip programmatically
+      const tooltip = new bootstrap.Tooltip($btn[0], {
+        title: "Copied!",
+        placement: "top",
+        trigger: "manual"
+      })
+
+      // Show tooltip and clean up after 1s
+      tooltip.show()
+      setTimeout(() => {
+        tooltip.hide()
+        tooltip.dispose()
+        $btn.find("i").removeClass("bi-check").addClass("bi-copy")
+      }, 1000)
+
+    }).catch(() => {
+      // Fallback for older browsers
+      $input[0].select()
+      document.execCommand("copy")
+    })
+  })
+})

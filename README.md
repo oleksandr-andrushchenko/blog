@@ -48,7 +48,6 @@
 - add SEO meta tags (image, other property/name metas)
 - add clear formatting to tinymce
 - implement instant lambda deployments
-- add "get persistent post url" button (non-seo version URL copy)
 - add redirects from UUid page versions to seo versions
 - increase auth token lifetime
 - index page: if latest posts === popular posts - do not show popular posts

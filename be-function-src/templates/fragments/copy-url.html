@@ -1,0 +1,9 @@
+<div class="copy-url">
+    {{ copy_url_label | default("Copy link") }}:
+    <div class="input-group" style="max-width: 500px;">
+        <input type="text" class="form-control" value="{{ url_to_copy }}" readonly>
+        <button class="btn btn-light" type="button">
+            <i class="bi bi-copy"></i>
+        </button>
+    </div>
+</div>

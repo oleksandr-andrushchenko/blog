@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
 {% set canonical_url = post_url(post) %}
+{% set alternate_url = url("post", post_id=post.id) %}
 {% set author_canonical_url = user_url(author) %}
 {% set author_alternate_canonical_url = url("user", user_id=author.id) %}
 {% set index_url = url("index") %}
@@ -13,7 +14,7 @@
 {% block meta_keywords %}{{ post.tags|join(",") }},{{ meta_keywords }}{% endblock %}
 {% block meta_author %}{{ author.name }}{% endblock %}
 {% block meta_canonical %}{{ canonical_url }}{% endblock %}
-{% block meta_alternate %}{{ url("post", post_id=post.id) }}{% endblock %}
+{% block meta_alternate %}{{ alternate_url }}{% endblock %}
 {% block meta_schema %}
     {% set author_schema = {
         "@context": "https://schema.org",
@@ -142,6 +143,7 @@
             <div class="d-flex flex-column gap-1">
                 {% include "fragments/post-status.html" %}
                 {% include "fragments/post-impressions.html" %}
+
                 {% if post.status != PostStatus.PUBLISHED and cur_user and check_auth(cur_user, Permission.UPDATE_POST, post) %}
                     <div>
                         <a href="{{ url("edit-post", post_id=post.id) }}" class="btn btn-light">
@@ -149,6 +151,10 @@
                         </a>
                     </div>
                 {% endif %}
+
+                {% with url_to_copy=base_url+alternate_url, copy_url_label="Copy persistent article link" %}
+                    {% include "fragments/copy-url.html" %}
+                {% endwith %}
             </div>
         </div>
     </div>
