@@ -197,13 +197,9 @@ async def posts_fragment(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> st
     })
 
 
-@app.get("/posts/{post_id}", name="post", response_class=HTMLResponse)
-async def post_page(post: PostDep, cur_user: OptCurUserDep) -> str:
+async def base_post_page(post: PostDep, cur_user: OptCurUserDep) -> str:
     if cur_user:
-        (
-            author,
-            post_impression,
-        ) = await asyncio.gather(
+        author, post_impression = await asyncio.gather(
             find_user(post.user_id),
             find_post_impression(post, cur_user),
         )
@@ -217,6 +213,17 @@ async def post_page(post: PostDep, cur_user: OptCurUserDep) -> str:
         "author": author,
         "post_impression": post_impression,
     })
+
+
+@app.get("/posts/{post_id}", name="post")
+async def post_page(post: PostDep, cur_user: OptCurUserDep, request: Request):
+    canonical_url = get_post_url(request, post)
+    alternate_url = get_url(request, "post", post_id=post.id)
+
+    if canonical_url != alternate_url:
+        return RedirectResponse(canonical_url)
+
+    return await base_post_page(post, cur_user)
 
 
 @app.get("/posts/{post_id}/edit", name="edit-post", response_class=HTMLResponse)
@@ -289,8 +296,7 @@ async def users_fragment(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> st
     })
 
 
-@app.get("/users/{user_id}", name="user", response_class=HTMLResponse)
-async def user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
+async def base_user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
     if cur_user:
         (
             posts,
@@ -310,6 +316,17 @@ async def user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user: OptC
         "posts": posts,
         "user_impression": user_impression,
     })
+
+
+@app.get("/users/{user_id}", name="user")
+async def user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep, request: Request):
+    canonical_url = get_user_url(request, user)
+    alternate_url = get_url(request, "user", user_id=user.id)
+
+    if canonical_url != alternate_url:
+        return RedirectResponse(canonical_url)
+
+    return await base_user_page(user, posts_query_dto, cur_user)
 
 
 @app.post("/users/{user_id}/status", name="update-user-status", response_class=JSONResponse)
@@ -441,12 +458,12 @@ async def terms(cur_user: OptCurUserDep) -> str:
 
 @app.get("/{slug}", name="user-by-slug", response_class=HTMLResponse)
 async def user_page_by_slug(user: UserBySlugDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
-    return await user_page(user, posts_query_dto, cur_user)
+    return await base_user_page(user, posts_query_dto, cur_user)
 
 
 @app.get("/{user_slug}/{post_slug}", name="post-by-slugs", response_class=HTMLResponse)
 async def post_page_by_slugs(post: PostBySlugsDep, cur_user: OptCurUserDep) -> str:
-    return await post_page(post, cur_user)
+    return await base_post_page(post, cur_user)
 
 
 @app.exception_handler(StarletteHTTPException)

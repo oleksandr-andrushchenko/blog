@@ -52,7 +52,6 @@
 - add meta info for tags and images (created_by, created_at)
 - add SEO meta tags (image, other property/name metas)
 - implement instant lambda deployments
-- add redirects from UUid page versions to seo versions
 - increase auth token lifetime
 - add aria attributes
 - add footer tag for post/articles, put related articles (Like "Futher reading", based on tags)
