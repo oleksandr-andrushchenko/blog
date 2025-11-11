@@ -1112,7 +1112,8 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
         user_id = str(uuid.uuid4())
         providers = {}
 
-    providers[token.iss] = {"sub": token.sub, "username": token.username, "name": token.name}
+    iss = token.iss.split("/")[-1]
+    providers[iss] = {"sub": token.sub, "username": token.username, "name": token.name}
 
     transacts = []
 
@@ -1139,7 +1140,6 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
         add_dynamodb_put_transact(transacts, (f"USER#{user_id}", "META"), user_item)
         user = user_from_dynamodb(user_item)
 
-    iss = token.iss.split("/")[-1]
     add_dynamodb_put_transact(transacts, (f"PROVIDER_USER#{iss}#{token.sub}", "META"), {
         "user_id": user_id,
         "email": token.email,
