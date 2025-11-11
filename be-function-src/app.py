@@ -197,7 +197,7 @@ async def posts_fragment(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> st
     })
 
 
-async def base_post_page(post: PostDep, cur_user: OptCurUserDep) -> str:
+async def base_post_page(post: PostDep, cur_user: OptCurUserDep) -> HTMLResponse:
     if cur_user:
         author, post_impression = await asyncio.gather(
             find_user(post.user_id),
@@ -207,12 +207,13 @@ async def base_post_page(post: PostDep, cur_user: OptCurUserDep) -> str:
         author = await find_user(post.user_id)
         post_impression = None
 
-    return get_html_content("post.html", {
+    html_content = get_html_content("post.html", {
         "cur_user": cur_user,
         "post": post,
         "author": author,
         "post_impression": post_impression,
     })
+    return HTMLResponse(html_content)
 
 
 @app.get("/posts/{post_id}", name="post")
@@ -296,7 +297,7 @@ async def users_fragment(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> st
     })
 
 
-async def base_user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
+async def base_user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
     if cur_user:
         (
             posts,
@@ -309,13 +310,14 @@ async def base_user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user:
         posts = await get_latest_posts_by_user(user, posts_query_dto, cur_user)
         user_impression = None
 
-    return get_html_content("user.html", {
+    html_content = get_html_content("user.html", {
         "cur_user": cur_user,
         "user": user,
         "posts_query": posts_query_dto,
         "posts": posts,
         "user_impression": user_impression,
     })
+    return HTMLResponse(html_content)
 
 
 @app.get("/users/{user_id}", name="user")
@@ -457,12 +459,13 @@ async def terms(cur_user: OptCurUserDep) -> str:
 
 
 @app.get("/{slug}", name="user-by-slug", response_class=HTMLResponse)
-async def user_page_by_slug(user: UserBySlugDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
+async def user_page_by_slug(user: UserBySlugDep, posts_query_dto: PostQueryDep,
+                            cur_user: OptCurUserDep) -> HTMLResponse:
     return await base_user_page(user, posts_query_dto, cur_user)
 
 
 @app.get("/{user_slug}/{post_slug}", name="post-by-slugs", response_class=HTMLResponse)
-async def post_page_by_slugs(post: PostBySlugsDep, cur_user: OptCurUserDep) -> str:
+async def post_page_by_slugs(post: PostBySlugsDep, cur_user: OptCurUserDep) -> HTMLResponse:
     return await base_post_page(post, cur_user)
 
 
