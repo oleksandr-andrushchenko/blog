@@ -53,8 +53,9 @@
 - add SEO meta tags (image, other property/name metas)
 - implement instant lambda deployments
 - increase auth token lifetime
-- add aria attributes
+- add aria attributes (+allow them in tinymce)
 - add footer tag for post/articles, put related articles (Like "Futher reading", based on tags)
+- async post likes/dislikes (return fragment html and inject it)
 ## Links
 
 - favicon - https://realfavicongenerator.net
