@@ -88,7 +88,6 @@ from deps import (
     PostBySlugsDep,
     UpdateUserStatusDTODep,
 )
-from urllib.parse import quote, unquote
 import asyncio
 import os
 
