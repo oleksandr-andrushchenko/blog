@@ -1305,7 +1305,7 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
     verify_authorization(user, Permission.CREATE_POST)
 
     if user.status == UserStatus.BANNED:
-        raise UserBannedError
+        raise UserBannedError()
 
     await get_dynamodb_table()
     now = utc_now()
@@ -1358,7 +1358,7 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
     verify_authorization(cur_user, Permission.UPDATE_POST, post)
 
     if cur_user.status == UserStatus.BANNED:
-        raise UserBannedError
+        raise UserBannedError()
 
     if post.status == PostStatus.PUBLISHED:
         raise PostAlreadyPublishedError()
@@ -1682,7 +1682,7 @@ async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User
     verify_authorization(cur_user, Permission.UPDATE_USER, user)
 
     if cur_user.status == UserStatus.BANNED:
-        raise UserBannedError
+        raise UserBannedError()
 
     changes = update_user_dto.model_dump(exclude_unset=True)
     if not changes:
@@ -1744,7 +1744,7 @@ async def update_user_status(user: User, update_user_status_dto: UpdateUserStatu
     verify_authorization(cur_user, Permission.UPDATE_USER_STATUS)
 
     if cur_user.status == UserStatus.BANNED:
-        raise UserBannedError
+        raise UserBannedError()
 
     changes = update_user_status_dto.model_dump(exclude_unset=True)
     if not changes:
@@ -2010,7 +2010,7 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
     verify_authorization(cur_user, Permission.UPDATE_POST_STATUS)
 
     if cur_user.status == UserStatus.BANNED:
-        raise UserBannedError
+        raise UserBannedError()
 
     if post.status == PostStatus.PUBLISHED:
         raise PostAlreadyPublishedError()
@@ -2432,7 +2432,7 @@ async def update_post_impression(post: Post, update_post_impression_dto: UpdateP
     verify_authorization(user, Permission.UPDATE_POST_IMPRESSION, post)
 
     if user.status == UserStatus.BANNED:
-        raise UserBannedError
+        raise UserBannedError()
 
     current_impression = await find_post_impression(post, user)
     current_action = current_impression.action if current_impression else None
@@ -2490,7 +2490,7 @@ async def update_user_impression(
     verify_authorization(cur_user, Permission.UPDATE_USER_IMPRESSION, user)
 
     if user.status == UserStatus.BANNED:
-        raise UserBannedError
+        raise UserBannedError()
 
     current_relation = await find_user_impression(user, cur_user)
     current_action = current_relation.action if current_relation else None
