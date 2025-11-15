@@ -144,7 +144,7 @@
                 {% include "fragments/post-status.html" %}
                 {% include "fragments/post-impressions.html" %}
 
-                {% if post.status != PostStatus.PUBLISHED and cur_user and check_auth(cur_user, Permission.UPDATE_POST, post) %}
+                {% if cur_user and check_auth(cur_user, Permission.UPDATE_POST, post) %}
                     <div>
                         <a href="{{ url("edit-post", post_id=post.id) }}" class="btn btn-light">
                             <i class="bi bi-pencil"></i> Edit post

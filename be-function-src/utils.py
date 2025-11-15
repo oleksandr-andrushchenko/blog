@@ -33,6 +33,7 @@ import bleach
 import html
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
+import difflib
 
 
 class UserToken(BaseModel):
@@ -1354,14 +1355,22 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
     return post_from_dynamodb(post_item)
 
 
+def get_text_diff_percentage(t1, t2) -> int:
+    seq = difflib.SequenceMatcher(None, t1, t2)
+    similarity = seq.ratio()
+    change_percentage = (1 - similarity) * 100
+    return int(change_percentage)
+
+
 async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User) -> None:
     verify_authorization(cur_user, Permission.UPDATE_POST, post)
 
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
-    if post.status == PostStatus.PUBLISHED:
-        raise PostAlreadyPublishedError()
+    old_status = post.status
+    published_already = old_status == PostStatus.PUBLISHED
+    should_set_status_to_unpublished = False
 
     changes = update_post_dto.model_dump(exclude_unset=True)
     if not changes:
@@ -1377,19 +1386,75 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
     await get_dynamodb_table()
     transacts = []
 
-    if "title" in changes:
-        new_slug = to_kebab_case(changes["title"])
+    old_title = post.title
+    title = changes.get("title", old_title)
+    if title != old_title:
+        if published_already and get_text_diff_percentage(old_title, title) > 10:
+            should_set_status_to_unpublished = True
         old_slug = post.slug
-        if old_slug != new_slug:
+        slug = to_kebab_case(title)
+        if old_slug != slug:
             add_dynamodb_delete_transact(transacts, (f"POST_SLUG#{old_slug}", "META"))
-            add_dynamodb_put_transact(transacts, (f"POST_SLUG#{new_slug}", "META"), {"post_id": post.id},
-                                      new_pk_only=True)
-            changes["post_slug"] = new_slug
+            add_dynamodb_put_transact(transacts, (f"POST_SLUG#{slug}", "META"), {"post_id": post.id}, new_pk_only=True)
+            changes["post_slug"] = slug
 
-    if "content" in changes:
-        content = changes["content"]
+    old_content = post.content
+    content = changes.get("content", old_content)
+    if content != old_content:
+        if published_already and get_text_diff_percentage(old_content, content) > 10:
+            should_set_status_to_unpublished = True
         changes["preview"] = find_preview(content)
         changes["image_filename"] = find_static_image_filename(content)
+
+    old_tags = sorted(post.tags)
+    tags = sorted(changes.get("tags", old_tags))
+    if tags != old_tags:
+        if published_already:
+            should_set_status_to_unpublished = True
+
+            # Decrease rating for old tags
+            table = await get_dynamodb_table()
+            now = utc_now()
+            for tag in old_tags:
+                transacts.append({
+                    "Update": {
+                        "TableName": table.name,
+                        "Key": {
+                            "pk": f"POST_TAG#{tag}",
+                            "sk": "META"
+                        },
+                        "UpdateExpression": "SET rating_sk = rating_sk - :rating_sk_dec, updated_at = :now",
+                        "ExpressionAttributeValues": {
+                            ":rating_sk_dec": compute_rating_sk(1),
+                            ":now": now
+                        }
+                    }
+                })
+
+            # Remove old tag combos
+            for r in range(1, len(old_tags) + 1):
+                for combo in combinations(sorted(old_tags), r):
+                    add_dynamodb_delete_transact(transacts, ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{post.id}"))
+
+    if published_already and should_set_status_to_unpublished:
+        changes["status"] = PostStatus.UNPUBLISHED
+
+    status = changes.get("status", post.status)
+    if status != old_status:
+        # Update post lists
+        changes["post_status_pk"] = f"POST#STATUS#{status}"
+        changes["post_user_status_pk"] = f"POST#USER#{post.user_id}#STATUS#{status}"
+
+        # User post counters
+        owner = await find_user(post.user_id)
+        if owner:
+            deltas = {
+                f"{old_status}_posts_count": -1,
+                f"{status}_posts_count": 1,
+            }
+            add_dynamodb_update_transact(transacts, (f"USER#{owner.id}", "META"), deltas=deltas)
+            for key, delta in deltas.items():
+                setattr(owner, key, getattr(owner, key) + delta)
 
     add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), changes)
 
@@ -1403,7 +1468,8 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
     for key, value in changes.items():
         if key == "post_slug":
             key = "slug"
-        setattr(post, key, value)
+        if hasattr(post, key):
+            setattr(post, key, value)
 
 
 async def find_post(post_id: str) -> Post | None:
@@ -1530,11 +1596,12 @@ async def find_user_impression(user: User, cur_user: User) -> UserImpression | N
 
 def build_dynamodb_put_item_params(
         key: tuple[str, str],
-        values: dict[str, any],
+        values: dict[str, any] = None,
         add_created_at: bool = True,
         new_pk_only: bool = False
 ) -> dict[str, any]:
-    # Set created_at
+    if values is None:
+        values = {}
     if add_created_at:
         values["created_at"] = utc_now()
 
@@ -1557,7 +1624,7 @@ def build_dynamodb_put_item_params(
 def add_dynamodb_put_transact(
         transacts: list,
         key: tuple[str, str],
-        values: dict[str, any],
+        values: dict[str, any] = None,
         add_created_at: bool = True,
         new_pk_only: bool = False
 ) -> None:
@@ -1967,7 +2034,7 @@ async def get_latest_posts_by_tags(query_dto: PostQueryDTO = None, cur_user: Use
         return []
 
     # Batch get post metadata
-    post_ids = [item["post_id"] for item in combo_items]
+    post_ids = set([item["post_id"] for item in combo_items])
     keys = [{"pk": f"POST#{post_id}", "sk": "META"} for post_id in post_ids]
     resp = await table.meta.client.batch_get_item(RequestItems={table.name: {"Keys": keys}})
     post_items = resp["Responses"].get(table.name, [])
@@ -2081,7 +2148,7 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
         # Create post tag combos
         for r in range(1, len(post.tags) + 1):
             for combo in combinations(sorted(post.tags), r):
-                add_dynamodb_put_transact(transacts, ("POST_TAG_COMBO#" + "#".join(combo), str(now)), {
+                add_dynamodb_put_transact(transacts, ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{post.id}"), {
                     "post_id": post.id
                 })
 
