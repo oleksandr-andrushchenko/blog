@@ -43,6 +43,10 @@ Parameters:
   JsCacheCounter:
     Type: String
     Description: JS file query param value
+  AuthJwtSecret:
+    Type: String
+    Description: Auth JWT secret
+    NoEcho: true
   TagProject:
     Type: String
     Description: Logical project identifier (e.g. blog)
@@ -305,6 +309,7 @@ Resources:
           STATIC_S3_BUCKET: !Ref SiteBucket
           CSS_CACHE_COUNTER: !Ref CssCacheCounter
           JS_CACHE_COUNTER: !Ref JsCacheCounter
+          AUTH_JWT_SECRET: !Ref AuthJwtSecret
       Code:
         S3Bucket: !Sub "${AWS::StackName}-code"
         S3Key: be-function.zip

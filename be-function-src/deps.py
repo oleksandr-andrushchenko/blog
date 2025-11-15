@@ -16,11 +16,10 @@ from utils import (
     TagQueryDTO,
     UserQueryDTO,
     InvalidTokenError,
-    InvalidTokenKidError,
     PostNotFoundError,
     UserNotFoundError,
     get_html_content,
-    get_user_by_plain_token,
+    get_user_by_auth_token,
     get_post,
     get_user,
     UpdateUserDTO,
@@ -36,18 +35,15 @@ from utils import (
 
 
 async def get_cur_user(request: Request) -> User:
-    token = request.cookies.get("session_token")
+    token = request.cookies.get("auth_token")
     if not token:
         raise HTTPException(
             status_code=HTTP_401_UNAUTHORIZED,
         )
 
     try:
-        return await get_user_by_plain_token(
-            plain_token=token,
-            app_state=request.app.state
-        )
-    except (InvalidTokenKidError, InvalidTokenError) as e:
+        return await get_user_by_auth_token(token)
+    except InvalidTokenError as e:
         raise HTTPException(
             status_code=HTTP_401_UNAUTHORIZED,
             detail=str(e)
@@ -59,11 +55,8 @@ CurUserDep = Annotated[User, Depends(get_cur_user)]
 
 async def get_opt_cur_user(request: Request) -> Optional[User]:
     try:
-        return await get_user_by_plain_token(
-            plain_token=request.cookies.get("session_token"),
-            app_state=request.app.state
-        )
-    except (InvalidTokenKidError, InvalidTokenError) as e:
+        return await get_user_by_auth_token(request.cookies.get("auth_token"))
+    except InvalidTokenError as e:
         raise HTTPException(
             status_code=HTTP_401_UNAUTHORIZED,
             detail=str(e)

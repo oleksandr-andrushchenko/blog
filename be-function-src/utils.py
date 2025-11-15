@@ -9,14 +9,13 @@ import httpx
 from enum import StrEnum
 from urllib.parse import quote
 from jose import jwt
-from jose.exceptions import JWTError
+from jose.exceptions import JWTError, ExpiredSignatureError
 import base64
 from typing import Callable, ClassVar, Literal, TypeVar
-from starlette.datastructures import State
 from starlette.status import HTTP_200_OK
 from jinja2 import Environment, FileSystemLoader, pass_context
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, EmailStr, Field, field_validator, conlist, constr, HttpUrl, computed_field
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
@@ -435,10 +434,6 @@ class InvalidTokenError(BaseError):
     pass
 
 
-class InvalidTokenKidError(BaseError):
-    pass
-
-
 class InvalidCodeError(BaseError):
     pass
 
@@ -509,6 +504,8 @@ def get_live_config(load_env=False):
         "static_files_dir": os.getenv("STATIC_FILES_DIR", "static"),
         "css_cache_counter": os.getenv("CSS_CACHE_COUNTER", 0),
         "js_cache_counter": os.getenv("JS_CACHE_COUNTER", 0),
+        "auth_token_max_age": os.getenv("AUTH_TOKEN_MAX_AGE", 86_400 * 7),
+        "auth_jwt_secret": os.getenv("AUTH_JWT_SECRET"),
         "permission_hierarchy": {
             Permission.REGULAR: [
                 Permission.UPDATE_USER_IMPRESSION,
@@ -617,6 +614,14 @@ def get_cognito_user_pool_id():
 
 def get_permission_hierarchy() -> dict[str, list[str]]:
     return get_config().get("permission_hierarchy")
+
+
+def get_auth_token_max_age() -> int:
+    return get_config().get("auth_token_max_age")
+
+
+def get_auth_jwt_secret() -> str:
+    return get_config().get("auth_jwt_secret")
 
 
 class Lazy:
@@ -913,14 +918,6 @@ def get_html_content(template: str, data: dict[str, any]) -> str:
     return template.render(data)
 
 
-async def get_cognito_jwks() -> dict:
-    async with httpx.AsyncClient() as client:
-        jwks_url = f"https://cognito-idp.{get_aws_region()}.amazonaws.com/{get_cognito_user_pool_id()}/.well-known/jwks.json"
-        resp = await client.get(jwks_url)
-        resp.raise_for_status()
-        return resp.json()
-
-
 def get_image_dimensions(data: bytes) -> tuple[int, int]:
     """Return (width, height) for JPEG, PNG, GIF images from raw bytes."""
 
@@ -999,13 +996,6 @@ async def drop_public_file(filename: str) -> None:
 
     s3 = await get_s3_client()
     await s3.delete_object(Bucket=get_static_s3_bucket(), Key=filename)
-
-
-async def configure_app_state(app_state: State) -> None:
-    if is_prod():
-        # Startup: fetch JWKS
-        # Fetch JWKS keys for token validation
-        app_state.jwks = await get_cognito_jwks()
 
 
 def to_datetime(ts: any) -> datetime | None:
@@ -1202,43 +1192,8 @@ def get_dummy_user_token(
     )
 
 
-async def get_user_token_by_plain_token(plain_token: str | None, app_state: State) -> UserToken | None:
-    if not plain_token:
-        return None
-    if not is_prod():
-        token_args = decode_offset(plain_token) if plain_token else {}
-        return get_dummy_user_token(**token_args)
-    try:
-        tokens = decode_offset(plain_token)
-        id_token = tokens.get("id_token")
-        # access_token = tokens.get("access_token")
-        unverified_header = jwt.get_unverified_header(id_token)
-        kid = unverified_header.get("kid")
-
-        key = next((k for k in app_state.jwks.get("keys", []) if k["kid"] == kid), None)
-        if key is None:
-            app_state.jwks = await get_cognito_jwks()
-            key = next((k for k in app_state.jwks.get("keys", []) if k["kid"] == kid), None)
-        if key is None:
-            raise InvalidTokenKidError("Invalid token (unknown kid)")
-
-        issuer = f"https://cognito-idp.{get_aws_region()}.amazonaws.com/{get_cognito_user_pool_id()}"
-        claims = jwt.decode(
-            id_token,
-            key,
-            algorithms=["RS256"],
-            audience=get_cognito_client_id(),
-            issuer=issuer,
-            # access_token=access_token,
-            options={"verify_at_hash": False},
-        )
-        return user_token_from_jwt_claims(claims, plain_token)
-    except JWTError:
-        raise InvalidTokenError("Invalid token")
-
-
-async def get_user_by_plain_token(plain_token: str | None, app_state: State) -> User | None:
-    user_token = await get_user_token_by_plain_token(plain_token, app_state)
+async def get_user_by_auth_token(token: str | None) -> User | None:
+    user_token = await get_user_token_by_auth_jwt_token(token)
 
     if user_token is None:
         return None
@@ -1249,6 +1204,39 @@ async def get_user_by_plain_token(plain_token: str | None, app_state: State) -> 
     # logger.debug(f"user: {user}")
 
     return user
+
+
+async def get_user_token_by_auth_jwt_token(token: str | None) -> UserToken | None:
+    if not token:
+        return None
+
+    try:
+        payload = jwt.decode(
+            token,
+            get_auth_jwt_secret(),
+            algorithms=["HS256"],
+            options={"verify_aud": False}
+        )
+
+        if payload.get("type") != "auth_token":
+            raise InvalidTokenError("Invalid token type")
+
+        return UserToken(
+            sub=payload.get("sub"),
+            iss="internal_auth",
+            email=payload.get("email"),
+            name=payload.get("name"),
+            username=payload.get("username"),
+            aud=payload.get("aud"),
+            iat=to_datetime(payload["iat"]),
+            exp=to_datetime(payload["exp"]),
+        )
+
+    except ExpiredSignatureError:
+        raise InvalidTokenError("Session token expired")
+
+    except JWTError:
+        raise InvalidTokenError("Invalid session token")
 
 
 def post_from_dynamodb(d_item: dict[str, any]) -> Post:
@@ -2258,6 +2246,32 @@ async def get_user_token_by_code(code: str, callback_url: str) -> UserToken:
     return user_token
 
 
+def create_auth_jwt_token(token: UserToken) -> str:
+    expires_in = get_auth_token_max_age()
+
+    now = datetime.now(timezone.utc)
+    exp = now + timedelta(seconds=expires_in)
+
+    return jwt.encode(
+        claims={
+            "sub": token.sub,
+            "iss": "internal_auth",
+            "origin_iss": token.iss,
+            "sid": uuid.uuid4().hex,
+            "email": token.email,
+            "name": token.name,
+            "username": token.username,
+            "iat": int(now.timestamp()),
+            "exp": int(exp.timestamp()),
+            "type": "auth_token",
+            "aud": "blog",
+            "origin_aud": token.aud,
+        },
+        key=get_auth_jwt_secret(),
+        algorithm="HS256"
+    )
+
+
 async def get_logout_redirect_url(callback_url: str) -> str:
     if is_prod():
         return (
@@ -2320,7 +2334,7 @@ def unix_to_month_year(timestamp: int, tz: str | None = None) -> str:
     """
     Convert Unix timestamp to 'Feb 2024' format, optional timezone.
     """
-    dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+    dt = to_datetime(timestamp)
     if tz:
         dt = dt.astimezone(ZoneInfo(tz))
     return dt.strftime("%b %Y")
@@ -2330,14 +2344,14 @@ def unix_to_full_date(timestamp: int, tz: str | None = None) -> str:
     """
     Convert Unix timestamp to 'May 29, 2024' format, optional timezone.
     """
-    dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+    dt = to_datetime(timestamp)
     if tz:
         dt = dt.astimezone(ZoneInfo(tz))
     return dt.strftime("%b %d, %Y")
 
 
 def jinja2_iso_utc(timestamp_ms: int) -> str:
-    dt = datetime.fromtimestamp(timestamp_ms / 1000, tz=timezone.utc)
+    dt = to_datetime(timestamp_ms / 1000)
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 

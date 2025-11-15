@@ -13,7 +13,6 @@ from starlette.status import (
     HTTP_422_UNPROCESSABLE_ENTITY,
 )
 from mangum import Mangum
-from contextlib import asynccontextmanager
 from utils import (
     ContactMessageDTO,
     PostDTO,
@@ -29,7 +28,6 @@ from utils import (
     logger,
     get_html_content,
     get_url,
-    configure_app_state,
     get_post_url,
     create_post,
     create_contact_message,
@@ -68,6 +66,8 @@ from utils import (
     get_allowed_origins,
     get_redirect_url,
     should_show_popular_posts,
+    create_auth_jwt_token,
+    get_auth_token_max_age,
 )
 from deps import (
     OptCurUserDep,
@@ -91,16 +91,7 @@ from deps import (
 import asyncio
 import os
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await configure_app_state(app.state)
-    yield
-    # Shutdown: nothing special here, but can clean up resources
-    # e.g., closing db connections
-
-
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 
 if not is_prod():
     @app.middleware("http")
@@ -385,18 +376,18 @@ async def login_callback(request: Request) -> RedirectResponse:
         redirect_url = request.cookies.get("redirect_url") or get_url(request, "index")
         callback_url = get_url(request, 'login-callback', full_url=True)
 
-        user_token = await get_user_token_by_code(
+        cognito_user_token = await get_user_token_by_code(
             code=request.query_params.get("code"),
             callback_url=callback_url
         )
         response = RedirectResponse(redirect_url, HTTP_302_FOUND)
         response.set_cookie(
-            key="session_token",
-            value=user_token.plain_token,
+            key="auth_token",
+            value=create_auth_jwt_token(cognito_user_token),
             httponly=True,
             secure=is_prod(),
             samesite="lax",
-            max_age=user_token.max_age
+            max_age=get_auth_token_max_age(),
         )
         return response
     except (InvalidCodeError, CodeExchangeFailedError, InvalidTokenError) as e:
@@ -413,7 +404,7 @@ async def logout(request: Request) -> RedirectResponse:
     provider_redirect_url = await get_logout_redirect_url(callback_url)
     response = RedirectResponse(provider_redirect_url)
     response.set_cookie("redirect_url", redirect_url, httponly=True, secure=True)
-    response.delete_cookie("session_token")
+    response.delete_cookie("auth_token")
     return response
 
 

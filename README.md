@@ -52,10 +52,11 @@
 - add meta info for tags and images (created_by, created_at)
 - add SEO meta tags (image, other property/name metas)
 - implement instant lambda deployments
-- increase auth token lifetime
 - add aria attributes (+allow them in tinymce)
 - add footer tag for post/articles, put related articles (Like "Futher reading", based on tags)
 - async post likes/dislikes (return fragment html and inject it)
+- allow to edit posts after publication
+- replace env secrets with secrets manager storage
 ## Links
 
 - favicon - https://realfavicongenerator.net

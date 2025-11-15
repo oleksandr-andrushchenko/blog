@@ -171,6 +171,7 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 			TinyMceApiKey="$(TINYMCE_API_KEY)" \
 			CssCacheCounter="$(CSS_CACHE_COUNTER)" \
 			JsCacheCounter="$(JS_CACHE_COUNTER)" \
+			AuthJwtSecret="$(AUTH_JWT_SECRET)" \
 			TagProject="$(TAG_PROJECT)" \
 			TagOwner="$(TAG_OWNER)" \
 			TagEnvironment="$(TAG_ENVIRONMENT)" \
