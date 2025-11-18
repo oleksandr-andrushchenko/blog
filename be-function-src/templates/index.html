@@ -9,6 +9,12 @@
             <h1>{{ site_name }}</h1>
             <p class="small text-secondary">&mdash; {{ site_short_desc }}</p>
             <p>{{ site_desc }}</p>
+            {% if index_image %}
+                <img src="{{ static_url(index_image.filename) }}"
+                     class="rounded-circle img-fluid"
+                     width="{{ index_image.width }}" height="{{ index_image.height }}"
+                     alt="{{ index_image.alt }}">
+            {% endif %}
 
             <div class="d-flex flex-column gap-3">
                 <h2 class="mb-0">
