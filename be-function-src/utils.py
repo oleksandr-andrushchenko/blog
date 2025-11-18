@@ -828,6 +828,48 @@ def jinja2_static_url(ctx, filename, **params) -> str:
     return get_url(ctx.get("request"), "user-by-slug", slug=filename, **params)
 
 
+def jinja2_col_classes(sizes, inverse: bool = False) -> str:
+    """
+    Convert:
+        3 → 'col col-3'
+        {'def': 1, 'sm': 2} → 'col col-1 col-sm-2'
+
+    If inverse=True:
+        size -> 12 - size
+        e.g. 3 → col-9
+    """
+
+    # Allow plain integers → treat as default column size
+    if isinstance(sizes, int):
+        sizes = {"def": sizes}
+
+    if not isinstance(sizes, dict):
+        raise TypeError("jinja2_col_classes expects a dict or int")
+
+    prefixes = {
+        "def": "col-",
+        "sm": "col-sm-",
+        "md": "col-md-",
+        "lg": "col-lg-",
+        "xl": "col-xl-",
+    }
+
+    classes = ["col"]
+
+    for key, value in sizes.items():
+        if not isinstance(value, int):
+            continue  # ignore bad values
+
+        prefix = prefixes.get(key)
+        if prefix is None:
+            continue
+
+        final_value = (12 - value) if inverse else value
+        classes.append(f"{prefix}{final_value}")
+
+    return " ".join(classes)
+
+
 def get_jinja2_env():
     templates_dir = os.path.join(os.path.dirname(__file__), "templates")
     jinja2_env = Environment(
@@ -840,6 +882,7 @@ def get_jinja2_env():
         "unix_to_month_year": unix_to_month_year,
         "unix_to_full_date": unix_to_full_date,
         "iso_utc": jinja2_iso_utc,
+        "col_classes": jinja2_col_classes,
     })
     jinja2_env.globals.update(get_config())
     jinja2_env.globals.update({
