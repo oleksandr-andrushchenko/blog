@@ -68,6 +68,7 @@ from utils import (
     should_show_popular_posts,
     create_auth_jwt_token,
     get_auth_token_max_age,
+    get_post_related_posts,
 )
 from deps import (
     OptCurUserDep,
@@ -188,20 +189,22 @@ async def posts_fragment(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> st
 
 
 async def base_post_page(post: PostDep, cur_user: OptCurUserDep) -> HTMLResponse:
-    if cur_user:
-        author, post_impression = await asyncio.gather(
-            find_user(post.user_id),
-            find_post_impression(post, cur_user),
-        )
-    else:
-        author = await find_user(post.user_id)
-        post_impression = None
+    (
+        author,
+        post_impression,
+        related_posts,
+    ) = await asyncio.gather(
+        find_user(post.user_id),
+        find_post_impression(post, cur_user) if cur_user else None,
+        get_post_related_posts(post)
+    )
 
     html_content = get_html_content("post.html", {
         "cur_user": cur_user,
         "post": post,
         "author": author,
         "post_impression": post_impression,
+        "related_posts": related_posts,
     })
     return HTMLResponse(html_content)
 
