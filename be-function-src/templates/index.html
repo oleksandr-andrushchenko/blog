@@ -94,8 +94,8 @@
                 {% if popular_post_tags %}
                     <div id="popular-post-tags">
                         {% for tag in popular_post_tags %}
-                            <a href="{{ url("posts", tags=tag.name) }}" class="btn btn-secondary btn-sm post-tag mb-1">
-                                <h3 class="h6 mb-0">{{ tag.name }}</h3>
+                            <a href="{{ url("posts", tags=tag.name) }}" class="btn btn-light btn-sm post-tag mb-1">
+                                <h3 class="h6 fw-normal mb-0">{{ tag.name }}</h3>
                             </a>
                         {% endfor %}
 
