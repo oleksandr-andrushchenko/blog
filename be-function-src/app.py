@@ -190,14 +190,17 @@ async def posts_fragment(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> st
 
 
 async def base_post_page(post: PostDep, cur_user: OptCurUserDep) -> HTMLResponse:
+    async def noop():
+        return None
+
     (
         author,
         post_impression,
         related_posts,
     ) = await asyncio.gather(
         find_user(post.user_id),
-        find_post_impression(post, cur_user) if cur_user else None,
-        get_post_related_posts(post)
+        find_post_impression(post, cur_user) if cur_user else noop(),
+        get_post_related_posts(post),
     )
 
     html_content = get_html_content("post.html", {
