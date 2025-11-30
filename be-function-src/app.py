@@ -69,6 +69,7 @@ from utils import (
     create_auth_jwt_token,
     get_auth_token_max_age,
     get_post_related_posts,
+    find_post,
 )
 from deps import (
     OptCurUserDep,
@@ -250,10 +251,22 @@ async def _update_post_status(post: PostDep, update_post_status_dto: UpdatePostS
     return get_post_url(request, post)
 
 
-@app.post("/posts/{post_id}/impression", name="update-post-impression", status_code=HTTP_204_NO_CONTENT)
+@app.post("/posts/{post_id}/impression", name="update-post-impression", response_class=HTMLResponse)
 async def _update_post_impression(post: PostDep, update_post_impression_dto: UpdatePostImpressionDTODep,
-                                  cur_user: CurUserDep) -> None:
-    return await update_post_impression(post, update_post_impression_dto, cur_user)
+                                  cur_user: CurUserDep) -> str:
+    await update_post_impression(post, update_post_impression_dto, cur_user)
+    (
+        post,
+        post_impression,
+    ) = await asyncio.gather(
+        find_post(post.id),
+        find_post_impression(post, cur_user),
+    )
+    return get_html_content("fragments/post-impressions.html", {
+        "post": post,
+        "post_impression": post_impression,
+        "cur_user": cur_user,
+    })
 
 
 @app.get("/contacts", name="contacts", response_class=HTMLResponse)
@@ -331,10 +344,22 @@ async def _update_user_status(user: UserDep, update_user_status_dto: UpdateUserS
     return get_user_url(request, user)
 
 
-@app.post("/users/{user_id}/impression", name="update-user-impression", status_code=HTTP_204_NO_CONTENT)
+@app.post("/users/{user_id}/impression", name="update-user-impression", response_class=HTMLResponse)
 async def _update_user_impression(user: UserDep, update_user_impression_dto: UpdateUserImpressionDTODep,
-                                  cur_user: CurUserDep) -> None:
-    return await update_user_impression(user, update_user_impression_dto, cur_user)
+                                  cur_user: CurUserDep) -> str:
+    await update_user_impression(user, update_user_impression_dto, cur_user)
+    (
+        user,
+        user_impression,
+    ) = await asyncio.gather(
+        find_user(user.id),
+        find_user_impression(user, cur_user),
+    )
+    return get_html_content("fragments/user-impressions.html", {
+        "user": user,
+        "user_impression": user_impression,
+        "cur_user": cur_user,
+    })
 
 
 @app.get("/users/{user_id}/edit", name="edit-user", response_class=HTMLResponse)

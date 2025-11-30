@@ -455,8 +455,8 @@ $(".btn-post-reject").on("click", function () {
   })
 })
 
-// Like/dislike post
-$(".btn-post-like, .btn-post-dislike").on("click", function () {
+// Like/dislike post (post impression)
+$(document).on("click", ".btn-post-like, .btn-post-dislike", function () {
   const $btn = $(this)
   const postId = $btn.data("post-id")
   const action = $btn.data("action")
@@ -465,8 +465,8 @@ $(".btn-post-like, .btn-post-dislike").on("click", function () {
   $btn.prop("disabled", true).addClass("disabled")
 
   $.ajax({
-    url, method: "POST", contentType: "application/json", data: JSON.stringify({action}), success: function () {
-      location.reload()
+    url, method: "POST", contentType: "application/json", data: JSON.stringify({action}), success: function (res) {
+      $btn.closest(".post-impressions").replaceWith(res)
     }, error: function (xhr) {
       console.error(`Error on post ${action}:`, xhr.responseText)
       alert(`Failed to ${action} post. Please try again.`)
@@ -476,8 +476,8 @@ $(".btn-post-like, .btn-post-dislike").on("click", function () {
   })
 })
 
-// Follow/block user
-$(".btn-user-follow, .btn-user-block").on("click", function () {
+// Follow/block user (user impression)
+$(document).on("click", ".btn-user-follow, .btn-user-block", function () {
   const $btn = $(this)
   const userId = $btn.data("user-id")
   const action = $btn.data("action")
@@ -486,8 +486,8 @@ $(".btn-user-follow, .btn-user-block").on("click", function () {
   $btn.prop("disabled", true).addClass("disabled")
 
   $.ajax({
-    url, method: "POST", contentType: "application/json", data: JSON.stringify({action}), success: function () {
-      window.location.reload()
+    url, method: "POST", contentType: "application/json", data: JSON.stringify({action}), success: function (res) {
+      $btn.closest(".user-impressions").replaceWith(res)
     }, error: function (xhr) {
       console.error(`Error on user ${action}:`, xhr.responseText)
       alert(`Failed to ${action} user. Please try again.`)

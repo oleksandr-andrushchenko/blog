@@ -1,4 +1,4 @@
-<div class="d-flex gap-1 align-items-center">
+<div class="post-impressions d-flex gap-1 align-items-center">
     {% if cur_user and check_auth(cur_user, Permission.UPDATE_POST_IMPRESSION, post) %}
         <!-- Like / Unlike Button -->
         {% set is_liked = post_impression and post_impression.action == PostImpressionAction.LIKE %}

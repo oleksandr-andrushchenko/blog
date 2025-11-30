@@ -54,9 +54,10 @@
 - implement instant lambda deployments
 - add aria attributes (+allow them in tinymce)
 - add footer tag for post/articles, put related articles (Like "Futher reading", based on tags)
-- async post likes/dislikes (return fragment html and inject it)
 - replace env secrets with secrets manager storage
 - allow to update post status after publication
+- jpeg images have problems with dimensions determination (on uploads)
+- add image watermarks
 ## Links
 
 - favicon - https://realfavicongenerator.net
