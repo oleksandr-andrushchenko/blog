@@ -133,7 +133,7 @@ Resources:
       KeySchema:
         - AttributeName: pk # e.g. "PROVIDER_USER#cognito#1", "USER#1", "POST#1", "POST_SLUG#slug1", "POST_TAG#tag1", "POST_TAG_COMBO#tag1#tag2", "CONTACT_MESSAGE#1"
           KeyType: HASH
-        - AttributeName: sk # e.g. "META", "1759086095241"
+        - AttributeName: sk # e.g. "META", "1759086095241", "POST#1"
           KeyType: RANGE
       GlobalSecondaryIndexes:
         - IndexName: USERS_BY_EMAIL # get_user_by_user_token (get user by email)
