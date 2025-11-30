@@ -2095,7 +2095,8 @@ async def get_latest_posts_by_tags(query_dto: PostQueryDTO = None, cur_user: Use
 async def get_post_related_posts(post: Post) -> list[Post]:
     query_dto = PostQueryDTO()
     query_dto.tags = post.tags
-    return await get_popular_posts_by_tags(query_dto)
+    posts = await get_popular_posts_by_tags(query_dto)
+    return [p for p in posts if p.id != post.id]
 
 
 async def get_popular_posts_by_tags(query_dto: PostQueryDTO = None, cur_user: User = None) -> list[Post]:
