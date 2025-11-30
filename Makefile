@@ -331,7 +331,7 @@ fetch-local-dynamodb: ## Fetch 100 records from local DynamoDB
 	@echo "📦 Fetching 100 records from $(DYNAMODB_TABLE)..."
 	AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
 	aws dynamodb scan \
-		--table-name "$(TEST_DYNAMODB_TABLE)" \
+		--table-name "$(DYNAMODB_TABLE)" \
 		--limit 100 \
 		--endpoint-url "http://localhost:$(DYNAMODB_PORT)" \
 		--region "$(AWS_REGION)" \
