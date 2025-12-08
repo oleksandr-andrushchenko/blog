@@ -2,10 +2,19 @@
 include .env
 export
 
-DC = docker-compose
-BE_FUNCTION_CONTAINER = $(DOCKER_NAME)-be-function
-BE_FUNCTION_TEST_CONTAINER = $(DOCKER_NAME)-be-function-test
-SCRIPTS_CONTAINER = $(DOCKER_NAME)-scripts
+# Detect docker compose command
+ifeq (, $(shell command -v docker-compose 2>/dev/null))
+    ifeq (, $(shell command -v docker 2>/dev/null))
+        $(error "Docker is not installed")
+    endif
+    DC := docker compose
+else
+    DC := docker-compose
+endif
+
+BE_FUNCTION_CONTAINER = be-function
+BE_FUNCTION_TEST_CONTAINER = be-function-test
+SCRIPTS_CONTAINER = scripts
 CODE_STACK_NAME = $(STACK_NAME)-code
 CERT_STACK_NAME = $(STACK_NAME)-cert
 SITE_BUILD_DIR=.site-build
@@ -254,18 +263,18 @@ down: ## Stop local Docker containers
 
 .PHONY: rebuild
 rebuild: ## Rebuild and start Docker containers
-	$(DC) up -d --build
+	$(DC) up -d --build --force-recreate
 
 .PHONY: login
 login: ## Open shell in Docker container
-	docker exec -it $(BE_FUNCTION_CONTAINER) bash
+	$(DC) exec -it $(BE_FUNCTION_CONTAINER) bash
 
 login-scripts: ## Open shell in scripts Docker container
 	docker exec -it $(SCRIPTS_CONTAINER) bash
 
 .PHONY: logs
 logs: ## Show logs of Docker container
-	docker logs -f $(BE_FUNCTION_CONTAINER)
+	$(DC) logs -f $(BE_FUNCTION_CONTAINER)
 
 .PHONY: generate-site-files
 generate-site-files: ## Run content generator inside Docker container
@@ -367,12 +376,12 @@ recreate-local-dynamodb: drop-local-dynamodb create-local-dynamodb create-local-
 
 .PHONY: tests
 tests:
-	docker exec $(SCRIPTS_CONTAINER) pytest -o log_cli_level=INFO -o log_cli=true -v scripts/test_be.py -v -s
+	$(DC) exec $(SCRIPTS_CONTAINER) pytest -o log_cli_level=INFO -o log_cli=true -v scripts/test_be.py -v -s
 
 .PHONY: tail-test-logs
 tail-test-logs: ## Tail test logs
-	docker logs -f $(BE_FUNCTION_TEST_CONTAINER)
+	$(DC) logs -f $(BE_FUNCTION_TEST_CONTAINER)
 
 .PHONY: tail-scripts-logs
 tail-scripts-logs: ## Tail scripts logs
-	docker logs -f $(SCRIPTS_CONTAINER)
+	$(DC) logs -f $(SCRIPTS_CONTAINER)
