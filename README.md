@@ -2,6 +2,7 @@
 
 ## Prerequisites
 
+- docker & docker compose have to be installed
 - AWS account
 - AWS CLI installed and configured
     - You should have these files: `~/.aws/credentials` and `~/.aws/config`

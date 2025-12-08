@@ -3,7 +3,6 @@ services:
     build:
       context: ./
       dockerfile: Dockerfile-be-function
-    container_name: "${DOCKER_NAME}-be-function"
     ports:
       - "${BE_FUNCTION_PORT}:5000"
     env_file:
@@ -11,18 +10,15 @@ services:
     environment:
       ENV: local
       BASE_URL: "http://localhost:${BE_FUNCTION_PORT}"
-      DYNAMODB_ENDPOINT: "http://${DOCKER_NAME}-dynamodb:8000"
+      DYNAMODB_ENDPOINT: "http://dynamodb:8000"
     volumes:
       - ./be-function-src:/app
       - ./.env:/.env
-    networks:
-      - network
 
   be-function-test:
     build:
       context: ./
       dockerfile: Dockerfile-be-function
-    container_name: "${DOCKER_NAME}-be-function-test"
     ports:
       - "${TEST_BE_FUNCTION_PORT}:5000"
     env_file:
@@ -30,40 +26,32 @@ services:
     environment:
       ENV: test
       BASE_URL: "http://localhost:${TEST_BE_FUNCTION_PORT}"
-      DYNAMODB_ENDPOINT: "http://${DOCKER_NAME}-dynamodb:8000"
+      DYNAMODB_ENDPOINT: "http://dynamodb:8000"
       DYNAMODB_TABLE: ${TEST_DYNAMODB_TABLE}
     volumes:
       - ./be-function-src:/app
       - ./.env:/.env
-    networks:
-      - network
 
   dynamodb:
     image: amazon/dynamodb-local
-    container_name: "${DOCKER_NAME}-dynamodb"
+    user: root
     ports:
       - "${DYNAMODB_PORT}:8000"
-    networks:
-      - network
     volumes:
-      - ./dynamodb-data:/home/dynamodblocal/data
+      - dynamodb-data:/home/dynamodblocal/data
     command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data"
 
   scripts:
     build:
       context: ./scripts
       dockerfile: Dockerfile
-    container_name: "${DOCKER_NAME}-scripts"
     env_file:
       - .env
     environment:
-      TEST_BASE_URL: "http://${DOCKER_NAME}-be-function-test:5000"
-      DYNAMODB_ENDPOINT: "http://${DOCKER_NAME}-dynamodb:8000"
+      TEST_BASE_URL: "http://be-function-test:5000"
+      DYNAMODB_ENDPOINT: "http://dynamodb:8000"
     volumes:
       - ./:/app
-    networks:
-      - network
 
-networks:
-  network:
-    name: "${DOCKER_NAME}-network"
+volumes:
+  dynamodb-data:
