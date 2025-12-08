@@ -58,6 +58,10 @@
 - allow to update post status after publication
 - jpeg images have problems with dimensions determination (on uploads)
 - add image watermarks
+- add author to the footer
+- update logo in google auth
+- posts page: add popular tags to "filter by tags" block
+- remove tools from the tinymce, like data/time insert
 ## Links
 
 - favicon - https://realfavicongenerator.net
