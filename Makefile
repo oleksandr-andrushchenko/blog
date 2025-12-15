@@ -270,7 +270,7 @@ login: ## Open shell in Docker container
 	$(DC) exec -it $(BE_FUNCTION_CONTAINER) bash
 
 login-scripts: ## Open shell in scripts Docker container
-	docker exec -it $(SCRIPTS_CONTAINER) bash
+	$(DC) exec -it $(SCRIPTS_CONTAINER) bash
 
 .PHONY: logs
 logs: ## Show logs of Docker container
@@ -281,7 +281,7 @@ generate-site-files: ## Run content generator inside Docker container
 	@echo "📦 Generating Site files..."
 	mkdir -p $(SITE_BUILD_DIR)
 	rm -rf $(SITE_BUILD_DIR)/*
-	docker exec $(SCRIPTS_CONTAINER) python3 scripts/generate_site_build.py
+	$(DC) exec $(SCRIPTS_CONTAINER) python3 scripts/generate_site_build.py
 	@echo "✅ Site files saved to $(SITE_BUILD_DIR) successfully"
 
 .PHONY: generate-code-files
@@ -291,7 +291,7 @@ generate-code-files: ## Build Lambda zip for be-function
 	rm -rf $(CODE_BUILD_DIR)/*
 
 	# Install dependencies only if vendor folder doesn't exist
-	docker exec $(SCRIPTS_CONTAINER) bash -c "\
+	$(DC) exec $(SCRIPTS_CONTAINER) bash -c "\
 		if [ ! -d /app/$(CACHE_DIR)/vendor ]; then \
 			echo '📥 Installing dependencies into $(CACHE_DIR)/vendor folder...'; \
 			mkdir -p /app/$(CACHE_DIR)/vendor; \
@@ -301,7 +301,7 @@ generate-code-files: ## Build Lambda zip for be-function
 		fi"
 
 	# Run the build script to copy source, merge vendor, remove static, and zip
-	docker exec $(SCRIPTS_CONTAINER) python3 /app/scripts/generate_code_build.py
+	$(DC) exec $(SCRIPTS_CONTAINER) python3 /app/scripts/generate_code_build.py
 
 	@echo "✅ Code files saved to $(CODE_BUILD_DIR) successfully"
 
@@ -320,7 +320,7 @@ create-local-dynamodb:
 		echo "⚠️ Table $(DYNAMODB_TABLE) already exists, skipping creation."; \
 	else \
 		echo "🧩 Extracting DynamoDB schema from CloudFormation..."; \
-		docker exec $(SCRIPTS_CONTAINER) python3 scripts/extract_dynamodb_schema.py > /tmp/dynamodb_schema.json; \
+		$(DC) exec $(SCRIPTS_CONTAINER) python3 scripts/extract_dynamodb_schema.py > /tmp/dynamodb_schema.json; \
 		if [ ! -s /tmp/dynamodb_schema.json ]; then echo '❌ Failed to generate valid DynamoDB schema JSON'; exit 1; fi; \
 		echo "📄 Generated schema:"; \
 		cat /tmp/dynamodb_schema.json | jq .; \
