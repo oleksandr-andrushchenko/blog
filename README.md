@@ -59,6 +59,8 @@
 - allow to update post status after publication
 - jpeg images have problems with dimensions determination (on uploads)
 - add image watermarks
+- add copy persistent user link (similar to posts)
+- add SQL for TINYMCE source code plugin
 ## Links
 
 - favicon - https://realfavicongenerator.net
