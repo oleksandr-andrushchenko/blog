@@ -633,7 +633,8 @@ if (window.CONFIG.init_tinymce) {
       {text: "Java", value: "java"},
       {text: "Bash/Shell", value: "bash"},
       {text: "JSON", value: "json"},
-      {text: "YAML", value: "yaml"}
+      {text: "YAML", value: "yaml"},
+      {text: "SQL", value: "sql"}
     ],
     setup: (editor) => {
       editor.on("init", () => {
