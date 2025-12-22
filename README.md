@@ -63,7 +63,6 @@
 - update logo in google auth
 - posts page: add popular tags to "filter by tags" block
 - remove tools from the tinymce, like data/time insert
-- add copy persistent user link (similar to posts)
 ## Links
 
 - favicon - https://realfavicongenerator.net

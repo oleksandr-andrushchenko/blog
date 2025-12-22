@@ -11,6 +11,7 @@
 {% set posts_title = " ".join([val_map[posts_query.type]["title"]] + [val_map[posts_query.status]["title"]] + ["Posts"]) | capitalize %}
 {% set posts_subtitle = " ".join([val_map[posts_query.type]["subtitle"]] + [val_map[posts_query.status]["subtitle"]] + ["Articles"]) | capitalize %}
 {% set canonical_url = user_url(user) %}
+{% set alternate_url = url("user", user_id=user.id) %}
 
 {% block meta_title %}{{ user.name }} – {{ site_name }}{% endblock %}
 {% block meta_description %}
@@ -34,7 +35,7 @@
     } | tojson | safe -}}
 {% endblock %}
 {% block meta_canonical %}{{ canonical_url }}{% endblock %}
-{% block meta_alternate %}{{ url("user", user_id=user.id) }}{% endblock %}
+{% block meta_alternate %}{{ alternate_url }}{% endblock %}
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), "Users": url("users"), (user.name): None} %}
         {% include "fragments/breadcrumbs.html" %}
@@ -203,6 +204,10 @@
                         </a>
                     </div>
                 {% endif %}
+
+                {% with url_to_copy=base_url+alternate_url, copy_url_label="Copy persistent user profile link" %}
+                    {% include "fragments/copy-url.html" %}
+                {% endwith %}
             </div>
         </div>
     </div>
