@@ -573,10 +573,10 @@ const uploadPublicFile = async function (file, progress = undefined) {
 if (window.CONFIG.init_tinymce) {
   $("textarea.editor").tinymce({
     skin: "bootstrap",
-    plugins: "importcss insertdatetime preview autolink code fullscreen image link codesample table charmap advlist lists autosave",
+    plugins: "importcss autolink code fullscreen image link codesample table charmap advlist lists autosave",
     menubar: false,
-    toolbar: "undo redo | h2 h3 blockquote | bold italic underline strikethrough | align numlist bullist | outdent indent | "
-      + "link image table charmap codesample insertdatetime | removeformat code fullscreen preview",
+    toolbar: "h2 h3 blockquote bold italic underline strikethrough align numlist bullist outdent indent "
+      + "link image table charmap codesample removeformat code fullscreen",
     autosave_ask_before_unload: true,
     contextmenu: false,
     content_css: ["default", ...window.CONFIG.css_filenames],
