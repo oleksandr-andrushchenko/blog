@@ -596,10 +596,11 @@ if (window.CONFIG.init_tinymce) {
       + "div[class],br,p,pre[class],code[class],blockquote",
     document_base_url: window.CONFIG.base_url + "/",
     table_default_attributes: {class: "table"},
-    table_class_list: [{title: "Regular", value: "table"}, {
-      title: "Striped",
-      value: "table table-striped"
-    }, {title: "Bordered", value: "table table-bordered"}],
+    table_class_list: [
+      {title: "Regular", value: "table"},
+      {title: "Striped", value: "table table-striped"},
+      {title: "Bordered", value: "table table-bordered"}
+    ],
     link_default_target: "_blank",
     link_target_list: false,
     link_context_toolbar: true,
@@ -609,26 +610,31 @@ if (window.CONFIG.init_tinymce) {
       const filename = await uploadPublicFile(blobInfo.blob(), progress)
       return window.CONFIG.static_relative_url.replace("{filename}", filename)
     },
-    image_class_list: [{title: "Responsive", value: "img-fluid"}, {
-      title: "Left",
-      value: "float-start"
-    }, {title: "Right", value: "float-end"}, {title: "Rounded", value: "rounded"}, {
-      title: "Thumbnail",
-      value: "img-thumbnail"
-    }],
-    codesample_languages: [{text: "HTML/XML", value: "markup"}, {
-      text: "JavaScript",
-      value: "javascript"
-    }, {text: "TypeScript", value: "typescript"}, {text: "Python", value: "python"}, {
-      text: "CSS",
-      value: "css"
-    }, {text: "SCSS", value: "scss"}, {text: "PHP", value: "php"}, {text: "Ruby", value: "ruby"}, {
-      text: "Go",
-      value: "go"
-    }, {text: "C", value: "c"}, {text: "C++", value: "cpp"}, {text: "C#", value: "csharp"}, {
-      text: "Java",
-      value: "java"
-    }, {text: "Bash/Shell", value: "bash"}, {text: "JSON", value: "json"}, {text: "YAML", value: "yaml"}],
+    image_class_list: [
+      {title: "Responsive", value: "img-fluid"},
+      {title: "Left", value: "float-start"},
+      {title: "Right", value: "float-end"},
+      {title: "Rounded", value: "rounded"},
+      {title: "Thumbnail", value: "img-thumbnail"}
+    ],
+    codesample_languages: [
+      {text: "HTML/XML", value: "markup"},
+      {text: "JavaScript", value: "javascript"},
+      {text: "TypeScript", value: "typescript"},
+      {text: "Python", value: "python"},
+      {text: "CSS", value: "css"},
+      {text: "SCSS", value: "scss"},
+      {text: "PHP", value: "php"},
+      {text: "Ruby", value: "ruby"},
+      {text: "Go", value: "go"},
+      {text: "C", value: "c"},
+      {text: "C++", value: "cpp"},
+      {text: "C#", value: "csharp"},
+      {text: "Java", value: "java"},
+      {text: "Bash/Shell", value: "bash"},
+      {text: "JSON", value: "json"},
+      {text: "YAML", value: "yaml"}
+    ],
     setup: (editor) => {
       editor.on("init", () => {
         editor.getContainer().style.transition = "border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out"
