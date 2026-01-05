@@ -683,8 +683,6 @@ if (window.CONFIG.init_tinymce) {
       editor.on("GetContent", function (e) {
         e.content = e.content
           .replace(/<p>\s*<\/p>/g, "<br>")
-          .replace(/<\/p>\s*<p>/g, "<br>")
-          .replace(/(<br\s*\/?>\s*){2,}/gi, "<br>")
           .replace(/^(<br\s*\/?>\s*)+/i, "")
           .replace(/(<br\s*\/?>\s*)+$/i, "")
           .trim()

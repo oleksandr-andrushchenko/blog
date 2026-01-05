@@ -241,8 +241,6 @@ def sanitize_forbidden_html(value):
     )
 
     normalized = re.sub(r"<p>\s*</p>", "<br>", cleaned, flags=re.IGNORECASE)
-    normalized = re.sub(r"</p>\s*<p>", "<br>", normalized, flags=re.IGNORECASE)
-    normalized = re.sub(r"(?:<br\s*/?>\s*){2,}", "<br>", normalized, flags=re.IGNORECASE)
     normalized = re.sub(r"^(?:<br\s*/?>\s*)+", "", normalized, flags=re.IGNORECASE)
     normalized = re.sub(r"(?:<br\s*/?>\s*)+$", "", normalized, flags=re.IGNORECASE)
     normalized = normalized.strip()
