@@ -1,4 +1,4 @@
-{% if post.status != PostStatus.PUBLISHED and cur_user and check_auth(cur_user, Permission.UPDATE_POST_STATUS, post) %}
+{% if post.status != PostStatus.PUBLISHED and cur_user and check_auth(cur_user, Permission.UPDATE_POST_STATUS) %}
     <div class="input-group">
         <!-- Publish Post -->
         {% set is_published = post.status == PostStatus.PUBLISHED %}
