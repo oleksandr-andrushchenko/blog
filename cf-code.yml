@@ -2,19 +2,16 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: S3 Bucket for Lambda / CloudFront Code Storage
 
 Parameters:
-  TagProject:
+  Project:
     Type: String
     Description: Logical project identifier (e.g. blog)
-  TagOwner:
+  Owner:
     Type: String
     Description: Resource owner (e.g. olek)
-  TagEnvironment:
+  Stage:
     Type: String
-    Description: Deployment environment (e.g. prod)
-  TagRegion:
-    Type: String
-    Description: AWS region (e.g. us-west-2)
-    Default: us-east-1
+    Description: Deployment stage (e.g. local, dev, test, prod, etc.)
+    AllowedValues: [ local, dev, test, prod ]
 
 Resources:
   CodeBucket:
@@ -27,14 +24,14 @@ Resources:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
       Tags:
-        - Key: Environment
-          Value: !Ref TagEnvironment
+        - Key: Stage
+          Value: !Ref Stage
         - Key: Project
-          Value: !Ref TagProject
+          Value: !Ref Project
         - Key: Owner
-          Value: !Ref TagOwner
+          Value: !Ref Owner
         - Key: Region
-          Value: !Ref TagRegion
+          Value: !Ref AWS::Region
 
 Outputs:
   CodeBucketName:

@@ -10,7 +10,9 @@
 ## Available commands
 
 ```
+  aws-login            AWS login
   clean                Remove build artifacts
+  create-local-dynamodb Create local DynamoDB table
   create-local-dynamodb-dummy-fixtures Populate local DynamoDB with dummy data
   delete-cert-infra    Delete cert CF stack
   delete-code-infra    Delete code CF stack
@@ -37,6 +39,7 @@
   open                 Show local site URL
   rebuild              Rebuild and start Docker containers
   recreate-local-dynamodb Recreate DynamoDB table in local DynamoDB & populate dummy data
+  restart              Restart local Docker containers
   tail-scripts-logs    Tail scripts logs
   tail-test-logs       Tail test logs
   up                   Start local Docker containers

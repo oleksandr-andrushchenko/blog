@@ -40,7 +40,7 @@ for item in be_function_dir.iterdir():
         shutil.copy2(item, dest)
 
 # Remove static folder if STATIC_FILES_DIR is set
-static_dir_name = os.environ.get("STATIC_FILES_DIR")
+static_dir_name = os.environ.get("STATIC_FILES_DIR", "static")
 if static_dir_name:
     static_dir = tmp_dir / static_dir_name
     if static_dir.exists():

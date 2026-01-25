@@ -2,13 +2,28 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: Blog infrastructure with S3, CloudFront, API Gateway, Lambda, DynamoDB, Cognito
 
 Parameters:
+  Project:
+    Type: String
+    Description: Logical project identifier (e.g. blog)
+  Owner:
+    Type: String
+    Description: Resource owner (e.g. olek)
+  Stage:
+    Type: String
+    Description: Deployment stage (e.g. local, dev, test, prod, etc.)
+    AllowedValues: [ local, dev, test, prod ]
   Env:
     Type: String
-    Description: Environment (local or prod)
-    AllowedValues:
-      - local
-      - prod
-    Default: prod
+    Description: Environment (e.g. dev, prod, etc.)
+    AllowedValues: [ dev, prod ]
+  Debug:
+    Type: String
+    Description: Debug mode
+    AllowedValues: [ 0, 1 ]
+  Secret:
+    Type: String
+    Description: Application secret
+    NoEcho: true
   DomainName:
     Type: String
     Description: The domain name (e.g. blog.com)
@@ -29,14 +44,16 @@ Parameters:
     Description: Google Analytics tracking ID (e.g. UA-XXXXX-Y)
   GoogleOauthClientId:
     Type: String
-    Description: "Google OAuth Client ID for Cognito Identity Provider"
+    Description: Google OAuth Client ID for Cognito Identity Provider
+    NoEcho: true
   GoogleOauthClientSecret:
     Type: String
-    Description: "Google OAuth Client Secret for Cognito Identity Provider"
+    Description: Google OAuth Client Secret for Cognito Identity Provider
     NoEcho: true
   TinyMceApiKey:
     Type: String
     Description: TinyMCE API key
+    NoEcho: true
   CssCacheCounter:
     Type: String
     Description: CSS file query param value
@@ -47,18 +64,6 @@ Parameters:
     Type: String
     Description: Auth JWT secret
     NoEcho: true
-  TagProject:
-    Type: String
-    Description: Logical project identifier (e.g. blog)
-  TagOwner:
-    Type: String
-    Description: Resource owner (e.g. olek)
-  TagEnvironment:
-    Type: String
-    Description: Deployment environment (e.g. prod)
-  TagRegion:
-    Type: String
-    Description: AWS region (e.g. us-west-2)
 
 Resources:
   SiteBucket:
@@ -71,14 +76,14 @@ Resources:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
       Tags:
-        - Key: Environment
-          Value: !Ref TagEnvironment
+        - Key: Stage
+          Value: !Ref Stage
         - Key: Project
-          Value: !Ref TagProject
+          Value: !Ref Project
         - Key: Owner
-          Value: !Ref TagOwner
+          Value: !Ref Owner
         - Key: Region
-          Value: !Ref TagRegion
+          Value: !Ref AWS::Region
 
   BucketPolicy:
     Type: AWS::S3::BucketPolicy
@@ -211,12 +216,14 @@ Resources:
           Projection:
             ProjectionType: ALL
       Tags:
+        - Key: Stage
+          Value: !Ref Stage
         - Key: Project
-          Value: !Ref TagProject
+          Value: !Ref Project
         - Key: Owner
-          Value: !Ref TagOwner
-        - Key: Environment
-          Value: !Ref TagEnvironment
+          Value: !Ref Owner
+        - Key: Region
+          Value: !Ref AWS::Region
 
   BackendFunctionRole:
     Type: AWS::IAM::Role
@@ -274,14 +281,14 @@ Resources:
                   - s3:DeleteObject
                 Resource: !Sub "arn:aws:s3:::${SiteBucket}/*"
       Tags:
-        - Key: Environment
-          Value: !Ref TagEnvironment
+        - Key: Stage
+          Value: !Ref Stage
         - Key: Project
-          Value: !Ref TagProject
+          Value: !Ref Project
         - Key: Owner
-          Value: !Ref TagOwner
+          Value: !Ref Owner
         - Key: Region
-          Value: !Ref TagRegion
+          Value: !Ref AWS::Region
 
   BackendFunction:
     Type: AWS::Lambda::Function
@@ -295,7 +302,10 @@ Resources:
       MemorySize: 512
       Environment:
         Variables:
-          ENV: !Ref Env
+          APP_STAGE: !Ref Stage
+          APP_ENV: !Ref Env
+          APP_DEBUG: !Ref Debug
+          APP_SECRET: !Ref Secret
           BASE_URL: !Sub "https://${DomainName}"
           DYNAMODB_TABLE: !Ref DynamoDBTable
           GOOGLE_ANALYTICS_ID: !Ref GoogleAnalyticsId
@@ -314,14 +324,14 @@ Resources:
         S3Bucket: !Sub "${AWS::StackName}-code"
         S3Key: be-function.zip
       Tags:
-        - Key: Environment
-          Value: !Ref TagEnvironment
+        - Key: Stage
+          Value: !Ref Stage
         - Key: Project
-          Value: !Ref TagProject
+          Value: !Ref Project
         - Key: Owner
-          Value: !Ref TagOwner
+          Value: !Ref Owner
         - Key: Region
-          Value: !Ref TagRegion
+          Value: !Ref AWS::Region
 
   ApiGatewayBackendFunctionPermission:
     Type: AWS::Lambda::Permission
@@ -337,10 +347,10 @@ Resources:
       Name: !Sub "${AWS::StackName}-api"
       ProtocolType: HTTP
       Tags:
-        Environment: !Ref TagEnvironment
-        Project: !Ref TagProject
-        Owner: !Ref TagOwner
-        Region: !Ref TagRegion
+        Stage: !Ref Stage
+        Project: !Ref Project
+        Owner: !Ref Owner
+        Region: !Ref AWS::Region
 
   ApiGatewayLambdaIntegration:
     Type: AWS::ApiGatewayV2::Integration
@@ -364,10 +374,10 @@ Resources:
       StageName: $default
       AutoDeploy: true
       Tags:
-        Environment: !Ref TagEnvironment
-        Project: !Ref TagProject
-        Owner: !Ref TagOwner
-        Region: !Ref TagRegion
+        Stage: !Ref Stage
+        Project: !Ref Project
+        Owner: !Ref Owner
+        Region: !Ref AWS::Region
 
   CognitoUserPoolV2:
     Type: AWS::Cognito::UserPool
@@ -491,7 +501,6 @@ Resources:
         CookiesConfig:
           CookieBehavior: none
 
-
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
     Properties:
@@ -526,14 +535,14 @@ Resources:
           AcmCertificateArn: !Ref CertificateArn
           SslSupportMethod: sni-only
       Tags:
-        - Key: Environment
-          Value: !Ref TagEnvironment
+        - Key: Stage
+          Value: !Ref Stage
         - Key: Project
-          Value: !Ref TagProject
+          Value: !Ref Project
         - Key: Owner
-          Value: !Ref TagOwner
+          Value: !Ref Owner
         - Key: Region
-          Value: !Ref TagRegion
+          Value: !Ref AWS::Region
 
   DNSRecord:
     Type: AWS::Route53::RecordSet
@@ -555,14 +564,14 @@ Resources:
         - Protocol: sms
           Endpoint: !Ref NotificationPhone
       Tags:
-        - Key: Environment
-          Value: !Ref TagEnvironment
+        - Key: Stage
+          Value: !Ref Stage
         - Key: Project
-          Value: !Ref TagProject
+          Value: !Ref Project
         - Key: Owner
-          Value: !Ref TagOwner
+          Value: !Ref Owner
         - Key: Region
-          Value: !Ref TagRegion
+          Value: !Ref AWS::Region
 
   BackendFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -570,14 +579,14 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${BackendFunction}"
       RetentionInDays: 14
       Tags:
-        - Key: Environment
-          Value: !Ref TagEnvironment
+        - Key: Stage
+          Value: !Ref Stage
         - Key: Project
-          Value: !Ref TagProject
+          Value: !Ref Project
         - Key: Owner
-          Value: !Ref TagOwner
+          Value: !Ref Owner
         - Key: Region
-          Value: !Ref TagRegion
+          Value: !Ref AWS::Region
 
 Outputs:
   WebsiteURL:

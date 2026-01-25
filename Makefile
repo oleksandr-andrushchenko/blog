@@ -15,8 +15,8 @@ endif
 BE_FUNCTION_CONTAINER = be-function
 BE_FUNCTION_TEST_CONTAINER = be-function-test
 SCRIPTS_CONTAINER = scripts
-CODE_STACK_NAME = $(STACK_NAME)-code
-CERT_STACK_NAME = $(STACK_NAME)-cert
+CODE_STACK_NAME = $(AWS_STACK)-code
+CERT_STACK_NAME = $(AWS_STACK)-cert
 SITE_BUILD_DIR=.site-build
 CODE_BUILD_DIR=.code-build
 CACHE_DIR=.cache
@@ -31,7 +31,7 @@ help: ## Show this help
 
 .PHONY: check-env
 check-env:
-	@if [ -z "$(STACK_NAME)" ] || [ -z "$(AWS_PROFILE_NAME)" ] || [ -z "$(AWS_REGION)" ]; then \
+	@if [ -z $(AWS_STACK) ] || [ -z $(AWS_PROJECT) ] || [ -z $(AWS_REGION) ]; then \
 		echo "❌ Missing required environment variables. Did you run 'cp .env.example .env' and fill it?"; \
 		exit 1; \
 	fi
@@ -49,53 +49,51 @@ clean: ## Remove build artifacts
 deploy-cert-infra: check-env check-aws ## Deploy ACM certificate for the domain
 	@echo "🔐 Deploying ACM certificate for $(DOMAIN_NAME) in us-east-1..."
 	aws cloudformation deploy \
-		--profile "$(AWS_PROFILE_NAME)" \
+		--profile $(AWS_PROJECT) \
 		--region "us-east-1" \
 		--template-file cf-cert.yml \
-		--stack-name "$(CERT_STACK_NAME)" \
+		--stack-name $(CERT_STACK_NAME) \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--no-fail-on-empty-changeset \
 		--parameter-overrides \
 			DomainName="$(DOMAIN_NAME)" \
 			HostedZoneId="$(HOSTED_ZONE_ID)" \
-			TagProject="$(TAG_PROJECT)" \
-			TagOwner="$(TAG_OWNER)" \
-			TagEnvironment="$(TAG_ENVIRONMENT)" \
-			TagRegion="us-east-1" \
+			Project="$(AWS_PROJECT)" \
+			Owner="$(AWS_OWNER)" \
+			Stage="$(APP_STAGE)" \
 		--tags \
-			Project="$(TAG_PROJECT)" \
-			Owner="$(TAG_OWNER)" \
-			Environment="$(TAG_ENVIRONMENT)" \
-			Region="us-east-1"
+			Project="$(AWS_PROJECT)" \
+			Owner="$(AWS_OWNER)" \
+			Stage="$(APP_STAGE)"
 	@echo "✅ Certificate deployment triggered. Waiting for DNS validation..."
 
 .PHONY: get-cert-infra
 get-cert-infra: check-env check-aws ## Show cert CF stack events
 	aws cloudformation describe-stack-events \
-		--stack-name "$(CERT_STACK_NAME)" \
-		--profile "$(AWS_PROFILE_NAME)" \
-		--region "$(AWS_REGION)"
+		--stack-name $(CERT_STACK_NAME) \
+		--profile $(AWS_PROJECT) \
+		--region $(AWS_REGION)
 
 .PHONY: delete-cert-infra
 delete-cert-infra: check-env check-aws ## Delete cert CF stack
 	aws cloudformation delete-stack \
-		--stack-name "$(CERT_STACK_NAME)" \
-		--region "$(AWS_REGION)" \
-		--profile "$(AWS_PROFILE_NAME)"
+		--stack-name $(CERT_STACK_NAME) \
+		--region $(AWS_REGION) \
+		--profile $(AWS_PROJECT)
 	@echo "🧼 Waiting for stack to be fully deleted..."
 	aws cloudformation wait stack-delete-complete \
-		--stack-name "$(CERT_STACK_NAME)" \
-		--region "$(AWS_REGION)" \
-		--profile "$(AWS_PROFILE_NAME)"
+		--stack-name $(CERT_STACK_NAME) \
+		--region $(AWS_REGION) \
+		--profile $(AWS_PROJECT)
 	@echo "✅ Stack $(CERT_STACK_NAME) deleted."
 
 .PHONY: get-cert-arn
 get-cert-arn: check-env check-aws ## Fetch the ACM Certificate ARN and save to .env
 	@echo "🔍 Fetching ACM Certificate ARN for $(DOMAIN_NAME) in us-east-1..."
 	@ARN=$$(aws cloudformation describe-stacks \
-		--stack-name "$(CERT_STACK_NAME)" \
+		--stack-name $(CERT_STACK_NAME) \
 		--region "us-east-1" \
-		--profile "$(AWS_PROFILE_NAME)" \
+		--profile $(AWS_PROJECT) \
 		--query "Stacks[0].Outputs[?OutputKey=='CertificateArn'].OutputValue" \
 		--output text); \
 	if [ -z "$$ARN" ]; then \
@@ -113,44 +111,42 @@ get-cert-arn: check-env check-aws ## Fetch the ACM Certificate ARN and save to .
 
 .PHONY: deploy-code-infra
 deploy-code-infra: check-env check-aws ## Deploy S3 bucket for Lambda / CloudFront code
-	@echo "📦 Deploying code bucket for $(STACK_NAME)..."
+	@echo "📦 Deploying code bucket for $(AWS_STACK)..."
 	aws cloudformation deploy \
-		--profile "$(AWS_PROFILE_NAME)" \
-		--region "$(AWS_REGION)" \
+		--profile $(AWS_PROJECT) \
+		--region $(AWS_REGION) \
 		--template-file cf-code.yml \
-		--stack-name "$(CODE_STACK_NAME)" \
+		--stack-name $(CODE_STACK_NAME) \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--no-fail-on-empty-changeset \
 		--parameter-overrides \
-			TagProject="$(TAG_PROJECT)" \
-			TagOwner="$(TAG_OWNER)" \
-			TagEnvironment="$(TAG_ENVIRONMENT)" \
-			TagRegion="$(AWS_REGION)" \
+			Project="$(AWS_PROJECT)" \
+			Owner="$(AWS_OWNER)" \
+			Stage="$(APP_STAGE)" \
 		--tags \
-			Project="$(TAG_PROJECT)" \
-			Owner="$(TAG_OWNER)" \
-			Environment="$(TAG_ENVIRONMENT)" \
-			Region="$(AWS_REGION)"
+			Project="$(AWS_PROJECT)" \
+			Owner="$(AWS_OWNER)" \
+			Stage="$(APP_STAGE)"
 	@echo "✅ Code bucket deployment triggered."
 
 .PHONY: get-code-infra
 get-code-infra: check-env check-aws ## Show code CF stack events
 	aws cloudformation describe-stack-events \
-		--stack-name "$(CODE_STACK_NAME)" \
-		--profile "$(AWS_PROFILE_NAME)" \
-		--region "$(AWS_REGION)"
+		--stack-name $(CODE_STACK_NAME) \
+		--profile $(AWS_PROJECT) \
+		--region $(AWS_REGION)
 
 .PHONY: delete-code-infra
 delete-code-infra: check-env check-aws ## Delete code CF stack
 	aws cloudformation delete-stack \
-		--stack-name "$(CODE_STACK_NAME)" \
-		--region "$(AWS_REGION)" \
-		--profile "$(AWS_PROFILE_NAME)"
+		--stack-name $(CODE_STACK_NAME) \
+		--region $(AWS_REGION) \
+		--profile $(AWS_PROJECT)
 	@echo "🧼 Waiting for stack to be fully deleted..."
 	aws cloudformation wait stack-delete-complete \
-		--stack-name "$(CODE_STACK_NAME)" \
-		--region "$(AWS_REGION)" \
-		--profile "$(AWS_PROFILE_NAME)"
+		--stack-name $(CODE_STACK_NAME) \
+		--region $(AWS_REGION) \
+		--profile $(AWS_PROJECT)
 	@echo "✅ Stack $(CODE_STACK_NAME) deleted."
 
 .PHONY: deploy-infra
@@ -161,14 +157,19 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 		exit 1; \
 	fi
 	aws cloudformation deploy \
-		--profile "$(AWS_PROFILE_NAME)" \
-		--region "$(AWS_REGION)" \
+		--profile $(AWS_PROJECT) \
+		--region $(AWS_REGION) \
 		--template-file cf.yml \
-		--stack-name "$(STACK_NAME)" \
+		--stack-name $(AWS_STACK) \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--no-fail-on-empty-changeset \
 		--parameter-overrides \
-			Env="$(ENV)" \
+			Project="$(AWS_PROJECT)" \
+			Owner="$(AWS_OWNER)" \
+			Stage="$(APP_STAGE)" \
+			Env="$(APP_ENV)" \
+			Debug="$(APP_DEBUG)" \
+			Secret="$(APP_SECRET)" \
 			DomainName="$(DOMAIN_NAME)" \
 			HostedZoneId="$(HOSTED_ZONE_ID)" \
 			CertificateArn="$(CLOUDFRONT_CERTIFICATE_ARN)" \
@@ -181,72 +182,68 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 			CssCacheCounter="$(CSS_CACHE_COUNTER)" \
 			JsCacheCounter="$(JS_CACHE_COUNTER)" \
 			AuthJwtSecret="$(AUTH_JWT_SECRET)" \
-			TagProject="$(TAG_PROJECT)" \
-			TagOwner="$(TAG_OWNER)" \
-			TagEnvironment="$(TAG_ENVIRONMENT)" \
-			TagRegion="$(AWS_REGION)" \
 		--tags \
-			Project="$(TAG_PROJECT)" \
-			Owner="$(TAG_OWNER)" \
-			Environment="$(TAG_ENVIRONMENT)"
+			Project="$(AWS_PROJECT)" \
+			Owner="$(AWS_OWNER)" \
+			Stage="$(APP_STAGE)"
 	@echo "📤 Stack outputs:"
 	@aws cloudformation describe-stacks \
-		--stack-name "$(STACK_NAME)" \
-		--profile "$(AWS_PROFILE_NAME)" \
-		--region "$(AWS_REGION)" \
+		--stack-name $(AWS_STACK) \
+		--profile $(AWS_PROJECT) \
+		--region $(AWS_REGION) \
 		--query "Stacks[0].Outputs" \
 		--output table
 
 .PHONY: get-infra
 get-infra: check-env check-aws ## Show CF stack events
 	aws cloudformation describe-stack-events \
-		--stack-name "$(STACK_NAME)" \
-		--profile "$(AWS_PROFILE_NAME)" \
-		--region "$(AWS_REGION)"
+		--stack-name $(AWS_STACK) \
+		--profile $(AWS_PROJECT) \
+		--region $(AWS_REGION)
 
 .PHONY: delete-infra
 delete-infra: check-env check-aws ## Delete CF stack
 	aws cloudformation delete-stack \
-		--stack-name "$(STACK_NAME)" \
-		--region "$(AWS_REGION)" \
-		--profile "$(AWS_PROFILE_NAME)"
+		--stack-name $(AWS_STACK) \
+		--region $(AWS_REGION) \
+		--profile $(AWS_PROJECT)
 	@echo "🧼 Waiting for stack to be fully deleted..."
 	aws cloudformation wait stack-delete-complete \
-		--stack-name "$(STACK_NAME)" \
-		--region "$(AWS_REGION)" \
-		--profile "$(AWS_PROFILE_NAME)"
-	@echo "✅ Stack $(STACK_NAME) deleted."
+		--stack-name $(AWS_STACK) \
+		--region $(AWS_REGION) \
+		--profile $(AWS_PROJECT)
+	@echo "✅ Stack $(AWS_STACK) deleted."
 
 .PHONY: deploy-code-files
 deploy-code-files: check-env check-aws ## Zip and upload Lambda code to S3
 	@echo "📤 Uploading Lambda code to s3://$(CODE_STACK_NAME)..."
 	aws s3 sync ./$(CODE_BUILD_DIR) s3://$(CODE_STACK_NAME) \
 		--delete \
-		--profile "$(AWS_PROFILE_NAME)" \
-		--region "$(AWS_REGION)"
+		--profile $(AWS_PROJECT) \
+		--region $(AWS_REGION)
 	@echo "✅ Lambda code uploaded successfully"
 
 .PHONY: deploy-site-files
 deploy-site-files: check-env check-aws generate-site-files ## Sync local site files to S3
-	@echo "📤 Uploading Site files to s3://$(STACK_NAME)-site..."
-	aws s3 sync ./$(SITE_BUILD_DIR) s3://$(STACK_NAME)-site \
-		--profile "$(AWS_PROFILE_NAME)" \
-		--region "$(AWS_REGION)"
+	@echo "📤 Uploading Site files to s3://$(AWS_STACK)-site..."
+	aws s3 sync ./$(SITE_BUILD_DIR) s3://$(AWS_STACK)-site \
+		--profile $(AWS_PROJECT) \
+		--region $(AWS_REGION)
 	@echo "✅ Site files uploaded successfully"
 
 .PHONY: invalidate
 invalidate: check-env check-aws ## Invalidate CloudFront cache for the site
 	@echo "🔎 Finding CloudFront distribution for $(DOMAIN_NAME)..."
 	@DISTRIBUTION_ID=$$(aws cloudfront list-distributions \
-		--profile "$(AWS_PROFILE_NAME)" \
-		--region "$(AWS_REGION)" \
+		--profile $(AWS_PROJECT) \
+		--region $(AWS_REGION) \
 		--query "DistributionList.Items[?Aliases.Items[?contains(@, '$(DOMAIN_NAME)')]].Id" \
 		--output text); \
 	if [ -n "$$DISTRIBUTION_ID" ]; then \
 		echo "⚡ Invalidating CloudFront cache for distribution $$DISTRIBUTION_ID..."; \
 		aws cloudfront create-invalidation \
-			--profile "$(AWS_PROFILE_NAME)" \
-			--region "$(AWS_REGION)" \
+			--profile $(AWS_PROJECT) \
+			--region $(AWS_REGION) \
 			--distribution-id "$$DISTRIBUTION_ID" \
 			--paths "/*"; \
 	else \
@@ -260,6 +257,9 @@ up: ## Start local Docker containers
 .PHONY: down
 down: ## Stop local Docker containers
 	$(DC) down
+
+.PHONY: restart
+restart: down up ## Restart local Docker containers
 
 .PHONY: rebuild
 rebuild: ## Rebuild and start Docker containers
@@ -309,66 +309,70 @@ generate-code-files: ## Build Lambda zip for be-function
 open: ## Show local site URL
 	@echo "🌐 Visit http://localhost:$(BE_FUNCTION_PORT) in your browser manually."
 
+.PHONY: aws-login
+aws-login: ## AWS login
+	aws login --profile $(AWS_PROJECT)
+
 .PHONY: create-local-dynamodb
-create-local-dynamodb:
-	@echo "🚀 Creating local DynamoDB table $(DYNAMODB_TABLE)..."
-	@if AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
-		aws dynamodb describe-table \
-		--region "$(AWS_REGION)" \
-		--table-name "$(DYNAMODB_TABLE)" \
+create-local-dynamodb: ## Create local DynamoDB table
+	@echo "🚀 Creating local DynamoDB table app..."
+	@if aws dynamodb describe-table \
+	    --profile dummy \
+		--region $(AWS_REGION) \
+		--table-name app \
 		--endpoint-url "http://localhost:$(DYNAMODB_PORT)" > /dev/null 2>&1; then \
-		echo "⚠️ Table $(DYNAMODB_TABLE) already exists, skipping creation."; \
+		echo "⚠️ Table app already exists, skipping creation."; \
 	else \
 		echo "🧩 Extracting DynamoDB schema from CloudFormation..."; \
 		$(DC) exec $(SCRIPTS_CONTAINER) python3 scripts/extract_dynamodb_schema.py > /tmp/dynamodb_schema.json; \
 		if [ ! -s /tmp/dynamodb_schema.json ]; then echo '❌ Failed to generate valid DynamoDB schema JSON'; exit 1; fi; \
 		echo "📄 Generated schema:"; \
 		cat /tmp/dynamodb_schema.json | jq .; \
-		AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
 		aws dynamodb create-table \
-			--region "$(AWS_REGION)" \
+		    --profile dummy \
+			--region $(AWS_REGION) \
 			--cli-input-json file:///tmp/dynamodb_schema.json \
-			--table-name "$(DYNAMODB_TABLE)" \
+			--table-name app \
 			--endpoint-url http://localhost:$(DYNAMODB_PORT) \
 			--no-cli-pager; \
 		rm -f /tmp/dynamodb_schema.json; \
-		echo "✅ DynamoDB table $(DYNAMODB_TABLE) initialized in local DynamoDB"; \
+		echo "✅ DynamoDB table app initialized in local DynamoDB"; \
 	fi
 
 .PHONY: fetch-local-dynamodb
 fetch-local-dynamodb: ## Fetch 100 records from local DynamoDB
-	@echo "📦 Fetching 100 records from $(DYNAMODB_TABLE)..."
-	AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
+	@echo "📦 Fetching 100 records from app..."
 	aws dynamodb scan \
-		--table-name "$(DYNAMODB_TABLE)" \
+	    --profile dummy \
+		--table-name app \
 		--limit 100 \
 		--endpoint-url "http://localhost:$(DYNAMODB_PORT)" \
-		--region "$(AWS_REGION)" \
+		--region $(AWS_REGION) \
 		--no-cli-pager \
 		--output json
 
 .PHONY: drop-local-dynamodb
 drop-local-dynamodb: ## Drop DynamoDB table in local DynamoDB
-	@echo "🗑️ Dropping local DynamoDB table $(DYNAMODB_TABLE)..."
-	@if AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
-		aws dynamodb describe-table \
-		--region "$(AWS_REGION)" \
-		--table-name "$(DYNAMODB_TABLE)" \
+	@echo "🗑️ Dropping local DynamoDB table app..."
+	@if aws dynamodb describe-table \
+		--profile dummy \
+		--region $(AWS_REGION) \
+		--table-name app \
 		--endpoint-url "http://localhost:$(DYNAMODB_PORT)" > /dev/null 2>&1; then \
-		AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
 		aws dynamodb delete-table \
-			--region "$(AWS_REGION)" \
-			--table-name "$(DYNAMODB_TABLE)" \
+		    --profile dummy \
+		    --region $(AWS_REGION) \
+			--table-name app \
 			--endpoint-url http://localhost:$(DYNAMODB_PORT) \
 			--no-cli-pager; \
-		echo "✅ Table $(DYNAMODB_TABLE) deleted from local DynamoDB"; \
+		echo "✅ Table app deleted from local DynamoDB"; \
 	else \
-		echo "⚠️ Table $(DYNAMODB_TABLE) does not exist, skipping deletion."; \
+		echo "⚠️ Table app does not exist, skipping deletion."; \
 	fi
 
 .PHONY: create-local-dynamodb-dummy-fixtures
 create-local-dynamodb-dummy-fixtures: ## Populate local DynamoDB with dummy data
-	@echo "📦 Populating local DynamoDB table $(DYNAMODB_TABLE) with dummy data..."
+	@echo "📦 Populating local DynamoDB table app with dummy data..."
 	curl -sf -XPOST "http://localhost:$(BE_FUNCTION_PORT)/dummy-fixtures"
 
 .PHONY: recreate-local-dynamodb

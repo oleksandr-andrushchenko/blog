@@ -8,12 +8,17 @@ services:
     env_file:
       - .env
     environment:
-      ENV: local
+      APP_STAGE: local
+      APP_ENV: dev
+      APP_DEBUG: 1
       BASE_URL: "http://localhost:${BE_FUNCTION_PORT}"
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"
+      DYNAMODB_TABLE: app
+      GOOGLE_ANALYTICS_ID: ""
+      TINYMCE_API_KEY: ""
+      CONTACT_TOPIC_ARN: ""
     volumes:
       - ./be-function-src:/app
-      - ./.env:/.env
 
   be-function-test:
     build:
@@ -24,13 +29,14 @@ services:
     env_file:
       - .env
     environment:
-      ENV: test
+      APP_STAGE: local
+      APP_ENV: test
+      APP_DEBUG: 1
       BASE_URL: "http://localhost:${TEST_BE_FUNCTION_PORT}"
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"
-      DYNAMODB_TABLE: ${TEST_DYNAMODB_TABLE}
+      DYNAMODB_TABLE: app_test
     volumes:
       - ./be-function-src:/app
-      - ./.env:/.env
 
   dynamodb:
     image: amazon/dynamodb-local
@@ -50,6 +56,7 @@ services:
     environment:
       TEST_BASE_URL: "http://be-function-test:5000"
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"
+      TEST_DYNAMODB_TABLE: app_test
     volumes:
       - ./:/app
 

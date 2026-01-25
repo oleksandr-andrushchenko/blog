@@ -479,23 +479,21 @@ class UserBannedError(BaseError):
     pass
 
 
-def get_live_config(load_env=False):
-    env = os.getenv("ENV")
-    _is_prod = env == "prod"
-    # if load_env:
-    #     dotenv.load_dotenv(dotenv_path="/.env", override=True)
-
+def get_live_config():
     return {
-        "env": env,
+        "app_stage": os.getenv("APP_STAGE"),
+        "app_env": os.getenv("APP_ENV"),
+        "app_debug": os.getenv("APP_DEBUG"),
+        "app_secret": os.getenv("APP_SECRET"),
         "base_url": os.getenv("BASE_URL"),
         "aws_region": os.getenv("AWS_REGION"),
         "dynamodb_endpoint": os.getenv("DYNAMODB_ENDPOINT"),
         "dynamodb_table": os.getenv("DYNAMODB_TABLE"),
-        "google_analytics_id": os.getenv("GOOGLE_ANALYTICS_ID") if _is_prod else None,
+        "google_analytics_id": os.getenv("GOOGLE_ANALYTICS_ID"),
         "tinymce_api_key": os.getenv("TINYMCE_API_KEY"),
         "contact_topic_arn": os.getenv("CONTACT_TOPIC_ARN"),
         "allowed_origin": os.getenv("ALLOWED_ORIGIN"),
-        "cognito_domain": os.getenv("COGNITO_DOMAIN"),  # e.g. myapp-auth.auth.us-east-1.amazoncognito.com
+        "cognito_domain": os.getenv("COGNITO_DOMAIN"),
         "cognito_client_id": os.getenv("COGNITO_CLIENT_ID"),
         "cognito_client_secret": os.getenv("COGNITO_CLIENT_SECRET"),
         "cognito_user_pool_id": os.getenv("COGNITO_USER_POOL_ID"),
@@ -552,13 +550,11 @@ config = get_live_config()
 
 
 def is_prod():
-    return config.get("env") == "prod"
+    return config.get("app_stage") == "prod"
 
 
 def get_config():
-    if is_prod():
-        return config
-    return get_live_config(True)
+    return config
 
 
 def get_static_files_dir() -> str:
@@ -2700,17 +2696,17 @@ async def create_dummy_fixtures() -> None:
     posts = [
         PostDTO(
             title="Post title #111111111111111111111111",
-            content="Post content #111111111111111111111111" * 100,
+            content="Post content #111111111111111111111111" * 150,
             tags=["tag1", "tag2", "tag3"]
         ),
         PostDTO(
             title="Post title #22222222222222222222222",
-            content="Post content #2222222222222222222222" * 100,
+            content="Post content #2222222222222222222222" * 150,
             tags=["tag2", "tag3"]
         ),
         PostDTO(
             title="Post title #3333333333333333333333333",
-            content="Post content #333333333333333333333" * 100,
+            content="Post content #333333333333333333333" * 150,
             tags=["tag1", "tag3"]
         ),
     ]

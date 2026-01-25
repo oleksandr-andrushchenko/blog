@@ -1,12 +1,9 @@
 import yaml
 import logging
 from pathlib import Path
-import dotenv
 import json
 import decimal
 import base64
-
-dotenv.load_dotenv(dotenv_path="/.env", override=True)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

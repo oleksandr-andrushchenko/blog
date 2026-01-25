@@ -8,19 +8,16 @@ Parameters:
   HostedZoneId:
     Type: String
     Description: The Route53 Hosted Zone ID for the domain
-  TagProject:
+  Project:
     Type: String
     Description: Logical project identifier (e.g. blog)
-  TagOwner:
+  Owner:
     Type: String
     Description: Resource owner (e.g. olek)
-  TagEnvironment:
+  Stage:
     Type: String
-    Description: Deployment environment (e.g. prod)
-  TagRegion:
-    Type: String
-    Description: AWS region (e.g. us-west-2)
-    Default: us-east-1
+    Description: Deployment stage (e.g. local, dev, test, prod, etc.)
+    AllowedValues: [ local, dev, test, prod ]
 
 Resources:
   Certificate:
@@ -32,14 +29,14 @@ Resources:
         - DomainName: !Ref DomainName
           HostedZoneId: !Ref HostedZoneId
       Tags:
-        - Key: Environment
-          Value: !Ref TagEnvironment
+        - Key: Stage
+          Value: !Ref Stage
         - Key: Project
-          Value: !Ref TagProject
+          Value: !Ref Project
         - Key: Owner
-          Value: !Ref TagOwner
+          Value: !Ref Owner
         - Key: Region
-          Value: !Ref TagRegion
+          Value: !Ref AWS::Region
 
 Outputs:
   CertificateArn:

@@ -19,7 +19,7 @@ aws_params = {
     "aws_access_key_id": "dummy",
     "aws_secret_access_key": "dummy",
     "endpoint_url": DYNAMODB_ENDPOINT,
-    "config": Config(region_name=AWS_REGION),
+    "region_name": AWS_REGION,
 }
 
 dynamodb = boto3.resource("dynamodb", **aws_params)
