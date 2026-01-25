@@ -50,7 +50,7 @@ deploy-cert-infra: check-env check-aws ## Deploy ACM certificate for the domain
 	@echo "🔐 Deploying ACM certificate for $(DOMAIN_NAME) in us-east-1..."
 	aws cloudformation deploy \
 		--profile $(AWS_PROJECT) \
-		--region "us-east-1" \
+		--region us-east-1 \
 		--template-file cf-cert.yml \
 		--stack-name $(CERT_STACK_NAME) \
 		--capabilities CAPABILITY_NAMED_IAM \
@@ -64,7 +64,8 @@ deploy-cert-infra: check-env check-aws ## Deploy ACM certificate for the domain
 		--tags \
 			Project="$(AWS_PROJECT)" \
 			Owner="$(AWS_OWNER)" \
-			Stage="$(APP_STAGE)"
+			Stage="$(APP_STAGE)" \
+			Region="us-east-1"
 	@echo "✅ Certificate deployment triggered. Waiting for DNS validation..."
 
 .PHONY: get-cert-infra
@@ -92,7 +93,7 @@ get-cert-arn: check-env check-aws ## Fetch the ACM Certificate ARN and save to .
 	@echo "🔍 Fetching ACM Certificate ARN for $(DOMAIN_NAME) in us-east-1..."
 	@ARN=$$(aws cloudformation describe-stacks \
 		--stack-name $(CERT_STACK_NAME) \
-		--region "us-east-1" \
+		--region us-east-1 \
 		--profile $(AWS_PROJECT) \
 		--query "Stacks[0].Outputs[?OutputKey=='CertificateArn'].OutputValue" \
 		--output text); \
@@ -126,7 +127,8 @@ deploy-code-infra: check-env check-aws ## Deploy S3 bucket for Lambda / CloudFro
 		--tags \
 			Project="$(AWS_PROJECT)" \
 			Owner="$(AWS_OWNER)" \
-			Stage="$(APP_STAGE)"
+			Stage="$(APP_STAGE)" \
+			Region="$(AWS_REGION)"
 	@echo "✅ Code bucket deployment triggered."
 
 .PHONY: get-code-infra
@@ -185,7 +187,8 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 		--tags \
 			Project="$(AWS_PROJECT)" \
 			Owner="$(AWS_OWNER)" \
-			Stage="$(APP_STAGE)"
+			Stage="$(APP_STAGE)" \
+			Region="$(AWS_REGION)"
 	@echo "📤 Stack outputs:"
 	@aws cloudformation describe-stacks \
 		--stack-name $(AWS_STACK) \
@@ -310,7 +313,7 @@ open: ## Show local site URL
 	@echo "🌐 Visit http://localhost:$(BE_FUNCTION_PORT) in your browser manually."
 
 .PHONY: aws-login
-aws-login: ## AWS login
+aws-login: ## Obtain AWS auth token
 	aws login --profile $(AWS_PROJECT)
 
 .PHONY: create-local-dynamodb

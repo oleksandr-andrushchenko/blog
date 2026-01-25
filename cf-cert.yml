@@ -2,12 +2,6 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: ACM Certificate for CloudFront in us-east-1
 
 Parameters:
-  DomainName:
-    Type: String
-    Description: The domain name to create a certificate for (e.g. blog.com)
-  HostedZoneId:
-    Type: String
-    Description: The Route53 Hosted Zone ID for the domain
   Project:
     Type: String
     Description: Logical project identifier (e.g. blog)
@@ -18,6 +12,12 @@ Parameters:
     Type: String
     Description: Deployment stage (e.g. local, dev, test, prod, etc.)
     AllowedValues: [ local, dev, test, prod ]
+  DomainName:
+    Type: String
+    Description: The domain name to create a certificate for (e.g. blog.com)
+  HostedZoneId:
+    Type: String
+    Description: The Route53 Hosted Zone ID for the domain
 
 Resources:
   Certificate:
