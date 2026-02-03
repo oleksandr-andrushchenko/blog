@@ -93,7 +93,11 @@ from deps import (
 import asyncio
 import os
 
-app = FastAPI()
+app = FastAPI(
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None
+)
 
 if not is_prod():
     @app.middleware("http")
