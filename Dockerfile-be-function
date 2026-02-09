@@ -22,6 +22,9 @@ COPY be-function-src/requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install uvicorn separately for dev purposes
+RUN pip install --no-cache-dir uvicorn
+
 # Copy application code
 COPY be-function-src .
 

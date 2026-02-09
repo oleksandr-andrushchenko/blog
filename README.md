@@ -10,7 +10,7 @@
 ## Available commands
 
 ```
-  aws-login            AWS login
+  aws-login            Obtain AWS auth token
   clean                Remove build artifacts
   create-local-dynamodb Create local DynamoDB table
   create-local-dynamodb-dummy-fixtures Populate local DynamoDB with dummy data

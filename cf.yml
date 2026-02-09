@@ -64,6 +64,9 @@ Parameters:
     Type: String
     Description: Auth JWT secret
     NoEcho: true
+  BeFuncS3Key:
+    Type: String
+    Description: S3 key of the backend function zip file
 
 Resources:
   SiteBucket:
@@ -108,7 +111,7 @@ Resources:
   DynamoDBTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub "${AWS::StackName}-dynamodb-table"
+      TableName: !Sub "${AWS::StackName}-${Stage}"
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: pk
@@ -228,7 +231,7 @@ Resources:
   BackendFunctionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "${AWS::StackName}-backend-function-role"
+      RoleName: !Sub "${AWS::StackName}-${Stage}-be"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -293,7 +296,7 @@ Resources:
   BackendFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub "${AWS::StackName}-backend-function"
+      FunctionName: !Sub "${AWS::StackName}-${Stage}-be"
       Description: Lambda function to serve backend requests from the API Gateway
       Role: !GetAtt BackendFunctionRole.Arn
       Handler: app.handler
@@ -322,7 +325,7 @@ Resources:
           AUTH_JWT_SECRET: !Ref AuthJwtSecret
       Code:
         S3Bucket: !Sub "${AWS::StackName}-code"
-        S3Key: be-function.zip
+        S3Key: !Ref BeFuncS3Key
       Tags:
         - Key: Stage
           Value: !Ref Stage

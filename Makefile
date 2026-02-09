@@ -21,6 +21,9 @@ SITE_BUILD_DIR=.site-build
 CODE_BUILD_DIR=.code-build
 CACHE_DIR=.cache
 
+HOST_UID := $(shell id -u)
+HOST_GID := $(shell id -g)
+
 .PHONY: help
 help: ## Show this help
 	@echo "Available commands:"
@@ -105,7 +108,7 @@ get-cert-arn: check-env check-aws ## Fetch the ACM Certificate ARN and save to .
 			sed -i.bak "s|^CLOUDFRONT_CERTIFICATE_ARN=.*|CLOUDFRONT_CERTIFICATE_ARN=$$ARN|" .env; \
 			rm -f .env.bak; \
 		else \
-			echo "CLOUDFRONT_CERTIFICATE_ARN=$$ARN" >> .env; \
+			echo "\nCLOUDFRONT_CERTIFICATE_ARN=$$ARN" >> .env; \
 		fi; \
 		echo "📝 Updated .env with CLOUDFRONT_CERTIFICATE_ARN"; \
 	fi
@@ -184,6 +187,7 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 			CssCacheCounter="$(CSS_CACHE_COUNTER)" \
 			JsCacheCounter="$(JS_CACHE_COUNTER)" \
 			AuthJwtSecret="$(AUTH_JWT_SECRET)" \
+			BeFuncS3Key="be-function-${LAMBDA_CODE_TIMESTAMP}.zip" \
 		--tags \
 			Project="$(AWS_PROJECT)" \
 			Owner="$(AWS_OWNER)" \
@@ -196,6 +200,7 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 		--region $(AWS_REGION) \
 		--query "Stacks[0].Outputs" \
 		--output table
+
 
 .PHONY: get-infra
 get-infra: check-env check-aws ## Show CF stack events
@@ -294,7 +299,7 @@ generate-code-files: ## Build Lambda zip for be-function
 	rm -rf $(CODE_BUILD_DIR)/*
 
 	# Install dependencies only if vendor folder doesn't exist
-	$(DC) exec $(SCRIPTS_CONTAINER) bash -c "\
+	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) bash -c "\
 		if [ ! -d /app/$(CACHE_DIR)/vendor ]; then \
 			echo '📥 Installing dependencies into $(CACHE_DIR)/vendor folder...'; \
 			mkdir -p /app/$(CACHE_DIR)/vendor; \
@@ -304,9 +309,23 @@ generate-code-files: ## Build Lambda zip for be-function
 		fi"
 
 	# Run the build script to copy source, merge vendor, remove static, and zip
-	$(DC) exec $(SCRIPTS_CONTAINER) python3 /app/scripts/generate_code_build.py
+	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) python3 /app/scripts/generate_code_build.py
 
-	@echo "✅ Code files saved to $(CODE_BUILD_DIR) successfully"
+	# Rename zip with timestamp and update .env
+	@TIMESTAMP=$$(date +%Y%m%d%H%M%S); \
+	for f in $(CODE_BUILD_DIR)/*.zip; do \
+		FILENAME=$$(basename $$f .zip); \
+		NEW_ZIP="$(CODE_BUILD_DIR)/$$FILENAME-$$TIMESTAMP.zip"; \
+		mv "$$f" "$$NEW_ZIP"; \
+		echo "✅ Lambda zip renamed to $$NEW_ZIP"; \
+	done; \
+	if grep -q "^LAMBDA_CODE_TIMESTAMP=" .env; then \
+		sed -i.bak "s|^LAMBDA_CODE_TIMESTAMP=.*|LAMBDA_CODE_TIMESTAMP=$$TIMESTAMP|" .env; \
+		rm -f .env.bak; \
+	else \
+		echo "\nLAMBDA_CODE_TIMESTAMP=$$TIMESTAMP" >> .env; \
+	fi; \
+	echo "📝 Updated .env with LAMBDA_CODE_TIMESTAMP=$$TIMESTAMP"
 
 .PHONY: open
 open: ## Show local site URL
