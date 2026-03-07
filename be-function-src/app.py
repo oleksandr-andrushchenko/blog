@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.status import (
     HTTP_204_NO_CONTENT,
+    HTTP_301_MOVED_PERMANENTLY,
     HTTP_302_FOUND,
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
@@ -25,6 +26,7 @@ from utils import (
     CodeExchangeFailedError,
     SlugDuplicationError,
     NotAuthorizedError,
+    PostByOldSlugRequestedError,
     logger,
     get_html_content,
     get_url,
@@ -539,6 +541,15 @@ async def not_authorized_error_handler(request: Request, exc: NotAuthorizedError
         request,
         HTTP_403_FORBIDDEN,
         {"permission": exc.permission},
+    )
+
+
+@app.exception_handler(PostByOldSlugRequestedError)
+async def post_redirect_exception_handler(request: Request, exc: PostByOldSlugRequestedError):
+    logger.info(f"Redirect: {str(exc)}")
+    return RedirectResponse(
+        url=get_post_url(request, exc.post),
+        status_code=HTTP_301_MOVED_PERMANENTLY,
     )
 
 

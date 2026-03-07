@@ -392,6 +392,7 @@ class Post(BaseModel):
     likes_count: int
     dislikes_count: int
     image_filename: str | None
+    redirect_to: str | None
     created_at: int
     updated_at: int | None = None
     published_at: int | None = None
@@ -458,6 +459,12 @@ class PostNotFoundError(BaseError):
 class PostAlreadyPublishedError(BaseError):
     def __init__(self, message: str = "Post already published", field: str = "title"):
         super().__init__(message=message, field=field)
+
+
+class PostByOldSlugRequestedError(Exception):
+    def __init__(self, slug: str, post: Post):
+        self.slug = slug
+        self.post = post
 
 
 class UserNotFoundError(BaseError):
@@ -1297,6 +1304,7 @@ def post_from_dynamodb(d_item: dict[str, any]) -> Post:
         dislikes_count=d_item.get("dislikes_count", 0),
         user_slug=d_item.get("user_slug"),
         image_filename=d_item.get("image_filename"),
+        redirect_to=d_item.get("redirect_to"),
         created_at=created_at,
         updated_at=d_item.get("updated_at"),
         published_at=created_at,
@@ -1431,7 +1439,14 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
         old_slug = post.slug
         slug = to_kebab_case(title)
         if old_slug != slug:
-            add_dynamodb_delete_transact(transacts, (f"POST_SLUG#{old_slug}", "META"))
+            # Create redirect item so old slug resolves
+            redirect_item = {
+                "post_slug": old_slug,
+                "redirect_to": slug,
+                "created_at": utc_now()
+            }
+            add_dynamodb_put_transact(transacts, (f"POST_REDIRECT#{old_slug}", "META"), redirect_item, new_pk_only=True)
+            # Create new slug lock
             add_dynamodb_put_transact(transacts, (f"POST_SLUG#{slug}", "META"), {"post_id": post.id}, new_pk_only=True)
             changes["post_slug"] = slug
 
@@ -1548,8 +1563,36 @@ async def find_post_by_slug(slug: str) -> Post | None:
     return post_from_dynamodb(item)
 
 
+async def find_post_by_slug_follow_redirects(slug: str) -> Post | None:
+    visited = set()
+    current_slug = slug
+
+    while True:
+        if current_slug in visited:
+            raise RuntimeError("Redirect loop detected")
+
+        visited.add(current_slug)
+
+        resp = await safe_query_dynamodb_index("POSTS_BY_SLUG", {
+            "KeyConditionExpression": Key("post_slug").eq(current_slug),
+            "Limit": 1,
+        })
+
+        items = resp.get("Items", [])
+        if not items:
+            return None
+
+        item = items[0]
+        redirect_to = item.get("redirect_to")
+        if redirect_to:
+            current_slug = redirect_to
+            continue
+
+        return post_from_dynamodb(item)
+
+
 async def get_post_by_slugs(user_slug: str, post_slug: str, cur_user: User = None) -> Post:
-    post = await find_post_by_slug(post_slug)
+    post = await find_post_by_slug_follow_redirects(post_slug)
     if post is None:
         raise PostNotFoundError(f"Post '{post_slug}' not found")
     if post.user_slug != user_slug:
@@ -1558,6 +1601,8 @@ async def get_post_by_slugs(user_slug: str, post_slug: str, cur_user: User = Non
         if not cur_user:
             raise NotAuthenticatedError()
         verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POST, post)
+    if post.slug != post_slug:
+        raise PostByOldSlugRequestedError(post_slug, post)
     return post
 
 
