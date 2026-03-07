@@ -11,20 +11,22 @@
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
 
-    {% if google_analytics_id %}
-        <!-- Google tag (gtag.js) -->
-        <script async src="https://www.googletagmanager.com/gtag/js?id={{ google_analytics_id }}"></script>
-        <script>
-          window.dataLayer = window.dataLayer || []
+    {% block google_analytics %}
+        {% if google_analytics_id %}
+            <!-- Google tag (gtag.js) -->
+            <script async src="https://www.googletagmanager.com/gtag/js?id={{ google_analytics_id }}"></script>
+            <script>
+              window.dataLayer = window.dataLayer || []
 
-          function gtag() {
-            dataLayer.push(arguments)
-          }
+              function gtag() {
+                dataLayer.push(arguments)
+              }
 
-          gtag("js", new Date())
-          gtag("config", "{{ google_analytics_id }}")
-        </script>
-    {% endif %}
+              gtag("js", new Date())
+              gtag("config", "{{ google_analytics_id }}")
+            </script>
+        {% endif %}
+    {% endblock %}
 
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">

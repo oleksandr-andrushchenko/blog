@@ -2,6 +2,7 @@
 
 {% set title = ("Edit " ~ post.title) | trim %}
 
+{% block google_analytics %}{% endblock %}
 {% block meta_title %}{{ title }} | {{ site_name }}{% endblock %}
 {% block meta_canonical %}{{ url("edit-post", post_id=post.id) }}{% endblock %}
 
