@@ -40,7 +40,7 @@
     </div>
 
     <div class="form-group row">
-        <label for="name" class="col-form-label col-2">Name</label>
+        <label for="name" class="col-form-label col-2 label-required">Name</label>
         <div class="col-10">
             <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-person-circle"></i></span>
@@ -63,6 +63,18 @@
     </div>
 
     <div class="form-group row">
+        <label for="github_username" class="col-form-label col-2">GitHub Username</label>
+        <div class="col-10">
+            <div class="input-group">
+                <span class="input-group-text">https://github.com/</span>
+                <input type="text" class="form-control" id="github_username" name="github_username"
+                       placeholder="GitHub username"
+                       value="{{ user.github_username if user and user.github_username else "" }}">
+            </div>
+        </div>
+    </div>
+
+    <div class="form-group row">
         <label for="headline" class="col-form-label col-2">Headline</label>
         <div class="col-10">
             <input type="text" class="form-control" id="headline" name="headline" placeholder="Headline"
@@ -73,8 +85,8 @@
     <div class="form-group row">
         <label for="about" class="col-form-label col-2">About</label>
         <div class="col-10">
-                    <textarea class="form-control" id="about" name="about" placeholder="About"
-                              rows="6">{{ user.about if user and user.about else "" }}</textarea>
+            <textarea class="form-control" id="about" name="about" placeholder="About"
+                      rows="6">{{ user.about if user and user.about else "" }}</textarea>
         </div>
     </div>
 
@@ -159,7 +171,7 @@
           {
             rule: "customRegexp",
             value: /^[a-z0-9-]+$/,
-            errorMessage: "Username must be lowercase alphanumeric and may include single dashes only"
+            errorMessage: "Username must be lowercase alphanumeric and may include single hyphens only"
           },
           {
             rule: "custom",
@@ -169,7 +181,7 @@
           {
             rule: "custom",
             validator: (value) => !value.includes("--"),
-            errorMessage: "Username cannot contain consecutive dashes"
+            errorMessage: "Username cannot contain consecutive hyphens"
           },
           {
             rule: "custom",
@@ -182,6 +194,25 @@
               return !_username_blacklist.includes(value)
             },
             errorMessage: "This username is reserved"
+          }
+        ],
+        github_username: [
+          {rule: "minLength", value: 1},
+          {rule: "maxLength", value: 39},
+          {
+            rule: "customRegexp",
+            value: /^[a-zA-Z0-9-]+$/,
+            errorMessage: "GitHub username must be alphanumeric and may include single hyphens only"
+          },
+          {
+            rule: "custom",
+            validator: (value) => !value.startsWith("-") && !value.endsWith("-"),
+            errorMessage: "GitHub username cannot start or end with a hyphen"
+          },
+          {
+            rule: "custom",
+            validator: (value) => !value.includes("--"),
+            errorMessage: "GitHub username cannot contain consecutive hyphens"
           }
         ],
         headline: [

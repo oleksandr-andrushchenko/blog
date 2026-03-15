@@ -81,9 +81,25 @@
                             <i class="bi bi-link-45deg"></i>
                             Website:
                         </small>
-                        <a class="link-dark d-inline-block me-2" href="{{ user.website }}" target="_blank"
-                           rel="noopener noreferrer">
+                        <a class="text-decoration-none link-body-emphasis d-inline-block me-2" href="{{ user.website }}"
+                           target="_blank" rel="noopener noreferrer">
                             {{ user.website }}
+                            <i class="bi bi-box-arrow-up-right"></i>
+                        </a>
+                    </div>
+                {% endif %}
+
+                {% if user.github_username %}
+                    <div>
+                        <small class="text-secondary">
+                            <i class="bi bi-github"></i>
+                            GitHub:
+                        </small>
+                        <a class="text-decoration-none link-body-emphasis d-inline-block me-2"
+                           href="https://github.com/{{ user.github_username }}" target="_blank"
+                           rel="noopener noreferrer">
+                            {{ user.github_username }}
+                            <i class="bi bi-box-arrow-up-right"></i>
                         </a>
                     </div>
                 {% endif %}

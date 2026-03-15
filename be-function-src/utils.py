@@ -65,6 +65,7 @@ class User(BaseModel):
     avatar_filename: str | None = None
     name: str
     username: str | None = None
+    github_username: str | None = None
     headline: str | None = None
     website: str | None = None
     address: str | None = None
@@ -119,20 +120,20 @@ class UserDTO(BaseModel):
 
     @field_validator("username")
     @classmethod
-    def validate_slug(cls, value: str):
+    def validate_username(cls, value: str):
         if value is None:
             return value
 
         value = value.strip()
 
         if not cls.USERNAME_PATTERN.match(value):
-            raise ValueError("Username must be lowercase alphanumeric and may include single dashes only")
+            raise ValueError("Username must be lowercase alphanumeric and may include single hyphens only")
 
         if value.startswith("-") or value.endswith("-"):
-            raise ValueError("Username cannot start or end with a dash")
+            raise ValueError("Username cannot start or end with a hyphen")
 
         if "--" in value:
-            raise ValueError("Username cannot contain consecutive dashes")
+            raise ValueError("Username cannot contain consecutive hyphens")
 
         if value in cls.USERNAME_BLACKLIST:
             raise ValueError(f"'{value}' is a reserved word")
@@ -148,6 +149,30 @@ class UpdateUserDTO(UserDTO):
     about: str | None = Field(None, max_length=2000)
     website: HttpUrl | None = None
     address: str | None = Field(None, max_length=255)
+    github_username: str | None = Field(None, min_length=1, max_length=39)
+
+    GITHUB_USERNAME_PATTERN: ClassVar[re.Pattern] = re.compile(r"^[a-zA-Z0-9-]+$")
+
+    @field_validator("github_username")
+    @classmethod
+    def validate_github_username(cls, value: str):
+        if value is None:
+            return value
+
+        value = value.strip()
+
+        if not cls.GITHUB_USERNAME_PATTERN.match(value):
+            raise ValueError(
+                "GitHub username must contain only letters, numbers, and hyphens"
+            )
+
+        if value.startswith("-") or value.endswith("-"):
+            raise ValueError("GitHub username cannot start or end with a hyphen")
+
+        if "--" in value:
+            raise ValueError("GitHub username cannot contain consecutive hyphens")
+
+        return value
 
 
 class UpdateUserStatusDTO(BaseModel):
@@ -1117,13 +1142,13 @@ def build_user_username(raw_name: str | None, raw_username: str | None, now: int
     # Lowercase
     username = base.lower()
 
-    # Replace invalid characters with dash
+    # Replace invalid characters with hyphen
     username = re.sub(r"[^a-z0-9]+", "-", username)
 
-    # Remove consecutive dashes
+    # Remove consecutive hyphens
     username = re.sub(r"-{2,}", "-", username)
 
-    # Remove leading/trailing dashes
+    # Remove leading/trailing hyphens
     username = username.strip("-").strip()
 
     if not username:
@@ -1616,6 +1641,7 @@ def user_from_dynamodb(d_item: dict[str, any]) -> User:
         avatar_filename=d_item.get("avatar_filename"),
         name=d_item["name"],
         username=d_item.get("username"),
+        github_username=d_item.get("github_username"),
         headline=d_item.get("headline"),
         website=d_item.get("website"),
         address=d_item.get("address"),
