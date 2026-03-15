@@ -1,7 +1,7 @@
 <div class="user-impressions d-flex gap-1 align-items-center user-impressions">
     <!-- Counts -->
-    <div><b class="followers-count">{{ user.followers_count }}</b> Followers</div>
-    <div><b class="following-count">{{ user.following_count }}</b> Following</div>
+    <div><b class="followers-count">{{ user.followers_count }}</b> <small class="text-secondary">Followers</small></div>
+    <div><b class="following-count">{{ user.following_count }}</b> <small class="text-secondary">Following</small></div>
 
     {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER_IMPRESSION, user) and cur_user.id != user.id %}
         <div class="btn-group">
