@@ -164,7 +164,16 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
         if (validator && json.details) {
           const errors = {}
           Object.entries(json.details).forEach(([field, msg]) => {
-            errors[`[name="${field}"]`] = msg
+            const sel = `[name="${field}"]`
+            if (!validator.fields[sel]) {
+              validator.addField(sel, [
+                {
+                  validator: () => true,
+                  errorMessage: ''
+                }
+              ])
+            }
+            errors[sel] = msg.replace(/^Value error, /, '')
           })
           validator.showErrors(errors)
         } else if (!validator && json.details) {
