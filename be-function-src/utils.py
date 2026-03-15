@@ -1287,6 +1287,7 @@ async def get_user_token_by_auth_jwt_token(token: str | None) -> UserToken | Non
 def post_from_dynamodb(d_item: dict[str, any]) -> Post:
     owner_id = d_item["user_id"]
     content = d_item["content"]
+    status = d_item["status"]
     created_at = d_item["created_at_sk"]
     return Post(
         id=d_item["id"],
@@ -1297,7 +1298,7 @@ def post_from_dynamodb(d_item: dict[str, any]) -> Post:
         content=content,
         preview=d_item.get("preview") or find_preview(content),
         tags=d_item.get("tags", []),
-        status=d_item["status"],
+        status=status,
         comment=d_item.get("comment"),
         rating=d_item["rating_sk"],
         likes_count=d_item.get("likes_count", 0),
@@ -1307,7 +1308,7 @@ def post_from_dynamodb(d_item: dict[str, any]) -> Post:
         redirect_to=d_item.get("redirect_to"),
         created_at=created_at,
         updated_at=d_item.get("updated_at"),
-        published_at=created_at,
+        published_at=d_item.get("published_at", created_at if status == PostStatus.PUBLISHED else None),
         is_premium=False
     )
 
@@ -1416,6 +1417,7 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
     old_status = post.status
     published_already = old_status == PostStatus.PUBLISHED
     should_set_status_to_unpublished = False
+    now = utc_now()
 
     changes = update_post_dto.model_dump(exclude_unset=True)
     if not changes:
@@ -1443,7 +1445,7 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
             redirect_item = {
                 "post_slug": old_slug,
                 "redirect_to": slug,
-                "created_at": utc_now()
+                "created_at": now
             }
             add_dynamodb_put_transact(transacts, (f"POST_REDIRECT#{old_slug}", "META"), redirect_item, new_pk_only=True)
             # Create new slug lock
@@ -1466,7 +1468,6 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
 
             # Decrease rating for old tags
             table = await get_dynamodb_table()
-            now = utc_now()
             for tag in old_tags:
                 transacts.append({
                     "Update": {
@@ -2199,6 +2200,7 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
             setattr(owner, key, getattr(owner, key) + delta)
 
     if status == PostStatus.PUBLISHED:
+        changes["published_at"] = now
         if owner:
             changes["user_slug"] = owner.username
         # Upsert tags
@@ -2498,12 +2500,18 @@ def unix_to_month_year(timestamp: int, tz: str | None = None) -> str:
 
 def unix_to_full_date(timestamp: int, tz: str | None = None) -> str:
     """
-    Convert Unix timestamp to 'May 29, 2024' format, optional timezone.
+    Convert Unix timestamp to 'Mar 14' or 'Mar 14, 2025' format.
+    If the date is in the current year, omit the year.
+    Optionally convert to a specific timezone.
     """
     dt = to_datetime(timestamp)
     if tz:
         dt = dt.astimezone(ZoneInfo(tz))
-    return dt.strftime("%b %d, %Y")
+
+    now = datetime.now(dt.tzinfo)
+    if dt.year == now.year:
+        return dt.strftime("%b %d")  # e.g., "Mar 14"
+    return dt.strftime("%b %d, %Y")  # e.g., "Mar 14, 2025"
 
 
 def jinja2_iso_utc(timestamp_ms: int) -> str:
