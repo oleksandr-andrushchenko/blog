@@ -223,7 +223,7 @@ delete-infra: check-env check-aws ## Delete CF stack
 	@echo "✅ Stack $(AWS_STACK) deleted."
 
 .PHONY: deploy-code-files
-deploy-code-files: check-env check-aws ## Zip and upload Lambda code to S3
+deploy-code-files: check-env check-aws generate-code-files ## Zip and upload Lambda code to S3
 	@echo "📤 Uploading Lambda code to s3://$(CODE_STACK_NAME)..."
 	aws s3 sync ./$(CODE_BUILD_DIR) s3://$(CODE_STACK_NAME) \
 		--delete \
