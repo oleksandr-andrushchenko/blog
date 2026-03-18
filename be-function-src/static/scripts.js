@@ -3,13 +3,13 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
   const {
     method = "POST",
     successMessage = "Success!",
-    errorMessage = "Something went wrong.",
-    networkErrorMessage = "Network error. Please try again.",
+    errorMessage = "Something went wrong. Please try again.",
     validationFailedMessage = "Please fix the highlighted fields.",
     rules = {},
     onSuccess = () => {
     },
-    loadingText = "Submitting..."
+    loadingText = "Submitting...",
+    authRequired = true
   } = options
 
   const form = document.querySelector(formSelector)
@@ -91,6 +91,10 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
       data.tags = values.map(item => item.value.trim()).filter(Boolean)
     }
 
+    let msgClass = "danger"
+    let msgIcon = "exclamation-triangle-fill"
+    let msgText = errorMessage
+
     try {
       if (!validator) {
         // Simple frontend validation fallback
@@ -112,12 +116,16 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
         })
 
         if (hasError) {
-          submitBtn.disabled = false
-          submitBtn.innerHTML = originalBtnContent
-          statusDiv.className = "form-status alert alert-warning d-flex align-items-center"
-          statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i> ${validationFailedMessage}`
+          msgClass = "warning"
+          msgText = validationFailedMessage
           return
         }
+      }
+
+      if (authRequired && !window.CONFIG.current_user) {
+        msgText = "You need to be logged in to perform this action."
+        msgClass = "warning"
+        return
       }
 
       // Upload all file inputs separately
@@ -133,15 +141,15 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
 
       // Submit the JSON payload
       const response = await fetch(submitUrl, {
-        method, headers: {"Content-Type": "application/json"}, body: JSON.stringify(data)
+        method,
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(data)
       })
 
-      submitBtn.disabled = false
-      submitBtn.innerHTML = originalBtnContent
-
       if (response.ok) {
-        statusDiv.className = "form-status alert alert-success d-flex align-items-center"
-        statusDiv.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i> ${successMessage}`
+        msgClass = "success"
+        msgIcon = "check-circle-fill"
+        msgText = successMessage
         form.reset()
         if (validator) validator.refresh()
 
@@ -158,8 +166,8 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
 
       if ([409, 422].includes(response.status)) {
         const json = await response.json()
-        statusDiv.className = "form-status alert alert-warning d-flex align-items-center"
-        statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i> ${validationFailedMessage}`
+        msgClass = "warning"
+        msgText = validationFailedMessage
 
         if (validator && json.details) {
           const errors = {}
@@ -195,14 +203,17 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
         return
       }
 
-      statusDiv.className = "form-status alert alert-danger d-flex align-items-center"
-      statusDiv.innerHTML = `<i class="bi bi-x-circle-fill me-2"></i> ${errorMessage}`
-
+      if ([401].includes(response.status)) {
+        msgText = "You need to be logged in to perform this action."
+        msgClass = "warning"
+        return
+      }
     } catch (err) {
+    } finally {
       submitBtn.disabled = false
       submitBtn.innerHTML = originalBtnContent
-      statusDiv.className = "form-status alert alert-danger d-flex align-items-center"
-      statusDiv.innerHTML = `<i class="bi bi-x-circle-fill me-2"></i> ${networkErrorMessage}`
+      statusDiv.className = `form-status alert alert-${msgClass} d-flex align-items-center`
+      statusDiv.innerHTML = `<i class="bi bi-${msgIcon} me-2"></i> ${msgText}`
     }
   }
 }

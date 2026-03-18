@@ -49,9 +49,8 @@
 
 - optimize Projections for DynamoDB indexes
 - optimize DynamoDB attributes
-- add post comments (simple)
 - map app's endpoints to api gateway
-- delete public images func?x`
+- delete public images func?
 - add users email/sms notifications (post published/liked/disliked, user followed/blocked etc.)
 - add meta info for tags and images (created_by, created_at)
 - add SEO meta tags (image, other property/name metas)
@@ -59,12 +58,13 @@
 - add aria attributes (+allow them in tinymce)
 - add footer tag for post/articles, put related articles (Like "Futher reading", based on tags)
 - replace env secrets with secrets manager storage
-- allow to update post status after publication
 - jpeg images have problems with dimensions determination (on uploads)
 - add image watermarks
 - add author to the footer
 - update logo in google auth
 - posts page: add popular tags to "filter by tags" block
+- add redirects for user usernames (as it was for post titles)
+- improve post comments
 ## Links
 
 - favicon - https://realfavicongenerator.net

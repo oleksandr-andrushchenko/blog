@@ -65,25 +65,53 @@
 
 {% block content %}
     <div class="row g-5">
-        <article class="col col-12 col-lg-6 col-xl-8 d-flex flex-column overflow-auto post-content">
-            <header>
-                <h1>{{ post.title }}</h1>
+        <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column overflow-auto post-content">
+            <article>
+                <header>
+                    <h1>{{ post.title }}</h1>
 
-                <p class="small text-secondary">
-                    By <a href="{{ user_url(author) }}" class="link-secondary">{{ author.name }}</a>
-                    {% if post.published_at %}
-                        &mdash;
-                        Published on
-                        <time>{{ (post.published_at / 1000) | unix_to_full_date }}</time>
-                        {% if post.updated_at and post.updated_at - post.published_at > 86_400_000 %}
-                            &mdash; Modified on
-                            <time>{{ (post.updated_at / 1000) | unix_to_full_date }}</time>
+                    <p class="small text-secondary">
+                        By <a href="{{ user_url(author) }}" class="link-secondary">{{ author.name }}</a>
+                        {% if post.published_at %}
+                            &mdash;
+                            Published on
+                            <time>{{ (post.published_at / 1000) | unix_to_full_date }}</time>
+                            {% if post.updated_at and post.updated_at - post.published_at > 86_400_000 %}
+                                &mdash; Modified on
+                                <time>{{ (post.updated_at / 1000) | unix_to_full_date }}</time>
+                            {% endif %}
                         {% endif %}
+                    </p>
+                </header>
+                {{ post.content }}
+            </article>
+
+            <section class="post-comments">
+                <h3>Comments ({{ post.comments_count }})</h3>
+
+                <div class="d-flex flex-column gap-4">
+                    {% include "fragments/post-comment-form.html" %}
+
+                    {% if comments %}
+                        <div id="post-comments" class="d-flex flex-column gap-3">
+                            {% with post_comments=comments %}
+                                {% include "fragments/post-comments.html" %}
+                            {% endwith %}
+                        </div>
+
+                        {% with limit=comments_query.limit,
+                            offset=comments[-1].offset,
+                            count=comments|length,
+                            url=url("post-comments-fragment", **comments_query.get_dict()),
+                            container="#post-comments" %}
+                            {% include "fragments/load-more-button.html" %}
+                        {% endwith %}
+                    {% else %}
+                        <div>N/A</div>
                     {% endif %}
-                </p>
-            </header>
-            {{ post.content }}
-        </article>
+                </div>
+            </section>
+        </div>
 
         <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
             <h2 class="mb-0 text-decoration-underline">

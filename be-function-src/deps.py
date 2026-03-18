@@ -30,7 +30,11 @@ from utils import (
     UpdateUserImpressionDTO,
     get_user_by_slug,
     get_post_by_slugs,
+    PostComment,
     UpdateUserStatusDTO,
+    UpdatePostCommentDTO,
+    UpdatePostCommentImpressionDTO,
+    get_post_comment,
 )
 
 
@@ -140,7 +144,7 @@ def get_update_post_dto(
     return update_post_dto
 
 
-UpdatePostDTODep = Annotated[UpdateUserDTO, Depends(get_update_post_dto)]
+UpdatePostDTODep = Annotated[UpdatePostDTO, Depends(get_update_post_dto)]
 
 
 def get_update_post_status_dto(
@@ -159,6 +163,38 @@ def get_update_post_impression_dto(
 
 
 UpdatePostImpressionDTODep = Annotated[UpdatePostImpressionDTO, Depends(get_update_post_impression_dto)]
+
+
+async def get_post_comment_by_id(post_id: str, post_comment_id: str) -> PostComment:
+    try:
+        return await get_post_comment(post_id, post_comment_id)
+    except PostNotFoundError as e:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
+PostCommentDep = Annotated[Post, Depends(get_post_comment_by_id)]
+
+
+def get_update_post_comment_dto(update_post_comment_dto: UpdatePostCommentDTO = Body(...)) -> UpdatePostCommentDTO:
+    return update_post_comment_dto
+
+
+UpdatePostCommentDTODep = Annotated[UpdateUserDTO, Depends(get_update_post_dto)]
+
+
+def get_update_post_comment_impression_dto(
+        update_post_comment_impression_dto: UpdatePostCommentImpressionDTO = Body(...)
+) -> UpdatePostCommentImpressionDTO:
+    return update_post_comment_impression_dto
+
+
+UpdatePostCommentImpressionDTODep = Annotated[
+    UpdatePostCommentImpressionDTO,
+    Depends(get_update_post_comment_impression_dto)
+]
 
 
 def get_update_user_impression_dto(

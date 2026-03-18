@@ -18,6 +18,8 @@ from utils import (
     ContactMessageDTO,
     PostDTO,
     PostQueryDTO,
+    PostCommentDTO,
+    PostCommentQueryDTO,
     Tag,
     PublicTag,
     is_prod,
@@ -72,6 +74,10 @@ from utils import (
     get_auth_token_max_age,
     get_post_related_posts,
     find_post,
+    create_post_comment,
+    get_post_comments,
+    update_post_comment,
+    get_post_comment_url,
 )
 from deps import (
     OptCurUserDep,
@@ -91,6 +97,8 @@ from deps import (
     UserBySlugDep,
     PostBySlugsDep,
     UpdateUserStatusDTODep,
+    PostCommentDep,
+    UpdatePostCommentDTODep,
 )
 import asyncio
 import os
@@ -203,10 +211,12 @@ async def base_post_page(post: PostDep, cur_user: OptCurUserDep) -> HTMLResponse
         author,
         post_impression,
         related_posts,
+        comments,
     ) = await asyncio.gather(
         find_user(post.user_id),
         find_post_impression(post, cur_user) if cur_user else noop(),
         get_post_related_posts(post),
+        get_post_comments(post),
     )
 
     html_content = get_html_content("post.html", {
@@ -215,6 +225,8 @@ async def base_post_page(post: PostDep, cur_user: OptCurUserDep) -> HTMLResponse
         "author": author,
         "post_impression": post_impression,
         "related_posts": related_posts,
+        "comments": comments,
+        "comments_query": PostCommentQueryDTO()
     })
     return HTMLResponse(html_content)
 
@@ -276,6 +288,21 @@ async def _update_post_impression(post: PostDep, update_post_impression_dto: Upd
         "post_impression": post_impression,
         "cur_user": cur_user,
     })
+
+
+@app.post("/posts/{post_id}/comment", name="create-post-comment", response_class=JSONResponse)
+async def _create_post_comment(post: PostDep, post_comment_dto: PostCommentDTO, cur_user: CurUserDep,
+                               request: Request) -> str:
+    post_comment = await create_post_comment(post, post_comment_dto, cur_user)
+    return get_post_comment_url(request, post, post_comment)
+
+
+@app.patch("/posts/{post_id}/comments/{comment_id}", name="update-post-comment", response_class=JSONResponse)
+async def _update_post_comment(post: PostDep, post_comment: PostCommentDep,
+                               update_post_comment_dto: UpdatePostCommentDTODep, cur_user: CurUserDep,
+                               request: Request) -> str:
+    await update_post_comment(post, post_comment, update_post_comment_dto, cur_user)
+    return get_post_comment_url(request, post, post_comment)
 
 
 @app.get("/contacts", name="contacts", response_class=HTMLResponse)
