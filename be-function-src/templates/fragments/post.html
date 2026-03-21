@@ -20,7 +20,7 @@
             {% endif %}
         </a>
 
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap gap-2">
             <small class="text-secondary" title="Created at">
                 <i class="bi bi-calendar2"></i> {{ (post.created_at / 1000) | unix_to_full_date }}
             </small>
