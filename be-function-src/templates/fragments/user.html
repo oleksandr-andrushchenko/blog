@@ -34,13 +34,23 @@
                 <span class="badge text-bg-danger fs-6" title="{{ user.comment }}">Banned</span>
             {% endif %}
 
-            <small class="text-secondary">
-                <span title="Followers"><i class="bi bi-heart"></i> {{ user.followers_count }}</span>
-            </small>
+            {% if user.followers_count %}
+                <small class="text-secondary">
+                    <span title="Followers"><i class="bi bi-heart"></i> {{ user.followers_count }}</span>
+                </small>
+            {% endif %}
 
-            <small class="text-secondary">
-                <span title="Posts"><i class="bi bi-pencil"></i> {{ user.published_posts_count }}</span>
-            </small>
+            {% if user.published_posts_count %}
+                <small class="text-secondary">
+                    <span title="Posts written"><i class="bi bi-journal-text"></i> {{ user.published_posts_count }}</span>
+                </small>
+            {% endif %}
+
+            {% if user.post_comments_count %}
+                <small class="text-secondary">
+                    <span title="Post comments added"><i class="bi bi-chat"></i> {{ user.post_comments_count }}</span>
+                </small>
+            {% endif %}
         </div>
     </div>
 </div>

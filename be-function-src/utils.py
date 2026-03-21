@@ -80,6 +80,7 @@ class User(BaseModel):
     followers_count: int
     following_count: int
     comment: str | None = None
+    post_comments_count: int
     created_at: int
     updated_at: int | None = None
     offset: str | None = None
@@ -430,16 +431,16 @@ class PostComment(BaseModel):
     id: str
     owner_id: str
     user_id: str
-    author: str = None
-    avatar_filename: str | None = None
-    username: str | None = None
+    user_name: str = None
+    user_avatar_filename: str | None = None
+    user_username: str | None = None
 
     def get_user(self) -> User:
         return user_from_dynamodb({
             "id": self.user_id,
-            "name": self.author,
-            "avatar_filename": self.avatar_filename,
-            "username": self.username
+            "name": self.user_name,
+            "avatar_filename": self.user_avatar_filename,
+            "username": self.user_username
         })
 
     post_id: str
@@ -1420,9 +1421,9 @@ def post_comment_from_dynamodb(d_item: dict[str, Any]) -> PostComment:
         id=d_item["id"],
         owner_id=owner_id,
         user_id=owner_id,
-        author=d_item.get("author"),
-        avatar_filename=d_item.get("avatar_filename"),
-        username=d_item.get("username"),
+        user_name=d_item.get("user_name"),
+        user_avatar_filename=d_item.get("user_avatar_filename"),
+        user_username=d_item.get("user_username"),
         post_id=d_item["post_id"],
         text=d_item["text"],
         rating=d_item.get("rating", 0),
@@ -1746,9 +1747,9 @@ async def create_post_comment(post: Post, post_comment_dto: PostCommentDTO, user
         "id": comment_id,
         "post_id": post.id,
         "user_id": user.id,
-        "author": user.name,
-        "avatar_filename": user.avatar_filename,
-        "username": user.username,
+        "user_name": user.name,
+        "user_avatar_filename": user.avatar_filename,
+        "user_username": user.username,
         "text": post_comment_dto.text,
         "created_at": now,
     }
@@ -2053,7 +2054,7 @@ async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User
         changes[k] = sanitize_html(v)
 
     if changes.get("website"):
-        changes["website"] = str(changes["website"])
+        changes["website"] = str(changes["website"]).rstrip("/")
 
     await get_dynamodb_table()
     transacts = []
@@ -2442,7 +2443,8 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
             setattr(owner, key, getattr(owner, key) + delta)
 
     if status == PostStatus.PUBLISHED:
-        changes["published_at"] = now
+        if not post.published_at:
+            changes["published_at"] = now
         if owner:
             changes["user_slug"] = owner.username
         # Upsert tags

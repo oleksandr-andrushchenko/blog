@@ -34,7 +34,7 @@
         "url": canonical_url,
         "dateCreated": post.created_at | iso_utc,
         "datePublished": (post.published_at | iso_utc) if post.published_at else None,
-        "dateModified": (post.updated_at | iso_utc)  if post.updated_at and post.updated_at - post.published_at > 86_400_000 else None,
+        "dateModified": (post.updated_at | iso_utc) if post.updated_at and post.published_at and (post.updated_at - post.published_at > 86_400_000) else None,
         "headline": post.title,
         "name": post.title,
         "description": meta_description,

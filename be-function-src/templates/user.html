@@ -114,13 +114,30 @@
                     </div>
                 {% endif %}
 
-                <div>
-                    <small class="text-secondary"><i class="bi bi-heart"></i> Followers:</small>
-                    {{ user.followers_count }}
-                    <small class="text-secondary">| Following:</small>
-                    {{ user.following_count }}
-                    <small class="text-secondary">| <i class="bi bi-pencil"></i> Posts count:</small>
-                    {{ user.published_posts_count }}
+                <div class="d-flex gap-3 flex-wrap small">
+                    <div class="d-flex align-items-center gap-1">
+                        <i class="bi bi-heart text-secondary"></i>
+                        <span>{{ user.followers_count }}</span>
+                        <span class="text-secondary">Followers</span>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-1">
+                        <i class="bi bi-person-heart text-secondary"></i>
+                        <span>{{ user.following_count }}</span>
+                        <span class="text-secondary">Following</span>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-1">
+                        <i class="bi bi-pencil text-secondary"></i>
+                        <span>{{ user.published_posts_count }}</span>
+                        <span class="text-secondary">Posts</span>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-1">
+                        <i class="bi bi-chat text-secondary"></i>
+                        <span>{{ user.post_comments_count }}</span>
+                        <span class="text-secondary">Comments</span>
+                    </div>
                 </div>
 
                 <div>
