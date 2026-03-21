@@ -31,10 +31,17 @@
                 <span class="badge text-bg-warning fs-6" title="Pending">Unpublished</span>
             {% endif %}
 
-            <small class="text-secondary">
-                <span title="Likes"><i class="bi bi-hand-thumbs-up"></i> {{ post.likes_count }}</span>
-                <span title="Dislikes"><i class="bi bi-hand-thumbs-down"></i> {{ post.dislikes_count }}</span>
-            </small>
+            {% if post.likes_count %}
+                <small class="text-secondary">
+                    <span title="Likes"><i class="bi bi-hand-thumbs-up"></i> {{ post.likes_count }}</span>
+                </small>
+            {% endif %}
+
+            {% if post.dislikes_count %}
+                <small class="text-secondary">
+                    <span title="Dislikes"><i class="bi bi-hand-thumbs-down"></i> {{ post.dislikes_count }}</span>
+                </small>
+            {% endif %}
 
             {% if tags|default(True) and post.tags %}
                 {% for tag in post.tags %}
