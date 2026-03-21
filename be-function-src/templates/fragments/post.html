@@ -20,9 +20,9 @@
             {% endif %}
         </a>
 
-        <div>
+        <div class="d-flex gap-4">
             <small class="text-secondary" title="Created at">
-                {{ (post.created_at / 1000) | unix_to_full_date }}
+                <i class="bi bi-calendar2"></i> {{ (post.created_at / 1000) | unix_to_full_date }}
             </small>
 
             {% if post.status == PostStatus.REJECTED %}
@@ -31,24 +31,26 @@
                 <span class="badge text-bg-warning fs-6" title="Pending">Unpublished</span>
             {% endif %}
 
-            {% if post.likes_count %}
+            {% if post.likes_count or post.dislikes_count %}
                 <small class="text-secondary">
-                    <span title="Likes"><i class="bi bi-hand-thumbs-up"></i> {{ post.likes_count }}</span>
-                </small>
-            {% endif %}
+                    {% if post.likes_count %}
+                        <span title="Likes"><i class="bi bi-hand-thumbs-up"></i> {{ post.likes_count }}</span>
+                    {% endif %}
 
-            {% if post.dislikes_count %}
-                <small class="text-secondary">
-                    <span title="Dislikes"><i class="bi bi-hand-thumbs-down"></i> {{ post.dislikes_count }}</span>
+                    {% if post.dislikes_count %}
+                        <span title="Dislikes"><i class="bi bi-hand-thumbs-up"></i> {{ post.dislikes_count }}</span>
+                    {% endif %}
                 </small>
             {% endif %}
 
             {% if tags|default(True) and post.tags %}
-                {% for tag in post.tags %}
-                    <a href="{{ url("posts", tags=tag) }}" class="link-secondary text-decoration-none small">
-                        {{ tag }}
-                    </a>
-                {% endfor %}
+                <small class="text-secondary">
+                    <i class="bi bi-tags"></i>
+                    {% for tag in post.tags %}
+                        <a href="{{ url("posts", tags=tag) }}"
+                           class="link-secondary text-decoration-none"> {{ tag }}</a>
+                    {% endfor %}
+                </small>
             {% endif %}
         </div>
     </div>
