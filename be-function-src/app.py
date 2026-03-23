@@ -165,6 +165,34 @@ async def upload_public_file(file_dto: FileDTODep) -> str:
     return await save_public_file(file_dto)
 
 
+async def base_post_page(post: PostDep, cur_user: OptCurUserDep) -> HTMLResponse:
+    async def noop():
+        return None
+
+    (
+        author,
+        post_impression,
+        related_posts,
+        comments,
+    ) = await asyncio.gather(
+        find_user(post.user_id),
+        find_post_impression(post, cur_user) if cur_user else noop(),
+        get_post_related_posts(post),
+        get_post_comments(post),
+    )
+
+    html_content = get_html_content("post.html", {
+        "cur_user": cur_user,
+        "post": post,
+        "author": author,
+        "post_impression": post_impression,
+        "related_posts": related_posts,
+        "comments": comments,
+        "comments_query": PostCommentQueryDTO()
+    })
+    return HTMLResponse(html_content)
+
+
 @app.get("/posts/new", name="new-post", response_class=HTMLResponse)
 async def new_post(cur_user: CurUserDep) -> str:
     verify_authorization(cur_user, Permission.CREATE_POST)
@@ -201,34 +229,6 @@ async def posts_fragment(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> st
     return get_html_content("fragments/posts.html", {
         "posts": await get_posts(query_dto, cur_user)
     })
-
-
-async def base_post_page(post: PostDep, cur_user: OptCurUserDep) -> HTMLResponse:
-    async def noop():
-        return None
-
-    (
-        author,
-        post_impression,
-        related_posts,
-        comments,
-    ) = await asyncio.gather(
-        find_user(post.user_id),
-        find_post_impression(post, cur_user) if cur_user else noop(),
-        get_post_related_posts(post),
-        get_post_comments(post),
-    )
-
-    html_content = get_html_content("post.html", {
-        "cur_user": cur_user,
-        "post": post,
-        "author": author,
-        "post_impression": post_impression,
-        "related_posts": related_posts,
-        "comments": comments,
-        "comments_query": PostCommentQueryDTO()
-    })
-    return HTMLResponse(html_content)
 
 
 @app.get("/posts/{post_id}", name="post")
