@@ -5,7 +5,7 @@
 {% block meta_canonical %}{{ url("create-post") }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), "Posts": url("posts"), "New": None} %}
+    {% with breadcrumbs = {"Home": url("index"), "Posts": posts_url(), "New": None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}

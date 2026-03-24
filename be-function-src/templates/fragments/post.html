@@ -47,8 +47,7 @@
                 <small class="text-secondary">
                     <i class="bi bi-tags"></i>
                     {% for tag in post.tags %}
-                        <a href="{{ url("posts", tags=tag) }}"
-                           class="link-secondary text-decoration-none"> {{ tag }}</a>
+                        <a href="{{ posts_url(tags=[tag]) }}" class="link-secondary text-decoration-none"> {{ tag }}</a>
                     {% endfor %}
                 </small>
             {% endif %}

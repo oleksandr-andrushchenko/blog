@@ -299,9 +299,10 @@ class UpdatePostDTO(PostDTO):
 
 
 class BaseQueryDTO(BaseModel):
+    DEFAULT_OFFSET: ClassVar[str | None] = None
     DEFAULT_LIMIT: ClassVar[int] = 20
 
-    offset: str | None = None
+    offset: str | None = DEFAULT_OFFSET
     limit: int = Field(default=DEFAULT_LIMIT, ge=1, le=20)
 
     def get_dict(self, rewrite: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -366,9 +367,12 @@ class PostQueryType(StrEnum):
 
 
 class PostQueryDTO(BaseQueryDTO):
+    DEFAULT_TYPE: ClassVar[PostQueryType] = PostQueryType.LATEST
+    DEFAULT_STATUS: ClassVar[PostStatus] = PostStatus.PUBLISHED
+
     tags: list[str] | None = Field(default_factory=list)  # noqa
-    type: PostQueryType = PostQueryType.LATEST
-    status: PostStatus = PostStatus.PUBLISHED
+    type: PostQueryType = DEFAULT_TYPE
+    status: PostStatus = DEFAULT_STATUS
 
 
 class UpdatePostStatusDTO(BaseModel):
@@ -885,6 +889,73 @@ def get_post_comment_url(request, post: Post, post_comment: PostComment, **param
     return get_post_url(request, post, **params)
 
 
+def get_current_url(request) -> str:
+    path = request.url.path
+    query = request.url.query
+    return f"{path}?{query}" if query else path
+
+
+@pass_context
+def jinja2_posts_url(ctx, query: PostQueryDTO | None = None, **params) -> str:
+    return get_posts_url(ctx.get("request"), query=query, **params)
+
+
+def get_posts_url(request, query: PostQueryDTO | None = None, **params) -> str:
+    if not query:
+        query = PostQueryDTO()
+
+    params = query.get_dict(params)
+
+    slugs: list[str] = []
+
+    type_ = params.pop("type", None)
+    if type_:
+        type_ = str(type_)
+        if type_ != str(PostQueryDTO.DEFAULT_TYPE):
+            slugs.append(type_)
+
+    tags = params.pop("tags", None)
+    if tags:
+        slugs.extend(str(t) for t in tags if t)
+
+    status = params.pop("status", None)
+    if status:
+        status = str(status)
+        if status != str(PostQueryDTO.DEFAULT_STATUS):
+            params["status"] = status
+
+    offset = params.pop("offset", None)
+    if offset and offset != PostQueryDTO.DEFAULT_OFFSET:
+        params["offset"] = offset
+
+    limit = params.pop("limit", None)
+    if limit and limit != PostQueryDTO.DEFAULT_LIMIT:
+        params["limit"] = limit
+
+    if not slugs:
+        return get_url(request, "posts", **params)
+
+    return get_url(request, "posts-by-slugs", slugs_path="/".join(slugs), **params)
+
+
+def parse_posts_url_slugs_path(slugs_path: str) -> dict:
+    data = {}
+    slugs = [p for p in slugs_path.split("/") if p]
+
+    if not slugs:
+        return {}
+
+    try:
+        data["type"] = PostQueryType(slugs[0])
+        slugs = slugs[1:]
+    except ValueError:
+        pass
+
+    data["tags"] = slugs
+
+    return data
+
+
 def get_url(request, name: str, full_url: bool = False, **params) -> str:
     """
     Generate a URL for a named route.
@@ -991,6 +1062,7 @@ def get_jinja2_env():
         "url": jinja2_url,
         "user_url": jinja2_user_url,
         "post_url": jinja2_post_url,
+        "posts_url": jinja2_posts_url,
         "Permission": Permission,
         "check_auth": check_authorization,
         "PostStatus": PostStatus,
@@ -999,6 +1071,7 @@ def get_jinja2_env():
         "PostQueryType": PostQueryType,
         "UserQueryType": UserQueryType,
         "UserStatus": UserStatus,
+        "PostQueryDTO": PostQueryDTO,
     })
     return jinja2_env
 

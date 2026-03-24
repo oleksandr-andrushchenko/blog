@@ -18,7 +18,7 @@
 
             <div class="d-flex flex-column gap-3">
                 <h2 class="mb-0">
-                    <a href="{{ url("posts") }}" class="link-body-emphasis">
+                    <a href="{{ posts_url() }}" class="link-body-emphasis">
                         <i class="bi bi-clock-fill"></i> Latest posts
                     </a>
                 </h2>
@@ -39,10 +39,10 @@
                     {% endwith %}
 
                     <div>
-                        <a href="{{ url("posts", type=PostQueryType.LATEST) }}" class="btn btn-light btn-sm">
+                        <a href="{{ posts_url(type=PostQueryType.LATEST) }}" class="btn btn-light btn-sm">
                             <i class="bi bi-clock"></i> See all latest posts
                         </a>
-                        <a href="{{ url("posts", type=PostQueryType.LATEST) }}" class="btn btn-light btn-sm">
+                        <a href="{{ posts_url(type=PostQueryType.LATEST) }}" class="btn btn-light btn-sm">
                             <i class="bi bi-tags"></i> Search latest posts by tags
                         </a>
                     </div>
@@ -56,7 +56,7 @@
             {% if show_popular_posts %}
                 <div class="d-flex flex-column gap-3">
                     <h2 class="mb-0">
-                        <a href="{{ url("posts", type=PostQueryType.POPULAR) }}" class="link-body-emphasis">
+                        <a href="{{ posts_url(type=PostQueryType.POPULAR) }}" class="link-body-emphasis">
                             <i class="bi bi-star-fill"></i> Popular posts
                         </a>
                     </h2>
@@ -72,10 +72,10 @@
                             {% endwith %}
 
                             <div>
-                                <a href="{{ url("posts", type=PostQueryType.POPULAR) }}" class="btn btn-light btn-sm">
+                                <a href="{{ posts_url(type=PostQueryType.POPULAR) }}" class="btn btn-light btn-sm">
                                     <i class="bi bi-star"></i> See all popular posts
                                 </a>
-                                <a href="{{ url("posts", type=PostQueryType.POPULAR) }}" class="btn btn-light btn-sm">
+                                <a href="{{ posts_url(type=PostQueryType.POPULAR) }}" class="btn btn-light btn-sm">
                                     <i class="bi bi-tags"></i> Search popular posts by tags
                                 </a>
                             </div>
@@ -94,13 +94,13 @@
                 {% if popular_post_tags %}
                     <div id="popular-post-tags">
                         {% for tag in popular_post_tags %}
-                            <a href="{{ url("posts", tags=tag.name) }}" class="btn btn-light btn-sm post-tag mb-1">
+                            <a href="{{ posts_url(tags=[tag.name]) }}" class="btn btn-light btn-sm post-tag mb-1">
                                 <h3 class="h6 fw-normal mb-0">{{ tag.name }}</h3>
                             </a>
                         {% endfor %}
 
                         <div>
-                            <a href="{{ url("posts") }}" class="btn btn-light btn-sm">
+                            <a href="{{ posts_url() }}" class="btn btn-light btn-sm">
                                 <i class="bi bi-tags"></i> Search posts by tags
                             </a>
                         </div>

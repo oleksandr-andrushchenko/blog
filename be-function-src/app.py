@@ -78,6 +78,8 @@ from utils import (
     get_post_comments,
     update_post_comment,
     get_post_comment_url,
+    get_posts_url,
+    get_current_url,
 )
 from deps import (
     OptCurUserDep,
@@ -99,6 +101,7 @@ from deps import (
     UpdateUserStatusDTODep,
     PostCommentDep,
     UpdatePostCommentDTODep,
+    PostQueryBySlugsDep,
 )
 import asyncio
 import os
@@ -193,6 +196,14 @@ async def base_post_page(post: PostDep, cur_user: OptCurUserDep) -> HTMLResponse
     return HTMLResponse(html_content)
 
 
+async def base_posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
+    return get_html_content("posts.html", {
+        "cur_user": cur_user,
+        "posts_query": query_dto,
+        "posts": await get_posts(query_dto, cur_user),
+    })
+
+
 @app.get("/posts/new", name="new-post", response_class=HTMLResponse)
 async def new_post(cur_user: CurUserDep) -> str:
     verify_authorization(cur_user, Permission.CREATE_POST)
@@ -216,12 +227,8 @@ async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request
 
 
 @app.get("/posts", name="posts", response_class=HTMLResponse)
-async def posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
-    return get_html_content("posts.html", {
-        "cur_user": cur_user,
-        "posts_query": query_dto,
-        "posts": await get_posts(query_dto, cur_user),
-    })
+async def posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep):
+    return await base_posts_page(query_dto, cur_user)
 
 
 @app.get("/posts-fragment", name="posts-fragment", response_class=HTMLResponse)
@@ -303,6 +310,11 @@ async def _update_post_comment(post: PostDep, post_comment: PostCommentDep,
                                request: Request) -> str:
     await update_post_comment(post, post_comment, update_post_comment_dto, cur_user)
     return get_post_comment_url(request, post, post_comment)
+
+
+@app.get("/{slugs_path:path}/posts", name="posts-by-slugs", response_class=HTMLResponse)
+async def posts_page_by_slugs(query_dto: PostQueryBySlugsDep, cur_user: OptCurUserDep) -> HTMLResponse:
+    return await base_posts_page(query_dto, cur_user)
 
 
 @app.get("/contacts", name="contacts", response_class=HTMLResponse)
@@ -484,7 +496,7 @@ async def _create_dummy_fixtures() -> None:
 
 
 @app.get("/me", name="me", response_model=Me, response_class=JSONResponse)
-async def post_page_by_slugs(cur_user: CurUserDep) -> Me:
+async def me(cur_user: CurUserDep) -> Me:
     return cur_user
 
 

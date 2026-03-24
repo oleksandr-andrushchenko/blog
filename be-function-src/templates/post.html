@@ -58,7 +58,7 @@
 {% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), "Posts": url("posts"), (post.title): None} %}
+    {% with breadcrumbs = {"Home": url("index"), "Posts": posts_url(), (post.title): None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
@@ -142,7 +142,7 @@
                         </small>
 
                         {% for tag in post.tags %}
-                            <a href="{{ url("posts", tags=tag) }}" class="btn btn-light btn-sm">
+                            <a href="{{ posts_url(tags=[tag]) }}" class="btn btn-light btn-sm">
                                 {{ tag }}
                             </a>
                         {% endfor %}

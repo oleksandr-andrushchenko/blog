@@ -1,28 +1,43 @@
 {% extends "layout.html" %}
-
+{% set canonical_url = posts_url(query=posts_query, tags=posts_query.tags|sort) %}
 {% set val_map = {
-    (PostQueryType.LATEST): {"title": "Latest", "subtitle": "Recently added", "icon": "clock-fill"},
-    (PostQueryType.POPULAR): {"title": "Popular", "subtitle": "Most rated", "icon": "star-fill"},
-    (PostStatus.PUBLISHED): {"title": "Published", "subtitle": "Published"},
-    (PostStatus.UNPUBLISHED): {"title": "Unpublished", "subtitle": "Unpublished"},
-    (PostStatus.REJECTED): {"title": "Rejected", "subtitle": "Rejected"}
+    (PostQueryType.LATEST): {"title": "Latest", "btn": "Latest", "subtitle": "Recently added", "icon": "clock-fill"},
+    (PostQueryType.POPULAR): {"title": "Popular", "btn": "Popular", "subtitle": "Most popular", "icon": "star-fill"},
+    (PostStatus.PUBLISHED): {"title": None, "btn": "Published", "subtitle": ""},
+    (PostStatus.UNPUBLISHED): {"title": "Unpublished", "btn": "Unpublished", "subtitle": "Unpublished"},
+    (PostStatus.REJECTED): {"title": "Rejected", "btn": "Rejected", "subtitle": "Rejected"}
 } %}
 
+{% set tags_peaces = posts_query.tags if posts_query.tags else [site_about] %}
 {% set icon = val_map[posts_query.type]["icon"] if "icon" in val_map[posts_query.type] else None %}
-{% set title = " ".join(posts_query.tags + [val_map[posts_query.type]["title"]] + [val_map[posts_query.status]["title"]] + ["Posts"]) | capitalize %}
-{% set subtitle = " ".join(posts_query.tags + [val_map[posts_query.type]["subtitle"]] + [val_map[posts_query.status]["subtitle"]] + ["Articles"]) | capitalize %}
+{% set title = ([val_map[posts_query.type]["title"]] + tags_peaces + [val_map[posts_query.status]["title"]] + ["Posts"]) | select | join(" ") | title %}
+{% set subtitle = ([val_map[posts_query.type]["subtitle"]]  + tags_peaces + [val_map[posts_query.status]["subtitle"]] + ["Articles"]) | select | join(" ") | title %}
 
 {% block meta_title %}{{ title }} | {{ site_name }}{% endblock %}
-{% block meta_canonical %}{{ url("posts") }}{% endblock %}
+{% block meta_canonical %}{{ canonical_url }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), (title): None} %}
-        {% include "fragments/breadcrumbs.html" %}
-    {% endwith %}
+    {% set breadcrumbs = {"Home": url("index"), "Posts": posts_url()} %}
+
+    {% if posts_query.type and posts_query.type != PostQueryDTO.DEFAULT_TYPE %}
+        {% set breadcrumbs = breadcrumbs.update({posts_query.type.value | title: posts_url(type=posts_query.type)}) or breadcrumbs %}
+    {% endif %}
+
+    {% set ns = namespace(path_tags=[]) %}
+    {% for tag in posts_query.tags %}
+        {% set ns.path_tags = ns.path_tags + [tag] %}
+        {% set breadcrumbs = breadcrumbs.update({tag | title: posts_url(tags=ns.path_tags, type=posts_query.type)}) or breadcrumbs %}
+    {% endfor %}
+
+    {% set last_key = (breadcrumbs.keys() | list)[-1] %}
+    {% set breadcrumbs = breadcrumbs.update({ last_key: None }) or breadcrumbs %}
+
+    {% include "fragments/breadcrumbs.html" %}
 {% endblock %}
 
 {% block content %}
-    <h1>{{ ('<i class="bi bi-'~icon~'"></i> ') if icon else "" }}{{ title }}</h1>
+    {{ ('<i class="h1 d-inline-block me-1 bi bi-'~icon~'"></i> ') if icon else "" }}
+    <h1 class="d-inline-block">{{ title }}</h1>
     <p class="small text-secondary">{{ subtitle }}</p>
 
     <div class="row g-5">
@@ -50,38 +65,32 @@
                 Filter posts
             </h2>
 
-            <form action="{{ url("posts") }}" method="get">
+            <form action="{{ posts_url() }}" method="get">
                 <input type="hidden" name="type" value="{{ posts_query.type }}">
                 <input type="hidden" name="status" value="{{ posts_query.status }}">
 
                 <div class="d-flex flex-column gap-1">
-                    {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_POST) %}
-                        <div>
-                            <small class="text-secondary">
-                                <i class="bi bi-toggle2-on"></i>
-                                Filter by status:
-                            </small>
-                            <div class="btn-group">
-                                {% set is_published = posts_query.status == PostStatus.PUBLISHED %}
-                                <a href="{{ url("posts", **posts_query.get_dict({"status": None if is_published else PostStatus.PUBLISHED})) }}"
-                                   class="btn {% if is_published %}btn-success active{% else %}btn-light{% endif %}">
-                                    {{ val_map[PostStatus.PUBLISHED]["title"] }}
-                                </a>
+                    <div>
+                        <small class="text-secondary">
+                            <i class="bi bi-sort-down"></i>
+                            Show:
+                        </small>
 
-                                {% set is_unpublished = posts_query.status == PostStatus.UNPUBLISHED %}
-                                <a href="{{ url("posts", **posts_query.get_dict({"status": None if is_unpublished else PostStatus.UNPUBLISHED})) }}"
-                                   class="btn {% if is_unpublished %}btn-warning active{% else %}btn-light{% endif %}">
-                                    {{ val_map[PostStatus.UNPUBLISHED]["title"] }}
-                                </a>
-
-                                {% set is_rejected = posts_query.status == PostStatus.REJECTED %}
-                                <a href="{{ url("posts", **posts_query.get_dict({"status": None if is_rejected else PostStatus.REJECTED})) }}"
-                                   class="btn {% if is_rejected %}btn-danger active{% else %}btn-light{% endif %}">
-                                    {{ val_map[PostStatus.REJECTED]["title"] }}
-                                </a>
-                            </div>
+                        <div class="btn-group">
+                            {% set is_latest = posts_query.type == PostQueryType.LATEST %}
+                            <a href="{{ posts_url(**posts_query.get_dict({"type": None if is_latest else PostQueryType.LATEST})) }}"
+                               class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %}">
+                                <i class="bi bi-clock{{ "-fill" if is_latest else "" }}"></i> {{ val_map[PostQueryType.LATEST]["btn"] }}
+                                first
+                            </a>
+                            {% set is_popular = posts_query.type == PostQueryType.POPULAR %}
+                            <a href="{{ posts_url(**posts_query.get_dict({"type": None if is_popular else PostQueryType.POPULAR})) }}"
+                               class="btn {% if is_popular %}btn-primary active{% else %}btn-light{% endif %}">
+                                <i class="bi bi-star{{ "-fill" if is_popular else "" }}"></i> {{ val_map[PostQueryType.POPULAR]["btn"] }}
+                                first
+                            </a>
                         </div>
-                    {% endif %}
+                    </div>
 
                     <div>
                         <small class="text-secondary">
@@ -101,31 +110,37 @@
                         </button>
                     </div>
 
-                    <div>
-                        <small class="text-secondary">
-                            <i class="bi bi-sort-down"></i>
-                            Show:
-                        </small>
+                    {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_POST) %}
+                        <div>
+                            <small class="text-secondary">
+                                <i class="bi bi-toggle2-on"></i>
+                                Filter by status:
+                            </small>
+                            <div class="btn-group">
+                                {% set is_published = posts_query.status == PostStatus.PUBLISHED %}
+                                <a href="{{ posts_url(**posts_query.get_dict({"status": None if is_published else PostStatus.PUBLISHED})) }}"
+                                   class="btn {% if is_published %}btn-success active{% else %}btn-light{% endif %}">
+                                    {{ val_map[PostStatus.PUBLISHED]["btn"] }}
+                                </a>
 
-                        <div class="btn-group">
-                            {% set is_latest = posts_query.type == PostQueryType.LATEST %}
-                            <a href="{{ url("posts", **posts_query.get_dict({"type": None if is_latest else PostQueryType.LATEST})) }}"
-                               class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %}">
-                                <i class="bi bi-clock{{ "-fill" if is_latest else "" }}"></i> {{ val_map[PostQueryType.LATEST]["title"] }}
-                                first
-                            </a>
-                            {% set is_popular = posts_query.type == PostQueryType.POPULAR %}
-                            <a href="{{ url("posts", **posts_query.get_dict({"type": None if is_popular else PostQueryType.POPULAR})) }}"
-                               class="btn {% if is_popular %}btn-primary active{% else %}btn-light{% endif %}">
-                                <i class="bi bi-star{{ "-fill" if is_popular else "" }}"></i> {{ val_map[PostQueryType.POPULAR]["title"] }}
-                                first
-                            </a>
+                                {% set is_unpublished = posts_query.status == PostStatus.UNPUBLISHED %}
+                                <a href="{{ posts_url(**posts_query.get_dict({"status": None if is_unpublished else PostStatus.UNPUBLISHED})) }}"
+                                   class="btn {% if is_unpublished %}btn-warning active{% else %}btn-light{% endif %}">
+                                    {{ val_map[PostStatus.UNPUBLISHED]["btn"] }}
+                                </a>
+
+                                {% set is_rejected = posts_query.status == PostStatus.REJECTED %}
+                                <a href="{{ posts_url(**posts_query.get_dict({"status": None if is_rejected else PostStatus.REJECTED})) }}"
+                                   class="btn {% if is_rejected %}btn-danger active{% else %}btn-light{% endif %}">
+                                    {{ val_map[PostStatus.REJECTED]["btn"] }}
+                                </a>
+                            </div>
                         </div>
-                    </div>
+                    {% endif %}
 
                     {% if posts_query.has_params() %}
                         <div>
-                            <a href="{{ url("posts") }}" class="btn btn-light">
+                            <a href="{{ posts_url() }}" class="btn btn-light">
                                 <i class="bi bi-x-lg"></i> Reset
                             </a>
                         </div>

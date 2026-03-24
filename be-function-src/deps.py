@@ -35,6 +35,7 @@ from utils import (
     UpdatePostCommentDTO,
     UpdatePostCommentImpressionDTO,
     get_post_comment,
+    parse_posts_url_slugs_path,
 )
 
 
@@ -99,7 +100,7 @@ UserQueryDep = Annotated[UserQueryDTO, Depends()]
 
 async def get_post_query(request: Request, tags: list[str] = Query([])) -> PostQueryDTO:
     data = dict(request.query_params)
-    data['tags'] = tags
+    data.update({"tags": tags})
     try:
         return PostQueryDTO(**data)
     except ValidationError as e:
@@ -108,6 +109,18 @@ async def get_post_query(request: Request, tags: list[str] = Query([])) -> PostQ
 
 PostQueryDep = Annotated[PostQueryDTO, Depends(get_post_query)]
 TagQueryDep = Annotated[TagQueryDTO, Depends()]
+
+
+async def get_post_query_by_slugs(request: Request, slugs_path: str) -> PostQueryDTO:
+    data = dict(request.query_params)
+    data.update(parse_posts_url_slugs_path(slugs_path))
+    try:
+        return PostQueryDTO(**data)
+    except ValidationError as e:
+        raise RequestValidationError(e.errors())
+
+
+PostQueryBySlugsDep = Annotated[PostQueryDTO, Depends(get_post_query_by_slugs)]
 
 
 async def get_file(file: UploadFile = File(...)):
