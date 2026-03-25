@@ -1,27 +1,38 @@
 {% extends "layout.html" %}
 
 {% set val_map = {
-    (UserQueryType.LATEST): {"title": "Latest", "subtitle": "Recently registered", "icon": "clock-fill"},
+    (UserQueryType.LATEST): {"title": "Recently Joined", "subtitle": "Recently registered", "icon": "clock-fill"},
     (UserQueryType.POPULAR): {"title": "Popular", "subtitle": "Most followed", "icon": "heart-fill"},
-    (UserStatus.ACTIVE): {"title": "Active", "subtitle": "Active"},
+    (UserStatus.ACTIVE): {"title": None, "subtitle": None},
     (UserStatus.BANNED): {"title": "Banned", "subtitle": "Banned"}
 } %}
 
-{% set icon = val_map[users_query.type]["icon"] if "icon" in val_map[users_query.type] else None %}
-{% set title = " ".join([val_map[users_query.type]["title"]] + [val_map[users_query.status]["title"]] + ["Users"]) | capitalize %}
-{% set subtitle = " ".join([val_map[users_query.type]["subtitle"]] + [val_map[users_query.status]["subtitle"]] + ["Users"]) | capitalize %}
+{% set icon = val_map[user_query.type]["icon"] if "icon" in val_map[user_query.type] else None %}
+{% set title = ([val_map[user_query.type]["title"]] + [val_map[user_query.status]["title"]] + ["Users"]) | select | join(" ") | title %}
+{% set subtitle = ([val_map[user_query.type]["subtitle"]] + [val_map[user_query.status]["subtitle"]] + ["Users"]) | select | join(" ") | title %}
 
 {% block meta_title %}{{ title }} | {{ site_name }}{% endblock %}
-{% block meta_canonical %}{{ url("users") }}{% endblock %}
+{% block meta_canonical %}{{ users_url(query=user_query) }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), (title): None} %}
-        {% include "fragments/breadcrumbs.html" %}
-    {% endwith %}
+    {% set breadcrumbs = {"Home": url("index"), "Users": users_url()} %}
+
+    {% if user_query.type and user_query.type != UserQueryDTO.DEFAULT_TYPE %}
+        {% set breadcrumbs = breadcrumbs.update({user_query.type | title: users_url(type=user_query.type)}) or breadcrumbs %}
+    {% endif %}
+
+    {% if user_query.status and user_query.status != UserQueryDTO.DEFAULT_STATUS %}
+        {% set breadcrumbs = breadcrumbs.update({user_query.status | title: users_url(status=user_query.status)}) or breadcrumbs %}
+    {% endif %}
+
+    {% set last_key = (breadcrumbs.keys() | list)[-1] %}
+    {% set breadcrumbs = breadcrumbs.update({ last_key: None }) or breadcrumbs %}
+
+    {% include "fragments/breadcrumbs.html" %}
 {% endblock %}
 
 {% block content %}
-    <h1>{{ ('<i class="bi bi-'~icon~'"></i> ') if icon else "" }}{{ title }}</h1>
+    <h1 class="bi bi-{{ icon }}"> {{ title }}</h1>
     <p class="small text-secondary">{{ subtitle }}</p>
 
     <div class="row g-5">
@@ -31,10 +42,10 @@
                     {% include "fragments/users.html" %}
                 </div>
 
-                {% with limit=users_query.limit,
+                {% with limit=user_query.limit,
             offset=users[-1].offset,
             count=users|length,
-            url=url("users-fragment", **users_query.get_dict()),
+            url=url("users-fragment", **user_query.get_dict()),
             container="#users" %}
                     {% include "fragments/load-more-button.html" %}
                 {% endwith %}
@@ -44,64 +55,51 @@
         </div>
 
         <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
-            <h2 class="mb-0 text-decoration-underline">
-                <i class="bi bi-filter"></i>
-                Filter users
-            </h2>
+            <h2 class="mb-0 text-decoration-underline bi bi-filter"> Filter users</h2>
 
-            <form action="{{ url("users") }}" method="get">
-                <input type="hidden" name="type" value="{{ users_query.type }}">
-                <input type="hidden" name="status" value="{{ users_query.status }}">
+            <form action="{{ users_url() }}" method="get">
+                <input type="hidden" name="type" value="{{ user_query.type }}">
+                <input type="hidden" name="status" value="{{ user_query.status }}">
 
                 <div class="d-flex flex-column gap-1">
+                    <div>
+                        <small class="text-secondary bi bi-sort-down"> Show:</small>
+                        <div class="btn-group">
+                            {% set is_latest = user_query.type == UserQueryType.LATEST %}
+                            <a href="{{ users_url(**user_query.get_dict({"type": None if is_latest else UserQueryType.LATEST})) }}"
+                               class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
+                                {{ UserQueryType.LATEST | title }} first
+                            </a>
+                            {% set is_popular = user_query.type == UserQueryType.POPULAR %}
+                            <a href="{{ users_url(**user_query.get_dict({"type": None if is_popular else UserQueryType.POPULAR})) }}"
+                               class="btn {% if is_popular %}btn-primary active{% else %}btn-light{% endif %} bi bi-heart{{ "-fill" if is_popular else "" }}">
+                                {{ UserQueryType.POPULAR | title }} first
+                            </a>
+                        </div>
+                    </div>
+
                     {% if cur_user and check_auth(cur_user, Permission.READ_NON_ACTIVE_USER) %}
                         <div>
-                            <small class="text-secondary">
-                                <i class="bi bi-toggle2-on"></i>
-                                Filter by status:
-                            </small>
+                            <small class="text-secondary bi bi-toggle2-on"> Filter by status:</small>
                             <div class="btn-group">
-                                {% set is_active = users_query.status == UserStatus.ACTIVE %}
-                                <a href="{{ url("users", **users_query.get_dict({"status": None if is_active else UserStatus.ACTIVE})) }}"
+                                {% set is_active = user_query.status == UserStatus.ACTIVE %}
+                                <a href="{{ users_url(**user_query.get_dict({"status": None if is_active else UserStatus.ACTIVE})) }}"
                                    class="btn {% if is_active %}btn-success active{% else %}btn-light{% endif %}">
-                                    {{ val_map[UserStatus.ACTIVE]["title"] }}
+                                    {{ UserStatus.ACTIVE | title }}
                                 </a>
 
-                                {% set is_banned = users_query.status == UserStatus.BANNED %}
-                                <a href="{{ url("users", **users_query.get_dict({"status": None if is_banned else UserStatus.BANNED})) }}"
+                                {% set is_banned = user_query.status == UserStatus.BANNED %}
+                                <a href="{{ users_url(**user_query.get_dict({"status": None if is_banned else UserStatus.BANNED})) }}"
                                    class="btn {% if is_banned %}btn-danger active{% else %}btn-light{% endif %}">
-                                    {{ val_map[UserStatus.BANNED]["title"] }}
+                                    {{ UserStatus.BANNED | title }}
                                 </a>
                             </div>
                         </div>
                     {% endif %}
 
-                    <div>
-                        <small class="text-secondary">
-                            <i class="bi bi-sort-down"></i>
-                            Show:
-                        </small>
-                        <div class="btn-group">
-                            {% set is_latest = users_query.type == UserQueryType.LATEST %}
-                            <a href="{{ url("users", **users_query.get_dict({"type": None if is_latest else UserQueryType.LATEST})) }}"
-                               class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %}">
-                                <i class="bi bi-clock{{ "-fill" if is_latest else "" }}"></i> {{ val_map[UserQueryType.LATEST]["title"] }}
-                                first
-                            </a>
-                            {% set is_popular = users_query.type == UserQueryType.POPULAR %}
-                            <a href="{{ url("users", **users_query.get_dict({"type": None if is_popular else UserQueryType.POPULAR})) }}"
-                               class="btn {% if is_popular %}btn-primary active{% else %}btn-light{% endif %}">
-                                <i class="bi bi-heart{{ "-fill" if is_popular else "" }}"></i> {{ val_map[UserQueryType.POPULAR]["title"] }}
-                                first
-                            </a>
-                        </div>
-                    </div>
-
-                    {% if users_query.has_params() %}
+                    {% if user_query.has_params() %}
                         <div>
-                            <a href="{{ url("users") }}" class="btn btn-light">
-                                <i class="bi bi-x-lg"></i> Reset
-                            </a>
+                            <a href="{{ users_url() }}" class="btn btn-light bi bi-x-lg"> Reset</a>
                         </div>
                     {% endif %}
                 </div>

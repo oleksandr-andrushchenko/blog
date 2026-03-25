@@ -98,6 +98,18 @@ UserDep = Annotated[User, Depends(get_user_by_id)]
 UserQueryDep = Annotated[UserQueryDTO, Depends()]
 
 
+async def get_user_query_by_slugs(request: Request, type: str) -> UserQueryDTO:
+    data = dict(request.query_params)
+    data.update({"type": type})
+    try:
+        return UserQueryDTO(**data)
+    except ValidationError as e:
+        raise RequestValidationError(e.errors())
+
+
+UserQueryBySlugsDep = Annotated[UserQueryDTO, Depends(get_user_query_by_slugs)]
+
+
 async def get_post_query(request: Request, tags: list[str] = Query([])) -> PostQueryDTO:
     data = dict(request.query_params)
     data.update({"tags": tags})

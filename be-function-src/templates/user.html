@@ -1,17 +1,16 @@
 {% extends "layout.html" %}
-
+{% set canonical_url = user_url(user) %}
 {% set val_map = {
     (PostQueryType.LATEST): {"title": "Latest", "subtitle": "Recently added", "icon": "clock-fill"},
     (PostQueryType.POPULAR): {"title": "Popular", "subtitle": "Most rated", "icon": "star-fill"},
-    (PostStatus.PUBLISHED): {"title": "Published", "subtitle": "Published"},
+    (PostStatus.PUBLISHED): {"title": None, "subtitle": None},
     (PostStatus.UNPUBLISHED): {"title": "Unpublished", "subtitle": "Unpublished"},
     (PostStatus.REJECTED): {"title": "Rejected", "subtitle": "Rejected"}
 } %}
 
-{% set posts_title = " ".join([val_map[posts_query.type]["title"]] + [val_map[posts_query.status]["title"]] + ["Posts"]) | capitalize %}
-{% set posts_subtitle = " ".join([val_map[posts_query.type]["subtitle"]] + [val_map[posts_query.status]["subtitle"]] + ["Articles"]) | capitalize %}
-{% set canonical_url = user_url(user) %}
-{% set alternate_url = url("user", user_id=user.id) %}
+{% set posts_icon = val_map[PostQueryType.LATEST]["icon"] %}
+{% set posts_title = ([val_map[post_query.type]["title"]] + [val_map[post_query.status]["title"]] + ["Posts"]) | select | join(" ") | title %}
+{% set posts_subtitle = ([val_map[post_query.type]["subtitle"]] + [val_map[post_query.status]["subtitle"]] + ["Articles"]) | select | join(" ") | title %}
 
 {% block meta_title %}{{ user.name }} – {{ site_name }}{% endblock %}
 {% block meta_description %}
@@ -35,9 +34,8 @@
     } | tojson | safe -}}
 {% endblock %}
 {% block meta_canonical %}{{ canonical_url }}{% endblock %}
-{% block meta_alternate %}{{ alternate_url }}{% endblock %}
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), "Users": url("users"), (user.name): None} %}
+    {% with breadcrumbs = {"Home": url("index"), "Users": users_url(), (user.name): None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
@@ -69,18 +67,12 @@
 
     <div class="row g-5">
         <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-4">
-            <h2 class="mb-0 text-decoration-underline">
-                <i class="bi bi-info-circle"></i>
-                User info
-            </h2>
+            <h2 class="mb-0 text-decoration-underline bi bi-info-circle"> User info</h2>
 
             <div class="d-flex flex-column gap-1">
                 {% if user.website %}
                     <div>
-                        <small class="text-secondary">
-                            <i class="bi bi-link-45deg"></i>
-                            Website:
-                        </small>
+                        <small class="text-secondary bi bi-link-45deg"> Website:</small>
                         <a class="text-decoration-none link-body-emphasis d-inline-block me-2" href="{{ user.website }}"
                            target="_blank" rel="noopener noreferrer">
                             {{ user.website }}
@@ -91,10 +83,7 @@
 
                 {% if user.github_username %}
                     <div>
-                        <small class="text-secondary">
-                            <i class="bi bi-github"></i>
-                            GitHub:
-                        </small>
+                        <small class="text-secondary bi bi-github"> GitHub:</small>
                         <a class="text-decoration-none link-body-emphasis d-inline-block me-2"
                            href="https://github.com/{{ user.github_username }}" target="_blank"
                            rel="noopener noreferrer">
@@ -106,45 +95,35 @@
 
                 {% if user.address %}
                     <div>
-                        <small class="text-secondary">
-                            <i class="bi bi-geo"></i>
-                            Address:
-                        </small>
+                        <small class="text-secondary bi bi-geo"> Address:</small>
                         {{ user.address }}
                     </div>
                 {% endif %}
 
                 <div class="d-flex gap-3 flex-wrap small">
                     <div class="d-flex align-items-center gap-1">
-                        <i class="bi bi-heart text-secondary"></i>
-                        <span>{{ user.followers_count }}</span>
+                        <span class="bi bi-heart text-secondary"> {{ user.followers_count }}</span>
                         <span class="text-secondary">Followers</span>
                     </div>
 
                     <div class="d-flex align-items-center gap-1">
-                        <i class="bi bi-person-heart text-secondary"></i>
-                        <span>{{ user.following_count }}</span>
+                        <span class="bi bi-person-heart text-secondary"> {{ user.following_count }}</span>
                         <span class="text-secondary">Following</span>
                     </div>
 
                     <div class="d-flex align-items-center gap-1">
-                        <i class="bi bi-pencil text-secondary"></i>
-                        <span>{{ user.published_posts_count }}</span>
+                        <span class="bi bi-pencil text-secondary"> {{ user.published_posts_count }}</span>
                         <span class="text-secondary">Posts</span>
                     </div>
 
                     <div class="d-flex align-items-center gap-1">
-                        <i class="bi bi-chat text-secondary"></i>
-                        <span>{{ user.post_comments_count }}</span>
+                        <span class="bi bi-chat text-secondary"> {{ user.post_comments_count }}</span>
                         <span class="text-secondary">Comments</span>
                     </div>
                 </div>
 
                 <div>
-                    <small class="text-secondary">
-                        <i class="bi bi-calendar2"></i>
-                        Joined:
-                    </small>
+                    <small class="text-secondary bi bi-calendar2"> Joined:</small>
                     {{ (user.created_at / 1000) | unix_to_full_date() }}
                 </div>
             </div>
@@ -152,11 +131,7 @@
 
             {% if user.about %}
                 <section class="d-flex flex-column gap-3">
-                    <h2 class="mb-0 text-decoration-underline">
-                        <i class="bi bi-fingerprint"></i>
-                        About
-                    </h2>
-
+                    <h2 class="mb-0 text-decoration-underline bi bi-fingerprint"> About</h2>
                     <div class="card text-bg-light">
                         <div class="card-body">
                             <div class="card-text">{{ user.about }}</div>
@@ -166,38 +141,34 @@
             {% endif %}
 
             <div class="d-flex flex-column gap-3">
-                <h2 class="mb-0 text-decoration-underline">
-                    <i class="bi bi-{{ val_map[PostQueryType.LATEST]["icon"] }}"></i> {{ posts_title }}
-                </h2>
+                <h2 class="mb-0 text-decoration-underline bi bi-{{ posts_icon }}"> {{ posts_title }}</h2>
 
                 {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_POST, user) %}
                     <div class="d-flex justify-content-start align-items-center gap-1">
                         <small class="text-secondary">Filter by status:</small>
 
                         <div class="btn-group">
-                            {% set is_published = posts_query.status == PostStatus.PUBLISHED %}
-                            <a href="{{ user_url(user, **posts_query.get_dict({"status": None if is_published else PostStatus.PUBLISHED.value})) }}"
+                            {% set is_published = post_query.status == PostStatus.PUBLISHED %}
+                            <a href="{{ user_url(user, **post_query.get_dict({"status": None if is_published else PostStatus.PUBLISHED.value})) }}"
                                class="btn {% if is_published %}btn-success active{% else %}btn-light{% endif %}">
-                                {{ val_map[PostStatus.PUBLISHED]["title"] }} ({{ user.published_posts_count }})
+                                {{ PostStatus.PUBLISHED | title }} ({{ user.published_posts_count }})
                             </a>
 
-                            {% set is_unpublished = posts_query.status == PostStatus.UNPUBLISHED %}
-                            <a href="{{ user_url(user, **posts_query.get_dict({"status": None if is_unpublished else PostStatus.UNPUBLISHED.value})) }}"
+                            {% set is_unpublished = post_query.status == PostStatus.UNPUBLISHED %}
+                            <a href="{{ user_url(user, **post_query.get_dict({"status": None if is_unpublished else PostStatus.UNPUBLISHED.value})) }}"
                                class="btn {% if is_unpublished %}btn-warning active{% else %}btn-light{% endif %}">
-                                {{ val_map[PostStatus.UNPUBLISHED]["title"] }} ({{ user.unpublished_posts_count }})
+                                {{ PostStatus.UNPUBLISHED | title }} ({{ user.unpublished_posts_count }})
                             </a>
 
-                            {% set is_rejected = posts_query.status == PostStatus.REJECTED %}
-                            <a href="{{ user_url(user, **posts_query.get_dict({"status": None if is_rejected else PostStatus.REJECTED.value})) }}"
+                            {% set is_rejected = post_query.status == PostStatus.REJECTED %}
+                            <a href="{{ user_url(user, **post_query.get_dict({"status": None if is_rejected else PostStatus.REJECTED.value})) }}"
                                class="btn {% if is_rejected %}btn-danger active{% else %}btn-light{% endif %}">
-                                {{ val_map[PostStatus.REJECTED]["title"] }} ({{ user.rejected_posts_count }})
+                                {{ PostStatus.REJECTED | title }} ({{ user.rejected_posts_count }})
                             </a>
                         </div>
 
-                        {% if posts_query.has_params() %}
-                            <a href="{{ user_url(user) }}" class="btn btn-light">
-                                <i class="bi bi-x-lg"></i> Reset
-                            </a>
+                        {% if post_query.has_params() %}
+                            <a href="{{ user_url(user) }}" class="btn btn-light bi bi-x-lg"> Reset</a>
                         {% endif %}
                     </div>
                 {% endif %}
@@ -207,10 +178,10 @@
                         {% include "fragments/posts.html" %}
                     </div>
 
-                    {% with limit=posts_query.limit,
+                    {% with limit=post_query.limit,
                         offset=posts[-1].offset,
                         count=posts|length,
-                        url=url("user-posts-fragment", user_id=user.id, **posts_query.get_dict()),
+                        url=url("user-posts-fragment", user_id=user.id, **post_query.get_dict()),
                         container="#posts" %}
                         {% include "fragments/load-more-button.html" %}
                     {% endwith %}
@@ -221,10 +192,7 @@
         </div>
 
         <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
-            <h2 class="mb-0 text-decoration-underline">
-                <i class="bi bi-box"></i>
-                User actions
-            </h2>
+            <h2 class="mb-0 text-decoration-underline bi bi-box"> User actions</h2>
 
             <div class="d-flex flex-column gap-1">
                 {% include "fragments/user-status.html" %}
@@ -232,13 +200,13 @@
 
                 {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
                     <div>
-                        <a href="{{ url("edit-user", user_id=user.id) }}" class="btn btn-light">
-                            <i class="bi bi-pencil"></i> Edit profile
+                        <a href="{{ url("edit-user", user_id=user.id) }}" class="btn btn-light bi bi-pencil">
+                            Edit profile
                         </a>
                     </div>
                 {% endif %}
 
-                {% with url_to_copy=base_url+alternate_url, copy_url_label="Copy persistent user profile link" %}
+                {% with url_to_copy=url("user", user_id=user.id, full=True), copy_url_label="Copy persistent user profile link" %}
                     {% include "fragments/copy-url.html" %}
                 {% endwith %}
             </div>

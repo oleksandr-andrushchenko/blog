@@ -78,8 +78,6 @@ from utils import (
     get_post_comments,
     update_post_comment,
     get_post_comment_url,
-    get_posts_url,
-    get_current_url,
 )
 from deps import (
     OptCurUserDep,
@@ -102,6 +100,7 @@ from deps import (
     PostCommentDep,
     UpdatePostCommentDTODep,
     PostQueryBySlugsDep,
+    UserQueryBySlugsDep,
 )
 import asyncio
 import os
@@ -199,7 +198,7 @@ async def base_post_page(post: PostDep, cur_user: OptCurUserDep) -> HTMLResponse
 async def base_posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
     return get_html_content("posts.html", {
         "cur_user": cur_user,
-        "posts_query": query_dto,
+        "post_query": query_dto,
         "posts": await get_posts(query_dto, cur_user),
     })
 
@@ -239,13 +238,7 @@ async def posts_fragment(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> st
 
 
 @app.get("/posts/{post_id}", name="post")
-async def post_page(post: PostDep, cur_user: OptCurUserDep, request: Request):
-    canonical_url = get_post_url(request, post)
-    alternate_url = get_url(request, "post", post_id=post.id)
-
-    if canonical_url != alternate_url:
-        return RedirectResponse(canonical_url)
-
+async def post_page(post: PostDep, cur_user: OptCurUserDep):
     return await base_post_page(post, cur_user)
 
 
@@ -334,13 +327,22 @@ async def _get_post_tags(query_dto: TagQueryDep) -> list[Tag]:
     return await get_post_tags(query_dto)
 
 
-@app.get("/users", name="users", response_class=HTMLResponse)
-async def users(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> str:
+async def base_users_page(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
     return get_html_content("users.html", {
         "cur_user": cur_user,
-        "users_query": query_dto,
+        "user_query": query_dto,
         "users": await get_users(query_dto, cur_user)
     })
+
+
+@app.get("/users", name="users", response_class=HTMLResponse)
+async def users_page(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> str:
+    return await base_users_page(query_dto, cur_user)
+
+
+@app.get("/{type}/users", name="users-by-slugs", response_class=HTMLResponse)
+async def users_page_by_slugs(query_dto: UserQueryBySlugsDep, cur_user: OptCurUserDep) -> HTMLResponse:
+    return await base_users_page(query_dto, cur_user)
 
 
 @app.get("/users-fragment", name="users-fragment", response_class=HTMLResponse)
@@ -367,7 +369,7 @@ async def base_user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user:
     html_content = get_html_content("user.html", {
         "cur_user": cur_user,
         "user": user,
-        "posts_query": posts_query_dto,
+        "post_query": posts_query_dto,
         "posts": posts,
         "user_impression": user_impression,
     })
@@ -375,13 +377,7 @@ async def base_user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user:
 
 
 @app.get("/users/{user_id}", name="user")
-async def user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep, request: Request):
-    canonical_url = get_user_url(request, user)
-    alternate_url = get_url(request, "user", user_id=user.id)
-
-    if canonical_url != alternate_url:
-        return RedirectResponse(canonical_url)
-
+async def user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep):
     return await base_user_page(user, posts_query_dto, cur_user)
 
 
@@ -439,7 +435,7 @@ async def user_posts_fragment(user: UserDep, query_dto: PostQueryDep, cur_user: 
 @app.get("/login", name="login", response_class=RedirectResponse)
 async def login(request: Request) -> RedirectResponse:
     redirect_url = get_redirect_url(request)
-    callback_url = get_url(request, 'login-callback', full_url=True)
+    callback_url = get_url(request, 'login-callback', full=True)
     provider_redirect_url = await get_login_redirect_url(callback_url)
     response = RedirectResponse(provider_redirect_url)
     response.set_cookie("redirect_url", redirect_url, httponly=True, secure=True)
@@ -450,7 +446,7 @@ async def login(request: Request) -> RedirectResponse:
 async def login_callback(request: Request) -> RedirectResponse:
     try:
         redirect_url = request.cookies.get("redirect_url") or get_url(request, "index")
-        callback_url = get_url(request, 'login-callback', full_url=True)
+        callback_url = get_url(request, 'login-callback', full=True)
 
         cognito_user_token = await get_user_token_by_code(
             code=request.query_params.get("code"),
@@ -476,7 +472,7 @@ async def login_callback(request: Request) -> RedirectResponse:
 @app.get("/logout", name="logout", response_class=RedirectResponse)
 async def logout(request: Request) -> RedirectResponse:
     redirect_url = get_redirect_url(request)
-    callback_url = get_url(request, 'logout-callback', full_url=True)
+    callback_url = get_url(request, 'logout-callback', full=True)
     provider_redirect_url = await get_logout_redirect_url(callback_url)
     response = RedirectResponse(provider_redirect_url)
     response.set_cookie("redirect_url", redirect_url, httponly=True, secure=True)

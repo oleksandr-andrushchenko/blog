@@ -14,10 +14,7 @@
     </div>
 
     <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-2">
-        <small class="text-secondary">
-            <i class="bi bi-tags"></i>
-            Tags:
-        </small>
+        <small class="text-secondary bi bi-tags"> Tags:</small>
         {% with url=url("get-post-tags"), value=post.tags if post else [] %}
             {% include "fragments/tags-input.html" %}
         {% endwith %}

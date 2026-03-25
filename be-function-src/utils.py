@@ -116,8 +116,7 @@ class UserDTO(BaseModel):
 
     USERNAME_PATTERN: ClassVar[re.Pattern] = re.compile(r"^[a-z0-9-]+$")
     USERNAME_BLACKLIST: ClassVar[set[str]] = {"posts", "posts-fragment", "contacts", "post-tags", "users",
-                                              "users-fragment",
-                                              "dummy-fixtures"}
+                                              "users-fragment", "dummy-fixtures", "popular"}
 
     @field_validator("username")
     @classmethod
@@ -337,6 +336,9 @@ class UserQueryType(StrEnum):
 
 
 class UserQueryDTO(BaseQueryDTO):
+    DEFAULT_TYPE: ClassVar[UserQueryType] = UserQueryType.LATEST
+    DEFAULT_STATUS: ClassVar[UserStatus] = UserStatus.ACTIVE
+
     type: UserQueryType = UserQueryType.LATEST
     status: UserStatus = UserStatus.ACTIVE
 
@@ -956,10 +958,49 @@ def parse_posts_url_slugs_path(slugs_path: str) -> dict:
     return data
 
 
-def get_url(request, name: str, full_url: bool = False, **params) -> str:
+@pass_context
+def jinja2_users_url(ctx, query: UserQueryDTO | None = None, **params) -> str:
+    return get_users_url(ctx.get("request"), query=query, **params)
+
+
+def get_users_url(request, query: UserQueryDTO | None = None, **params) -> str:
+    if not query:
+        query = UserQueryDTO()
+
+    params = query.get_dict(params)
+
+    slugs: list[str] = []
+
+    type_ = params.pop("type", None)
+    if type_:
+        type_ = str(type_)
+        if type_ != str(UserQueryDTO.DEFAULT_TYPE):
+            slugs.append(type_)
+
+    status = params.pop("status", None)
+    if status:
+        status = str(status)
+        if status != str(UserQueryDTO.DEFAULT_STATUS):
+            params["status"] = status
+
+    offset = params.pop("offset", None)
+    if offset and offset != UserQueryDTO.DEFAULT_OFFSET:
+        params["offset"] = offset
+
+    limit = params.pop("limit", None)
+    if limit and limit != UserQueryDTO.DEFAULT_LIMIT:
+        params["limit"] = limit
+
+    if not slugs:
+        return get_url(request, "users", **params)
+
+    return get_url(request, "users-by-slugs", type=slugs[0], **params)
+
+
+def get_url(request, name: str, full: bool = False, **params) -> str:
     """
     Generate a URL for a named route.
-    By default, returns path-only URLs; set full_url=True to prepend base_url.
+    By default, returns path-only URLs; set full=True to prepend base_url.
     """
     # Find the route
     route = next(r for r in request.app.routes if getattr(r, "name", None) == name)
@@ -972,7 +1013,7 @@ def get_url(request, name: str, full_url: bool = False, **params) -> str:
     # Use request.url_for to get the path
     url_path = request.url_for(name, **path_params).path
 
-    if full_url and url_path == "/":
+    if full and url_path == "/":
         url_path = ""
 
     # Handle query parameters
@@ -988,7 +1029,7 @@ def get_url(request, name: str, full_url: bool = False, **params) -> str:
         if items:
             url_path = f"{url_path}?{urlencode(items)}"
 
-    if full_url:
+    if full:
         base_url = get_base_url()
         return f"{base_url}{url_path}"
 
@@ -1063,6 +1104,7 @@ def get_jinja2_env():
         "user_url": jinja2_user_url,
         "post_url": jinja2_post_url,
         "posts_url": jinja2_posts_url,
+        "users_url": jinja2_users_url,
         "Permission": Permission,
         "check_auth": check_authorization,
         "PostStatus": PostStatus,
@@ -1072,6 +1114,7 @@ def get_jinja2_env():
         "UserQueryType": UserQueryType,
         "UserStatus": UserStatus,
         "PostQueryDTO": PostQueryDTO,
+        "UserQueryDTO": UserQueryDTO,
     })
     return jinja2_env
 

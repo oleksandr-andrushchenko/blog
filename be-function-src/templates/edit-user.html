@@ -7,7 +7,7 @@
 {% block meta_canonical %}{{ url("edit-user", user_id=user.id) }}{% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), "Users": url("users"), (user.name): url("user-page", user_id=user.id), "Edit": None} %}
+    {% with breadcrumbs = {"Home": url("index"), "Users": users_url(), (user.name): url("user-page", user_id=user.id), "Edit": None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}

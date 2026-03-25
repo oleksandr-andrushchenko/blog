@@ -13,8 +13,7 @@
                 {{ user.name }}
             </a>
 
-            <small class="post-comment-created-at text-secondary">
-                <i class="bi bi-calendar2"></i>
+            <small class="post-comment-created-at text-secondary bi bi-calendar2">
                 {{ (post_comment.created_at / 1000) | unix_to_full_date }}
             </small>
 

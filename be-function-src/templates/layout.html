@@ -37,7 +37,6 @@
     <meta name="keywords" content="{% block meta_keywords %}{{ meta_keywords }}{% endblock %}"/>
     <meta name="author" content="{% block meta_author %}{{ meta_author }}{% endblock %}"/>
     <link rel="canonical" href="{% block meta_canonical %}{% endblock %}">
-    <link rel="alternate" href="{% block meta_alternate %}{% endblock %}">
 
     <meta name="application-name" content="{{ site_name }}"/>
     <meta name="mobile-web-app-capable" content="yes"/>
@@ -90,7 +89,7 @@
                         <a class="nav-link" href="{{ posts_url() }}">Posts</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url("users") }}">Users</a>
+                        <a class="nav-link" href="{{ users_url() }}">Users</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url("contacts") }}">Contacts</a>
@@ -101,15 +100,15 @@
                     {% if cur_user %}
                         {% if check_auth(cur_user, Permission.CREATE_POST) %}
                             <li class="nav-item">
-                                <a class="nav-link{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}"
+                                <a class="nav-link{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %} bi bi-pencil-fill"
                                    href="{{ url("new-post") }}">
-                                    <i class="bi bi-pencil-fill"></i> New post
+                                    New post
                                 </a>
                             </li>
                         {% endif %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ user_url(cur_user) }}">
-                                <i class="bi bi-person-circle"></i> {{ cur_user.name }}
+                            <a class="nav-link bi bi-person-circle" href="{{ user_url(cur_user) }}">
+                                {{ cur_user.name }}
                                 {% if check_auth(cur_user, Permission.ROOT) %}
                                     <span class="badge text-bg-success">root</span>
                                 {% endif %}
@@ -125,14 +124,13 @@
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url("login", redirect_url=url("new-post")|urlencode) }}">
-                                <i class="bi bi-pencil-fill"></i> New post
+                            <a class="nav-link bi bi-pencil-fill"
+                               href="{{ url("login", redirect_url=url("new-post")|urlencode) }}">
+                                New post
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url('login') }}">
-                                <i class="bi bi-box-arrow-in-right"></i> Sign in
-                            </a>
+                            <a class="nav-link bi bi-box-arrow-in-right" href="{{ url('login') }}"> Sign in</a>
                         </li>
                     {% endif %}
                 </ul>
@@ -152,9 +150,7 @@
                     This website uses cookies to ensure you get the best experience.
                     <a href="{{ url('policy') }}" class="alert-link">Learn more</a>.
                 </div>
-                <button type="button" class="btn btn-dark btn-sm" id="accept-cookies">
-                    <i class="bi bi-check2-all"></i> Accept
-                </button>
+                <button type="button" class="btn btn-dark btn-sm bi bi-check2-all" id="accept-cookies"> Accept</button>
             </div>
         </div>
 
@@ -179,9 +175,8 @@
         {% if contact_socials %}
             <div class="d-flex justify-content-center justify-content-md-end gap-3">
                 {% for contact_social in contact_socials %}
-                    <a href="{{ contact_social.url }}" class="link-dark fs-4" target="_blank" rel="noopener noreferrer">
-                        <i class="bi bi-{{ contact_social.icon }}"></i>
-                    </a>
+                    <a href="{{ contact_social.url }}" class="link-dark fs-4 bi bi-{{ contact_social.icon }}"
+                       target="_blank" rel="noopener noreferrer"></a>
                 {% endfor %}
             </div>
         {% endif %}

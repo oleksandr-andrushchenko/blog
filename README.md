@@ -66,9 +66,6 @@
 - add redirects for user usernames (as it was for post titles)
 - improve post comments
 - posts form: submit slugs URL version (instead of queries)
-- add users slugs URLs (like for posts)
-- exclude post types & statuses from post tag names
-- remove meta alternate urls
 - check SEO carefully and fix issues (redirect, canonical, robots, index/follow, titles, etc.)
 ## Links
 

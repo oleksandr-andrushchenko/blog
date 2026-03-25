@@ -26,8 +26,8 @@
         </a>
 
         <div class="d-flex flex-wrap gap-2">
-            <small class="text-secondary" title="Joined at">
-                <i class="bi bi-calendar2"></i> {{ (user.created_at / 1000) | unix_to_full_date }}
+            <small class="text-secondary bi bi-calendar2" title="Joined at">
+                {{ (user.created_at / 1000) | unix_to_full_date }}
             </small>
 
             {% if user.status == UserStatus.BANNED %}
@@ -35,20 +35,20 @@
             {% endif %}
 
             {% if user.followers_count %}
-                <small class="text-secondary" title="Followers">
-                    <i class="bi bi-heart"></i> {{ user.followers_count }}
+                <small class="text-secondary bi bi-heart" title="Followers">
+                    {{ user.followers_count }}
                 </small>
             {% endif %}
 
             {% if user.published_posts_count %}
-                <small class="text-secondary" title="Posts written">
-                    <i class="bi bi-pencil"></i> {{ user.published_posts_count }}
+                <small class="text-secondary bi bi-pencil" title="Posts written">
+                    {{ user.published_posts_count }}
                 </small>
             {% endif %}
 
             {% if user.post_comments_count %}
-                <small class="text-secondary" title="Post comments added">
-                    <i class="bi bi-chat"></i> {{ user.post_comments_count }}
+                <small class="text-secondary bi bi-chat" title="Post comments added">
+                    {{ user.post_comments_count }}
                 </small>
             {% endif %}
         </div>

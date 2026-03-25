@@ -21,8 +21,8 @@
         </a>
 
         <div class="d-flex flex-wrap gap-2">
-            <small class="text-secondary" title="Created at">
-                <i class="bi bi-calendar2"></i> {{ (post.created_at / 1000) | unix_to_full_date }}
+            <small class="text-secondary bi bi-calendar2" title="Created at">
+                {{ (post.created_at / 1000) | unix_to_full_date }}
             </small>
 
             {% if post.status == PostStatus.REJECTED %}
@@ -34,11 +34,11 @@
             {% if post.likes_count or post.dislikes_count %}
                 <small class="text-secondary">
                     {% if post.likes_count %}
-                        <span title="Likes"><i class="bi bi-hand-thumbs-up"></i> {{ post.likes_count }}</span>
+                        <span class="bi bi-hand-thumbs-up" title="Likes"> {{ post.likes_count }}</span>
                     {% endif %}
 
                     {% if post.dislikes_count %}
-                        <span title="Dislikes"><i class="bi bi-hand-thumbs-up"></i> {{ post.dislikes_count }}</span>
+                        <span class="bi bi-hand-thumbs-up" title="Dislikes"> {{ post.dislikes_count }}</span>
                     {% endif %}
                 </small>
             {% endif %}

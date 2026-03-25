@@ -1,6 +1,5 @@
 {% extends "layout.html" %}
 {% set canonical_url = post_url(post) %}
-{% set alternate_url = url("post", post_id=post.id) %}
 {% set author_canonical_url = user_url(author) %}
 {% set author_alternate_canonical_url = url("user", user_id=author.id) %}
 {% set index_url = url("index") %}
@@ -14,7 +13,6 @@
 {% block meta_keywords %}{{ post.tags|join(",") }},{{ meta_keywords }}{% endblock %}
 {% block meta_author %}{{ author.name }}{% endblock %}
 {% block meta_canonical %}{{ canonical_url }}{% endblock %}
-{% block meta_alternate %}{{ alternate_url }}{% endblock %}
 {% block meta_schema %}
     {% set author_schema = {
         "@context": "https://schema.org",
@@ -114,17 +112,11 @@
         </div>
 
         <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
-            <h2 class="mb-0 text-decoration-underline">
-                <i class="bi bi-info-circle"></i>
-                Post info
-            </h2>
+            <h2 class="mb-0 text-decoration-underline bi bi-info-circle"> Post info</h2>
 
             <div class="d-flex flex-column gap-1">
                 <div>
-                    <small class="text-secondary">
-                        <i class="bi bi-person-circle"></i>
-                        Author:
-                    </small>
+                    <small class="text-secondary bi bi-person-circle"> Author:</small>
                     <div class="d-inline-block">
                         {% with user=author,
                             h_tag_size=3,
@@ -136,11 +128,7 @@
 
                 {% if post.tags %}
                     <div>
-                        <small class="text-secondary">
-                            <i class="bi bi-tags"></i>
-                            Tags:
-                        </small>
-
+                        <small class="text-secondary bi bi-tags"> Tags:</small>
                         {% for tag in post.tags %}
                             <a href="{{ posts_url(tags=[tag]) }}" class="btn btn-light btn-sm">
                                 {{ tag }}
@@ -162,11 +150,7 @@
                 {% endif %}
 
                 <div>
-                    <small class="text-secondary">
-                        <i class="bi bi-calendar2"></i>
-                    </small>
-
-                    <small class="text-secondary">Created:</small>
+                    <small class="text-secondary bi bi-calendar2"> Created:</small>
                     {{ (post.created_at / 1000) | unix_to_full_date }}
 
                     {% if post.updated_at %}
@@ -183,10 +167,7 @@
                 </div>
             </div>
 
-            <h2 class="mb-0 text-decoration-underline">
-                <i class="bi bi-box"></i>
-                Post actions
-            </h2>
+            <h2 class="mb-0 text-decoration-underline bi bi-box"> Post actions</h2>
 
             <div class="d-flex flex-column gap-1">
                 {% include "fragments/post-status.html" %}
@@ -194,13 +175,13 @@
 
                 {% if cur_user and check_auth(cur_user, Permission.UPDATE_POST, post) %}
                     <div>
-                        <a href="{{ url("edit-post", post_id=post.id) }}" class="btn btn-light">
-                            <i class="bi bi-pencil"></i> Edit post
+                        <a href="{{ url("edit-post", post_id=post.id) }}" class="btn btn-light bi bi-pencil">
+                            Edit post
                         </a>
                     </div>
                 {% endif %}
 
-                {% with url_to_copy=base_url+alternate_url, copy_url_label="Copy persistent article link" %}
+                {% with url_to_copy=url("post", post_id=post.id, full=True), copy_url_label="Copy persistent article link" %}
                     {% include "fragments/copy-url.html" %}
                 {% endwith %}
 
@@ -210,11 +191,7 @@
             </div>
 
             {% if related_posts %}
-                <h2 class="mb-0 text-decoration-underline">
-                    <i class="bi bi-list-check"></i>
-                    Related posts
-                </h2>
-
+                <h2 class="mb-0 text-decoration-underline bi bi-list-check"> Related posts</h2>
                 <div id="related-posts" class="d-flex flex-column gap-3">
                     {% with posts=related_posts,
                             preview=False,
