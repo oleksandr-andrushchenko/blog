@@ -36,6 +36,7 @@
         {%- block meta_description %}{{ meta_description | truncate(155, True, '...') }}{% endblock %}"/>
     <meta name="keywords" content="{% block meta_keywords %}{{ meta_keywords }}{% endblock %}"/>
     <meta name="author" content="{% block meta_author %}{{ meta_author }}{% endblock %}"/>
+    <meta name="robots" content="{% block meta_robots %}{{ meta_robots | default("index, follow") }}{% endblock %}">
     <link rel="canonical" href="{% block meta_canonical %}{% endblock %}">
 
     <meta name="application-name" content="{{ site_name }}"/>

@@ -1,40 +1,18 @@
 User-agent: *
 
-# --- PUBLIC CONTENT (indexable) ---
+# --- ALLOW ALL BY DEFAULT ---
 Allow: /
-Allow: /posts
-Allow: /contacts
-Allow: /users
-Allow: /privacy-policy
-Allow: /rules
-Allow: /terms-of-service
-Allow: /robots.txt
-Allow: /sitemap.xml
-Allow: /license.xml
 
-# --- BLOCK query params (pagination, tracking, filtering) ---
+# --- BLOCK QUERY PARAMETERS (duplicates, filters, tracking) ---
 Disallow: /*?
 
-# --- BLOCK non-image static/file-like assets ---
+# --- BLOCK API ROUTES ---
+Disallow: /api/
+
+# --- BLOCK NON-HTML / STATIC FILE TYPES ---
 Disallow: /*.css
 Disallow: /*.js
 Disallow: /*.json
 Disallow: /*.txt
 Disallow: /*.ico
-Disallow: /*.svg
-
-# --- ALLOW images ---
-Allow: /*.png
-Allow: /*.jpg
-Allow: /*.jpeg
-Allow: /*.webp
-Allow: /*.gif
-
-# --- BLOCK dynamic, private, or duplicate routes ---
-Disallow: /posts-fragment
-Disallow: /users-fragment
-Disallow: /auth/
-Disallow: /me
-Disallow: /posts/new
-Disallow: /dummy-fixtures
-Disallow: /contacts/message
+Disallow: /*.xml

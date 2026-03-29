@@ -63,10 +63,10 @@
 - add author to the footer
 - update logo in google auth
 - posts page: add popular tags to "filter by tags" block
-- add redirects for user usernames (as it was for post titles)
 - improve post comments
 - posts form: submit slugs URL version (instead of queries)
 - check SEO carefully and fix issues (redirect, canonical, robots, index/follow, titles, etc.)
+- generate tag combos for post pages (article's tag combos for crawlers, we dont have sitemap still)
 ## Links
 
 - favicon - https://realfavicongenerator.net

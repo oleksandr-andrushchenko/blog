@@ -1,17 +1,17 @@
-{% set image = image|default(True) and post.image_filename %}
-{% set preview = preview|default(True) and post.preview %}
-{% set vert_gap = vert_gap|default(1) %}
-{% set h_tag_size = h_tag_size|default(2) %}
-{% set h_display_size = h_display_size|default(4) %}
-{% set image_col_size = image_col_size|default(3) if image else 0 %}
-{% set border = border|default(True) %}
+{% set image = image | default(True) and post.image_filename %}
+{% set preview = preview | default(True) and post.preview %}
+{% set vert_gap = vert_gap | default(1) %}
+{% set h_tag_size = h_tag_size | default(2) %}
+{% set h_display_size = h_display_size | default(4) %}
+{% set image_col_size = image_col_size | default(3) if image else 0 %}
+{% set border = border | default(True) %}
 
 <div class="post row g-3 {% if border %}pb-3 border-bottom{% endif %}"
      {% if post.offset %}data-offset="{{ post.offset }}"{% endif %}>
-    <div class="{{ image_col_size|col_classes(inverse=True) }} d-flex flex-column gap-{{ vert_gap }}">
+    <div class="{{ image_col_size | col_classes(inverse=True) }} d-flex flex-column gap-{{ vert_gap }}">
         <a class="link-body-emphasis text-decoration-none d-flex flex-column gap-{{ vert_gap }}"
            href="{{ post_url(post) }}">
-            <h{{ h_tag_size }} class="h{{ h_display_size|default(3) }} mb-0">{{ post.title }}</h{{ h_tag_size }}>
+            <h{{ h_tag_size }} class="h{{ h_display_size | default(3) }} mb-0">{{ post.title }}</h{{ h_tag_size }}>
 
             {% if preview %}
                 <div class="text-secondary two-line-ellipsis">
@@ -38,12 +38,12 @@
                     {% endif %}
 
                     {% if post.dislikes_count %}
-                        <span class="bi bi-hand-thumbs-up" title="Dislikes"> {{ post.dislikes_count }}</span>
+                        <span class="bi bi-hand-thumbs-down" title="Dislikes"> {{ post.dislikes_count }}</span>
                     {% endif %}
                 </small>
             {% endif %}
 
-            {% if tags|default(True) and post.tags %}
+            {% if tags | default(True) and post.tags %}
                 <small class="text-secondary">
                     <i class="bi bi-tags"></i>
                     {% for tag in post.tags %}
@@ -55,7 +55,7 @@
     </div>
 
     {% if image %}
-        <div class="{{ image_col_size|col_classes }}">
+        <div class="{{ image_col_size | col_classes }}">
             <a href="{{ post_url(post) }}">
                 <img class="img-thumbnail" src="{{ static_url(post.image_filename) }}" alt="{{ post.title }}">
             </a>

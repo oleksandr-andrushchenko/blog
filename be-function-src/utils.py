@@ -81,6 +81,7 @@ class User(BaseModel):
     following_count: int
     comment: str | None = None
     post_comments_count: int
+    redirect_to: str | None
     created_at: int
     updated_at: int | None = None
     offset: str | None = None
@@ -115,8 +116,10 @@ class UserDTO(BaseModel):
     username: str | None = Field(None, min_length=3, max_length=30)
 
     USERNAME_PATTERN: ClassVar[re.Pattern] = re.compile(r"^[a-z0-9-]+$")
-    USERNAME_BLACKLIST: ClassVar[set[str]] = {"posts", "posts-fragment", "contacts", "post-tags", "users",
-                                              "users-fragment", "dummy-fixtures", "popular"}
+    USERNAME_BLACKLIST: ClassVar[set[str]] = {
+        "api", "posts", "posts-fragment", "contacts", "post-tags", "users", "users-fragment", "login", "login-callback",
+        "logout", "logout-callback", "dummy-fixtures", "me", "privacy-policy", "rules", "terms-of-service", "popular",
+    }
 
     @field_validator("username")
     @classmethod
@@ -586,6 +589,12 @@ class NotAuthorizedError(BaseError):
 
 class UserBannedError(BaseError):
     pass
+
+
+class UserByOldSlugRequestedError(Exception):
+    def __init__(self, slug: str, user: User):
+        self.slug = slug
+        self.user = user
 
 
 def get_live_config():
@@ -1679,6 +1688,7 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
         old_slug = post.slug
         slug = to_kebab_case(title)
         if old_slug != slug:
+            changes["post_slug"] = slug
             # Create redirect item so old slug resolves
             redirect_item = {
                 "post_slug": old_slug,
@@ -1688,7 +1698,6 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
             add_dynamodb_put_transact(transacts, (f"POST_REDIRECT#{old_slug}", "META"), redirect_item, new_pk_only=True)
             # Create new slug lock
             add_dynamodb_put_transact(transacts, (f"POST_SLUG#{slug}", "META"), {"post_id": post.id}, new_pk_only=True)
-            changes["post_slug"] = slug
 
     old_content = post.content
     content = changes.get("content", old_content)
@@ -1959,6 +1968,7 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         following_count=d_item.get("following_count", 0),
         comment=d_item.get("comment"),
         post_comments_count=d_item.get("post_comments_count", 0),
+        redirect_to=d_item.get("redirect_to"),
         created_at=d_item.get("created_at_sk", 0),
         updated_at=d_item.get("updated_at")
     )
@@ -2164,6 +2174,8 @@ async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User
         raise UserBannedError()
 
     changes = update_user_dto.model_dump(exclude_unset=True)
+    now = utc_now()
+
     if not changes:
         return
     for k, v in changes.items():
@@ -2188,14 +2200,20 @@ async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User
     old_slug = user.username
 
     if "username" in changes:
-        new_slug = changes["username"]
-        if old_slug != new_slug:
-            add_dynamodb_delete_transact(transacts, (f"USER_SLUG#{old_slug}", "META"))
-            add_dynamodb_put_transact(transacts, (f"USER_SLUG#{new_slug}", "META"), {"user_id": user.id},
-                                      new_pk_only=True)
+        slug = changes["username"]
+        if old_slug != slug:
+            # Create redirect item so old slug resolves
+            redirect_item = {
+                "username": old_slug,
+                "redirect_to": slug,
+                "created_at": now
+            }
+            add_dynamodb_put_transact(transacts, (f"USER_REDIRECT#{old_slug}", "META"), redirect_item, new_pk_only=True)
+            # Create new slug lock
+            add_dynamodb_put_transact(transacts, (f"USER_SLUG#{slug}", "META"), {"user_id": user.id}, new_pk_only=True)
             posts = await get_latest_published_posts_by_user(user)
             for post in posts:
-                add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {"user_slug": new_slug})
+                add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {"user_slug": slug})
     else:
         add_dynamodb_delete_transact(transacts, (f"USER_SLUG#{old_slug}", "META"))
         posts = await get_latest_published_posts_by_user(user)
@@ -2275,14 +2293,45 @@ async def find_user_by_username(username: str) -> User | None:
     return user_from_dynamodb(item)
 
 
+async def find_user_by_username_follow_redirects(slug: str) -> User | None:
+    visited = set()
+    current_slug = slug
+
+    while True:
+        if current_slug in visited:
+            raise RuntimeError("Redirect loop detected")
+
+        visited.add(current_slug)
+
+        resp = await query_dynamodb_table(
+            index_name="USERS_BY_USERNAME",
+            key_condition_expr=Key("username").eq(current_slug),
+            limit=1,
+        )
+
+        items = resp.get("Items", [])
+        if not items:
+            return None
+
+        item = items[0]
+        redirect_to = item.get("redirect_to")
+        if redirect_to:
+            current_slug = redirect_to
+            continue
+
+        return user_from_dynamodb(item)
+
+
 async def get_user_by_slug(username: str, cur_user: User = None) -> User:
-    user = await find_user_by_username(username)
+    user = await find_user_by_username_follow_redirects(username)
     if user is None:
         raise UserNotFoundError(f"User '{username}' not found")
     if user.status != UserStatus.ACTIVE:
         if not cur_user:
             raise NotAuthenticatedError()
         verify_authorization(cur_user, Permission.READ_NON_ACTIVE_USER, user)
+    if user.username != username:
+        raise UserByOldSlugRequestedError(username, user)
     return user
 
 
@@ -2351,9 +2400,7 @@ async def query_dynamodb_table(
         error_code = e.response["Error"]["Code"]
         # Happens if the index doesn't exist yet (e.g., table is empty)
         if error_code == "ValidationException":
-            logger.warning(
-                f"DynamoDB index '{index_name}' not ready or empty. Returning empty list."
-            )
+            logger.warning(f"DynamoDB index '{index_name}' not ready or empty. Returning empty list.")
             return {}
         raise
 
@@ -2746,7 +2793,7 @@ async def get_user_token_by_code(code: str, callback_url: str) -> UserToken:
                 logger.error(f"Token exchange failed: {token_resp.status_code} {token_resp.text}")
                 raise CodeExchangeFailedError("Failed to exchange code")
             tokens = token_resp.json()
-            logger.debug(f"Cognito token response: {tokens}")
+            # logger.debug(f"Cognito token response: {tokens}")
 
         id_token = tokens.get("id_token")
         if not id_token:

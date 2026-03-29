@@ -2,7 +2,7 @@
 
 {% set title = ("Edit " ~ user.name) | trim %}
 
-{% block google_analytics %}{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
 {% block meta_title %}{{ title }} | {{ site_name }}{% endblock %}
 {% block meta_canonical %}{{ url("edit-user", user_id=user.id) }}{% endblock %}
 

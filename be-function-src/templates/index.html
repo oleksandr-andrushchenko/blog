@@ -29,7 +29,7 @@
 
                     {% with limit=latest_posts_query.limit,
                         offset=latest_posts[-1].offset,
-                        count=latest_posts|length,
+                        count=latest_posts | length,
                         url=url("posts-fragment", **latest_posts_query.get_dict()),
                         container="#posts",
                         auto_click=True %}
@@ -123,7 +123,7 @@
                 <div class="alert alert-light" role="alert">
                     <h2 class="h4 alert-heading bi bi-lightbulb"> Become an author</h2>
                     <p>Join our community of authors and start sharing your ideas with the world!</p>
-                    <a href="{{ url("login", redirect_url=url("new-post")|urlencode) }}"
+                    <a href="{{ url("login", redirect_url=url("new-post") | urlencode) }}"
                        class="btn btn-dark btn-sm bi bi-pencil-fill">
                         Write a post
                     </a>
