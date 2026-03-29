@@ -3178,10 +3178,11 @@ async def generate_sitemap(user: User, request) -> tuple[int, str]:
     ])
 
     # Post lists
-    def posts_url(tp: PostQueryType, tg: Tag) -> str:
-        return get_posts_url(request, type=tp, tags=[tg.name], full=True)
+    def posts_url(tp: PostQueryType, tg: Tag | None = None) -> str:
+        return get_posts_url(request, type=tp, tags=[tg.name] if tg else [], full=True)
 
     for type_ in PostQueryType:
+        urls.append((posts_url(type_), today))
         for tag in await get_post_tags(TagQueryDTO.model_construct(limit=1000)):
             urls.append((posts_url(type_, tag), today))
 
@@ -3217,19 +3218,7 @@ async def generate_sitemap(user: User, request) -> tuple[int, str]:
             break
 
     # Save
-    sitemap_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-    <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-        {''.join([
-        f"""
-        <url>
-            <loc>{loc}</loc>
-            <lastmod>{lastmod}</lastmod>
-        </url>
-        """
-        for (loc, lastmod) in urls
-    ])}
-    </urlset>
-    """
+    sitemap_xml = f"""<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{''.join([f"""<url><loc>{loc}</loc><lastmod>{lastmod}</lastmod></url>""" for (loc, lastmod) in urls])}</urlset>"""
 
     sitemap_filename = await save_public_file(
         FileDTO.model_construct(content=sitemap_xml.encode("utf-8")),
