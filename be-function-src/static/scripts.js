@@ -18,7 +18,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
   // Insert status div before submit button
   const submitBtn = form.querySelector("[type='submit']")
   const statusDiv = document.createElement("div")
-  statusDiv.className = "form-status alert d-none d-flex align-items-center"
+  statusDiv.className = "form-status alert d-none"
   statusDiv.setAttribute("role", "alert")
   submitBtn.insertAdjacentElement("beforebegin", statusDiv)
 
@@ -71,7 +71,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
     submitBtn.disabled = true
     submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>${loadingText}`
 
-    statusDiv.className = "form-status alert d-none d-flex align-items-center"
+    statusDiv.className = "form-status alert d-none"
     statusDiv.textContent = ""
 
     let data = {}
@@ -160,7 +160,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
           } catch (_) {
           }
         }
-        onSuccess(responseBody)
+        msgText = onSuccess(responseBody)
         return
       }
 
@@ -212,7 +212,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
     } finally {
       submitBtn.disabled = false
       submitBtn.innerHTML = originalBtnContent
-      statusDiv.className = `form-status alert alert-${msgClass} d-flex align-items-center`
+      statusDiv.className = `form-status alert alert-${msgClass}`
       statusDiv.innerHTML = `<i class="bi bi-${msgIcon} me-2"></i> ${msgText}`
     }
   }

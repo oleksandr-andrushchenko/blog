@@ -16,3 +16,5 @@ Disallow: /*.json
 Disallow: /*.txt
 Disallow: /*.ico
 Disallow: /*.xml
+
+Sitemap: sitemap.xml

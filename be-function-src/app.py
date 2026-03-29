@@ -79,10 +79,11 @@ from utils import (
     get_post_comments,
     update_post_comment,
     get_post_comment_url,
+    generate_sitemap,
 )
 from deps import (
     OptCurUserDep,
-    FileDTODep,
+    ImageFileDTODep,
     CurUserDep,
     PostQueryDep,
     PostDep,
@@ -174,8 +175,8 @@ async def index(cur_user: OptCurUserDep) -> str:
 
 
 @app.post("/api/public-file", name="upload-public-file", response_class=JSONResponse)
-async def upload_public_file(file_dto: FileDTODep) -> str:
-    return await save_public_file(file_dto)
+async def upload_public_file(image_file_dto: ImageFileDTODep) -> str:
+    return await save_public_file(image_file_dto)
 
 
 async def base_post_page(post: PostDep, cur_user: OptCurUserDep) -> HTMLResponse:
@@ -529,6 +530,20 @@ async def terms(cur_user: OptCurUserDep) -> str:
         "cur_user": cur_user,
         "utc_now": utc_now(),
     })
+
+
+@app.get("/utils", name="utils", response_class=HTMLResponse)
+async def utils(cur_user: CurUserDep) -> str:
+    verify_authorization(cur_user, Permission.UTILS_PAGE)
+    return get_html_content("utils.html", {
+        "cur_user": cur_user,
+    })
+
+
+@app.post("/api/generate-sitemap", name="generate-sitemap")
+async def _generate_sitemap(cur_user: CurUserDep, request: Request) -> dict:
+    urls_count, sitemap_url = await generate_sitemap(cur_user, request)
+    return {"urls_count": urls_count, "sitemap_url": sitemap_url}
 
 
 @app.get("/{slug}", name="user-by-slug", response_class=HTMLResponse)

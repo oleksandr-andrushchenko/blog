@@ -23,7 +23,7 @@ from utils import (
     get_post,
     get_user,
     UpdateUserDTO,
-    FileDTO,
+    ImageFileDTO,
     UpdatePostDTO,
     UpdatePostStatusDTO,
     UpdatePostImpressionDTO,
@@ -135,14 +135,14 @@ async def get_post_query_by_slugs(request: Request, slugs_path: str) -> PostQuer
 PostQueryBySlugsDep = Annotated[PostQueryDTO, Depends(get_post_query_by_slugs)]
 
 
-async def get_file(file: UploadFile = File(...)):
-    return FileDTO(
+async def get_image_file(file: UploadFile = File(...)):
+    return ImageFileDTO(
         content=await file.read(),
         filename=file.filename,
     )
 
 
-FileDTODep = Annotated[FileDTO, Depends(get_file)]
+ImageFileDTODep = Annotated[ImageFileDTO, Depends(get_image_file)]
 
 
 def get_update_user_dto(

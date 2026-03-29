@@ -66,7 +66,7 @@
 - improve post comments
 - posts form: submit slugs URL version (instead of queries)
 - check SEO carefully and fix issues (redirect, canonical, robots, index/follow, titles, etc.)
-- generate tag combos for post pages (article's tag combos for crawlers, we dont have sitemap still)
+- generate tag combos for post pages (article's tag combos for crawlers)
 ## Links
 
 - favicon - https://realfavicongenerator.net

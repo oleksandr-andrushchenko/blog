@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+
+{% set title = "Utils" %}
+
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block meta_title %}{{ title }} | {{ site_name }}{% endblock %}
+{% block meta_canonical %}{{ url("utils") }}{% endblock %}
+
+{% block breadcrumbs %}
+    {% with breadcrumbs = {"Home": url("index"), (title): None} %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
+{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+
+    <div class="rows">
+        {% if check_auth(cur_user, Permission.GENERATE_SITEMAP) %}
+            <div class="col col-4">
+                <section class="border rounded p-4 mb-4 bg-light">
+                    <h2 class="h4 mb-2">Generate Sitemap</h2>
+
+                    <p class="small text-muted mb-3">
+                        Generate the latest sitemap.xml and notify search engines about updated pages.
+                        Use this after publishing or updating content to improve indexing speed.
+                    </p>
+
+                    <form id="generate-sitemap-form" novalidate>
+                        <button class="btn btn-primary" type="submit">
+                            Generate & Notify
+                        </button>
+                    </form>
+                </section>
+
+                <script>
+                  document.addEventListener("DOMContentLoaded", () => {
+                    handleFormSubmit("#generate-sitemap-form", "{{ url("generate-sitemap") }}", {
+                      method: "{{ 'POST' }}",
+                      onSuccess: (res) => `Sitemap generated!<br>URLs count: ${res.urls_count}, Sitemap URL: <a href="${res.sitemap_url}" target="_blank">${res.sitemap_url}</a>`,
+                    })
+                  })
+                </script>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
