@@ -295,21 +295,22 @@ generate-site-files: ## Run content generator inside Docker container
 .PHONY: generate-code-files
 generate-code-files: ## Build Lambda zip for be-function
 	@echo "📦 Generating Code files..."
+
+	# Clean build dir completely
+	rm -rf $(CODE_BUILD_DIR)
 	mkdir -p $(CODE_BUILD_DIR)
-	rm -rf $(CODE_BUILD_DIR)/*
 
-	# Install dependencies only if vendor folder doesn't exist
+	# Install dependencies
 	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) bash -c "\
-		if [ ! -d /app/$(CACHE_DIR)/vendor ]; then \
-			echo '📥 Installing dependencies into $(CACHE_DIR)/vendor folder...'; \
-			mkdir -p /app/$(CACHE_DIR)/vendor; \
-			pip install -r /app/be-function-src/requirements.txt -t /app/$(CACHE_DIR)/vendor; \
-		else \
-			echo '✅ Using cached $(CACHE_DIR)/vendor folder'; \
-		fi"
+		echo '📥 Installing dependencies (fresh)...'; \
+		rm -rf /app/$(CODE_BUILD_DIR)/vendor; \
+		mkdir -p /app/$(CODE_BUILD_DIR)/vendor; \
+		pip install -r /app/be-function-src/requirements.txt -t /app/$(CODE_BUILD_DIR)/vendor; \
+	"
 
-	# Run the build script to copy source, merge vendor, remove static, and zip
-	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) python3 /app/scripts/generate_code_build.py
+	# Run build script
+	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) \
+		python3 /app/scripts/generate_code_build.py
 
 	# Rename zip with timestamp and update .env
 	@TIMESTAMP=$$(date +%Y%m%d%H%M%S); \
