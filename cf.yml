@@ -136,7 +136,7 @@ Resources:
           AttributeType: S
         - AttributeName: post_user_status_pk
           AttributeType: S
-        - AttributeName: created_at_sk
+        - AttributeName: created_at
           AttributeType: N
       KeySchema:
         - AttributeName: pk # e.g. "PROVIDER_USER#cognito#1", "USER#1", "POST#1", "POST_SLUG#slug1", "POST_TAG#tag1", "POST_TAG_COMBO#tag1#tag2", "CONTACT_MESSAGE#1"
@@ -164,11 +164,11 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
-        - IndexName: POSTS_BY_STATUS_CREATED_AT # get_latest_posts
+        - IndexName: POSTS_BY_STATUS_CREATED_AT_2 # get_latest_posts
           KeySchema:
             - AttributeName: post_status_pk # e.g. "POST#published"
               KeyType: HASH
-            - AttributeName: created_at_sk # e.g. 1759086095241
+            - AttributeName: created_at # e.g. 1759086095241
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
@@ -202,19 +202,19 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
-        - IndexName: USERS_BY_STATUS_CREATED_AT # get_latest_active_users
+        - IndexName: USERS_BY_STATUS_CREATED_AT_2 # get_latest_active_users
           KeySchema:
             - AttributeName: user_status_pk # e.g. "USER#active"
               KeyType: HASH
-            - AttributeName: created_at_sk # e.g. 1759086095241
+            - AttributeName: created_at # e.g. 1759086095241
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
-        - IndexName: POSTS_BY_USER_STATUS_CREATED_AT # get_latest_posts_by_user
+        - IndexName: POSTS_BY_USER_STATUS_CREATED_AT_2 # get_latest_posts_by_user
           KeySchema:
             - AttributeName: post_user_status_pk # e.g. "POST#1#published"
               KeyType: HASH
-            - AttributeName: created_at_sk # e.g. 1759086095241
+            - AttributeName: created_at # e.g. 1759086095241
               KeyType: RANGE
           Projection:
             ProjectionType: ALL

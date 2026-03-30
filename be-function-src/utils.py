@@ -1415,7 +1415,7 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
             "providers": providers,
             "status": status,
             "rating_sk": compute_rating_sk(0, now),
-            "created_at_sk": now,
+            "created_at": now,
             "user_status_pk": f"USER#{status}",
         }
         username = sanitize_html(build_user_username(token.name, token.username, now))
@@ -1538,8 +1538,6 @@ async def get_user_token_by_auth_jwt_token(token: str | None) -> UserToken | Non
 def post_from_dynamodb(d_item: dict[str, Any]) -> Post:
     owner_id = d_item["user_id"]
     content = d_item["content"]
-    status = d_item["status"]
-    created_at = d_item["created_at_sk"]
     return Post(
         id=d_item["id"],
         owner_id=owner_id,
@@ -1549,7 +1547,7 @@ def post_from_dynamodb(d_item: dict[str, Any]) -> Post:
         content=content,
         preview=d_item.get("preview") or find_preview(content),
         tags=d_item.get("tags", []),
-        status=status,
+        status=d_item["status"],
         comment=d_item.get("comment"),
         rating=d_item["rating_sk"],
         likes_count=d_item.get("likes_count", 0),
@@ -1558,7 +1556,7 @@ def post_from_dynamodb(d_item: dict[str, Any]) -> Post:
         image_filename=d_item.get("image_filename"),
         redirect_to=d_item.get("redirect_to"),
         comments_count=d_item.get("comments_count", 0),
-        created_at=created_at,
+        created_at=d_item["created_at"],
         updated_at=d_item.get("updated_at"),
         published_at=d_item.get("published_at"),
         is_premium=False
@@ -1648,7 +1646,7 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
         "tags": tags,
         "rating_sk": compute_rating_sk(0, now),
         "status": status,
-        "created_at_sk": now,
+        "created_at": now,
         "post_status_pk": f"POST#{status}",
         "post_user_status_pk": f"POST#{user.id}#{status}",
     }
@@ -2005,7 +2003,7 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         comment=d_item.get("comment"),
         post_comments_count=d_item.get("post_comments_count", 0),
         redirect_to=d_item.get("redirect_to"),
-        created_at=d_item.get("created_at_sk", 0),
+        created_at=d_item["created_at"],
         updated_at=d_item.get("updated_at")
     )
 
@@ -2055,12 +2053,11 @@ async def find_user_impression(user: User, cur_user: User) -> UserImpression | N
 def build_dynamodb_put_item_params(
         key: tuple[str, str],
         values: dict[str, Any] | None = None,
-        add_created_at: bool = True,
         new_pk_only: bool = False
 ) -> dict[str, Any]:
     if values is None:
         values = {}
-    if add_created_at:
+    if not values.get("created_at"):
         values["created_at"] = utc_now()
 
     pk, sk = key
@@ -2083,7 +2080,6 @@ def add_dynamodb_put_transact(
         transacts: list,
         key: tuple[str, str],
         values: dict[str, Any] | None = None,
-        add_created_at: bool = True,
         new_pk_only: bool = False
 ) -> None:
     param_dict = dict(locals())
@@ -2235,26 +2231,29 @@ async def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User
     old_avatar = user.avatar_filename
     old_slug = user.username
 
-    if "username" in changes:
-        slug = changes["username"]
-        if old_slug != slug:
-            # Create redirect item so old slug resolves
-            redirect_item = {
-                "username": old_slug,
-                "redirect_to": slug,
-                "created_at": now
-            }
-            add_dynamodb_put_transact(transacts, (f"USER_REDIRECT#{old_slug}", "META"), redirect_item, new_pk_only=True)
-            # Create new slug lock
-            add_dynamodb_put_transact(transacts, (f"USER_SLUG#{slug}", "META"), {"user_id": user.id}, new_pk_only=True)
+    if old_slug:
+        if "username" in changes:
+            slug = changes["username"]
+            if old_slug != slug:
+                # Create redirect item so old slug resolves
+                redirect_item = {
+                    "username": old_slug,
+                    "redirect_to": slug,
+                    "created_at": now
+                }
+                add_dynamodb_put_transact(transacts, (f"USER_REDIRECT#{old_slug}", "META"), redirect_item,
+                                          new_pk_only=True)
+                # Create new slug lock
+                add_dynamodb_put_transact(transacts, (f"USER_SLUG#{slug}", "META"), {"user_id": user.id},
+                                          new_pk_only=True)
+                posts = await get_latest_published_posts_by_user(user)
+                for post in posts:
+                    add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {"user_slug": slug})
+        else:
+            add_dynamodb_delete_transact(transacts, (f"USER_SLUG#{old_slug}", "META"))
             posts = await get_latest_published_posts_by_user(user)
             for post in posts:
-                add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {"user_slug": slug})
-    else:
-        add_dynamodb_delete_transact(transacts, (f"USER_SLUG#{old_slug}", "META"))
-        posts = await get_latest_published_posts_by_user(user)
-        for post in posts:
-            add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {"user_slug": None})
+                add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {"user_slug": None})
 
     add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), changes)
 
@@ -2480,7 +2479,7 @@ async def get_latest_posts(query_dto: PostQueryDTO = None, cur_user: User = None
 
     return await query_dynamodb_items(
         query_dto=query_dto,
-        index_name="POSTS_BY_STATUS_CREATED_AT",
+        index_name="POSTS_BY_STATUS_CREATED_AT_2",
         key_condition_expr=Key("post_status_pk").eq(f"POST#{query_dto.status}"),
         map_fn=post_from_dynamodb,
     )
@@ -2775,8 +2774,7 @@ async def create_contact_message(message_dto: ContactMessageDTO, user: User = No
         "name": name,
         "email": message_dto.email,
         "message": message,
-        # todo: rename to created_at
-        "created_at_sk": now,
+        "created_at": now,
     }
     if user:
         message_item["user_id"] = user.id
@@ -2922,7 +2920,7 @@ async def get_latest_users(query_dto: UserQueryDTO = None, cur_user: User = None
 
     return await query_dynamodb_items(
         query_dto=query_dto,
-        index_name="USERS_BY_STATUS_CREATED_AT",
+        index_name="USERS_BY_STATUS_CREATED_AT_2",
         key_condition_expr=Key("user_status_pk").eq(f"USER#{query_dto.status}"),
         map_fn=user_from_dynamodb,
     )
@@ -2985,7 +2983,7 @@ async def get_latest_posts_by_user(user: User, query_dto: PostQueryDTO = None, c
 
     return await query_dynamodb_items(
         query_dto=query_dto,
-        index_name="POSTS_BY_USER_STATUS_CREATED_AT",
+        index_name="POSTS_BY_USER_STATUS_CREATED_AT_2",
         key_condition_expr=Key("post_user_status_pk").eq(f"POST#{user.id}#{query_dto.status}"),
         map_fn=post_from_dynamodb,
     )
@@ -3284,12 +3282,12 @@ async def create_dummy_fixtures() -> None:
         ),
         PostDTO(
             title="Post title #22222222222222222222222",
-            content="Post content #2222222222222222222222" * 150,
+            content="Post content #222222222222222222222222" * 150,
             tags=["tag2", "tag3"]
         ),
         PostDTO(
             title="Post title #3333333333333333333333333",
-            content="Post content #333333333333333333333" * 150,
+            content="Post content #33333333333333333333333" * 150,
             tags=["tag1", "tag3"]
         ),
     ]
@@ -3303,17 +3301,17 @@ async def create_dummy_fixtures() -> None:
     posts = [
         PostDTO(
             title="Post title #111111111111111111111111 for user 2",
-            content="Post content #111111111111111111111111" * 100,
+            content="Post content #111111111111111111111111" * 150,
             tags=["tag3"]
         ),
         PostDTO(
             title="Post title #22222222222222222222222 for user 2",
-            content="Post content #2222222222222222222222" * 100,
+            content="Post content #222222222222222222222222" * 150,
             tags=["tag2"]
         ),
         PostDTO(
             title="Post title #3333333333333333333333333 for user 2",
-            content="Post content #333333333333333333333" * 100,
+            content="Post content #33333333333333333333333" * 150,
             tags=["tag4"]
         ),
     ]
@@ -3338,17 +3336,17 @@ async def create_dummy_fixtures() -> None:
     unpublished_posts = [
         PostDTO(
             title="Unpublished Post title #111111111111111111111111",
-            content="Post content #111111111111111111111111" * 100,
+            content="Post content #111111111111111111111111" * 150,
             tags=["tag1", "tag2", "tag3"]
         ),
         PostDTO(
             title="Unpublished Post title #22222222222222222222222",
-            content="Post content #2222222222222222222222" * 100,
+            content="Post content #2222222222222222222222" * 150,
             tags=["tag2", "tag3"]
         ),
         PostDTO(
             title="Unpublished Post title #3333333333333333333333333",
-            content="Post content #333333333333333333333" * 100,
+            content="Post content #333333333333333333333" * 150,
             tags=["tag1", "tag3"]
         ),
     ]
@@ -3357,17 +3355,17 @@ async def create_dummy_fixtures() -> None:
     rejected_posts = [
         PostDTO(
             title="Rejected Post title #111111111111111111111111",
-            content="Post content #111111111111111111111111" * 100,
+            content="Post content #111111111111111111111111" * 150,
             tags=["tag1", "tag2", "tag3"]
         ),
         PostDTO(
             title="Rejected Post title #22222222222222222222222",
-            content="Post content #2222222222222222222222" * 100,
+            content="Post content #2222222222222222222222" * 150,
             tags=["tag2", "tag3"]
         ),
         PostDTO(
             title="Rejected Post title #3333333333333333333333333",
-            content="Post content #333333333333333333333" * 100,
+            content="Post content #333333333333333333333" * 150,
             tags=["tag1", "tag3"]
         ),
     ]

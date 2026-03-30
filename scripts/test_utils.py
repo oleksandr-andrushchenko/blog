@@ -143,6 +143,6 @@ def create_user(
         "providers": {iss: {"sub": sub}},
         "status": status,
         "rating_sk": -8239344582546,
-        "created_at_sk": 1760655417454,
+        "created_at": 1760655417454,
         "user_status_pk": f"USER#STATUS#{status}",
     })
