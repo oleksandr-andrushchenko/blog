@@ -107,7 +107,7 @@ class FileDTO(BaseModel):
 
 class ImageFileDTO(FileDTO):
     MAX_IMAGE_SIZE: ClassVar[int] = 2 * 1024 * 1024  # 2 MB
-    ALLOWED_IMAGE_EXTENSIONS: ClassVar[set[str]] = {"jpeg", "png", "gif"}
+    ALLOWED_IMAGE_EXTENSIONS: ClassVar[set[str]] = {"jpg", "jpeg", "png", "gif"}
 
     @computed_field
     @property
