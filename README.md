@@ -67,6 +67,9 @@
 - posts form: submit slugs URL version (instead of queries)
 - check SEO carefully and fix issues (redirect, canonical, robots, index/follow, titles, etc.)
 - generate tag combos for post pages (article's tag combos for crawlers)
+- implement & show images for each tag
+- fix tags: postgre-sql -> postgresql, click-house -> clickhouse etc.
+- addd tags (with images) palette on index page (main colon)
 ## Links
 
 - favicon - https://realfavicongenerator.net

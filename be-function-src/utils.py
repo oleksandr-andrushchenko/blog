@@ -1415,7 +1415,7 @@ async def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserS
             "status": status,
             "rating_sk": compute_rating_sk(0, now),
             "created_at_sk": now,
-            "user_status_pk": f"USER#STATUS#{status}",
+            "user_status_pk": f"USER#{status}",
         }
         username = sanitize_html(build_user_username(token.name, token.username, now))
         if username:
@@ -1648,8 +1648,8 @@ async def create_post(post_dto: PostDTO, user: User) -> Post:
         "rating_sk": compute_rating_sk(0, now),
         "status": status,
         "created_at_sk": now,
-        "post_status_pk": f"POST#STATUS#{status}",
-        "post_user_status_pk": f"POST#USER#{user.id}#STATUS#{status}",
+        "post_status_pk": f"POST#{status}",
+        "post_user_status_pk": f"POST#{user.id}#{status}",
     }
     if preview:
         post_item["preview"] = preview
@@ -1766,8 +1766,8 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
     status = changes.get("status", post.status)
     if status != old_status:
         # Update post lists
-        changes["post_status_pk"] = f"POST#STATUS#{status}"
-        changes["post_user_status_pk"] = f"POST#USER#{post.user_id}#STATUS#{status}"
+        changes["post_status_pk"] = f"POST#{status}"
+        changes["post_user_status_pk"] = f"POST#{post.user_id}#{status}"
 
         # User post counters
         owner = await find_user(post.user_id)
@@ -2030,7 +2030,7 @@ async def find_user_impression(user: User, cur_user: User) -> UserImpression | N
     resp = await table.get_item(
         Key={
             "pk": f"USER#{cur_user.id}",
-            "sk": f"REL#USER#{user.id}"
+            "sk": f"REL#{user.id}"
         }
     )
     item = resp.get("Item")
@@ -2283,7 +2283,7 @@ async def update_user_status(user: User, update_user_status_dto: UpdateUserStatu
 
     add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), {
         **changes,
-        "user_status_pk": f"USER#STATUS#{status}",
+        "user_status_pk": f"USER#{status}",
     })
 
     # logger.debug(transacts)
@@ -2469,7 +2469,7 @@ async def get_latest_posts(query_dto: PostQueryDTO = None, cur_user: User = None
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="POSTS_BY_STATUS_CREATED_AT",
-        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{query_dto.status}"),
+        key_condition_expr=Key("post_status_pk").eq(f"POST#{query_dto.status}"),
         map_fn=post_from_dynamodb,
     )
 
@@ -2491,7 +2491,7 @@ async def get_popular_posts(query_dto: PostQueryDTO = None, cur_user: User = Non
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="POSTS_BY_STATUS_RATING",
-        key_condition_expr=Key("post_status_pk").eq(f"POST#STATUS#{query_dto.status}"),
+        key_condition_expr=Key("post_status_pk").eq(f"POST#{query_dto.status}"),
         map_fn=post_from_dynamodb,
     )
 
@@ -2676,8 +2676,8 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
 
     add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {
         **changes,
-        "post_status_pk": f"POST#STATUS#{status}",
-        "post_user_status_pk": f"POST#USER#{post.user_id}#STATUS#{status}",
+        "post_status_pk": f"POST#{status}",
+        "post_user_status_pk": f"POST#{post.user_id}#{status}",
     })
 
     # logger.debug(transacts)
@@ -2907,7 +2907,7 @@ async def get_latest_users(query_dto: UserQueryDTO = None, cur_user: User = None
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="USERS_BY_STATUS_CREATED_AT",
-        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{query_dto.status}"),
+        key_condition_expr=Key("user_status_pk").eq(f"USER#{query_dto.status}"),
         map_fn=user_from_dynamodb,
     )
 
@@ -2970,7 +2970,7 @@ async def get_latest_posts_by_user(user: User, query_dto: PostQueryDTO = None, c
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="POSTS_BY_USER_STATUS_CREATED_AT",
-        key_condition_expr=Key("post_user_status_pk").eq(f"POST#USER#{user.id}#STATUS#{query_dto.status}"),
+        key_condition_expr=Key("post_user_status_pk").eq(f"POST#{user.id}#{query_dto.status}"),
         map_fn=post_from_dynamodb,
     )
 
@@ -2987,7 +2987,7 @@ async def get_popular_users(query_dto: UserQueryDTO = None, cur_user: User = Non
     return await query_dynamodb_items(
         query_dto=query_dto,
         index_name="USERS_BY_STATUS_RATING",
-        key_condition_expr=Key("user_status_pk").eq(f"USER#STATUS#{query_dto.status}"),
+        key_condition_expr=Key("user_status_pk").eq(f"USER#{query_dto.status}"),
         map_fn=user_from_dynamodb,
     )
 
@@ -3014,7 +3014,7 @@ async def find_post_impression(post: Post, user: User) -> PostImpression | None:
     resp = await table.get_item(
         Key={
             "pk": f"POST#{post.id}",
-            "sk": f"IMP#USER#{user.id}"
+            "sk": f"IMP#{user.id}"
         }
     )
     item = resp.get("Item")
@@ -3041,7 +3041,7 @@ async def update_post_impression(post: Post, update_post_impression_dto: UpdateP
     transacts = []
 
     post_key = (f"POST#{post.id}", "META")
-    post_imp_key = (f"POST#{post.id}", f"IMP#USER#{user.id}")
+    post_imp_key = (f"POST#{post.id}", f"IMP#{user.id}")
 
     if action == PostImpressionAction.LIKE:
         if current_action == PostImpressionAction.LIKE:
@@ -3100,7 +3100,7 @@ async def update_user_impression(
 
     user_key = (f"USER#{cur_user.id}", "META")
     target_user_key = (f"USER#{user.id}", "META")
-    relation_key = (f"USER#{cur_user.id}", f"REL#USER#{user.id}")
+    relation_key = (f"USER#{cur_user.id}", f"REL#{user.id}")
 
     if action == UserImpressionAction.FOLLOW:
         if current_action == UserImpressionAction.FOLLOW:

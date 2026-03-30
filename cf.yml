@@ -158,7 +158,7 @@ Resources:
             ProjectionType: ALL
         - IndexName: USERS_BY_STATUS_RATING # get_popular_active_users
           KeySchema:
-            - AttributeName: user_status_pk # e.g. "USER#STATUS#active"
+            - AttributeName: user_status_pk # e.g. "USER#active"
               KeyType: HASH
             - AttributeName: rating_sk # e.g. 10000001759086095241
               KeyType: RANGE
@@ -166,7 +166,7 @@ Resources:
             ProjectionType: ALL
         - IndexName: POSTS_BY_STATUS_CREATED_AT # get_latest_posts
           KeySchema:
-            - AttributeName: post_status_pk # e.g. "POST#STATUS#published"
+            - AttributeName: post_status_pk # e.g. "POST#published"
               KeyType: HASH
             - AttributeName: created_at_sk # e.g. 1759086095241
               KeyType: RANGE
@@ -188,7 +188,7 @@ Resources:
             ProjectionType: ALL
         - IndexName: POSTS_BY_STATUS_RATING # get_popular_posts
           KeySchema:
-            - AttributeName: post_status_pk # e.g. "POST#STATUS#published"
+            - AttributeName: post_status_pk # e.g. "POST#published"
               KeyType: HASH
             - AttributeName: rating_sk # e.g. 10000001759086095241
               KeyType: RANGE
@@ -204,7 +204,7 @@ Resources:
             ProjectionType: ALL
         - IndexName: USERS_BY_STATUS_CREATED_AT # get_latest_active_users
           KeySchema:
-            - AttributeName: user_status_pk # e.g. "USER#STATUS#active"
+            - AttributeName: user_status_pk # e.g. "USER#active"
               KeyType: HASH
             - AttributeName: created_at_sk # e.g. 1759086095241
               KeyType: RANGE
@@ -212,7 +212,7 @@ Resources:
             ProjectionType: ALL
         - IndexName: POSTS_BY_USER_STATUS_CREATED_AT # get_latest_posts_by_user
           KeySchema:
-            - AttributeName: post_user_status_pk # e.g. "POST#USER#1#STATUS#published"
+            - AttributeName: post_user_status_pk # e.g. "POST#1#published"
               KeyType: HASH
             - AttributeName: created_at_sk # e.g. 1759086095241
               KeyType: RANGE
