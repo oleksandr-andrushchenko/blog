@@ -1769,7 +1769,8 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
             # Remove old tag combos
             for r in range(1, len(old_tags) + 1):
                 for combo in combinations(sorted(old_tags), r):
-                    add_dynamodb_delete_transact(transacts, ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{post.id}"))
+                    post_tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{post.created_at}#{post.id}")
+                    add_dynamodb_delete_transact(transacts, post_tag_combo_key)
 
     if published_already and should_set_status_to_unpublished:
         changes["status"] = PostStatus.UNPUBLISHED
@@ -2685,9 +2686,8 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
         # Create post tag combos
         for r in range(1, len(post.tags) + 1):
             for combo in combinations(sorted(post.tags), r):
-                add_dynamodb_put_transact(transacts, ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{now}#{post.id}"), {
-                    "post_id": post.id
-                })
+                post_tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{post.created_at}#{post.id}")
+                add_dynamodb_put_transact(transacts, post_tag_combo_key, {"post_id": post.id})
 
     add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {
         **changes,
