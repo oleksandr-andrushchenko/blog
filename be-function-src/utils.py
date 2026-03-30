@@ -369,6 +369,7 @@ class TagQueryDTO(BaseQueryDTO):
 class Tag(BaseModel):
     name: str
     rating: int
+    posts_count: int
     offset: str | None = None
 
 
@@ -1739,7 +1740,8 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
 
             # Decrease rating for old tags
             table = await get_dynamodb_table()
-            for tag in old_tags:
+            removed_tags = set(old_tags) - set(tags)
+            for tag in removed_tags:
                 transacts.append({
                     "Update": {
                         "TableName": table.name,
@@ -1747,10 +1749,19 @@ async def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User
                             "pk": f"POST_TAG#{tag}",
                             "sk": "META"
                         },
-                        "UpdateExpression": "SET rating_sk = rating_sk - :rating_sk_dec, updated_at = :now",
+                        "UpdateExpression": (
+                            "SET rating_sk = rating_sk - :rating_sk_dec,"
+                            "    #posts_count = if_not_exists(#posts_count, :zero) - :dec,"
+                            "    updated_at = :now"
+                        ),
+                        "ExpressionAttributeNames": {
+                            "#posts_count": "posts_count",
+                        },
                         "ExpressionAttributeValues": {
                             ":rating_sk_dec": compute_rating_sk(1),
-                            ":now": now
+                            ":dec": 1,
+                            ":now": now,
+                            ":zero": 0,
                         }
                     }
                 })
@@ -2647,6 +2658,7 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
                         "SET #new_tag_name_sk = if_not_exists(#new_tag_name_sk, :tag_name_sk), "
                         "    #new_tag_type_pk = if_not_exists(#new_tag_type_pk, :tag_type_pk), "
                         "    #new_rating_sk = if_not_exists(#new_rating_sk, :def_rating_sk) + :rating_sk_inc, "
+                        "    #posts_count = if_not_exists(#posts_count, :zero) + :inc, "
                         "    #new_created_at = if_not_exists(#new_created_at, :now), "
                         "    #new_updated_at = :now "
                     ),
@@ -2654,6 +2666,7 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
                         "#new_tag_name_sk": "tag_name_sk",
                         "#new_tag_type_pk": "tag_type_pk",
                         "#new_rating_sk": "rating_sk",
+                        "#posts_count": "posts_count",
                         "#new_created_at": "created_at",
                         "#new_updated_at": "updated_at",
                     },
@@ -2662,7 +2675,9 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
                         ":tag_type_pk": "POST_TAG",
                         ":now": now,
                         ":def_rating_sk": compute_rating_sk(0, now),
-                        ":rating_sk_inc": compute_rating_sk(1)
+                        ":rating_sk_inc": compute_rating_sk(1),
+                        ":zero": 0,
+                        ":inc": 1,
                     }
                 }
             })
@@ -2691,6 +2706,7 @@ def tag_from_dynamodb(d_item: dict[str, Any]) -> Tag:
     return Tag(
         name=d_item["tag_name_sk"],
         rating=d_item["rating_sk"],
+        posts_count=d_item.get("posts_count", 0),
     )
 
 
@@ -3184,7 +3200,8 @@ async def generate_sitemap(user: User, request) -> tuple[int, str]:
     for type_ in PostQueryType:
         urls.append((posts_url(type_), today))
         for tag in await get_post_tags(TagQueryDTO.model_construct(limit=1000)):
-            urls.append((posts_url(type_, tag), today))
+            if tag.posts_count > 0:
+                urls.append((posts_url(type_, tag), today))
 
     # Posts
     def post_url(post: Post) -> str:
