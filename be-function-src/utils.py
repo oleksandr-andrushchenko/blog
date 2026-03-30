@@ -1559,7 +1559,7 @@ def post_from_dynamodb(d_item: dict[str, Any]) -> Post:
         comments_count=d_item.get("comments_count", 0),
         created_at=created_at,
         updated_at=d_item.get("updated_at"),
-        published_at=d_item.get("published_at", created_at if status == PostStatus.PUBLISHED else None),
+        published_at=d_item.get("published_at"),
         is_premium=False
     )
 
