@@ -2685,7 +2685,7 @@ async def update_post_status(post: Post, update_post_status_dto: UpdatePostStatu
         # Create post tag combos
         for r in range(1, len(post.tags) + 1):
             for combo in combinations(sorted(post.tags), r):
-                add_dynamodb_put_transact(transacts, ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{post.id}"), {
+                add_dynamodb_put_transact(transacts, ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{now}#{post.id}"), {
                     "post_id": post.id
                 })
 

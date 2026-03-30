@@ -70,6 +70,7 @@
 - implement & show images for each tag
 - fix tags: postgre-sql -> postgresql, click-house -> clickhouse etc.
 - addd tags (with images) palette on index page (main colon)
+- add redirect from Posts to Articles
 ## Links
 
 - favicon - https://realfavicongenerator.net
