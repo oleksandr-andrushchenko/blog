@@ -12,7 +12,3 @@ Disallow: /api/
 # --- BLOCK NON-HTML / STATIC FILE TYPES ---
 Disallow: /*.css
 Disallow: /*.js
-Disallow: /*.json
-Disallow: /*.txt
-Disallow: /*.ico
-Disallow: /*.xml
