@@ -283,6 +283,14 @@ Resources:
                   - s3:PutObject
                   - s3:DeleteObject
                 Resource: !Sub "arn:aws:s3:::${SiteBucket}/*"
+        - PolicyName: LambdaCloudFrontInvalidationPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudfront:CreateInvalidation
+                Resource: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
       Tags:
         - Key: Stage
           Value: !Ref Stage
@@ -323,6 +331,7 @@ Resources:
           CSS_CACHE_COUNTER: !Ref CssCacheCounter
           JS_CACHE_COUNTER: !Ref JsCacheCounter
           AUTH_JWT_SECRET: !Ref AuthJwtSecret
+          CLOUDFRONT_DISTRIBUTION_ID: !Ref CloudFrontDistribution
       Code:
         S3Bucket: !Sub "${AWS::StackName}-code"
         S3Key: !Ref BeFuncS3Key

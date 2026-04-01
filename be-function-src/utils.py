@@ -641,6 +641,7 @@ def get_live_config():
         "js_cache_counter": os.getenv("JS_CACHE_COUNTER", 0),
         "auth_token_max_age": os.getenv("AUTH_TOKEN_MAX_AGE", 86_400 * 7),
         "auth_jwt_secret": os.getenv("AUTH_JWT_SECRET"),
+        "cf_distribution_id": os.getenv("CLOUDFRONT_DISTRIBUTION_ID"),
         "permission_hierarchy": {
             Permission.REGULAR: [
                 Permission.UPDATE_USER_IMPRESSION,
@@ -755,6 +756,10 @@ def get_auth_token_max_age() -> int:
 
 def get_auth_jwt_secret() -> str:
     return get_config().get("auth_jwt_secret")
+
+
+def get_cf_distribution_id() -> str:
+    return get_config().get("cf_distribution_id")
 
 
 class Lazy:
@@ -1203,6 +1208,33 @@ async def get_s3_client():
         s3_client = await session.client("s3", **get_s3_client_kwargs()).__aenter__()
         logger.info("S3 client loaded")
     return s3_client
+
+
+cloudfront_client = None
+
+
+async def get_cloudfront_client():
+    global cloudfront_client
+    if cloudfront_client is None:
+        session = aioboto3_session()
+        cloudfront_client = await session.client("cloudfront").__aenter__()
+        logger.info("CloudFront client loaded")
+    return cloudfront_client
+
+
+async def invalidate_cloudfront(items: list[str]):
+    client = await get_cloudfront_client()
+
+    await client.create_invalidation(
+        DistributionId=get_cf_distribution_id(),
+        InvalidationBatch={
+            "Paths": {
+                "Quantity": len(items),
+                "Items": items,
+            },
+            "CallerReference": str(uuid.uuid4()),
+        },
+    )
 
 
 def get_html_content(template: str, data: dict[str, Any]) -> str:
@@ -3168,6 +3200,14 @@ def enum_to_value(obj):
         return obj
 
 
+async def safe_execute(label: str, coro):
+    try:
+        return await coro
+    except Exception as e:
+        logger.warning(f"{label} failed: {e}")
+        return None
+
+
 async def generate_sitemap(user: User, request) -> tuple[int, str]:
     verify_authorization(user, Permission.GENERATE_SITEMAP)
 
@@ -3241,13 +3281,17 @@ async def generate_sitemap(user: User, request) -> tuple[int, str]:
     )
     sitemap_url = get_static_url(request, sitemap_filename, full=True)
 
+    # Invalidate CDN cache
+    if is_prod():
+        await safe_execute("CF invalidation", invalidate_cloudfront(["/sitemap.xml"]))
+
     # Notify engines
     if is_prod():
         async with httpx.AsyncClient(timeout=5.0) as client:
-            await client.get("https://www.google.com/ping", params={"sitemap": sitemap_url})
-            await client.get("https://www.bing.com/ping", params={"sitemap": sitemap_url})
+            await safe_execute("Google SM notify", client.get("https://www.google.com/ping", params={"sitemap": sitemap_url}))
+            await safe_execute("Bing SM notify", client.get("https://www.bing.com/ping", params={"sitemap": sitemap_url}))
 
-    return (len(urls), sitemap_url)
+    return len(urls), sitemap_url
 
 
 async def create_dummy_fixtures() -> None:
