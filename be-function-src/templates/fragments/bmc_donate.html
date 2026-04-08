@@ -1,0 +1,22 @@
+{% if user.bmc_username %}
+    <section class="card">
+        <div class="card-body d-flex flex-column gap-1">
+            <div class="fw-semibold">{{ header | default("Enjoyed this article?") }}</div>
+
+            <div class="text-muted small">Support {{ user.name }}</div>
+
+            <div>
+                <a href="https://buymeacoffee.com/{{ user.bmc_username }}"
+                   target="_blank" rel="noopener noreferrer"
+                   class="btn btn-warning fw-semibold">
+                    <i class="bi bi-cup-hot"></i>
+                    Buy me a coffee
+                </a>
+            </div>
+
+            <div class="text-muted small">
+                This helps {{ user.name }} continue creating useful content
+            </div>
+        </div>
+    </section>
+{% endif %}

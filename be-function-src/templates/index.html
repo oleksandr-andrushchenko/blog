@@ -16,7 +16,7 @@
                      alt="{{ index_image.alt }}">
             {% endif %}
 
-            <div class="d-flex flex-column gap-3">
+            <section class="d-flex flex-column gap-3">
                 <h2 class="mb-0">
                     <a href="{{ posts_url() }}" class="link-body-emphasis bi bi-clock-fill"> Latest posts</a>
                 </h2>
@@ -47,12 +47,12 @@
                 {% else %}
                     <div>N/A</div>
                 {% endif %}
-            </div>
+            </section>
         </div>
 
         <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
             {% if show_popular_posts %}
-                <div class="d-flex flex-column gap-3">
+                <section class="d-flex flex-column gap-3">
                     <h2 class="mb-0">
                         <a href="{{ posts_url(type=PostQueryType.POPULAR) }}"
                            class="link-body-emphasis bi bi-star-fill">
@@ -84,10 +84,10 @@
                     {% else %}
                         <div>N/A</div>
                     {% endif %}
-                </div>
+                </section>
             {% endif %}
 
-            <div class="d-flex flex-column gap-3">
+            <section class="d-flex flex-column gap-3">
                 <h2 class="mb-0 text-decoration-underline bi bi-tags-fill"> Popular tags</h2>
                 {% if popular_post_tags %}
                     <div id="popular-post-tags">
@@ -106,31 +106,59 @@
                 {% else %}
                     <div>N/A</div>
                 {% endif %}
-            </div>
+            </section>
 
             {% if cur_user and cur_user.published_posts_count==0 %}
-                <div class="alert alert-light" role="alert">
-                    <h2 class="h4 alert-heading bi bi-lightbulb"> Become an author</h2>
-                    <p>You haven’t written any posts yet. Start sharing your ideas now!</p>
-                    <a href="{{ url("new-post") }}"
-                       class="btn btn-dark btn-sm{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %} bi bi-pencil-fill">
-                        Write a post
-                    </a>
-                </div>
+                <section class="card">
+                    <div class="card-body d-flex flex-column gap-2">
+
+                        <div class="d-flex align-items-center gap-2 fw-semibold">
+                            <i class="bi bi-lightbulb"></i>
+                            <h2 class="h4 mb-0">Become an author</h2>
+                        </div>
+
+                        <div class="text-muted small">
+                            Share your ideas and earn money from your content.
+                        </div>
+
+                        <div>
+                            <a href="{{ url('new-post') }}"
+                               class="btn btn-light fw-semibold{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}">
+                                <i class="bi bi-pencil-fill"></i>
+                                Write a post
+                            </a>
+                        </div>
+
+                    </div>
+                </section>
             {% endif %}
 
             {% if not cur_user %}
-                <div class="alert alert-light" role="alert">
-                    <h2 class="h4 alert-heading bi bi-lightbulb"> Become an author</h2>
-                    <p>Join our community of authors and start sharing your ideas with the world!</p>
-                    <a href="{{ url("login", redirect_url=url("new-post") | urlencode) }}"
-                       class="btn btn-dark btn-sm bi bi-pencil-fill">
-                        Write a post
-                    </a>
-                </div>
+                <section class="card">
+                    <div class="card-body d-flex flex-column gap-2">
+
+                        <div class="d-flex align-items-center gap-2 fw-semibold">
+                            <i class="bi bi-lightbulb"></i>
+                            <h2 class="h4 mb-0">Become an author</h2>
+                        </div>
+
+                        <div class="text-muted small">
+                            Join our community, share your ideas, and earn money from your content.
+                        </div>
+
+                        <div>
+                            <a href="{{ url('login', redirect_url=url('new-post') | urlencode) }}"
+                               class="btn btn-primary fw-semibold">
+                                <i class="bi bi-pencil-fill"></i>
+                                Write a post
+                            </a>
+                        </div>
+
+                    </div>
+                </section>
             {% endif %}
 
-            <div class="d-flex flex-column gap-3">
+            <section class="d-flex flex-column gap-3">
                 <h2 class="mb-0 text-decoration-underline">
                     <a href="{{ users_url(type=UserQueryType.POPULAR) }}" class="link-body-emphasis bi bi-heart-fill">
                         Popular authors
@@ -157,7 +185,7 @@
                 {% else %}
                     <div>N/A</div>
                 {% endif %}
-            </div>
+            </section>
         </div>
     </div>
 {% endblock %}

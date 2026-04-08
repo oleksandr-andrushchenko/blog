@@ -54,22 +54,43 @@
         <label for="username" class="col-form-label col-2">Username</label>
         <div class="col-10">
             <div class="input-group">
-                <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
-                <input type="text" class="form-control" id="username" name="username" placeholder="Username"
+                <span class="input-group-text">{{ base_url.replace('https://', '').replace('http://', '') }}/</span>
+                <input type="text" class="form-control" id="username" name="username" placeholder="your-username"
                        value="{{ user.username if user and user.username else "" }}">
             </div>
-            <div class="form-text">Your public page URL</div>
         </div>
     </div>
 
     <div class="form-group row">
-        <label for="github_username" class="col-form-label col-2">GitHub Username</label>
+        <label for="github_username" class="col-form-label col-2">GitHub</label>
         <div class="col-10">
             <div class="input-group">
-                <span class="input-group-text">https://github.com/</span>
+                <span class="input-group-text">github.com/</span>
                 <input type="text" class="form-control" id="github_username" name="github_username"
-                       placeholder="GitHub username"
+                       placeholder="your-github-username"
                        value="{{ user.github_username if user and user.github_username else "" }}">
+                <span class="input-group-text"><i class="bi bi-box-arrow-up-right"></i></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-group row">
+        <label for="bmc_username" class="col-form-label col-2">Buy Me a Coffee</label>
+        <div class="col-10">
+            <div class="input-group">
+                <span class="input-group-text">buymeacoffee.com/</span>
+                <input type="text"
+                       class="form-control"
+                       id="bmc_username"
+                       name="bmc_username"
+                       placeholder="your-bmc-username"
+                       value="{{ user.bmc_username if user and user.bmc_username else '' }}">
+                <span class="input-group-text"><i class="bi bi-box-arrow-up-right"></i></span>
+            </div>
+            <div class="form-text">
+                Don’t have an account?
+                <a class="link-body-emphasis" href="https://www.buymeacoffee.com/invite/oleksandr.andrushchenko"
+                   target="_blank" rel="noopener noreferrer">Create one here</a>
             </div>
         </div>
     </div>
@@ -171,12 +192,12 @@
           {
             rule: "customRegexp",
             value: /^[a-z0-9-]+$/,
-            errorMessage: "Username must be lowercase alphanumeric and may include single hyphens only"
+            errorMessage: "Username must contain only lowercase letters, numbers, and hyphens"
           },
           {
             rule: "custom",
             validator: (value) => !value.startsWith("-") && !value.endsWith("-"),
-            errorMessage: "Username cannot start or end with a dash"
+            errorMessage: "Username cannot start or end with a hyphen"
           },
           {
             rule: "custom",
@@ -187,13 +208,13 @@
             rule: "custom",
             validator: (value) => {
               const _username_blacklist = [
-                "posts", "posts-fragment", "contacts",
-                "post-tags", "users", "users-fragment",
-                "dummy-fixtures"
+                "api", "posts", "posts-fragment", "contacts", "post-tags", "users", "users-fragment", "login", "login-callback",
+                "logout", "logout-callback", "dummy-fixtures", "me", "privacy-policy", "rules", "terms-of-service", "popular",
+                "utils"
               ]
               return !_username_blacklist.includes(value)
             },
-            errorMessage: "This username is reserved"
+            errorMessage: "This word can't be a username"
           }
         ],
         github_username: [
@@ -202,7 +223,7 @@
           {
             rule: "customRegexp",
             value: /^[a-zA-Z0-9-]+$/,
-            errorMessage: "GitHub username must be alphanumeric and may include single hyphens only"
+            errorMessage: "GitHub must contain only letters, numbers, and hyphens"
           },
           {
             rule: "custom",
@@ -213,6 +234,25 @@
             rule: "custom",
             validator: (value) => !value.includes("--"),
             errorMessage: "GitHub username cannot contain consecutive hyphens"
+          }
+        ],
+        bmc_username: [
+          {rule: "minLength", value: 1},
+          {rule: "maxLength", value: 50},
+          {
+            rule: "customRegexp",
+            value: /^[a-zA-Z0-9.]+$/,
+            errorMessage: "BMC username must contain only letters, numbers, and dots"
+          },
+          {
+            rule: "custom",
+            validator: (value) => !value.startsWith(".") && !value.endsWith("."),
+            errorMessage: "BMC username cannot start or end with a dot"
+          },
+          {
+            rule: "custom",
+            validator: (value) => !value.includes(".."),
+            errorMessage: "BMC username cannot contain consecutive dots"
           }
         ],
         headline: [

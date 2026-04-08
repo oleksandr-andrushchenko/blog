@@ -81,6 +81,7 @@ class User(BaseModel):
     following_count: int
     comment: str | None = None
     post_comments_count: int
+    bmc_username: str | None
     redirect_to: str | None
     created_at: int
     updated_at: int | None = None
@@ -146,7 +147,7 @@ class UserDTO(BaseModel):
         value = value.strip()
 
         if not cls.USERNAME_PATTERN.match(value):
-            raise ValueError("Username must be lowercase alphanumeric and may include single hyphens only")
+            raise ValueError("Username must contain only lowercase letters, numbers, and hyphens")
 
         if value.startswith("-") or value.endswith("-"):
             raise ValueError("Username cannot start or end with a hyphen")
@@ -155,7 +156,7 @@ class UserDTO(BaseModel):
             raise ValueError("Username cannot contain consecutive hyphens")
 
         if value in cls.USERNAME_BLACKLIST:
-            raise ValueError(f"'{value}' is a reserved word")
+            raise ValueError("This word can't be a username")
 
         return value
 
@@ -169,16 +170,26 @@ class UpdateUserDTO(UserDTO):
     website: Optional[HttpUrl] = None
     address: str | None = Field(None, max_length=255)
     github_username: str | None = Field(None, min_length=1, max_length=39)
+    bmc_username: str | None = Field(None, min_length=1, max_length=50)
 
     GITHUB_USERNAME_PATTERN: ClassVar[re.Pattern] = re.compile(r"^[a-zA-Z0-9-]+$")
 
     @field_validator("github_username")
     @classmethod
-    def validate_github_username(cls, value: str):
+    def validate_github_username(cls, value: str | None):
         if value is None:
             return value
 
         value = value.strip()
+
+        # Allow users to paste full GitHub URL
+        if "github.com/" in value:
+            value = value.split("github.com/")[-1].strip("/")
+            # Handle cases like github.com/user/repo
+            value = value.split("/")[0]
+
+        # Normalize
+        value = value.lower()
 
         if not cls.GITHUB_USERNAME_PATTERN.match(value):
             raise ValueError(
@@ -190,6 +201,37 @@ class UpdateUserDTO(UserDTO):
 
         if "--" in value:
             raise ValueError("GitHub username cannot contain consecutive hyphens")
+
+        return value
+
+    BMC_USERNAME_PATTERN: ClassVar[re.Pattern] = re.compile(r"^[a-zA-Z0-9.]+$")
+
+    @field_validator("bmc_username")
+    @classmethod
+    def validate_bmc_username(cls, value: str | None):
+        if value is None:
+            return value
+
+        value = value.strip()
+
+        # Allow users to paste full URL and extract username
+        if "buymeacoffee.com/" in value:
+            value = value.split("buymeacoffee.com/")[-1].strip("/")
+
+        # Normalize
+        value = value.lower()
+
+        # Validate pattern
+        if not cls.BMC_USERNAME_PATTERN.match(value):
+            raise ValueError(
+                "BMC username must contain only letters, numbers, and dots"
+            )
+
+        if value.startswith(".") or value.endswith("."):
+            raise ValueError("BMC username cannot start or end with a dot")
+
+        if ".." in value:
+            raise ValueError("BMC username cannot contain consecutive dots")
 
         return value
 
@@ -2034,6 +2076,7 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         following_count=d_item.get("following_count", 0),
         comment=d_item.get("comment"),
         post_comments_count=d_item.get("post_comments_count", 0),
+        bmc_username=d_item.get("bmc_username"),
         redirect_to=d_item.get("redirect_to"),
         created_at=d_item["created_at"],
         updated_at=d_item.get("updated_at")
@@ -3288,8 +3331,10 @@ async def generate_sitemap(user: User, request) -> tuple[int, str]:
     # Notify engines
     if is_prod():
         async with httpx.AsyncClient(timeout=5.0) as client:
-            await safe_execute("Google SM notify", client.get("https://www.google.com/ping", params={"sitemap": sitemap_url}))
-            await safe_execute("Bing SM notify", client.get("https://www.bing.com/ping", params={"sitemap": sitemap_url}))
+            await safe_execute("Google SM notify",
+                               client.get("https://www.google.com/ping", params={"sitemap": sitemap_url}))
+            await safe_execute("Bing SM notify",
+                               client.get("https://www.bing.com/ping", params={"sitemap": sitemap_url}))
 
     return len(urls), sitemap_url
 
