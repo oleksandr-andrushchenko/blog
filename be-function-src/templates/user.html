@@ -96,7 +96,7 @@
 
                     {% if user.published_posts_count %}
                         <div>
-                            <small class="text-secondary bi bi-cup-hot"> Buy Me A Coffee:</small>
+                            <small class="text-secondary bi bi-cup-hot"> Buy Me a Coffee:</small>
                             <a class="text-decoration-none link-body-emphasis d-inline-block me-2"
                                href="https://buymeacoffee.com/{{ user.bmc_username }}" target="_blank"
                                rel="noopener noreferrer">
@@ -207,7 +207,7 @@
         <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
             {% if user.published_posts_count %}
                 {% with header="Enjoyed this author?" %}
-                    {% include "fragments/bmc_donate.html" %}
+                    {% include "fragments/bmc-donate.html" %}
                 {% endwith %}
             {% endif %}
 
