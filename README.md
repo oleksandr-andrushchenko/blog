@@ -71,6 +71,9 @@
 - fix tags: postgre-sql -> postgresql, click-house -> clickhouse etc.
 - addd tags (with images) palette on index page (main colon)
 - add redirect from Posts to Articles
+- remove personal contact details
+- optimize page speed loading: first bite for cold starts
+- cache, preload (CDN)
 ## Links
 
 - favicon - https://realfavicongenerator.net
