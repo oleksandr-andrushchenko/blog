@@ -94,9 +94,9 @@
                         </div>
                     {% endif %}
 
-                    {% if user.published_posts_count %}
+                    {% if user.bmc_username and user.published_posts_count %}
                         <div>
-                            <small class="text-secondary bi bi-cup-hot"> Buy Me a Coffee:</small>
+                            <small class="text-secondary bi bi-currency-dollar"> Buy Me a Coffee:</small>
                             <a class="text-decoration-none link-body-emphasis d-inline-block me-2"
                                href="https://buymeacoffee.com/{{ user.bmc_username }}" target="_blank"
                                rel="noopener noreferrer">
