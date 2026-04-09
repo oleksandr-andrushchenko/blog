@@ -111,7 +111,6 @@
             {% if cur_user and cur_user.published_posts_count==0 %}
                 <section class="card">
                     <div class="card-body d-flex flex-column gap-2">
-
                         <div class="d-flex align-items-center gap-2 fw-semibold">
                             <i class="bi bi-lightbulb"></i>
                             <h2 class="h4 mb-0">Become an author</h2>
@@ -122,13 +121,14 @@
                         </div>
 
                         <div>
+                            <a href="{{ url("earn") }}" class="btn btn-warning fw-semibold bi bi-currency-dollar">
+                                Earn with us
+                            </a>
                             <a href="{{ url('new-post') }}"
-                               class="btn btn-light fw-semibold{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}">
-                                <i class="bi bi-pencil-fill"></i>
+                               class="btn btn-light fw-semibold bi bi-pencil-fill{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}">
                                 Write a post
                             </a>
                         </div>
-
                     </div>
                 </section>
             {% endif %}
@@ -136,10 +136,10 @@
             {% if not cur_user %}
                 <section class="card">
                     <div class="card-body d-flex flex-column gap-2">
-
                         <div class="d-flex align-items-center gap-2 fw-semibold">
-                            <i class="bi bi-lightbulb"></i>
-                            <h2 class="h4 mb-0">Become an author</h2>
+                            <h2 class="h4 mb-0">
+                                Become an Author
+                            </h2>
                         </div>
 
                         <div class="text-muted small">
@@ -147,13 +147,14 @@
                         </div>
 
                         <div>
+                            <a href="{{ url("earn") }}" class="btn btn-warning fw-semibold bi bi-currency-dollar">
+                                Earn with us
+                            </a>
                             <a href="{{ url('login', redirect_url=url('new-post') | urlencode) }}"
-                               class="btn btn-primary fw-semibold">
-                                <i class="bi bi-pencil-fill"></i>
+                               class="btn btn-primary fw-semibold bi bi-pencil-fill">
                                 Write a post
                             </a>
                         </div>
-
                     </div>
                 </section>
             {% endif %}

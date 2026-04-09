@@ -93,6 +93,9 @@
                         <a class="nav-link" href="{{ users_url() }}">Users</a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link bi bi-currency-dollar" href="{{ url("earn") }}"> Earn</a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="{{ url("contacts") }}">Contacts</a>
                     </li>
                     {% if cur_user and check_auth(cur_user, Permission.UTILS_PAGE) %}
@@ -168,13 +171,19 @@
     <div class="container py-1 d-flex flex-column flex-md-row justify-content-between align-items-center text-center text-md-start">
         <ul class="nav justify-content-center mb-2 mb-md-0">
             <li class="nav-item">
-                <a class="nav-link px-2 text-muted" href="{{ url('policy') }}">Privacy</a>
+                <a class="nav-link px-2 text-muted bi bi-currency-dollar" href="{{ url("earn") }}"> Earn</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link px-2 text-muted" href="{{ url('rules') }}">Rules</a>
+                <a class="nav-link px-2 text-muted" href="{{ url("contacts") }}">Contacts</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link px-2 text-muted" href="{{ url('terms') }}">Terms</a>
+                <a class="nav-link px-2 text-muted" href="{{ url("policy") }}">Privacy</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link px-2 text-muted" href="{{ url("rules") }}">Rules</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link px-2 text-muted" href="{{ url("terms") }}">Terms</a>
             </li>
         </ul>
 

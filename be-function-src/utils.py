@@ -134,8 +134,8 @@ class UserDTO(BaseModel):
     USERNAME_PATTERN: ClassVar[re.Pattern] = re.compile(r"^[a-z0-9-]+$")
     USERNAME_BLACKLIST: ClassVar[set[str]] = {
         "api", "posts", "posts-fragment", "contacts", "post-tags", "users", "users-fragment", "login", "login-callback",
-        "logout", "logout-callback", "dummy-fixtures", "me", "privacy-policy", "rules", "terms-of-service", "popular",
-        "utils",
+        "logout", "logout-callback", "dummy-fixtures", "me", "privacy-policy", "rules", "terms-of-service",
+        "earn-with-us", "popular", "utils",
     }
 
     @field_validator("username")
@@ -3272,6 +3272,7 @@ async def generate_sitemap(user: User, request) -> tuple[int, str]:
         (url("contacts"), today),
         (url("rules"), today),
         (url("terms"), today),
+        (url("earn"), today),
     ])
 
     # Post lists

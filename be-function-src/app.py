@@ -532,6 +532,13 @@ async def terms(cur_user: OptCurUserDep) -> str:
     })
 
 
+@app.get("/earn-with-us", name="earn", response_class=HTMLResponse)
+async def contribute(cur_user: OptCurUserDep) -> str:
+    return get_html_content("earn.html", {
+        "cur_user": cur_user,
+    })
+
+
 @app.get("/utils", name="utils", response_class=HTMLResponse)
 async def utils(cur_user: CurUserDep) -> str:
     verify_authorization(cur_user, Permission.UTILS_PAGE)

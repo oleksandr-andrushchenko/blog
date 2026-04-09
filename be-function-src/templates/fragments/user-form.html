@@ -75,7 +75,9 @@
     </div>
 
     <div class="form-group row">
-        <label for="bmc_username" class="col-form-label col-2">Buy Me a Coffee</label>
+        <label for="bmc_username" class="col-form-label col-2">
+            <i class="bi bi-currency-dollar"></i> Buy Me a Coffee
+        </label>
         <div class="col-10">
             <div class="input-group">
                 <span class="input-group-text">buymeacoffee.com/</span>
@@ -208,9 +210,9 @@
             rule: "custom",
             validator: (value) => {
               const _username_blacklist = [
-                "api", "posts", "posts-fragment", "contacts", "post-tags", "users", "users-fragment", "login", "login-callback",
-                "logout", "logout-callback", "dummy-fixtures", "me", "privacy-policy", "rules", "terms-of-service", "popular",
-                "utils"
+                "api", "posts", "posts-fragment", "contacts", "post-tags", "users", "users-fragment", "login",
+                "login-callback", "logout", "logout-callback", "dummy-fixtures", "me", "privacy-policy", "rules",
+                "terms-of-service", "earn-with-us", "popular", "utils"
               ]
               return !_username_blacklist.includes(value)
             },
