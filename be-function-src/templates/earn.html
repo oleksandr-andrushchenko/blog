@@ -1,0 +1,123 @@
+{% extends "layout.html" %}
+
+{% set title = "Earn with us" %}
+{% set h1 = "Earn with " ~ site_name %}
+
+{% block meta_title %}{{ title }} | {{ site_name }}{% endblock %}
+{% block meta_canonical %}{{ url("earn") }}{% endblock %}
+
+{% block breadcrumbs %}
+    {% with breadcrumbs = {"Home": url("index"), (title): None} %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
+{% endblock %}
+
+{% block content %}
+    <article>
+        <header>
+            <h1 class="bi bi-currency-dollar"> {{ h1 }}</h1>
+            <p class="text-secondary">
+                Share your content, grow your audience, and enable readers to support your work directly.
+            </p>
+        </header>
+
+        <section>
+            <h2>Overview</h2>
+            <p>{{ site_name }} allows authors to publish content and optionally include a donation link in their
+                profile.</p>
+            <p>This enables readers to support authors directly based on the value they receive from the content.</p>
+        </section>
+
+        <section>
+            <h2>Who can contribute</h2>
+            <ul>
+                <li>Individuals who want to publish content</li>
+                <li>Creators sharing knowledge, guides, or insights</li>
+                <li>Anyone interested in building an audience</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>How it works</h2>
+            <ol>
+                {% if cur_user %}
+                    <li>Create an Account</li>
+                    <li><a href="{{ url("edit-user", user_id=cur_user.id) }}" class="link-body-emphasis">Add</a> an
+                        optional donation username or link
+                    </li>
+                    <li><a href="{{ url("new-post") }}" class="link-body-emphasis">Publish content</a></li>
+                {% else %}
+                    <li><a href="{{ url('login', redirect_url=url("earn")|urlencode) }}" class="link-body-emphasis">Create an Account</a></li>
+                    <li>Add an optional donation username or link</li>
+                    <li>Publish content</li>
+                {% endif %}
+                <li>Readers can support you directly</li>
+            </ol>
+        </section>
+
+        <section>
+            <h2>Monetization</h2>
+            <p>
+                Authors may include a donation option in their profile. When enabled, a donation button can appear on
+                their content, allowing readers to contribute directly.
+            </p>
+
+            <p>
+                Payments are handled by third-party providers and go directly to the author.
+                {{ site_name }} does not take a commission unless explicitly stated otherwise.
+            </p>
+
+            <h3>Supported donation platforms</h3>
+            <ul>
+                <li>
+                    <strong>Buy Me a Coffee</strong> — add your username to enable a donation button on your profile and
+                    posts.
+                </li>
+            </ul>
+
+            <p class="text-secondary">
+                More donation providers may be supported in the future.
+            </p>
+        </section>
+
+        <section>
+            <h2>Content expectations</h2>
+            <ul>
+                <li>Content should be original</li>
+                <li>Content should be clear and structured</li>
+                <li>Content should comply with applicable laws and platform rules</li>
+                <li>Avoid spam, misleading, or harmful material</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Best practices</h2>
+            <ul>
+                <li>Provide value to readers</li>
+                <li>Use examples where helpful</li>
+                <li>Keep content readable and organized</li>
+                <li>Maintain consistency across your posts</li>
+            </ul>
+        </section>
+
+        {% if not cur_user %}
+            <section>
+                <h2>Get started</h2>
+                <p>
+                    Ready to contribute?
+                </p>
+                <a href="{{ url('login', redirect_url=url("earn")|urlencode) }}" class="btn btn-primary">
+                    Create an Account
+                </a>
+            </section>
+        {% endif %}
+
+        <section>
+            <h2>Questions</h2>
+            <p>
+                If you have questions about contributing, please contact us via the
+                <a href="{{ url('contacts') }}" class="link-body-emphasis">Contacts</a> page.
+            </p>
+        </section>
+    </article>
+{% endblock %}

@@ -18,7 +18,7 @@
             <p class="text-secondary"><b>Last updated:</b> {{ (utc_now / 1000) | unix_to_full_date }}</p>
             <p>Welcome to <b>{{ site_name }}</b> (“we,” “our,” or “us”). This Privacy Policy explains how we
                 collect, use, disclose, and protect your personal information when you visit <a
-                        href="{{ url("index") }}">{{ site_name }}</a>.</p>
+                        href="{{ url("index") }}" class="link-body-emphasis">{{ site_name }}</a>.</p>
         </header>
 
         <section>
@@ -74,7 +74,8 @@
                 <li>The right to opt-out of the sale or sharing of personal information (California residents); and</li>
                 <li>The right to lodge a complaint with a supervisory authority in your jurisdiction.</li>
             </ul>
-            <p>To exercise these rights, please contact us via the <a href="{{ url("contacts") }}">Contacts</a>
+            <p>To exercise these rights, please contact us via the <a href="{{ url("contacts") }}"
+                                                                      class="link-body-emphasis">Contacts</a>
                 section below.</p>
         </section>
 
@@ -125,7 +126,8 @@
             <h2>10. Children’s Privacy</h2>
             <p>{{ site_name }} is not intended for children under the age of 13 (or under 16 where the higher age
                 applies). We do not knowingly collect personal information from children. If you believe we have
-                collected personal information from a child, please <a href="{{ url("contacts") }}">contact</a> us and
+                collected personal information from a child, please <a href="{{ url("contacts") }}"
+                                                                       class="link-body-emphasis">contact</a> us and
                 we will delete the data.</p>
         </section>
 
@@ -138,7 +140,8 @@
         <footer>
             <h2>Contact</h2>
             <p>If you have questions, requests, or concerns about this Privacy Policy or your personal data, please
-                contact us via the <a href="{{ url("contacts") }}">Contacts</a> area on our site or using the
+                contact us via the <a href="{{ url("contacts") }}" class="link-body-emphasis">Contacts</a> area on our
+                site or using the
                 contact details provided on {{ site_name }}.</p>
         </footer>
     </article>

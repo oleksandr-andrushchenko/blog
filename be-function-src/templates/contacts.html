@@ -1,6 +1,8 @@
 {% extends "layout.html" %}
 
-{% block meta_title %}Contacts | {{ site_name }}{% endblock %}
+{% set title = "Contacts" %}
+
+{% block meta_title %}{{ title }} | {{ site_name }}{% endblock %}
 {% block meta_canonical %}{{ url("contacts") }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -10,7 +12,7 @@
 {% endblock %}
 
 {% block content %}
-    <h1>Contacts</h1>
+    <h1>{{ title }}</h1>
     <p class="small text-secondary">Contact us</p>
 
     <div class="row g-5">
