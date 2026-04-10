@@ -39,7 +39,7 @@ from utils import (
 )
 
 
-async def get_cur_user(request: Request) -> User:
+def get_cur_user(request: Request) -> User:
     token = request.cookies.get("auth_token")
     if not token:
         raise HTTPException(
@@ -47,7 +47,7 @@ async def get_cur_user(request: Request) -> User:
         )
 
     try:
-        return await get_user_by_auth_token(token)
+        return get_user_by_auth_token(token)
     except InvalidTokenError as e:
         raise HTTPException(
             status_code=HTTP_401_UNAUTHORIZED,
@@ -58,9 +58,9 @@ async def get_cur_user(request: Request) -> User:
 CurUserDep = Annotated[User, Depends(get_cur_user)]
 
 
-async def get_opt_cur_user(request: Request) -> Optional[User]:
+def get_opt_cur_user(request: Request) -> Optional[User]:
     try:
-        return await get_user_by_auth_token(request.cookies.get("auth_token"))
+        return get_user_by_auth_token(request.cookies.get("auth_token"))
     except InvalidTokenError as e:
         raise HTTPException(
             status_code=HTTP_401_UNAUTHORIZED,
@@ -71,9 +71,9 @@ async def get_opt_cur_user(request: Request) -> Optional[User]:
 OptCurUserDep = Annotated[Optional[User], Depends(get_opt_cur_user)]
 
 
-async def get_post_by_id(post_id: str, cur_user: OptCurUserDep = None) -> Post:
+def get_post_by_id(post_id: str, cur_user: OptCurUserDep = None) -> Post:
     try:
-        return await get_post(post_id, cur_user)
+        return get_post(post_id, cur_user)
     except PostNotFoundError as e:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
@@ -84,9 +84,9 @@ async def get_post_by_id(post_id: str, cur_user: OptCurUserDep = None) -> Post:
 PostDep = Annotated[Post, Depends(get_post_by_id)]
 
 
-async def get_user_by_id(user_id: str, cur_user: OptCurUserDep = None) -> User:
+def get_user_by_id(user_id: str, cur_user: OptCurUserDep = None) -> User:
     try:
-        return await get_user(user_id, cur_user)
+        return get_user(user_id, cur_user)
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
@@ -98,7 +98,7 @@ UserDep = Annotated[User, Depends(get_user_by_id)]
 UserQueryDep = Annotated[UserQueryDTO, Depends()]
 
 
-async def get_user_query_by_slugs(request: Request, type: str) -> UserQueryDTO:
+def get_user_query_by_slugs(request: Request, type: str) -> UserQueryDTO:
     data = dict(request.query_params)
     data.update({"type": type})
     try:
@@ -110,7 +110,7 @@ async def get_user_query_by_slugs(request: Request, type: str) -> UserQueryDTO:
 UserQueryBySlugsDep = Annotated[UserQueryDTO, Depends(get_user_query_by_slugs)]
 
 
-async def get_post_query(request: Request, tags: list[str] = Query([])) -> PostQueryDTO:
+def get_post_query(request: Request, tags: list[str] = Query([])) -> PostQueryDTO:
     data = dict(request.query_params)
     data.update({"tags": tags})
     try:
@@ -123,7 +123,7 @@ PostQueryDep = Annotated[PostQueryDTO, Depends(get_post_query)]
 TagQueryDep = Annotated[TagQueryDTO, Depends()]
 
 
-async def get_post_query_by_slugs(request: Request, slugs_path: str) -> PostQueryDTO:
+def get_post_query_by_slugs(request: Request, slugs_path: str) -> PostQueryDTO:
     data = dict(request.query_params)
     data.update(parse_posts_url_slugs_path(slugs_path))
     try:
@@ -190,9 +190,9 @@ def get_update_post_impression_dto(
 UpdatePostImpressionDTODep = Annotated[UpdatePostImpressionDTO, Depends(get_update_post_impression_dto)]
 
 
-async def get_post_comment_by_id(post_id: str, post_comment_id: str) -> PostComment:
+def get_post_comment_by_id(post_id: str, post_comment_id: str) -> PostComment:
     try:
-        return await get_post_comment(post_id, post_comment_id)
+        return get_post_comment(post_id, post_comment_id)
     except PostNotFoundError as e:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
@@ -231,9 +231,9 @@ def get_update_user_impression_dto(
 UpdateUserImpressionDTODep = Annotated[UpdateUserImpressionDTO, Depends(get_update_user_impression_dto)]
 
 
-async def _get_user_by_slug(slug: str, cur_user: OptCurUserDep = None) -> User:
+def _get_user_by_slug(slug: str, cur_user: OptCurUserDep = None) -> User:
     try:
-        return await get_user_by_slug(slug, cur_user)
+        return get_user_by_slug(slug, cur_user)
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
@@ -244,9 +244,9 @@ async def _get_user_by_slug(slug: str, cur_user: OptCurUserDep = None) -> User:
 UserBySlugDep = Annotated[User, Depends(_get_user_by_slug)]
 
 
-async def _get_post_by_slugs(user_slug: str, post_slug: str, cur_user: OptCurUserDep = None) -> Post:
+def _get_post_by_slugs(user_slug: str, post_slug: str, cur_user: OptCurUserDep = None) -> Post:
     try:
-        return await get_post_by_slugs(user_slug, post_slug, cur_user)
+        return get_post_by_slugs(user_slug, post_slug, cur_user)
     except PostNotFoundError as e:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
@@ -262,7 +262,7 @@ async def _get_post_by_slugs(user_slug: str, post_slug: str, cur_user: OptCurUse
 PostBySlugsDep = Annotated[Post, Depends(_get_post_by_slugs)]
 
 
-async def get_error_response(request: Request, status_code: int, details: dict | str = None):
+def get_error_response(request: Request, status_code: int, details: dict | str = None):
     status_enum = HTTPStatus(status_code)
     public_data = {
         "code": status_code,
@@ -281,7 +281,7 @@ async def get_error_response(request: Request, status_code: int, details: dict |
     # cur_user = None
     # if status_code != HTTP_401_UNAUTHORIZED:
     #     try:
-    #         cur_user = await get_cur_user(request)
+    #         cur_user =  get_cur_user(request)
     #     except HTTPException:
     #         pass
 

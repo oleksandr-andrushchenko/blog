@@ -19,7 +19,7 @@ CODE_STACK_NAME = $(AWS_STACK)-code
 CERT_STACK_NAME = $(AWS_STACK)-cert
 SITE_BUILD_DIR=.site-build
 CODE_BUILD_DIR=.code-build
-CACHE_DIR=.cache
+TMP_DIR=.tmp
 
 HOST_UID := $(shell id -u)
 HOST_GID := $(shell id -g)
@@ -299,13 +299,15 @@ generate-code-files: ## Build Lambda zip for be-function
 	# Clean build dir completely
 	rm -rf $(CODE_BUILD_DIR)
 	mkdir -p $(CODE_BUILD_DIR)
+	rm -rf $(TMP_DIR)
+	mkdir -p $(TMP_DIR)
 
 	# Install dependencies
 	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) bash -c "\
 		echo '📥 Installing dependencies (fresh)...'; \
-		rm -rf /app/$(CODE_BUILD_DIR)/vendor; \
-		mkdir -p /app/$(CODE_BUILD_DIR)/vendor; \
-		pip install -r /app/be-function-src/requirements.txt -t /app/$(CODE_BUILD_DIR)/vendor; \
+		pip install --no-cache-dir \
+		    -r /app/be-function-src/requirements.txt \
+		    -t /app/$(TMP_DIR); \
 	"
 
 	# Run build script

@@ -9,7 +9,7 @@ output_dir = root_dir / ".code-build"
 be_function_dir = root_dir / "be-function-src"
 tmp_dir = output_dir / "tmp_be-function"
 zip_file = output_dir / "be-function.zip"
-vendor_dir = root_dir / ".cache" / "vendor"
+vendor_dir = root_dir / ".tmp"
 
 # Ensure cache folder exists
 vendor_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -31,7 +31,7 @@ else:
 
 # Copy source files (excluding __pycache__)
 for item in be_function_dir.iterdir():
-    if item.name == "__pycache__":
+    if item.name in {"__pycache__", ".pytest_cache", ".mypy_cache"}:
         continue
     dest = tmp_dir / item.name
     if item.is_dir():
@@ -47,13 +47,17 @@ if static_dir_name:
         shutil.rmtree(static_dir)
         print(f"🗑 Removed static folder: {static_dir}")
 
-# Clean any __pycache__
-for pycache in tmp_dir.rglob("__pycache__"):
-    shutil.rmtree(pycache)
+for path in tmp_dir.rglob("*"):
+    if path.is_dir():
+        if path.name in {"__pycache__", "tests", "test", "testing"}:
+            shutil.rmtree(path)
+    else:
+        if path.suffix in {".pyc", ".pyo"}:
+            path.unlink()
 
 # Create zip
 print(f"📦 Creating zip: {zip_file}")
-subprocess.run(["zip", "-r", str(zip_file), "."], cwd=tmp_dir, check=True)
+subprocess.run(["zip", "-r", "-9", str(zip_file), "."], cwd=tmp_dir, check=True)
 
 # Clean up temp folder
 shutil.rmtree(tmp_dir)

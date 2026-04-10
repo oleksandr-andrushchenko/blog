@@ -1,20 +1,13 @@
-# Use Python 3.12 slim
-FROM python:3.12-slim
+FROM public.ecr.aws/sam/build-python3.12
 
-# Set working directory
 WORKDIR /app
 
-# Install make and zip
-RUN apt-get update && apt-get install -y zip && rm -rf /var/lib/apt/lists/*
+RUN dnf install -y zip && dnf clean all
 
-# Copy requirements first for caching
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -t vendor -r requirements.txt
 
-# Copy application code
 COPY . .
 
-# Default command
 CMD ["tail", "-f", "/dev/null"]

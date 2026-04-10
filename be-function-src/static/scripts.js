@@ -609,7 +609,7 @@ if (window.CONFIG.init_tinymce) {
     powerpaste_html_import: "clean",
     valid_elements: "figure[class],figcaption[class]," + "img[src|alt|title|class|width|height|style],"
       + "h2,h3,h4,h5,h6,"
-      + "a[href|target|rel|title],"
+      + "a[href|target|title],"
       + "b/strong,i/em,u,span[class],"
       + "ul,ol,li,"
       + "table[class|border|cellpadding|cellspacing],thead,tbody,tfoot,tr,th[colspan|rowspan],td[colspan|rowspan],"

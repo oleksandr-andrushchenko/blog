@@ -15,6 +15,7 @@ from starlette.status import (
 )
 from mangum import Mangum
 from utils import (
+    to_thread,
     ContactMessageDTO,
     PostDTO,
     PostQueryDTO,
@@ -158,10 +159,10 @@ async def index(cur_user: OptCurUserDep) -> str:
         popular_posts,
         popular_users,
     ) = await asyncio.gather(
-        get_popular_post_tags(),
-        get_latest_published_posts(limit=latest_posts_query.limit),
-        get_popular_published_posts(limit=5),
-        get_popular_active_users(limit=5),
+        to_thread(get_popular_post_tags),
+        to_thread(get_latest_published_posts, limit=latest_posts_query.limit),
+        to_thread(get_popular_published_posts, limit=5),
+        to_thread(get_popular_active_users, limit=5),
     )
     return get_html_content("index.html", {
         "cur_user": cur_user,
@@ -176,23 +177,20 @@ async def index(cur_user: OptCurUserDep) -> str:
 
 @app.post("/api/public-file", name="upload-public-file", response_class=JSONResponse)
 async def upload_public_file(image_file_dto: ImageFileDTODep) -> str:
-    return await save_public_file(image_file_dto)
+    return save_public_file(image_file_dto)
 
 
 async def base_post_page(post: PostDep, cur_user: OptCurUserDep) -> HTMLResponse:
-    async def noop():
-        return None
-
     (
         author,
         post_impression,
         related_posts,
         comments,
     ) = await asyncio.gather(
-        find_user(post.user_id),
-        find_post_impression(post, cur_user) if cur_user else noop(),
-        get_post_related_posts(post),
-        get_post_comments(post),
+        to_thread(find_user, post.user_id),
+        to_thread(find_post_impression, post, cur_user) if cur_user else asyncio.sleep(0, result=None),
+        to_thread(get_post_related_posts, post),
+        to_thread(get_post_comments, post),
     )
 
     html_content = get_html_content("post.html", {
@@ -207,11 +205,11 @@ async def base_post_page(post: PostDep, cur_user: OptCurUserDep) -> HTMLResponse
     return HTMLResponse(html_content)
 
 
-async def base_posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
+def base_posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
     return get_html_content("posts.html", {
         "cur_user": cur_user,
         "post_query": query_dto,
-        "posts": await get_posts(query_dto, cur_user),
+        "posts": get_posts(query_dto, cur_user),
     })
 
 
@@ -228,7 +226,7 @@ async def new_post(cur_user: CurUserDep) -> str:
 @app.post("/api/posts", name="create-post", response_class=JSONResponse)
 async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request) -> str:
     try:
-        post = await create_post(post_dto, cur_user)
+        post = create_post(post_dto, cur_user)
         return get_post_url(request, post)
     except SlugDuplicationError as e:
         raise HTTPException(
@@ -239,13 +237,13 @@ async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request
 
 @app.get("/posts", name="posts", response_class=HTMLResponse)
 async def posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep):
-    return await base_posts_page(query_dto, cur_user)
+    return base_posts_page(query_dto, cur_user)
 
 
 @app.get("/api/posts-fragment", name="posts-fragment", response_class=HTMLResponse)
 async def posts_fragment(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("fragments/posts.html", {
-        "posts": await get_posts(query_dto, cur_user)
+        "posts": get_posts(query_dto, cur_user)
     })
 
 
@@ -268,7 +266,7 @@ async def edit_post(post: PostDep, cur_user: CurUserDep) -> str:
 @app.patch("/api/posts/{post_id}", name="update-post", response_class=JSONResponse)
 async def _update_post(post: PostDep, update_post_dto: UpdatePostDTODep, cur_user: CurUserDep, request: Request) -> str:
     try:
-        await update_post(post, update_post_dto, cur_user)
+        update_post(post, update_post_dto, cur_user)
         return get_post_url(request, post)
     except SlugDuplicationError as e:
         raise HTTPException(
@@ -280,20 +278,20 @@ async def _update_post(post: PostDep, update_post_dto: UpdatePostDTODep, cur_use
 @app.post("/api/posts/{post_id}/status", name="update-post-status", response_class=JSONResponse)
 async def _update_post_status(post: PostDep, update_post_status_dto: UpdatePostStatusDTODep,
                               cur_user: CurUserDep, request: Request) -> str:
-    await update_post_status(post, update_post_status_dto, cur_user)
+    update_post_status(post, update_post_status_dto, cur_user)
     return get_post_url(request, post)
 
 
 @app.post("/api/posts/{post_id}/impression", name="update-post-impression", response_class=HTMLResponse)
 async def _update_post_impression(post: PostDep, update_post_impression_dto: UpdatePostImpressionDTODep,
                                   cur_user: CurUserDep) -> str:
-    await update_post_impression(post, update_post_impression_dto, cur_user)
+    update_post_impression(post, update_post_impression_dto, cur_user)
     (
         post,
         post_impression,
     ) = await asyncio.gather(
-        find_post(post.id),
-        find_post_impression(post, cur_user),
+        to_thread(find_post, post.id),
+        to_thread(find_post_impression, post, cur_user),
     )
     return get_html_content("fragments/post-impressions.html", {
         "post": post,
@@ -305,7 +303,7 @@ async def _update_post_impression(post: PostDep, update_post_impression_dto: Upd
 @app.post("/api/posts/{post_id}/comment", name="create-post-comment", response_class=JSONResponse)
 async def _create_post_comment(post: PostDep, post_comment_dto: PostCommentDTO, cur_user: CurUserDep,
                                request: Request) -> str:
-    post_comment = await create_post_comment(post, post_comment_dto, cur_user)
+    post_comment = create_post_comment(post, post_comment_dto, cur_user)
     return get_post_comment_url(request, post, post_comment)
 
 
@@ -313,13 +311,13 @@ async def _create_post_comment(post: PostDep, post_comment_dto: PostCommentDTO, 
 async def _update_post_comment(post: PostDep, post_comment: PostCommentDep,
                                update_post_comment_dto: UpdatePostCommentDTODep, cur_user: CurUserDep,
                                request: Request) -> str:
-    await update_post_comment(post, post_comment, update_post_comment_dto, cur_user)
+    update_post_comment(post, post_comment, update_post_comment_dto, cur_user)
     return get_post_comment_url(request, post, post_comment)
 
 
 @app.get("/{slugs_path:path}/posts", name="posts-by-slugs", response_class=HTMLResponse)
 async def posts_page_by_slugs(query_dto: PostQueryBySlugsDep, cur_user: OptCurUserDep) -> HTMLResponse:
-    return await base_posts_page(query_dto, cur_user)
+    return base_posts_page(query_dto, cur_user)
 
 
 @app.get("/contacts", name="contacts", response_class=HTMLResponse)
@@ -331,36 +329,36 @@ async def contacts(cur_user: OptCurUserDep) -> str:
 
 @app.post("/api/contacts/message", name="create-contact-message", status_code=HTTP_204_NO_CONTENT)
 async def _create_contact_message(message_dto: ContactMessageDTO, cur_user: OptCurUserDep) -> None:
-    await create_contact_message(message_dto, cur_user)
+    create_contact_message(message_dto, cur_user)
 
 
 @app.get("/api/post-tags", name="get-post-tags", response_model=list[PublicTag], response_class=JSONResponse)
 async def _get_post_tags(query_dto: TagQueryDep) -> list[Tag]:
-    return await get_post_tags(query_dto)
+    return get_post_tags(query_dto)
 
 
-async def base_users_page(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
+def base_users_page(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
     return get_html_content("users.html", {
         "cur_user": cur_user,
         "user_query": query_dto,
-        "users": await get_users(query_dto, cur_user)
+        "users": get_users(query_dto, cur_user)
     })
 
 
 @app.get("/users", name="users", response_class=HTMLResponse)
 async def users_page(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> str:
-    return await base_users_page(query_dto, cur_user)
+    return base_users_page(query_dto, cur_user)
 
 
 @app.get("/{type}/users", name="users-by-slugs", response_class=HTMLResponse)
 async def users_page_by_slugs(query_dto: UserQueryBySlugsDep, cur_user: OptCurUserDep) -> HTMLResponse:
-    return await base_users_page(query_dto, cur_user)
+    return base_users_page(query_dto, cur_user)
 
 
 @app.get("/api/users-fragment", name="users-fragment", response_class=HTMLResponse)
 async def users_fragment(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("fragments/users.html", {
-        "users": await get_users(query_dto, cur_user),
+        "users": get_users(query_dto, cur_user),
         "cur_user": cur_user,
     })
 
@@ -371,11 +369,11 @@ async def base_user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user:
             posts,
             user_impression,
         ) = await asyncio.gather(
-            get_latest_posts_by_user(user, posts_query_dto, cur_user),
-            find_user_impression(user, cur_user),
+            to_thread(get_latest_posts_by_user, user, posts_query_dto, cur_user),
+            to_thread(find_user_impression, user, cur_user),
         )
     else:
-        posts = await get_latest_posts_by_user(user, posts_query_dto, cur_user)
+        posts = get_latest_posts_by_user(user, posts_query_dto, cur_user)
         user_impression = None
 
     html_content = get_html_content("user.html", {
@@ -396,20 +394,20 @@ async def user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user: OptC
 @app.post("/api/users/{user_id}/status", name="update-user-status", response_class=JSONResponse)
 async def _update_user_status(user: UserDep, update_user_status_dto: UpdateUserStatusDTODep,
                               cur_user: CurUserDep, request: Request) -> str:
-    await update_user_status(user, update_user_status_dto, cur_user)
+    update_user_status(user, update_user_status_dto, cur_user)
     return get_user_url(request, user)
 
 
 @app.post("/api/users/{user_id}/impression", name="update-user-impression", response_class=HTMLResponse)
 async def _update_user_impression(user: UserDep, update_user_impression_dto: UpdateUserImpressionDTODep,
                                   cur_user: CurUserDep) -> str:
-    await update_user_impression(user, update_user_impression_dto, cur_user)
+    update_user_impression(user, update_user_impression_dto, cur_user)
     (
         user,
         user_impression,
     ) = await asyncio.gather(
-        find_user(user.id),
-        find_user_impression(user, cur_user),
+        to_thread(find_user, user.id),
+        to_thread(find_user_impression, user, cur_user),
     )
     return get_html_content("fragments/user-impressions.html", {
         "user": user,
@@ -431,7 +429,7 @@ async def edit_user(user: UserDep, cur_user: CurUserDep) -> str:
 
 @app.patch("/api/users/{user_id}", name="update-user", response_class=JSONResponse)
 async def _update_user(update_user_dto: UpdateUserDTODep, user: UserDep, cur_user: CurUserDep, request: Request) -> str:
-    await update_user(user, update_user_dto, cur_user)
+    update_user(user, update_user_dto, cur_user)
     return get_user_url(request, user)
 
 
@@ -439,7 +437,7 @@ async def _update_user(update_user_dto: UpdateUserDTODep, user: UserDep, cur_use
 async def user_posts_fragment(user: UserDep, query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("fragments/posts.html", {
         "query": query_dto,
-        "posts": await get_latest_posts_by_user(user, query_dto, cur_user),
+        "posts": get_latest_posts_by_user(user, query_dto, cur_user),
         "cur_user": cur_user,
     })
 
@@ -448,7 +446,7 @@ async def user_posts_fragment(user: UserDep, query_dto: PostQueryDep, cur_user: 
 async def login(request: Request) -> RedirectResponse:
     redirect_url = get_redirect_url(request)
     callback_url = get_url(request, 'login-callback', full=True)
-    provider_redirect_url = await get_login_redirect_url(callback_url)
+    provider_redirect_url = get_login_redirect_url(callback_url)
     response = RedirectResponse(provider_redirect_url)
     response.set_cookie("redirect_url", redirect_url, httponly=True, secure=True)
     return response
@@ -460,7 +458,7 @@ async def login_callback(request: Request) -> RedirectResponse:
         redirect_url = request.cookies.get("redirect_url") or get_url(request, "index")
         callback_url = get_url(request, 'login-callback', full=True)
 
-        cognito_user_token = await get_user_token_by_code(
+        cognito_user_token = get_user_token_by_code(
             code=request.query_params.get("code"),
             callback_url=callback_url
         )
@@ -485,7 +483,7 @@ async def login_callback(request: Request) -> RedirectResponse:
 async def logout(request: Request) -> RedirectResponse:
     redirect_url = get_redirect_url(request)
     callback_url = get_url(request, 'logout-callback', full=True)
-    provider_redirect_url = await get_logout_redirect_url(callback_url)
+    provider_redirect_url = get_logout_redirect_url(callback_url)
     response = RedirectResponse(provider_redirect_url)
     response.set_cookie("redirect_url", redirect_url, httponly=True, secure=True)
     response.delete_cookie("auth_token")
@@ -500,7 +498,7 @@ async def logout_callback(request: Request) -> str:
 
 @app.post("/api/dummy-fixtures", name="create-dummy-fixtures")
 async def _create_dummy_fixtures() -> None:
-    return await create_dummy_fixtures()
+    return create_dummy_fixtures()
 
 
 @app.get("/api/me", name="me", response_model=Me, response_class=JSONResponse)
@@ -549,7 +547,7 @@ async def utils(cur_user: CurUserDep) -> str:
 
 @app.post("/api/generate-sitemap", name="generate-sitemap")
 async def _generate_sitemap(cur_user: CurUserDep, request: Request) -> dict:
-    urls_count, sitemap_url = await generate_sitemap(cur_user, request)
+    urls_count, sitemap_url = generate_sitemap(cur_user, request)
     return {"urls_count": urls_count, "sitemap_url": sitemap_url}
 
 
@@ -567,7 +565,7 @@ async def post_page_by_slugs(post: PostBySlugsDep, cur_user: OptCurUserDep) -> H
 @app.exception_handler(StarletteHTTPException)
 async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
     logger.error(f"HTTP exception: {str(exc)}")
-    return await get_error_response(
+    return get_error_response(
         request,
         exc.status_code,
         exc.detail
@@ -581,7 +579,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     for error in exc.errors():
         field = error["loc"][-1] if len(error["loc"]) > 1 else error["loc"][0]
         details[field] = error["msg"]
-    return await get_error_response(
+    return get_error_response(
         request,
         HTTP_422_UNPROCESSABLE_ENTITY,
         details,
@@ -591,7 +589,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.exception_handler(NotAuthenticatedError)
 async def not_authenticated_error_handler(request: Request, exc: NotAuthenticatedError):
     logger.error(f"Not authenticated: {str(exc)}")
-    return await get_error_response(
+    return get_error_response(
         request,
         HTTP_401_UNAUTHORIZED,
     )
@@ -605,7 +603,7 @@ async def user_banned_error_handler(request: Request, exc: UserBannedError):
 @app.exception_handler(NotAuthorizedError)
 async def not_authorized_error_handler(request: Request, exc: NotAuthorizedError):
     logger.error(f"Not authorized: {str(exc)}")
-    return await get_error_response(
+    return get_error_response(
         request,
         HTTP_403_FORBIDDEN,
         {"permission": exc.permission},
