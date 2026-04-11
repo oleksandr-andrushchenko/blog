@@ -16,7 +16,6 @@ from pydantic import BaseModel, EmailStr, Field, field_validator, conlist, const
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 from zoneinfo import ZoneInfo
-import decimal
 import copy
 import boto3
 from functools import lru_cache, partial
@@ -1516,7 +1515,7 @@ def get_dummy_user_token(
         email: str = "test@example.com",
         name: str | None = None
 ) -> UserTokenDTO:
-    return UserTokenDTODTO(
+    return UserTokenDTO(
         sub=sub,
         iss=iss,
         username=username,
@@ -2409,7 +2408,7 @@ def get_user_by_slug(username: str, cur_user: User = None) -> User:
 
 class DecimalEncoder(json.JSONEncoder):
     def default(self, o):
-        if isinstance(o, decimal.Decimal):
+        if isinstance(o, Decimal):
             # you can cast to int if you know it’s always an integer
             if o % 1 == 0:
                 return int(o)

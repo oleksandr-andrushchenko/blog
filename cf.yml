@@ -443,19 +443,19 @@ Resources:
       UserPoolId: !Ref CognitoUserPoolV2
       Domain: !Ref AWS::StackName
 
-  # API Gateway – no caching, forward everything
+  # API Gateway – cache aggressively, forward everything
   ApiCachePolicy:
     Type: AWS::CloudFront::CachePolicy
     Properties:
       CachePolicyConfig:
         Name: !Sub "${AWS::StackName}-api-cache-policy"
-        DefaultTTL: 0
-        MinTTL: 0
-        MaxTTL: 0
+        DefaultTTL: 86400   # 1 day
+        MinTTL: 3600        # 1 hour
+        MaxTTL: 31536000    # 1 year
         ParametersInCacheKeyAndForwardedToOrigin:
-          EnableAcceptEncodingGzip: false
+          EnableAcceptEncodingGzip: true
           QueryStringsConfig:
-            QueryStringBehavior: none
+            QueryStringBehavior: all
           HeadersConfig:
             HeaderBehavior: none
           CookiesConfig:
@@ -543,6 +543,12 @@ Resources:
             CachedMethods: [ GET, HEAD ]
             CachePolicyId: !Ref S3CachePolicy
             OriginRequestPolicyId: !Ref S3OriginRequestPolicy
+          - PathPattern: "/api/*"
+            TargetOriginId: apiOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [ GET, HEAD, POST, PUT, DELETE, PATCH, OPTIONS ]
+            CachedMethods: [ GET, HEAD ]
+            CachePolicyId: Managed-CachingDisabled
         ViewerCertificate:
           AcmCertificateArn: !Ref CertificateArn
           SslSupportMethod: sni-only

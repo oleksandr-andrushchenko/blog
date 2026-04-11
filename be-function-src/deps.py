@@ -34,33 +34,34 @@ from utils import (
 )
 
 
-def get_cur_user(request: Request) -> User:
+def _resolve_user(request: Request) -> User | None:
     token = request.cookies.get("auth_token")
     if not token:
-        raise HTTPException(
-            status_code=401,
-        )
+        return None
 
     try:
         return get_user_by_auth_token(token)
-    except InvalidTokenError as e:
-        raise HTTPException(
-            status_code=401,
-            detail=str(e)
-        )
+    except InvalidTokenError:
+        return None
+
+
+def get_cur_user(request: Request) -> User:
+    user = _resolve_user(request)
+    request.state.cur_user = user
+
+    if not user:
+        raise HTTPException(status_code=401)
+
+    return user
 
 
 CurUserDep = Annotated[User, Depends(get_cur_user)]
 
 
-def get_opt_cur_user(request: Request) -> Optional[User]:
-    try:
-        return get_user_by_auth_token(request.cookies.get("auth_token"))
-    except InvalidTokenError as e:
-        raise HTTPException(
-            status_code=401,
-            detail=str(e)
-        )
+def get_opt_cur_user(request: Request) -> User | None:
+    user = _resolve_user(request)
+    request.state.cur_user = user
+    return user
 
 
 OptCurUserDep = Annotated[Optional[User], Depends(get_opt_cur_user)]

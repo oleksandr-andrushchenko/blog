@@ -138,6 +138,36 @@ async def inject_template_global_vars(request: Request, call_next):
     return await call_next(request)
 
 
+@app.middleware("http")
+async def cache_control_middleware(request: Request, call_next):
+    response = await call_next(request)
+
+    # Respect explicit overrides (rare cases like admin/debug)
+    if "Cache-Control" in response.headers:
+        return response
+
+    # Never cache mutations
+    if request.method not in ("GET", "HEAD"):
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    path = request.url.path
+
+    # Never cache API
+    if path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    # Authenticated → never cache
+    if getattr(request.state, "cur_user", None):
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
+
+    # Anonymous → cacheable
+    response.headers["Cache-Control"] = "public"
+    return response
+
+
 @app.get("/", name="index", response_class=HTMLResponse)
 async def index(cur_user: OptCurUserDep) -> str:
     latest_posts_query = PostQueryDTO()
