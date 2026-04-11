@@ -2,13 +2,8 @@ from fastapi import Request, Depends, HTTPException, Query, UploadFile, File, Bo
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
-from starlette.status import (
-    HTTP_401_UNAUTHORIZED,
-    HTTP_404_NOT_FOUND,
-)
 from typing_extensions import Annotated
 from typing import Optional
-from http import HTTPStatus
 from utils import (
     User,
     PostQueryDTO,
@@ -43,14 +38,14 @@ def get_cur_user(request: Request) -> User:
     token = request.cookies.get("auth_token")
     if not token:
         raise HTTPException(
-            status_code=HTTP_401_UNAUTHORIZED,
+            status_code=401,
         )
 
     try:
         return get_user_by_auth_token(token)
     except InvalidTokenError as e:
         raise HTTPException(
-            status_code=HTTP_401_UNAUTHORIZED,
+            status_code=401,
             detail=str(e)
         )
 
@@ -63,7 +58,7 @@ def get_opt_cur_user(request: Request) -> Optional[User]:
         return get_user_by_auth_token(request.cookies.get("auth_token"))
     except InvalidTokenError as e:
         raise HTTPException(
-            status_code=HTTP_401_UNAUTHORIZED,
+            status_code=401,
             detail=str(e)
         )
 
@@ -76,7 +71,7 @@ def get_post_by_id(post_id: str, cur_user: OptCurUserDep = None) -> Post:
         return get_post(post_id, cur_user)
     except PostNotFoundError as e:
         raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
+            status_code=404,
             detail=str(e),
         )
 
@@ -89,7 +84,7 @@ def get_user_by_id(user_id: str, cur_user: OptCurUserDep = None) -> User:
         return get_user(user_id, cur_user)
     except UserNotFoundError as e:
         raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
+            status_code=404,
             detail=str(e),
         )
 
@@ -195,7 +190,7 @@ def get_post_comment_by_id(post_id: str, post_comment_id: str) -> PostComment:
         return get_post_comment(post_id, post_comment_id)
     except PostNotFoundError as e:
         raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
+            status_code=404,
             detail=str(e),
         )
 
@@ -236,7 +231,7 @@ def _get_user_by_slug(slug: str, cur_user: OptCurUserDep = None) -> User:
         return get_user_by_slug(slug, cur_user)
     except UserNotFoundError as e:
         raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
+            status_code=404,
             detail=str(e),
         )
 
@@ -249,12 +244,12 @@ def _get_post_by_slugs(user_slug: str, post_slug: str, cur_user: OptCurUserDep =
         return get_post_by_slugs(user_slug, post_slug, cur_user)
     except PostNotFoundError as e:
         raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
+            status_code=404,
             detail=str(e),
         )
     except UserNotFoundError as e:
         raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
+            status_code=404,
             detail=str(e),
         )
 
@@ -263,6 +258,7 @@ PostBySlugsDep = Annotated[Post, Depends(_get_post_by_slugs)]
 
 
 def get_error_response(request: Request, status_code: int, details: dict | str = None):
+    from http import HTTPStatus
     status_enum = HTTPStatus(status_code)
     public_data = {
         "code": status_code,
@@ -279,7 +275,7 @@ def get_error_response(request: Request, status_code: int, details: dict | str =
         )
 
     # cur_user = None
-    # if status_code != HTTP_401_UNAUTHORIZED:
+    # if status_code != 401:
     #     try:
     #         cur_user =  get_cur_user(request)
     #     except HTTPException:

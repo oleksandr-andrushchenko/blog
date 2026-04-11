@@ -5,37 +5,22 @@ import uuid
 import datetime
 import logging
 import sys
-import httpx
 from enum import StrEnum
-from urllib.parse import quote
-from jose import jwt
-from jose.exceptions import JWTError, ExpiredSignatureError
+from urllib.parse import quote, urlencode, urlparse
 import base64
-from typing import Callable, ClassVar, Literal, TypeVar, Any, Union, Optional
-from starlette.status import HTTP_200_OK
+from typing import Callable, ClassVar, Literal, TypeVar, Any, Optional
 from jinja2 import Environment, FileSystemLoader, pass_context
 import json
 from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, EmailStr, Field, field_validator, conlist, constr, HttpUrl, computed_field
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
-from itertools import combinations
 from zoneinfo import ZoneInfo
 import decimal
-from urllib.parse import urlencode
 import copy
-import filetype
-from io import BytesIO
-import struct
-import random
-import html
-from urllib.parse import urlparse
-import difflib
-from html.parser import HTMLParser
 import boto3
 from functools import lru_cache, partial
 import asyncio
-import nh3
 from dataclasses import dataclass, asdict
 from decimal import Decimal
 
@@ -106,6 +91,7 @@ class FileDTO(BaseModel):
     @computed_field
     @property
     def extension(self) -> str | None:
+        import filetype
         kind = filetype.guess(self.content)
         if kind:
             return kind.extension
@@ -294,6 +280,7 @@ def sanitize_html(value):
     if not value or not isinstance(value, str):
         return value
 
+    import html
     escaped = html.escape(value)
     return escaped.strip()
 
@@ -302,6 +289,7 @@ def sanitize_forbidden_html(value):
     if not value or not isinstance(value, str):
         return value
 
+    import nh3
     cleaned = nh3.clean(
         value,
         tags={
@@ -1210,8 +1198,6 @@ def get_jinja2_env():
 
 jinja2_env = Lazy(get_jinja2_env)
 
-import boto3
-
 
 @lru_cache
 def get_dynamodb_resource():
@@ -1264,6 +1250,8 @@ def get_html_content(template: str, data: dict[str, Any]) -> str:
 
 def get_image_dimensions(data: bytes) -> tuple[int, int]:
     """Return (width, height) for JPEG, PNG, GIF images from raw bytes."""
+
+    import struct
 
     # PNG
     if data[:8] == b"\x89PNG\r\n\x1a\n":
@@ -1323,7 +1311,7 @@ def save_public_file(file_dto: FileDTO, filename: str = None) -> str:
         with open(f"./{get_static_files_dir()}/{filename}", "wb") as f:
             f.write(file_dto.content)
         return filename
-
+    from io import BytesIO
     stream = BytesIO(file_dto.content)
     stream.seek(0)
 
@@ -1560,6 +1548,9 @@ def get_user_token_by_auth_jwt_token(token: str | None) -> UserTokenDTO | None:
     if not token:
         return None
 
+    from jose import jwt
+    from jose.exceptions import JWTError, ExpiredSignatureError
+
     try:
         payload = jwt.decode(
             token,
@@ -1643,28 +1634,8 @@ def compute_rating_sk(rating: int, created_at: int = 0) -> int:
     return rating * 10_000_000_000_000 + created_at
 
 
-class FirstPExtractor(HTMLParser):
-    def __init__(self):
-        super().__init__()
-        self.in_p = False
-        self.text_parts = []
-        self.found = False
-
-    def handle_starttag(self, tag, attrs):
-        if tag == "p" and not self.found:
-            self.in_p = True
-
-    def handle_endtag(self, tag):
-        if tag == "p" and self.in_p:
-            self.in_p = False
-            self.found = True  # stop after first <p>
-
-    def handle_data(self, data):
-        if self.in_p:
-            self.text_parts.append(data)
-
-
 def find_preview(html_content: str) -> str | None:
+    from html_parsers import FirstPExtractor
     parser = FirstPExtractor()
     parser.feed(html_content)
 
@@ -1747,6 +1718,7 @@ def create_post(post_dto: PostDTO, user: User) -> Post:
 
 
 def get_text_diff_percentage(t1, t2) -> int:
+    import difflib
     seq = difflib.SequenceMatcher(None, t1, t2)
     similarity = seq.ratio()
     change_percentage = (1 - similarity) * 100
@@ -1838,6 +1810,7 @@ def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User) -> N
                 })
 
             # Remove old tag combos
+            from itertools import combinations
             for r in range(1, len(old_tags) + 1):
                 for combo in combinations(sorted(old_tags), r):
                     post_tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{post.created_at}#{post.id}")
@@ -2743,6 +2716,7 @@ def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, 
             })
 
         # Create post tag combos
+        from itertools import combinations
         for r in range(1, len(post.tags) + 1):
             for combo in combinations(sorted(post.tags), r):
                 post_tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{post.created_at}#{post.id}")
@@ -2884,9 +2858,10 @@ def get_user_token_by_code(code: str, callback_url: str) -> UserTokenDTO:
             ).decode()
         }
 
+        import httpx
         with httpx.Client() as client:
             token_resp = client.post(token_url, data=data, headers=headers)
-            if token_resp.status_code != HTTP_200_OK:
+            if token_resp.status_code != 200:
                 logger.error(f"Token exchange failed: {token_resp.status_code} {token_resp.text}")
                 raise CodeExchangeFailedError("Failed to exchange code")
             tokens = token_resp.json()
@@ -2895,6 +2870,7 @@ def get_user_token_by_code(code: str, callback_url: str) -> UserTokenDTO:
         id_token = tokens.get("id_token")
         if not id_token:
             raise InvalidTokenError("Missing id_token in Cognito response")
+        from jose import jwt
         claims = jwt.get_unverified_claims(id_token)
         if claims.get("token_use") != "id":
             raise InvalidTokenError(f"Unexpected token_use: {claims.get('token_use')}")
@@ -2915,6 +2891,7 @@ def create_auth_jwt_token(token: UserTokenDTO) -> str:
     now = datetime.now(timezone.utc)
     exp = now + timedelta(seconds=expires_in)
 
+    from jose import jwt
     return jwt.encode(
         claims={
             "sub": token.sub,
@@ -3239,10 +3216,11 @@ def generate_sitemap(user: User, request) -> tuple[int, str]:
 
     today = datetime.utcnow().date().isoformat()
 
-    def lastmod(ts_ms) -> str:
-        if not ts_ms:
-            return today
-        return datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).date().isoformat()
+    def lastmod(ts_ms):
+        return datetime.fromtimestamp(
+            float(ts_ms) / 1000,
+            tz=timezone.utc
+        ).date().isoformat()
 
     urls = []
 
@@ -3314,6 +3292,7 @@ def generate_sitemap(user: User, request) -> tuple[int, str]:
 
     # Notify engines
     if is_prod():
+        import httpx
         with httpx.Client(timeout=5.0) as client:
             safe_execute("Google SM notify", client.get, "https://www.google.com/ping", params={"sitemap": sitemap_url})
             safe_execute("Bing SM notify", client.get, "https://www.bing.com/ping", params={"sitemap": sitemap_url})
@@ -3396,6 +3375,7 @@ def create_dummy_fixtures() -> None:
     user_token4 = get_dummy_user_token(sub="p4", email="test4@example.com")
     user4 = upsert_user_by_user_token(user_token4)
     created_users.append(user4)
+    import random
     for user in created_users:
         for post in created_posts:
             update_post_impression(post, UpdatePostImpressionDTO(

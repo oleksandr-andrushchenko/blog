@@ -3,16 +3,6 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, File
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.status import (
-    HTTP_204_NO_CONTENT,
-    HTTP_301_MOVED_PERMANENTLY,
-    HTTP_302_FOUND,
-    HTTP_400_BAD_REQUEST,
-    HTTP_401_UNAUTHORIZED,
-    HTTP_403_FORBIDDEN,
-    HTTP_409_CONFLICT,
-    HTTP_422_UNPROCESSABLE_ENTITY,
-)
 from mangum import Mangum
 from utils import (
     to_thread,
@@ -104,7 +94,6 @@ from deps import (
     UserQueryBySlugsDep,
 )
 import asyncio
-import os
 
 app = FastAPI(
     docs_url=None if is_prod() else "/docs",
@@ -113,6 +102,7 @@ app = FastAPI(
 )
 
 if not is_prod():
+    import os
     @app.middleware("http")
     async def serve_static(request: Request, call_next):
         path = request.url.path.lstrip("/")
@@ -228,7 +218,7 @@ async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request
         return get_post_url(request, post)
     except SlugDuplicationError as e:
         raise HTTPException(
-            status_code=HTTP_409_CONFLICT,
+            status_code=409,
             detail=e.to_dict()
         )
 
@@ -268,7 +258,7 @@ async def _update_post(post: PostDep, update_post_dto: UpdatePostDTODep, cur_use
         return get_post_url(request, post)
     except SlugDuplicationError as e:
         raise HTTPException(
-            status_code=HTTP_409_CONFLICT,
+            status_code=409,
             detail=e.to_dict()
         )
 
@@ -325,7 +315,7 @@ async def contacts(cur_user: OptCurUserDep) -> str:
     })
 
 
-@app.post("/api/contacts/message", name="create-contact-message", status_code=HTTP_204_NO_CONTENT)
+@app.post("/api/contacts/message", name="create-contact-message", status_code=204)
 async def _create_contact_message(message_dto: ContactMessageDTO, cur_user: OptCurUserDep) -> None:
     create_contact_message(message_dto, cur_user)
 
@@ -460,7 +450,7 @@ async def login_callback(request: Request) -> RedirectResponse:
             code=request.query_params.get("code"),
             callback_url=callback_url
         )
-        response = RedirectResponse(redirect_url, HTTP_302_FOUND)
+        response = RedirectResponse(redirect_url, 302)
         response.set_cookie(
             key="auth_token",
             value=create_auth_jwt_token(cognito_user_token),
@@ -472,7 +462,7 @@ async def login_callback(request: Request) -> RedirectResponse:
         return response
     except (InvalidCodeError, CodeExchangeFailedError, InvalidTokenError) as e:
         raise HTTPException(
-            status_code=HTTP_400_BAD_REQUEST,
+            status_code=400,
             detail=str(e)
         )
 
@@ -574,7 +564,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         details[field] = error["msg"]
     return get_error_response(
         request,
-        HTTP_422_UNPROCESSABLE_ENTITY,
+        422,
         details,
     )
 
@@ -584,7 +574,7 @@ async def not_authenticated_error_handler(request: Request, exc: NotAuthenticate
     logger.error(f"Not authenticated: {str(exc)}")
     return get_error_response(
         request,
-        HTTP_401_UNAUTHORIZED,
+        401,
     )
 
 
@@ -598,7 +588,7 @@ async def not_authorized_error_handler(request: Request, exc: NotAuthorizedError
     logger.error(f"Not authorized: {str(exc)}")
     return get_error_response(
         request,
-        HTTP_403_FORBIDDEN,
+        403,
         {"permission": exc.permission},
     )
 
@@ -608,7 +598,7 @@ async def post_redirect_exception_handler(request: Request, exc: PostByOldSlugRe
     logger.info(f"Redirect: {str(exc.slug)} -> {exc.post.slug}")
     return RedirectResponse(
         url=get_post_url(request, exc.post),
-        status_code=HTTP_301_MOVED_PERMANENTLY,
+        status_code=301,
     )
 
 
@@ -617,7 +607,7 @@ async def post_redirect_exception_handler(request: Request, exc: UserByOldSlugRe
     logger.info(f"Redirect: {str(exc.slug)} -> {exc.user.username}")
     return RedirectResponse(
         url=get_user_url(request, exc.user),
-        status_code=HTTP_301_MOVED_PERMANENTLY,
+        status_code=301,
     )
 
 
