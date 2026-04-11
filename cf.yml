@@ -459,7 +459,9 @@ Resources:
           HeadersConfig:
             HeaderBehavior: none
           CookiesConfig:
-            CookieBehavior: none
+            CookieBehavior: whitelist
+            Cookies:
+              - auth_token
 
   ApiOriginRequestPolicy:
     Type: AWS::CloudFront::OriginRequestPolicy
@@ -548,7 +550,7 @@ Resources:
             ViewerProtocolPolicy: redirect-to-https
             AllowedMethods: [ GET, HEAD, POST, PUT, DELETE, PATCH, OPTIONS ]
             CachedMethods: [ GET, HEAD ]
-            CachePolicyId: Managed-CachingDisabled
+            CachePolicyId: "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
         ViewerCertificate:
           AcmCertificateArn: !Ref CertificateArn
           SslSupportMethod: sni-only
