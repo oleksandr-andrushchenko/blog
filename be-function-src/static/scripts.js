@@ -149,7 +149,6 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
       if (response.ok) {
         msgClass = "success"
         msgIcon = "check-circle-fill"
-        msgText = successMessage
         form.reset()
         if (validator) validator.refresh()
 
@@ -160,7 +159,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
           } catch (_) {
           }
         }
-        msgText = onSuccess(responseBody)
+        msgText = onSuccess(responseBody) || successMessage
         return
       }
 
