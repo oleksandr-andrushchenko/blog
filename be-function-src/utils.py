@@ -1,7 +1,4 @@
 import time
-
-INIT_START = time.time()
-
 import re
 import os
 import uuid
@@ -41,9 +38,6 @@ import asyncio
 import nh3
 from dataclasses import dataclass, asdict
 from decimal import Decimal
-
-INIT_END = time.time()
-print(f"UTILS IMPORTS TIME: {INIT_END - INIT_START:.3f}s")
 
 
 def to_thread(func, *args, **kwargs):
