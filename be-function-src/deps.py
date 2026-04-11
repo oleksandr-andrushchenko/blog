@@ -200,7 +200,7 @@ def get_post_comment_by_id(post_id: str, post_comment_id: str) -> PostComment:
         )
 
 
-PostCommentDep = Annotated[Post, Depends(get_post_comment_by_id)]
+PostCommentDep = Annotated[PostComment, Depends(get_post_comment_by_id)]
 
 
 def get_update_post_comment_dto(update_post_comment_dto: UpdatePostCommentDTO = Body(...)) -> UpdatePostCommentDTO:

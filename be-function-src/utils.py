@@ -1,3 +1,7 @@
+import time
+
+INIT_START = time.time()
+
 import re
 import os
 import uuid
@@ -19,7 +23,6 @@ from pydantic import BaseModel, EmailStr, Field, field_validator, conlist, const
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 from itertools import combinations
-import time
 from zoneinfo import ZoneInfo
 import decimal
 from urllib.parse import urlencode
@@ -36,6 +39,11 @@ import boto3
 from functools import lru_cache, partial
 import asyncio
 import nh3
+from dataclasses import dataclass, asdict
+from decimal import Decimal
+
+INIT_END = time.time()
+print(f"UTILS IMPORTS TIME: {INIT_END - INIT_START:.3f}s")
 
 
 def to_thread(func, *args, **kwargs):
@@ -43,7 +51,7 @@ def to_thread(func, *args, **kwargs):
     return loop.run_in_executor(None, partial(func, *args, **kwargs))
 
 
-class UserToken(BaseModel):
+class UserTokenDTO(BaseModel):
     sub: str
     iss: str  # "cognito", "google", etc.
     email: str | None = None
@@ -61,38 +69,35 @@ class UserStatus(StrEnum):
     BANNED = "banned"
 
 
-class Me(BaseModel):
+@dataclass(slots=True)
+class User:
     id: str
-
-
-class User(BaseModel):
-    id: str
-    owner_id: str | None = None
-    email: str | None = None
-    avatar_filename: str | None = None
+    owner_id: str | None
+    email: str | None
+    avatar_filename: str | None
     name: str
-    username: str | None = None
-    github_username: str | None = None
-    headline: str | None = None
-    website: str | None = None
-    address: str | None = None
-    about: str | None = None
-    providers: dict[str, dict[str, str | None]] = Field(default_factory=dict)  # noqa
-    permissions: list[str] = Field(default_factory=lambda: [Permission.REGULAR])  # noqa
-    status: UserStatus = UserStatus.ACTIVE
+    username: str | None
+    github_username: str | None
+    headline: str | None
+    website: str | None
+    address: str | None
+    about: str | None
+    providers: dict[str, dict[str, str | None]]
+    permissions: list[str]
+    status: UserStatus
     published_posts_count: int
     unpublished_posts_count: int
     rejected_posts_count: int
     rating: int
     followers_count: int
     following_count: int
-    comment: str | None = None
+    comment: str | None
     post_comments_count: int
     bmc_username: str | None
     redirect_to: str | None
     created_at: int
-    updated_at: int | None = None
-    offset: str | None = None
+    updated_at: int | None
+    offset: str | None
 
 
 class FileDTO(BaseModel):
@@ -261,13 +266,14 @@ class UserImpressionAction(StrEnum):
     BLOCK = "block"
 
 
-class UserImpression(BaseModel):
+@dataclass(slots=True)
+class UserImpression:
     owner_id: str
     action: UserImpressionAction
     user_id: str
     target_user_id: str
     created_at: int
-    updated_at: int | None = None
+    updated_at: int | None
 
 
 class UpdateUserImpressionDTO(BaseModel):
@@ -280,12 +286,13 @@ class ContactMessageDTO(BaseModel):
     message: str = Field(..., min_length=5, max_length=1000)
 
 
-class ContactMessage(BaseModel):
+@dataclass(slots=True)
+class ContactMessage:
     id: str
     name: str
     email: str
     message: str
-    user_id: str | None = None
+    user_id: str | None
     created_at: int
 
 
@@ -415,15 +422,12 @@ class TagQueryDTO(BaseQueryDTO):
     prefix: str | None = Field(None, min_length=1, max_length=10)
 
 
-class Tag(BaseModel):
+@dataclass(slots=True)
+class Tag:
     name: str
     rating: int
     posts_count: int
-    offset: str | None = None
-
-
-class PublicTag(BaseModel):
-    name: str
+    offset: str | None
 
 
 class PostStatus(StrEnum):
@@ -464,20 +468,22 @@ class PostImpressionAction(StrEnum):
     DISLIKE = "dislike"
 
 
-class PostImpression(BaseModel):
+@dataclass(slots=True)
+class PostImpression:
     owner_id: str
     post_id: str
     action: PostImpressionAction
     user_id: str
     created_at: int
-    updated_at: int | None = None
+    updated_at: int | None
 
 
 class UpdatePostImpressionDTO(BaseModel):
     action: PostImpressionAction = Field(...)
 
 
-class Post(BaseModel):
+@dataclass(slots=True)
+class Post:
     id: str
     owner_id: str
     title: str
@@ -487,8 +493,8 @@ class Post(BaseModel):
     content: str
     preview: str | None
     tags: list[str]
-    status: PostStatus = PostStatus.UNPUBLISHED
-    comment: str | None = None
+    status: PostStatus
+    comment: str | None
     rating: int
     likes_count: int
     dislikes_count: int
@@ -496,19 +502,20 @@ class Post(BaseModel):
     redirect_to: str | None
     comments_count: int
     created_at: int
-    updated_at: int | None = None
-    published_at: int | None = None
-    is_premium: bool | None = None
-    offset: str | None = None
+    updated_at: int | None
+    published_at: int | None
+    is_premium: bool | None
+    offset: str | None
 
 
-class PostComment(BaseModel):
+@dataclass(slots=True)
+class PostComment:
     id: str
     owner_id: str
     user_id: str
-    user_name: str = None
-    user_avatar_filename: str | None = None
-    user_username: str | None = None
+    user_name: str | None
+    user_avatar_filename: str | None
+    user_username: str | None
 
     def get_user(self) -> User:
         return user_from_dynamodb({
@@ -526,8 +533,8 @@ class PostComment(BaseModel):
     dislikes_count: int
     replies_count: int
     created_at: int
-    updated_at: int | None = None
-    offset: str | None = None
+    updated_at: int | None
+    offset: str | None
 
 
 class PostCommentQueryDTO(BaseQueryDTO):
@@ -547,13 +554,14 @@ class PostCommentImpressionAction(StrEnum):
     DISLIKE = "dislike"
 
 
-class PostCommentImpression(BaseModel):
+@dataclass(slots=True)
+class PostCommentImpression:
     owner_id: str
     post_id: str
     action: PostCommentImpressionAction
     user_id: str
     created_at: int
-    updated_at: int | None = None
+    updated_at: int | None
 
 
 class UpdatePostCommentImpressionDTO(BaseModel):
@@ -837,7 +845,7 @@ def verify_authorization(
 
     # Owner check
     if resource:
-        data = resource.model_dump()
+        data = asdict(resource)
         owner_id = data.get("owner_id")
         if owner_id and str(owner_id) == str(user.id):
             return True
@@ -1208,10 +1216,11 @@ def get_jinja2_env():
 
 jinja2_env = Lazy(get_jinja2_env)
 
+import boto3
+
 
 @lru_cache
 def get_dynamodb_resource():
-    logger.debug(get_aws_region())
     args = {} if is_prod() else {
         "region_name": get_aws_region(),
         "endpoint_url": get_dynamodb_endpoint(),
@@ -1338,13 +1347,20 @@ def drop_public_file(filename: str) -> None:
     get_s3_client().delete_object(Bucket=get_static_s3_bucket(), Key=filename)
 
 
-def to_datetime(ts: Any) -> datetime | None:
+def to_datetime(ts: any) -> datetime:
     if isinstance(ts, (int, float)):
         return datetime.fromtimestamp(ts, tz=timezone.utc)
-    return None
+
+    if isinstance(ts, Decimal):
+        return datetime.fromtimestamp(float(ts), tz=timezone.utc)
+
+    if isinstance(ts, str):
+        return datetime.fromtimestamp(float(ts), tz=timezone.utc)
+
+    raise TypeError(f"Invalid timestamp type: {type(ts)} -> {ts}")
 
 
-def get_user_by_user_token(token: UserToken) -> User | None:
+def get_user_by_user_token(token: UserTokenDTO) -> User | None:
     table = get_dynamodb_table()
     provider_user_item = None
     user_item = None
@@ -1431,7 +1447,7 @@ def build_user_username(raw_name: str | None, raw_username: str | None, now: int
     return username
 
 
-def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserStatus.ACTIVE) -> User:
+def upsert_user_by_user_token(token: UserTokenDTO, status: UserStatus = UserStatus.ACTIVE) -> User:
     now = utc_now()
 
     user = get_user_by_user_token(token)
@@ -1487,7 +1503,7 @@ def upsert_user_by_user_token(token: UserToken, status: UserStatus = UserStatus.
     return user
 
 
-def user_token_from_jwt_claims(claims: dict[str, Any], plain_token: str | None = None) -> UserToken:
+def user_token_from_jwt_claims(claims: dict[str, Any], plain_token: str | None = None) -> UserTokenDTO:
     exp = to_datetime(claims.get("exp"))
     max_age = None
 
@@ -1496,7 +1512,7 @@ def user_token_from_jwt_claims(claims: dict[str, Any], plain_token: str | None =
         delta = exp - now
         max_age = max(0, int(delta.total_seconds()))
 
-    return UserToken(
+    return UserTokenDTO(
         sub=claims.get("sub"),
         iss=claims.get("iss"),
         email=claims.get("email"),
@@ -1517,8 +1533,8 @@ def get_dummy_user_token(
         username: str | None = None,
         email: str = "test@example.com",
         name: str | None = None
-) -> UserToken:
-    return UserToken(
+) -> UserTokenDTO:
+    return UserTokenDTODTO(
         sub=sub,
         iss=iss,
         username=username,
@@ -1546,7 +1562,7 @@ def get_user_by_auth_token(token: str | None) -> User | None:
     return user
 
 
-def get_user_token_by_auth_jwt_token(token: str | None) -> UserToken | None:
+def get_user_token_by_auth_jwt_token(token: str | None) -> UserTokenDTO | None:
     if not token:
         return None
 
@@ -1561,7 +1577,7 @@ def get_user_token_by_auth_jwt_token(token: str | None) -> UserToken | None:
         if payload.get("type") != "auth_token":
             raise InvalidTokenError("Invalid token type")
 
-        return UserToken(
+        return UserTokenDTO(
             sub=payload.get("sub"),
             iss="internal_auth",
             email=payload.get("email"),
@@ -1603,7 +1619,8 @@ def post_from_dynamodb(d_item: dict[str, Any]) -> Post:
         created_at=d_item["created_at"],
         updated_at=d_item.get("updated_at"),
         published_at=d_item.get("published_at"),
-        is_premium=False
+        is_premium=False,
+        offset=None,
     )
 
 
@@ -1623,7 +1640,8 @@ def post_comment_from_dynamodb(d_item: dict[str, Any]) -> PostComment:
         dislikes_count=d_item.get("dislikes_count", 0),
         replies_count=d_item.get("replies_count", 0),
         created_at=d_item["created_at"],
-        updated_at=d_item.get("updated_at")
+        updated_at=d_item.get("updated_at"),
+        offset=None,
     )
 
 
@@ -2061,7 +2079,8 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         bmc_username=d_item.get("bmc_username"),
         redirect_to=d_item.get("redirect_to"),
         created_at=d_item["created_at"],
-        updated_at=d_item.get("updated_at")
+        updated_at=d_item.get("updated_at"),
+        offset=None,
     )
 
 
@@ -2753,6 +2772,7 @@ def tag_from_dynamodb(d_item: dict[str, Any]) -> Tag:
         name=d_item["tag_name_sk"],
         rating=d_item["rating_sk"],
         posts_count=d_item.get("posts_count", 0),
+        offset=None,
     )
 
 
@@ -2849,7 +2869,7 @@ def get_login_redirect_url(callback_url: str) -> str:
     return callback_url
 
 
-def get_user_token_by_code(code: str, callback_url: str) -> UserToken:
+def get_user_token_by_code(code: str, callback_url: str) -> UserTokenDTO:
     if is_prod():
         if not code:
             raise InvalidCodeError("Missing code")
@@ -2895,7 +2915,7 @@ def get_user_token_by_code(code: str, callback_url: str) -> UserToken:
     return user_token
 
 
-def create_auth_jwt_token(token: UserToken) -> str:
+def create_auth_jwt_token(token: UserTokenDTO) -> str:
     expires_in = get_auth_token_max_age()
 
     now = datetime.now(timezone.utc)

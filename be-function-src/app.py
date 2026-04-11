@@ -22,7 +22,6 @@ from utils import (
     PostCommentDTO,
     PostCommentQueryDTO,
     Tag,
-    PublicTag,
     is_prod,
     InvalidTokenError,
     InvalidCodeError,
@@ -64,7 +63,6 @@ from utils import (
     get_user_url,
     NotAuthenticatedError,
     update_user_status,
-    Me,
     get_static_files_dir,
     UserStatus,
     UserBannedError,
@@ -332,7 +330,7 @@ async def _create_contact_message(message_dto: ContactMessageDTO, cur_user: OptC
     create_contact_message(message_dto, cur_user)
 
 
-@app.get("/api/post-tags", name="get-post-tags", response_model=list[PublicTag], response_class=JSONResponse)
+@app.get("/api/post-tags", name="get-post-tags", response_class=JSONResponse)
 async def _get_post_tags(query_dto: TagQueryDep) -> list[Tag]:
     return get_post_tags(query_dto)
 
@@ -499,11 +497,6 @@ async def logout_callback(request: Request) -> str:
 @app.post("/api/dummy-fixtures", name="create-dummy-fixtures")
 async def _create_dummy_fixtures() -> None:
     return create_dummy_fixtures()
-
-
-@app.get("/api/me", name="me", response_model=Me, response_class=JSONResponse)
-async def me(cur_user: CurUserDep) -> Me:
-    return cur_user
 
 
 @app.get("/privacy-policy", name="policy", response_class=HTMLResponse)
