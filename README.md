@@ -74,6 +74,7 @@
 - remove personal contact details
 - optimize page speed loading: first bite for cold starts
 - cache, preload (CDN)
+- separate lambda into several lambdas (can start with for reads and for writes)
 ## Links
 
 - favicon - https://realfavicongenerator.net

@@ -69,6 +69,7 @@ from utils import (
     update_post_comment,
     get_post_comment_url,
     generate_sitemap,
+    invalidate_cdn_cache,
 )
 from deps import (
     OptCurUserDep,
@@ -103,6 +104,8 @@ app = FastAPI(
 
 if not is_prod():
     import os
+
+
     @app.middleware("http")
     async def serve_static(request: Request, call_next):
         path = request.url.path.lstrip("/")
@@ -142,7 +145,7 @@ async def inject_template_global_vars(request: Request, call_next):
 async def cache_control_middleware(request: Request, call_next):
     response = await call_next(request)
 
-    # Respect explicit overrides (rare cases like admin/debug)
+    # Respect explicit overrides
     if "Cache-Control" in response.headers:
         return response
 
@@ -562,6 +565,12 @@ async def utils(cur_user: CurUserDep) -> str:
 async def _generate_sitemap(cur_user: CurUserDep, request: Request) -> dict:
     urls_count, sitemap_url = generate_sitemap(cur_user, request)
     return {"urls_count": urls_count, "sitemap_url": sitemap_url}
+
+
+@app.post("/api/invalidate-cdn-cache", name="invalidate-cdn-cache")
+async def _invalidate_cdn_cache(cur_user: CurUserDep) -> dict:
+    success, items_count = invalidate_cdn_cache(cur_user)
+    return {"success": success, "items_count": items_count}
 
 
 @app.get("/{slug}", name="user-by-slug", response_class=HTMLResponse)

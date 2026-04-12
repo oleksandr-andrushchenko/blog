@@ -572,6 +572,7 @@ class Permission(StrEnum):
 
     UTILS_PAGE = "utils_page"
     GENERATE_SITEMAP = "generate_sitemap"
+    INVALIDATE_CDN_CACHE = "invalidate_cdn_cache"
 
 
 class BaseError(Exception):
@@ -1227,17 +1228,66 @@ def get_sns_client():
     return boto3.client("sns")
 
 
-def invalidate_cloudfront(items: list[str]):
-    get_cloudfront_client().create_invalidation(
-        DistributionId=get_cf_distribution_id(),
+class InvalidateCdnCacheDto(BaseModel):
+    items: list[str] = Field(default_factory=list)  # noqa
+
+
+def invalidate_cdn_cache(user: User) -> tuple[bool, int]:
+    verify_authorization(user, Permission.GENERATE_SITEMAP)
+    res = invalidate_cloudfront()
+    return res.get("success"), res.get("items_count")
+
+
+def invalidate_cloudfront(items: list[str] = None) -> dict[str, Any]:
+    logger.debug(items)
+    client = get_cloudfront_client()
+    distribution_id = get_cf_distribution_id()
+
+    # Resolve paths
+    if items:
+        paths = []
+        for p in items:
+            if not isinstance(p, str):
+                raise TypeError(f"Invalid path type: {type(p)} (expected str)")
+
+            if not p.startswith("/"):
+                raise ValueError(f"Invalid CloudFront path (must start with '/'): {p}")
+
+            paths.append(p)
+
+        if len(paths) > 3000:
+            raise ValueError("CloudFront supports max 3000 paths per invalidation request")
+    else:
+        paths = ["/*"]
+
+    if not is_prod():
+        return {
+            "success": True,
+            "invalidation_id": "",
+            "status": "InProgress",
+            "items_count": len(paths),
+        }
+
+    response = client.create_invalidation(
+        DistributionId=distribution_id,
         InvalidationBatch={
             "Paths": {
-                "Quantity": len(items),
-                "Items": items,
+                "Quantity": len(paths),
+                "Items": paths,
             },
             "CallerReference": str(uuid.uuid4()),
         },
     )
+
+    metadata = response.get("ResponseMetadata", {})
+    invalidation = response.get("Invalidation", {})
+
+    return {
+        "success": metadata.get("HTTPStatusCode") == 201,
+        "invalidation_id": invalidation.get("Id"),
+        "status": invalidation.get("Status"),
+        "items_count": len(paths),
+    }
 
 
 def get_html_content(template: str, data: dict[str, Any]) -> str:
@@ -1328,7 +1378,7 @@ def drop_public_file(filename: str) -> None:
     get_s3_client().delete_object(Bucket=get_static_s3_bucket(), Key=filename)
 
 
-def to_datetime(ts: any) -> datetime:
+def to_datetime(ts: Any) -> datetime:
     if isinstance(ts, (int, float)):
         return datetime.fromtimestamp(ts, tz=timezone.utc)
 

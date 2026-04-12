@@ -15,7 +15,7 @@
 {% block content %}
     <h1>{{ title }}</h1>
 
-    <div class="rows">
+    <div class="row">
         {% if check_auth(cur_user, Permission.GENERATE_SITEMAP) %}
             <div class="col col-4">
                 <section class="border rounded p-4 mb-4 bg-light">
@@ -36,8 +36,35 @@
                 <script>
                   document.addEventListener("DOMContentLoaded", () => {
                     handleFormSubmit("#generate-sitemap-form", "{{ url("generate-sitemap") }}", {
-                      method: "{{ 'POST' }}",
+                      method: "POST",
                       onSuccess: (res) => `Sitemap generated!<br>URLs count: ${res.urls_count}, Sitemap URL: <a href="${res.sitemap_url}" target="_blank">${res.sitemap_url}</a>`,
+                    })
+                  })
+                </script>
+            </div>
+        {% endif %}
+
+        {% if check_auth(cur_user, Permission.INVALIDATE_CDN_CACHE) %}
+            <div class="col col-4">
+                <section class="border rounded p-4 mb-4 bg-light">
+                    <h2 class="h4 mb-2">Invalidate CDN Cache</h2>
+
+                    <p class="small text-muted mb-3">
+                        Invalidate CloudFront Cache.
+                    </p>
+
+                    <form id="invalidate-cdn-cache-form" novalidate>
+                        <button class="btn btn-primary" type="submit">
+                            Invalidate
+                        </button>
+                    </form>
+                </section>
+
+                <script>
+                  document.addEventListener("DOMContentLoaded", () => {
+                    handleFormSubmit("#invalidate-cdn-cache-form", "{{ url("invalidate-cdn-cache") }}", {
+                      method: "POST",
+                      onSuccess: (res) => `CDN cache invalidated!<br>Items count: ${res.items_count}`,
                     })
                   })
                 </script>
