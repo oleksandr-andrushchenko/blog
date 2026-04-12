@@ -239,8 +239,8 @@ deploy-site-files: check-env check-aws generate-site-files ## Sync local site fi
 		--region $(AWS_REGION)
 	@echo "✅ Site files uploaded successfully"
 
-.PHONY: invalidate
-invalidate: check-env check-aws ## Invalidate CloudFront cache for the site
+.PHONY: invalidate-dns-cache
+invalidate-dns-cache: check-env check-aws ## Invalidate CloudFront cache for the site
 	@echo "🔎 Finding CloudFront distribution for $(DOMAIN_NAME)..."
 	@DISTRIBUTION_ID=$$(aws cloudfront list-distributions \
 		--profile $(AWS_PROJECT) \
