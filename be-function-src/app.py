@@ -70,6 +70,7 @@ from utils import (
     get_post_comment_url,
     generate_sitemap,
     invalidate_cdn_cache,
+    get_user_by_auth_token,
 )
 from deps import (
     OptCurUserDep,
@@ -484,13 +485,24 @@ async def login_callback(request: Request) -> RedirectResponse:
             callback_url=callback_url
         )
         response = RedirectResponse(redirect_url, 302)
+        max_age = get_auth_token_max_age()
+        token = create_auth_jwt_token(cognito_user_token)
+        user = get_user_by_auth_token(token)
         response.set_cookie(
-            key="auth_token",
-            value=create_auth_jwt_token(cognito_user_token),
+            key="token",
+            value=token,
             httponly=True,
             secure=is_prod(),
             samesite="lax",
-            max_age=get_auth_token_max_age(),
+            max_age=max_age,
+        )
+        response.set_cookie(
+            key="user_id",
+            value=user.id,
+            httponly=True,
+            secure=is_prod(),
+            samesite="lax",
+            max_age=max_age,
         )
         return response
     except (InvalidCodeError, CodeExchangeFailedError, InvalidTokenError) as e:
@@ -507,7 +519,8 @@ async def logout(request: Request) -> RedirectResponse:
     provider_redirect_url = get_logout_redirect_url(callback_url)
     response = RedirectResponse(provider_redirect_url)
     response.set_cookie("redirect_url", redirect_url, httponly=True, secure=True)
-    response.delete_cookie("auth_token")
+    response.delete_cookie("token")
+    response.delete_cookie("user_id")
     return response
 
 

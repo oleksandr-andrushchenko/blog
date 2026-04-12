@@ -449,9 +449,9 @@ Resources:
     Properties:
       CachePolicyConfig:
         Name: !Sub "${AWS::StackName}-api-cache-policy"
-        DefaultTTL: 86400   # 1 day
-        MinTTL: 3600        # 1 hour
-        MaxTTL: 31536000    # 1 year
+        MinTTL: 1209600 # 14 days
+        MaxTTL: 31536000 # 1 year
+        DefaultTTL: 1209600 # 14 days
         ParametersInCacheKeyAndForwardedToOrigin:
           EnableAcceptEncodingGzip: true
           QueryStringsConfig:
@@ -461,7 +461,7 @@ Resources:
           CookiesConfig:
             CookieBehavior: whitelist
             Cookies:
-              - auth_token
+              - user_id
 
   ApiOriginRequestPolicy:
     Type: AWS::CloudFront::OriginRequestPolicy
@@ -483,9 +483,9 @@ Resources:
     Properties:
       CachePolicyConfig:
         Name: !Sub "${AWS::StackName}-s3-cache-policy"
-        DefaultTTL: 86400   # 1 day
-        MinTTL: 3600        # 1 hour
-        MaxTTL: 31536000    # 1 year
+        MinTTL: 31536000 # 1 year
+        MaxTTL: 31536000 # 1 year
+        DefaultTTL: 31536000 # 1 year
         ParametersInCacheKeyAndForwardedToOrigin:
           EnableAcceptEncodingGzip: true
           QueryStringsConfig:

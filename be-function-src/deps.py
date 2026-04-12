@@ -35,7 +35,7 @@ from utils import (
 
 
 def _resolve_user(request: Request) -> User | None:
-    token = request.cookies.get("auth_token")
+    token = request.cookies.get("token")
     if not token:
         return None
 
