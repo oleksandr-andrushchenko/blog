@@ -475,9 +475,7 @@ Resources:
           Headers:
             - Referer
         CookiesConfig:
-          CookieBehavior: whitelist
-          Cookies:
-            - cdn_version
+          CookieBehavior: all
 
   # S3 static – cache aggressively, forward Origin header only
   S3CachePolicy:
@@ -553,6 +551,7 @@ Resources:
             AllowedMethods: [ GET, HEAD, POST, PUT, DELETE, PATCH, OPTIONS ]
             CachedMethods: [ GET, HEAD ]
             CachePolicyId: "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+            OriginRequestPolicyId: !Ref ApiOriginRequestPolicy
         ViewerCertificate:
           AcmCertificateArn: !Ref CertificateArn
           SslSupportMethod: sni-only

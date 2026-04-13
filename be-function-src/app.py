@@ -177,21 +177,24 @@ async def cache_control_middleware(request: Request, call_next):
 async def sync_cdn_cache_cookie_middleware(request: Request, call_next):
     response = await call_next(request)
 
-    cur_user = getattr(request.state, "cur_user", None)
-    req_cdn_cache_version = get_cdn_cache_cookie(request)
-    # logger.debug(req_cdn_cache_version)
-    if cur_user:
-        if req_cdn_cache_version:
-            cdn_cache_version = get_cdn_cache_version(cur_user)
-            # logger.debug(cdn_cache_version)
+    set_cookie_headers = response.headers.getlist("set-cookie")
+    token = request.cookies.get("token")
+    token_was_set = None
+    token_was_deleted = None
 
-            if req_cdn_cache_version != cdn_cache_version:
-                set_cdn_cache_cookie(cur_user, response)
-        else:
+    for header in set_cookie_headers:
+        if "token=" in header:
+            token_was_set = True
+        if "token=;" in header or "Max-Age=0" in header:
+            token_was_deleted = True
+
+    if token and not token_was_set and not token_was_deleted:
+        cur_user = getattr(request.state, "cur_user", None)
+        req_version = get_cdn_cache_cookie(request)
+        cdn_version = get_cdn_cache_version(cur_user)
+
+        if req_version != cdn_version:
             set_cdn_cache_cookie(cur_user, response)
-
-    elif req_cdn_cache_version:
-        drop_cdn_cache_cookie(response)
 
     return response
 
@@ -521,13 +524,20 @@ async def logout(request: Request) -> RedirectResponse:
     response.set_cookie("redirect_url", redirect_url, httponly=True, secure=True)
     drop_token_cookie(response)
     drop_cdn_cache_cookie(response)
+    request.state.cur_user = None
     return response
 
 
 @app.get("/logout-callback", name="logout-callback", response_class=RedirectResponse)
-async def logout_callback(request: Request) -> str:
-    redirect_url = request.cookies.get("redirect_url") or get_url(request, "index")
-    return redirect_url
+async def logout_callback(request: Request):
+    response = RedirectResponse(request.cookies.get("redirect_url") or get_url(request, "index"))
+
+    drop_token_cookie(response)
+    drop_cdn_cache_cookie(response)
+
+    response.headers["Cache-Control"] = "no-store"
+
+    return response
 
 
 @app.post("/api/dummy-fixtures", name="create-dummy-fixtures")
