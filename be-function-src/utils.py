@@ -2927,6 +2927,7 @@ def _get_post_urls(post: Post, req) -> set[str]:
     return {
         get_post_url(req, post),
         get_static_post_url(req, post),
+        get_url(req, "edit-post", post_id=post.id),
     }
 
 
