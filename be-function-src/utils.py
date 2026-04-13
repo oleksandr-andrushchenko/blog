@@ -73,6 +73,7 @@ class User:
     post_comments_count: int
     bmc_username: str | None
     redirect_to: str | None
+    cdn_cache_version: int
     created_at: int
     updated_at: int | None
     offset: str | None
@@ -572,7 +573,7 @@ class Permission(StrEnum):
 
     UTILS_PAGE = "utils_page"
     GENERATE_SITEMAP = "generate_sitemap"
-    INVALIDATE_CDN_CACHE = "invalidate_cdn_cache"
+    DROP_CDN_CACHE = "drop_cdn_cache"
 
 
 class BaseError(Exception):
@@ -932,10 +933,10 @@ logger = get_logger()
 
 @pass_context
 def jinja2_url(ctx, name: str, **params) -> str:
-    request = ctx.get("request")
-    if not request:
+    req = ctx.get("request")
+    if not req:
         raise ValueError("Request not found in context")
-    return get_url(request, name, **params)
+    return get_url(req, name, **params)
 
 
 @pass_context
@@ -943,10 +944,14 @@ def jinja2_user_url(ctx, user: User, **params) -> str:
     return get_user_url(ctx.get("request"), user, **params)
 
 
-def get_user_url(request, user: User, **params) -> str:
+def get_user_url(req, user: User, **params) -> str:
     if user.username:
-        return get_url(request, "user-by-slug", slug=user.username, **params)
-    return get_url(request, "user", user_id=user.id, **params)
+        return get_url(req, "user-by-slug", slug=user.username, **params)
+    return get_static_user_url(req, user, **params)
+
+
+def get_static_user_url(req, user: User, **params) -> str:
+    return get_url(req, "user", user_id=user.id, **params)
 
 
 @pass_context
@@ -954,19 +959,23 @@ def jinja2_post_url(ctx, post: Post, **params) -> str:
     return get_post_url(ctx.get("request"), post, **params)
 
 
-def get_post_url(request, post: Post, **params) -> str:
+def get_post_url(req, post: Post, **params) -> str:
     if post.user_slug:
-        return get_url(request, "post-by-slugs", user_slug=post.user_slug, post_slug=post.slug, **params)
-    return get_url(request, "post", post_id=post.id, **params)
+        return get_url(req, "post-by-slugs", user_slug=post.user_slug, post_slug=post.slug, **params)
+    return get_static_post_url(req, post, **params)
 
 
-def get_post_comment_url(request, post: Post, post_comment: PostComment, **params) -> str:
-    return get_post_url(request, post, **params)
+def get_static_post_url(req, post: Post, **params) -> str:
+    return get_url(req, "post", post_id=post.id, **params)
 
 
-def get_current_url(request) -> str:
-    path = request.url.path
-    query = request.url.query
+def get_post_comment_url(req, post: Post, post_comment: PostComment, **params) -> str:
+    return get_post_url(req, post, **params)
+
+
+def get_current_url(req) -> str:
+    path = req.url.path
+    query = req.url.query
     return f"{path}?{query}" if query else path
 
 
@@ -975,7 +984,7 @@ def jinja2_posts_url(ctx, query: PostQueryDTO | None = None, **params) -> str:
     return get_posts_url(ctx.get("request"), query=query, **params)
 
 
-def get_posts_url(request, query: PostQueryDTO | None = None, **params) -> str:
+def get_posts_url(req, query: PostQueryDTO | None = None, **params) -> str:
     if not query:
         query = PostQueryDTO()
 
@@ -1008,9 +1017,9 @@ def get_posts_url(request, query: PostQueryDTO | None = None, **params) -> str:
         params["limit"] = limit
 
     if not slugs:
-        return get_url(request, "posts", **params)
+        return get_url(req, "posts", **params)
 
-    return get_url(request, "posts-by-slugs", slugs_path="/".join(slugs), **params)
+    return get_url(req, "posts-by-slugs", slugs_path="/".join(slugs), **params)
 
 
 def parse_posts_url_slugs_path(slugs_path: str) -> dict:
@@ -1036,7 +1045,7 @@ def jinja2_users_url(ctx, query: UserQueryDTO | None = None, **params) -> str:
     return get_users_url(ctx.get("request"), query=query, **params)
 
 
-def get_users_url(request, query: UserQueryDTO | None = None, **params) -> str:
+def get_users_url(req, query: UserQueryDTO | None = None, **params) -> str:
     if not query:
         query = UserQueryDTO()
 
@@ -1065,26 +1074,26 @@ def get_users_url(request, query: UserQueryDTO | None = None, **params) -> str:
         params["limit"] = limit
 
     if not slugs:
-        return get_url(request, "users", **params)
+        return get_url(req, "users", **params)
 
-    return get_url(request, "users-by-slugs", type=slugs[0], **params)
+    return get_url(req, "users-by-slugs", type=slugs[0], **params)
 
 
-def get_url(request, name: str, full: bool = False, **params) -> str:
+def get_url(req, name: str, full: bool = False, **params) -> str:
     """
     Generate a URL for a named route.
     By default, returns path-only URLs; set full=True to prepend base_url.
     """
     # Find the route
-    route = next(r for r in request.app.routes if getattr(r, "name", None) == name)
+    route = next(r for r in req.app.routes if getattr(r, "name", None) == name)
     path_param_names = getattr(route, "param_convertors", {}).keys()
 
     # Split params into path vs query, skipping None
     path_params = {k: v for k, v in params.items() if k in path_param_names and v is not None}
     query_params = {k: v for k, v in params.items() if k not in path_param_names and v is not None}
 
-    # Use request.url_for to get the path
-    url_path = request.url_for(name, **path_params).path
+    # Use req.url_for to get the path
+    url_path = req.url_for(name, **path_params).path
 
     if full and url_path == "/":
         url_path = ""
@@ -1109,8 +1118,8 @@ def get_url(request, name: str, full: bool = False, **params) -> str:
     return url_path
 
 
-def get_static_url(request, filename, **params) -> str:
-    return get_url(request, "user-by-slug", slug=filename, **params)
+def get_static_url(req, filename, **params) -> str:
+    return get_url(req, "user-by-slug", slug=filename, **params)
 
 
 @pass_context
@@ -1219,7 +1228,7 @@ def get_s3_client():
 
 
 @lru_cache
-def get_cloudfront_client():
+def _get_cf_client():
     return boto3.client("cloudfront")
 
 
@@ -1228,20 +1237,21 @@ def get_sns_client():
     return boto3.client("sns")
 
 
-class InvalidateCdnCacheDto(BaseModel):
-    items: list[str] = Field(default_factory=list)  # noqa
-
-
-def invalidate_cdn_cache(user: User) -> tuple[bool, int]:
-    verify_authorization(user, Permission.GENERATE_SITEMAP)
-    res = invalidate_cloudfront()
+def drop_cdn_cache(user: User) -> tuple[bool, int]:
+    verify_authorization(user, Permission.DROP_CDN_CACHE)
+    res = _drop_cdn_cache()
     return res.get("success"), res.get("items_count")
 
 
-def invalidate_cloudfront(items: list[str] = None) -> dict[str, Any]:
-    logger.debug(items)
-    client = get_cloudfront_client()
-    distribution_id = get_cf_distribution_id()
+def _drop_cdn_cache(*urls) -> dict[str, Any]:
+    items = set()
+    for u in urls:
+        if isinstance(u, str):
+            items.add(u)
+        elif isinstance(u, (list, tuple, set)):
+            items.update(u)
+        else:
+            raise TypeError(f"Unsupported type: {type(u)}")
 
     # Resolve paths
     if items:
@@ -1268,6 +1278,8 @@ def invalidate_cloudfront(items: list[str] = None) -> dict[str, Any]:
             "items_count": len(paths),
         }
 
+    client = _get_cf_client()
+    distribution_id = get_cf_distribution_id()
     response = client.create_invalidation(
         DistributionId=distribution_id,
         InvalidationBatch={
@@ -1495,8 +1507,7 @@ def upsert_user_by_user_token(token: UserTokenDTO, status: UserStatus = UserStat
     transacts = []
 
     if user:
-        add_dynamodb_update_transact(transacts, (f"USER#{user_id}", "META"), {"providers": providers})
-        user.providers = providers
+        add_dynamodb_user_update_transact(transacts, user, {"providers": providers})
     else:
         name = sanitize_html(build_user_name(token.name, now))
         user_item = {
@@ -1714,10 +1725,10 @@ def find_static_image_filename(html_content: str) -> str | None:
     return match.group(1)
 
 
-def create_post(post_dto: PostDTO, user: User) -> Post:
-    verify_authorization(user, Permission.CREATE_POST)
+def create_post(post_dto: PostDTO, cur_user: User) -> Post:
+    verify_authorization(cur_user, Permission.CREATE_POST)
 
-    if user.status == UserStatus.BANNED:
+    if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
     now = utc_now()
@@ -1736,24 +1747,29 @@ def create_post(post_dto: PostDTO, user: User) -> Post:
         "id": post_id,
         "title": title,
         "post_slug": slug,
-        "user_id": user.id,
+        "user_id": cur_user.id,
         "content": content,
         "tags": tags,
         "rating_sk": compute_rating_sk(0, now),
         "status": status,
         "created_at": now,
         "post_status_pk": f"POST#{status}",
-        "post_user_status_pk": f"POST#{user.id}#{status}",
+        "post_user_status_pk": f"POST#{cur_user.id}#{status}",
     }
     if preview:
         post_item["preview"] = preview
     if image_filename:
         post_item["image_filename"] = image_filename
-    if user.username:
-        post_item["user_slug"] = user.username
+    if cur_user.username:
+        post_item["user_slug"] = cur_user.username
     add_dynamodb_put_transact(transacts, (f"POST#{post_id}", "META"), post_item, new_pk_only=True)
-    add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), deltas={"unpublished_posts_count": 1})
-    # todo: should be unique in combination with username (user, post)
+
+    add_dynamodb_user_update_transact(transacts, cur_user, deltas={
+        "unpublished_posts_count": 1,
+        # Invalidate CDN cache for current user
+        "cdn_cache_version": 1,
+    })
+    # todo: should be unique in combination with username (cur_user, post)
     add_dynamodb_put_transact(transacts, (f"POST_SLUG#{slug}", "META"), {"post_id": post_id}, new_pk_only=True)
 
     try:
@@ -1774,7 +1790,7 @@ def get_text_diff_percentage(t1, t2) -> int:
     return int(change_percentage)
 
 
-def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User) -> None:
+def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User, req) -> None:
     verify_authorization(cur_user, Permission.UPDATE_POST, post)
 
     if cur_user.status == UserStatus.BANNED:
@@ -1868,24 +1884,29 @@ def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User) -> N
     if published_already and should_set_status_to_unpublished:
         changes["status"] = PostStatus.UNPUBLISHED
 
+    post_owner = get_user(post.owner_id)
+    # Invalidate CDN cache for post owner
+    post_owner_deltas = {"cdn_cache_version": 1}
+
     status = changes.get("status", post.status)
-    if status != old_status:
+    status_changed = status != old_status
+    if status_changed:
         # Update post lists
         changes["post_status_pk"] = f"POST#{status}"
         changes["post_user_status_pk"] = f"POST#{post.user_id}#{status}"
 
         # User post counters
-        owner = find_user(post.user_id)
-        if owner:
-            deltas = {
-                f"{old_status}_posts_count": -1,
-                f"{status}_posts_count": 1,
-            }
-            add_dynamodb_update_transact(transacts, (f"USER#{owner.id}", "META"), deltas=deltas)
-            for key, delta in deltas.items():
-                setattr(owner, key, getattr(owner, key) + delta)
+        post_owner_deltas[f"{old_status}_posts_count"] = -1
+        post_owner_deltas[f"{status}_posts_count"] = 1
 
-    add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), changes)
+    add_dynamodb_user_update_transact(transacts, post_owner, deltas=post_owner_deltas)
+    add_dynamodb_post_update_transact(transacts, post, changes)
+
+    if cur_user.id != post_owner.id:
+        add_dynamodb_user_update_transact(transacts, cur_user, deltas={
+            # Invalidate CDN cache for current user
+            "cdn_cache_version": 1
+        })
 
     try:
         dynamodb_transact_write(transacts)
@@ -1894,11 +1915,19 @@ def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User) -> N
             raise SlugDuplicationError(field="title")
         raise
 
-    for key, value in changes.items():
-        if key == "post_slug":
-            key = "slug"
-        if hasattr(post, key):
-            setattr(post, key, value)
+    for k, v in changes.items():
+        if k == "post_slug":
+            k = "slug"
+        if hasattr(post, k):
+            setattr(post, k, v)
+
+    # Invalidate CDN cache globally
+    _drop_cdn_cache(
+        _get_post_urls(post, req),
+        _get_user_urls(post_owner, req),
+        _get_index_url(req) if status_changed else [],
+        _get_posts_urls(req) if status_changed else [],
+    )
 
 
 def find_post(post_id: str) -> Post | None:
@@ -1984,10 +2013,10 @@ def get_post_by_slugs(user_slug: str, post_slug: str, cur_user: User = None) -> 
     return post
 
 
-def create_post_comment(post: Post, post_comment_dto: PostCommentDTO, user: User) -> PostComment:
-    verify_authorization(user, Permission.CREATE_POST_COMMENT)
+def create_post_comment(post: Post, post_comment_dto: PostCommentDTO, cur_user: User, req) -> PostComment:
+    verify_authorization(cur_user, Permission.CREATE_POST_COMMENT)
 
-    if user.status == UserStatus.BANNED:
+    if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
     now = utc_now()
@@ -1998,17 +2027,28 @@ def create_post_comment(post: Post, post_comment_dto: PostCommentDTO, user: User
     post_comment_item = {
         "id": comment_id,
         "post_id": post.id,
-        "user_id": user.id,
-        "user_name": user.name,
-        "user_avatar_filename": user.avatar_filename,
-        "user_username": user.username,
+        "user_id": cur_user.id,
+        "user_name": cur_user.name,
+        "user_avatar_filename": cur_user.avatar_filename,
+        "user_username": cur_user.username,
         "text": post_comment_dto.text,
         "created_at": now,
     }
 
     add_dynamodb_put_transact(transacts, (f"POST#{post.id}", f"COMMENT#{comment_id}"), post_comment_item)
-    add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), deltas={"comments_count": 1})
-    add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), deltas={"post_comments_count": 1})
+    add_dynamodb_post_update_transact(transacts, post, deltas={"comments_count": 1})
+    add_dynamodb_user_update_transact(transacts, cur_user, deltas={
+        "post_comments_count": 1,
+        # Invalidate CDN cache for current user
+        "cdn_cache_version": 1,
+    })
+
+    if cur_user.id != post.owner_id:
+        post_owner = get_user(post.owner_id)
+        add_dynamodb_user_update_transact(transacts, post_owner, deltas={
+            # Invalidate CDN cache for post owner
+            "cdn_cache_version": 1
+        })
 
     try:
         dynamodb_transact_write(transacts)
@@ -2017,11 +2057,16 @@ def create_post_comment(post: Post, post_comment_dto: PostCommentDTO, user: User
             raise SlugDuplicationError(field="title")
         raise
 
+    # Invalidate CDN cache for post page globally
+    _drop_cdn_cache(
+        _get_post_urls(post, req),
+    )
+
     return post_comment_from_dynamodb(post_comment_item)
 
 
 def update_post_comment(post: Post, post_comment: PostComment, update_post_comment_dto: UpdatePostCommentDTO,
-                        cur_user: User) -> None:
+                        cur_user: User, req) -> None:
     verify_authorization(cur_user, Permission.UPDATE_POST_COMMENT, post_comment)
 
     if cur_user.status == UserStatus.BANNED:
@@ -2042,11 +2087,28 @@ def update_post_comment(post: Post, post_comment: PostComment, update_post_comme
 
     add_dynamodb_update_transact(transacts, (f"POST#{post.id}", f"COMMENT{post_comment.id}"), changes)
 
+    add_dynamodb_user_update_transact(transacts, cur_user, deltas={
+        # Invalidate CDN cache for current user
+        "cdn_cache_version": 1
+    })
+
+    if cur_user.id != post.owner_id:
+        post_owner = get_user(post.owner_id)
+        add_dynamodb_user_update_transact(transacts, post_owner, deltas={
+            # Invalidate CDN cache for post owner
+            "cdn_cache_version": 1
+        })
+
     dynamodb_transact_write(transacts)
 
     for key, value in changes.items():
         if hasattr(post_comment, key):
             setattr(post_comment, key, value)
+
+    # Invalidate CDN cache for post page globally
+    _drop_cdn_cache(
+        _get_post_urls(post, req),
+    )
 
 
 def find_post_comment(post_id: str, post_comment_id: str) -> PostComment | None:
@@ -2094,6 +2156,7 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         post_comments_count=d_item.get("post_comments_count", 0),
         bmc_username=d_item.get("bmc_username"),
         redirect_to=d_item.get("redirect_to"),
+        cdn_cache_version=d_item.get("cdn_cache_version", 0),
         created_at=d_item["created_at"],
         updated_at=d_item.get("updated_at"),
         offset=None,
@@ -2249,9 +2312,37 @@ def add_dynamodb_update_transact(
         deltas: dict[str, Any] | None = None,
         add_updated_at: bool = True
 ) -> None:
+    if not changes and not deltas:
+        return
     param_dict = dict(locals())
     param_dict.pop("transacts", None)
     transacts.append(build_dynamodb_update_item_params(**param_dict))
+
+
+def add_dynamodb_obj_update_transact(transacts: list, obj: object, key: tuple[str, str],
+                                     changes: dict[str, Any] | None = None,
+                                     deltas: dict[str, Any] | None = None) -> None:
+    add_dynamodb_update_transact(transacts, key, changes=changes, deltas=deltas)
+    if changes:
+        for k, v in changes.items():
+            if hasattr(obj, k):
+                setattr(obj, k, v)
+    if deltas:
+        for k, delta in deltas.items():
+            if hasattr(obj, k):
+                setattr(obj, k, getattr(obj, k) + delta)
+
+
+def add_dynamodb_user_update_transact(transacts: list, user: User, changes: dict[str, Any] | None = None,
+                                      deltas: dict[str, Any] | None = None) -> None:
+    return add_dynamodb_obj_update_transact(transacts, user, (f"USER#{user.id}", "META"), changes=changes,
+                                            deltas=deltas)
+
+
+def add_dynamodb_post_update_transact(transacts: list, post: Post, changes: dict[str, Any] | None = None,
+                                      deltas: dict[str, Any] | None = None) -> None:
+    return add_dynamodb_obj_update_transact(transacts, post, (f"POST#{post.id}", "META"), changes=changes,
+                                            deltas=deltas)
 
 
 def build_dynamodb_delete_item_params(key: tuple[str, str]) -> dict[str, Any]:
@@ -2288,7 +2379,7 @@ def update_dynamodb_item(
     get_dynamodb_table().update_item(**update_item_params["Update"])
 
 
-def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User) -> None:
+def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req) -> None:
     verify_authorization(cur_user, Permission.UPDATE_USER, user)
 
     if cur_user.status == UserStatus.BANNED:
@@ -2336,14 +2427,23 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User) -> N
                                           new_pk_only=True)
                 posts = get_latest_published_posts_by_user(user)
                 for post in posts:
-                    add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {"user_slug": slug})
+                    add_dynamodb_post_update_transact(transacts, post, {"user_slug": slug})
         else:
             add_dynamodb_delete_transact(transacts, (f"USER_SLUG#{old_slug}", "META"))
             posts = get_latest_published_posts_by_user(user)
             for post in posts:
-                add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {"user_slug": None})
+                add_dynamodb_post_update_transact(transacts, post, {"user_slug": None})
 
-    add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), changes)
+    add_dynamodb_user_update_transact(transacts, user, changes, {
+        # Invalidate CDN cache for user
+        "cdn_cache_version": 1,
+    })
+
+    if user.id != cur_user.id:
+        add_dynamodb_user_update_transact(transacts, cur_user, deltas={
+            # Invalidate CDN cache for current user
+            "cdn_cache_version": 1
+        })
 
     try:
         dynamodb_transact_write(transacts)
@@ -2355,11 +2455,17 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User) -> N
     if old_avatar and avatar_action in {"delete", "replace"}:
         drop_public_file(old_avatar)
 
-    for key, value in changes.items():
-        setattr(user, key, value)
+    # Invalidate CDN cache globally
+    _drop_cdn_cache(
+        _get_user_urls(user, req),
+        # todo: add checks (if only photo,name or headline has changed)
+        _get_user_post_urls(user, req),
+        # todo: index page (if popular user)
+        # todo: users page (if on top)
+    )
 
 
-def update_user_status(user: User, update_user_status_dto: UpdateUserStatusDTO, cur_user: User) -> None:
+def update_user_status(user: User, update_user_status_dto: UpdateUserStatusDTO, cur_user: User, req) -> None:
     # logger.debug(f"update_user_status: user: {user}, cur_user: {cur_user}")
     verify_authorization(cur_user, Permission.UPDATE_USER_STATUS)
 
@@ -2375,18 +2481,31 @@ def update_user_status(user: User, update_user_status_dto: UpdateUserStatusDTO, 
         changes["comment"] = None
 
     status = changes["status"]
+    changes["user_status_pk"] = f"USER#{status}"
 
     transacts = []
 
-    add_dynamodb_update_transact(transacts, (f"USER#{user.id}", "META"), {
-        **changes,
-        "user_status_pk": f"USER#{status}",
+    add_dynamodb_user_update_transact(transacts, cur_user, deltas={
+        # Invalidate CDN cache for current user
+        "cdn_cache_version": 1
     })
+
+    if cur_user.id != user.id:
+        add_dynamodb_user_update_transact(transacts, user, changes, {
+            # Invalidate CDN cache for user
+            "cnd_cache_version": 1,
+        })
 
     # logger.debug(transacts)
 
     dynamodb_transact_write(transacts)
-    user.status = status
+
+    # Invalidate CDN cache globally
+    _drop_cdn_cache(
+        _get_index_url(req),
+        _get_user_urls(user, req),
+        _get_users_urls(req),
+    )
 
 
 def get_user(user_id: str, cur_user: User = None) -> User:
@@ -2687,7 +2806,7 @@ def get_popular_posts_by_tags(query_dto: PostQueryDTO = None, cur_user: User = N
     return filtered_posts
 
 
-def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, cur_user: User) -> None:
+def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, cur_user: User, req) -> None:
     # logger.debug(f"update_post_status: post: {post}, cur_user: {cur_user}")
     verify_authorization(cur_user, Permission.UPDATE_POST_STATUS)
 
@@ -2711,22 +2830,20 @@ def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, 
 
     transacts = []
 
-    # User post counters
-    owner = find_user(post.user_id)
-    if owner:
-        deltas = {
-            f"{old_status}_posts_count": -1,
-            f"{status}_posts_count": 1,
-        }
-        add_dynamodb_update_transact(transacts, (f"USER#{owner.id}", "META"), deltas=deltas)
-        for key, delta in deltas.items():
-            setattr(owner, key, getattr(owner, key) + delta)
+    post_owner = get_user(post.owner_id)
+    add_dynamodb_user_update_transact(transacts, post_owner, deltas={
+        # User post counters
+        f"{old_status}_posts_count": -1,
+        f"{status}_posts_count": 1,
+        # Invalidate CDN cache for post owner
+        f"cdn_cache_version": 1,
+    })
 
     if status == PostStatus.PUBLISHED:
         if not post.published_at:
             changes["published_at"] = now
-        if owner:
-            changes["user_slug"] = owner.username
+        if post_owner:
+            changes["user_slug"] = post_owner.username
         # Upsert tags
         for tag in post.tags:
             transacts.append({
@@ -2771,16 +2888,70 @@ def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, 
                 post_tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{post.created_at}#{post.id}")
                 add_dynamodb_put_transact(transacts, post_tag_combo_key, {"post_id": post.id})
 
-    add_dynamodb_update_transact(transacts, (f"POST#{post.id}", "META"), {
-        **changes,
-        "post_status_pk": f"POST#{status}",
-        "post_user_status_pk": f"POST#{post.user_id}#{status}",
-    })
+    changes["post_status_pk"] = f"POST#{status}"
+    changes["post_user_status_pk"] = f"POST#{post.user_id}#{status}"
+
+    add_dynamodb_post_update_transact(transacts, post, changes)
+
+    if cur_user.id != post_owner.id:
+        add_dynamodb_user_update_transact(transacts, cur_user, deltas={
+            # Invalidate CDN cache for current user
+            "cdn_cache_version": 1
+        })
 
     # logger.debug(transacts)
 
     dynamodb_transact_write(transacts)
-    post.status = status
+
+    # Invalidate CDN cache globally
+    _drop_cdn_cache(
+        _get_post_urls(post, req),
+        _get_user_urls(post_owner, req),
+        _get_index_url(req),
+        _get_posts_urls(req),
+    )
+
+
+def _get_user_urls(user: User, req) -> set[str]:
+    return {
+        get_user_url(req, user),
+        get_static_user_url(req, user),
+    }
+
+
+def _get_index_url(req) -> str:
+    return get_url(req, "index")
+
+
+def _get_post_urls(post: Post, req) -> set[str]:
+    return {
+        get_post_url(req, post),
+        get_static_post_url(req, post),
+    }
+
+
+def _get_users_urls(req) -> set[str]:
+    urls = set()
+    for _type in UserQueryType:
+        urls.add(get_users_url(req, type=_type))
+    return urls
+
+
+def _get_posts_urls(req) -> set[str]:
+    urls = set()
+    for _type in PostQueryType:
+        urls.add(get_posts_url(req, type=_type))
+        for tag in get_post_tags(TagQueryDTO.model_construct(limit=1000)):
+            urls.add(get_posts_url(req, type=_type, tags=[tag.name]))
+    return urls
+
+
+def _get_user_post_urls(user: User, req) -> set[str]:
+    urls = set()
+    for post in get_latest_posts_by_user(user, PostQueryDTO.model_construct(limit=1000)):
+        urls.add(get_post_url(req, post))
+        urls.add(get_static_post_url(req, post))
+    return urls
 
 
 def tag_from_dynamodb(d_item: dict[str, Any]) -> Tag:
@@ -2974,11 +3145,11 @@ def get_logout_redirect_url(callback_url: str) -> str:
     return callback_url
 
 
-def get_redirect_url(request) -> str:
-    redirect_url = request.query_params.get("redirect_url")
+def get_redirect_url(req) -> str:
+    redirect_url = req.query_params.get("redirect_url")
 
     if not redirect_url:
-        referer = request.headers.get("referer")
+        referer = req.headers.get("referer")
         if referer:
             parsed = urlparse(referer)
             base_url = urlparse(get_base_url())
@@ -2989,7 +3160,7 @@ def get_redirect_url(request) -> str:
                 redirect_url = referer
 
     if not redirect_url:
-        redirect_url = get_url(request, "index")
+        redirect_url = get_url(req, "index")
 
     return redirect_url
 
@@ -3122,69 +3293,91 @@ def find_post_impression(post: Post, user: User) -> PostImpression | None:
     return post_impression_from_dynamodb(item)
 
 
-def update_post_impression(post: Post, update_post_impression_dto: UpdatePostImpressionDTO, user: User) -> None:
-    verify_authorization(user, Permission.UPDATE_POST_IMPRESSION, post)
+def update_post_impression(post: Post, update_post_impression_dto: UpdatePostImpressionDTO, cur_user: User,
+                           req) -> None:
+    verify_authorization(cur_user, Permission.UPDATE_POST_IMPRESSION, post)
 
-    if user.status == UserStatus.BANNED:
+    if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
-    current_impression = find_post_impression(post, user)
+    current_impression = find_post_impression(post, cur_user)
     current_action = current_impression.action if current_impression else None
     action = update_post_impression_dto.action
     post_impression_item = {
         "post_id": post.id,
-        "user_id": user.id,
+        "user_id": cur_user.id,
         "action": action,
     }
     transacts = []
 
-    post_key = (f"POST#{post.id}", "META")
-    post_imp_key = (f"POST#{post.id}", f"IMP#{user.id}")
+    post_deltas = {}
+    post_imp_key = (f"POST#{post.id}", f"IMP#{cur_user.id}")
 
     if action == PostImpressionAction.LIKE:
         if current_action == PostImpressionAction.LIKE:
             add_dynamodb_delete_transact(transacts, post_imp_key)
-            add_dynamodb_update_transact(transacts, post_key,
-                                         deltas={"likes_count": -1, "rating_sk": compute_rating_sk(-1)})
+            post_deltas["likes_count"] = -1
+            post_deltas["rating_sk"] = compute_rating_sk(-1)
         elif current_action == PostImpressionAction.DISLIKE:
             add_dynamodb_update_transact(transacts, post_imp_key, {"action": PostImpressionAction.LIKE})
-            add_dynamodb_update_transact(transacts, post_key, deltas={"dislikes_count": -1, "likes_count": 1,
-                                                                      "rating_sk": compute_rating_sk(2)})
+            post_deltas["dislikes_count"] = -1
+            post_deltas["likes_count"] = 1
+            post_deltas["rating_sk"] = compute_rating_sk(2)
         else:
             add_dynamodb_put_transact(transacts, post_imp_key,
                                       {**post_impression_item, "action": PostImpressionAction.LIKE},
                                       new_pk_only=True)
-            add_dynamodb_update_transact(transacts, post_key,
-                                         deltas={"likes_count": 1, "rating_sk": compute_rating_sk(1)})
+            post_deltas["likes_count"] = 1
+            post_deltas["rating_sk"] = compute_rating_sk(1)
 
     elif action == PostImpressionAction.DISLIKE:
         if current_action == PostImpressionAction.DISLIKE:
             add_dynamodb_delete_transact(transacts, post_imp_key)
-            add_dynamodb_update_transact(transacts, post_key,
-                                         deltas={"dislikes_count": -1, "rating_sk": compute_rating_sk(1)})
+            post_deltas["dislikes_count"] = -1
+            post_deltas["rating_sk"] = compute_rating_sk(1)
         elif current_action == PostImpressionAction.LIKE:
             add_dynamodb_update_transact(transacts, post_imp_key, {"action": PostImpressionAction.DISLIKE})
-            add_dynamodb_update_transact(transacts, post_key, deltas={"likes_count": -1, "dislikes_count": 1,
-                                                                      "rating_sk": compute_rating_sk(-2)})
+            post_deltas["likes_count"] = -1
+            post_deltas["dislikes_count"] = 1
+            post_deltas["rating_sk"] = compute_rating_sk(-2)
         else:
             add_dynamodb_put_transact(transacts, post_imp_key,
                                       {**post_impression_item, "action": PostImpressionAction.DISLIKE},
                                       new_pk_only=True)
-            add_dynamodb_update_transact(transacts, post_key,
-                                         deltas={"dislikes_count": 1, "rating_sk": compute_rating_sk(-1)})
+            post_deltas["dislikes_count"] = 1
+            post_deltas["rating_sk"] = compute_rating_sk(-1)
 
+    add_dynamodb_post_update_transact(transacts, post, deltas=post_deltas)
+
+    add_dynamodb_user_update_transact(transacts, cur_user, deltas={
+        # Invalidate CDN cache for current user
+        "cdn_cache_version": 1
+    })
+
+    if cur_user.id != post.owner_id:
+        post_owner = get_user(post.owner_id)
+        add_dynamodb_user_update_transact(transacts, post_owner, deltas={
+            # Invalidate CDN cache for post owner
+            "cdn_cache_version": 1
+        })
+
+    logger.debug(transacts)
     dynamodb_transact_write(transacts)
 
+    # Invalidate CDN cache for post page globally
+    _drop_cdn_cache(
+        _get_post_urls(post, req),
+    )
 
-def update_user_impression(
-        user: User,
-        update_relation_dto: UpdateUserImpressionDTO,
-        cur_user: User,
-) -> None:
+
+def update_user_impression(user: User, update_relation_dto: UpdateUserImpressionDTO, cur_user: User, req) -> None:
     verify_authorization(cur_user, Permission.UPDATE_USER_IMPRESSION, user)
 
     if user.status == UserStatus.BANNED:
         raise UserBannedError()
+
+    if user.id == cur_user.id:
+        return
 
     current_relation = find_user_impression(user, cur_user)
     current_action = current_relation.action if current_relation else None
@@ -3196,47 +3389,61 @@ def update_user_impression(
     }
     transacts = []
 
-    user_key = (f"USER#{cur_user.id}", "META")
-    target_user_key = (f"USER#{user.id}", "META")
+    cur_user_deltas = {
+        # Invalidate CDN cache for current user
+        "cdn_cache_version": 1,
+    }
+    user_deltas = {
+        # Invalidate CDN cache for user
+        "cdn_cache_version": 1,
+    }
     relation_key = (f"USER#{cur_user.id}", f"REL#{user.id}")
 
     if action == UserImpressionAction.FOLLOW:
         if current_action == UserImpressionAction.FOLLOW:
             # Unfollow
             add_dynamodb_delete_transact(transacts, relation_key)
-            add_dynamodb_update_transact(transacts, user_key, deltas={"following_count": -1})
-            add_dynamodb_update_transact(transacts, target_user_key,
-                                         deltas={"followers_count": -1, "rating_sk": compute_rating_sk(-1)})
+            cur_user_deltas["following_count"] = -1
+            user_deltas["followers_count"] = -1
+            user_deltas["rating_sk"] = compute_rating_sk(-1)
         elif current_action == UserImpressionAction.BLOCK:
             # Switching from block to follow
             add_dynamodb_update_transact(transacts, relation_key, {"action": UserImpressionAction.FOLLOW})
-            add_dynamodb_update_transact(transacts, user_key, deltas={"following_count": 1})
-            add_dynamodb_update_transact(transacts, target_user_key,
-                                         deltas={"followers_count": 1, "rating_sk": compute_rating_sk(2)})
+            cur_user_deltas["following_count"] = 1
+            user_deltas["followers_count"] = 1
+            user_deltas["rating_sk"] = compute_rating_sk(2)
         else:
             # New follow
             add_dynamodb_put_transact(transacts, relation_key, relation_item, new_pk_only=True)
-            add_dynamodb_update_transact(transacts, user_key, deltas={"following_count": 1})
-            add_dynamodb_update_transact(transacts, target_user_key,
-                                         deltas={"followers_count": 1, "rating_sk": compute_rating_sk(1)})
+            cur_user_deltas["following_count"] = 1
+            user_deltas["followers_count"] = 1
+            user_deltas["rating_sk"] = compute_rating_sk(1)
 
     elif action == UserImpressionAction.BLOCK:
         if current_action == UserImpressionAction.BLOCK:
             # Unblock
             add_dynamodb_delete_transact(transacts, relation_key)
-            add_dynamodb_update_transact(transacts, target_user_key, deltas={"rating_sk": compute_rating_sk(1)})
+            user_deltas["rating_sk"] = compute_rating_sk(1)
         elif current_action == UserImpressionAction.FOLLOW:
             # Switching from follow to block
             add_dynamodb_update_transact(transacts, relation_key, {"action": UserImpressionAction.BLOCK})
-            add_dynamodb_update_transact(transacts, user_key, deltas={"following_count": -1})
-            add_dynamodb_update_transact(transacts, target_user_key,
-                                         deltas={"followers_count": -1, "rating_sk": compute_rating_sk(-2)})
+            cur_user_deltas["following_count"] = -1
+            user_deltas["followers_count"] = -1
+            user_deltas["rating_sk"] = compute_rating_sk(-2)
         else:
             # New block
             add_dynamodb_put_transact(transacts, relation_key, relation_item, new_pk_only=True)
-            add_dynamodb_update_transact(transacts, target_user_key, deltas={"rating_sk": compute_rating_sk(-1)})
+            user_deltas["rating_sk"] = compute_rating_sk(-1)
+
+    add_dynamodb_user_update_transact(transacts, cur_user, deltas=cur_user_deltas)
+    add_dynamodb_user_update_transact(transacts, user, deltas=user_deltas)
 
     dynamodb_transact_write(transacts)
+
+    # Invalidate CDN cache globally
+    _drop_cdn_cache(
+        _get_user_urls(user, req),
+    )
 
 
 def enum_to_value(obj):
@@ -3260,7 +3467,7 @@ def safe_execute(label: str, func, *args, **kwargs):
         return None
 
 
-def generate_sitemap(user: User, request) -> tuple[int, str]:
+def generate_sitemap(user: User, req) -> tuple[int, str]:
     verify_authorization(user, Permission.GENERATE_SITEMAP)
 
     today = datetime.utcnow().date().isoformat()
@@ -3275,7 +3482,7 @@ def generate_sitemap(user: User, request) -> tuple[int, str]:
 
     # Static
     def url(route: str) -> str:
-        return get_url(request, route, True)
+        return get_url(req, route, True)
 
     urls.extend([
         (url("index"), today),
@@ -3287,7 +3494,7 @@ def generate_sitemap(user: User, request) -> tuple[int, str]:
 
     # Post lists
     def posts_url(tp: PostQueryType, tg: Tag | None = None) -> str:
-        return get_posts_url(request, type=tp, tags=[tg.name] if tg else [], full=True)
+        return get_posts_url(req, type=tp, tags=[tg.name] if tg else [], full=True)
 
     for type_ in PostQueryType:
         urls.append((posts_url(type_), today))
@@ -3297,7 +3504,7 @@ def generate_sitemap(user: User, request) -> tuple[int, str]:
 
     # Posts
     def post_url(post: Post) -> str:
-        return get_post_url(request, post, full=True)
+        return get_post_url(req, post, full=True)
 
     offset = None
     while posts := get_latest_posts(
@@ -3309,14 +3516,14 @@ def generate_sitemap(user: User, request) -> tuple[int, str]:
 
     # User lists
     def users_url(tp: UserQueryType) -> str:
-        return get_users_url(request, type=tp, full=True)
+        return get_users_url(req, type=tp, full=True)
 
     for type_ in UserQueryType:
         urls.append((users_url(type_), today))
 
     # Users
     def user_url(user_: User) -> str:
-        return get_user_url(request, user_, full=True)
+        return get_user_url(req, user_, full=True)
 
     offset = None
     while users := get_latest_users(
@@ -3333,11 +3540,11 @@ def generate_sitemap(user: User, request) -> tuple[int, str]:
         FileDTO.model_construct(content=sitemap_xml.encode("utf-8")),
         filename="sitemap.xml",
     )
-    sitemap_url = get_static_url(request, sitemap_filename, full=True)
+    sitemap_url = get_static_url(req, sitemap_filename, full=True)
 
     # Invalidate CDN cache
     if is_prod():
-        safe_execute("CF invalidation", invalidate_cloudfront, ["/sitemap.xml"])
+        safe_execute("CF invalidation", _drop_cdn_cache, ["/sitemap.xml"])
 
     # Notify engines
     if is_prod():
@@ -3349,7 +3556,13 @@ def generate_sitemap(user: User, request) -> tuple[int, str]:
     return len(urls), sitemap_url
 
 
-def create_dummy_fixtures() -> None:
+def get_cdn_cache_version(user: User) -> str:
+    raw = f"{user.id}:{user.cdn_cache_version}"
+    import hashlib
+    return hashlib.md5(raw.encode()).hexdigest()
+
+
+def create_dummy_fixtures(req) -> None:
     if is_prod():
         return
     created_posts = []
@@ -3392,7 +3605,7 @@ def create_dummy_fixtures() -> None:
     ]
     for post in posts:
         created_post = create_post(post, root_user)
-        update_post_status(created_post, UpdatePostStatusDTO(status=PostStatus.PUBLISHED), root_user)
+        update_post_status(created_post, UpdatePostStatusDTO(status=PostStatus.PUBLISHED), root_user, req)
         created_posts.append(created_post)
     user_token2 = get_dummy_user_token(sub="p2", email="test2@example.com", name="Some test user")
     user2 = upsert_user_by_user_token(user_token2)
@@ -3416,7 +3629,7 @@ def create_dummy_fixtures() -> None:
     ]
     for post in posts:
         created_post = create_post(post, user2)
-        update_post_status(created_post, UpdatePostStatusDTO(status=PostStatus.PUBLISHED), root_user)
+        update_post_status(created_post, UpdatePostStatusDTO(status=PostStatus.PUBLISHED), root_user, req)
         created_posts.append(created_post)
     user_token3 = get_dummy_user_token(sub="p3", email="test3@example.com")
     user3 = upsert_user_by_user_token(user_token3)
@@ -3428,7 +3641,8 @@ def create_dummy_fixtures() -> None:
     for user in created_users:
         for post in created_posts:
             update_post_impression(post, UpdatePostImpressionDTO(
-                action=PostImpressionAction.LIKE if random.random() < .5 else PostImpressionAction.DISLIKE), user)
+                action=PostImpressionAction.LIKE if random.random() < .5 else PostImpressionAction.DISLIKE), user,
+                                   req)
         for user2 in created_users:
             if user.id != user2.id:
                 update_user_impression(user, UpdateUserImpressionDTO(
@@ -3473,4 +3687,4 @@ def create_dummy_fixtures() -> None:
         created_post = create_post(post, user3)
         update_post_status(created_post,
                            UpdatePostStatusDTO(status=PostStatus.REJECTED, comment="Some rejection reason"),
-                           root_user)
+                           root_user, req)

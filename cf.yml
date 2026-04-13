@@ -461,7 +461,7 @@ Resources:
           CookiesConfig:
             CookieBehavior: whitelist
             Cookies:
-              - user_id
+              - cdn_version
 
   ApiOriginRequestPolicy:
     Type: AWS::CloudFront::OriginRequestPolicy
@@ -475,7 +475,9 @@ Resources:
           Headers:
             - Referer
         CookiesConfig:
-          CookieBehavior: all
+          CookieBehavior: whitelist
+          Cookies:
+            - cdn_version
 
   # S3 static – cache aggressively, forward Origin header only
   S3CachePolicy:

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, FileResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -61,7 +61,6 @@ from utils import (
     get_redirect_url,
     should_show_popular_posts,
     create_auth_jwt_token,
-    get_auth_token_max_age,
     get_post_related_posts,
     find_post,
     create_post_comment,
@@ -69,8 +68,9 @@ from utils import (
     update_post_comment,
     get_post_comment_url,
     generate_sitemap,
-    invalidate_cdn_cache,
+    drop_cdn_cache,
     get_user_by_auth_token,
+    get_cdn_cache_version,
 )
 from deps import (
     OptCurUserDep,
@@ -94,6 +94,11 @@ from deps import (
     UpdatePostCommentDTODep,
     PostQueryBySlugsDep,
     UserQueryBySlugsDep,
+    set_token_cookie,
+    drop_token_cookie,
+    set_cdn_cache_cookie,
+    drop_cdn_cache_cookie,
+    get_cdn_cache_cookie,
 )
 import asyncio
 
@@ -146,29 +151,48 @@ async def inject_template_global_vars(request: Request, call_next):
 async def cache_control_middleware(request: Request, call_next):
     response = await call_next(request)
 
-    # Respect explicit overrides
     if "Cache-Control" in response.headers:
         return response
 
-    # Never cache mutations
     if request.method not in ("GET", "HEAD"):
         response.headers["Cache-Control"] = "no-store"
         return response
 
     path = request.url.path
 
-    # Never cache API
     if path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
         return response
 
-    # Authenticated → never cache
-    if getattr(request.state, "cur_user", None):
+    cur_user = getattr(request.state, "cur_user", None)
+    if cur_user:
         response.headers["Cache-Control"] = "private, no-store"
         return response
 
-    # Anonymous → cacheable
     response.headers["Cache-Control"] = "public"
+    return response
+
+
+@app.middleware("http")
+async def sync_cdn_cache_cookie_middleware(request: Request, call_next):
+    response = await call_next(request)
+
+    cur_user = getattr(request.state, "cur_user", None)
+    req_cdn_cache_version = get_cdn_cache_cookie(request)
+    # logger.debug(req_cdn_cache_version)
+    if cur_user:
+        if req_cdn_cache_version:
+            cdn_cache_version = get_cdn_cache_version(cur_user)
+            # logger.debug(cdn_cache_version)
+
+            if req_cdn_cache_version != cdn_cache_version:
+                set_cdn_cache_cookie(cur_user, response)
+        else:
+            set_cdn_cache_cookie(cur_user, response)
+
+    elif req_cdn_cache_version:
+        drop_cdn_cache_cookie(response)
+
     return response
 
 
@@ -202,7 +226,7 @@ async def upload_public_file(image_file_dto: ImageFileDTODep) -> str:
     return save_public_file(image_file_dto)
 
 
-async def base_post_page(post: PostDep, cur_user: OptCurUserDep) -> HTMLResponse:
+async def _post_page(post: PostDep, cur_user: OptCurUserDep) -> HTMLResponse:
     (
         author,
         post_impression,
@@ -227,7 +251,7 @@ async def base_post_page(post: PostDep, cur_user: OptCurUserDep) -> HTMLResponse
     return HTMLResponse(html_content)
 
 
-def base_posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
+def _posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
     return get_html_content("posts.html", {
         "cur_user": cur_user,
         "post_query": query_dto,
@@ -251,15 +275,12 @@ async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request
         post = create_post(post_dto, cur_user)
         return get_post_url(request, post)
     except SlugDuplicationError as e:
-        raise HTTPException(
-            status_code=409,
-            detail=e.to_dict()
-        )
+        raise HTTPException(status_code=409, detail=e.to_dict())
 
 
 @app.get("/posts", name="posts", response_class=HTMLResponse)
 async def posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep):
-    return base_posts_page(query_dto, cur_user)
+    return _posts_page(query_dto, cur_user)
 
 
 @app.get("/api/posts-fragment", name="posts-fragment", response_class=HTMLResponse)
@@ -271,7 +292,7 @@ async def posts_fragment(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> st
 
 @app.get("/posts/{post_id}", name="post")
 async def post_page(post: PostDep, cur_user: OptCurUserDep):
-    return await base_post_page(post, cur_user)
+    return await _post_page(post, cur_user)
 
 
 @app.get("/posts/{post_id}/edit", name="edit-post", response_class=HTMLResponse)
@@ -288,26 +309,23 @@ async def edit_post(post: PostDep, cur_user: CurUserDep) -> str:
 @app.patch("/api/posts/{post_id}", name="update-post", response_class=JSONResponse)
 async def _update_post(post: PostDep, update_post_dto: UpdatePostDTODep, cur_user: CurUserDep, request: Request) -> str:
     try:
-        update_post(post, update_post_dto, cur_user)
+        update_post(post, update_post_dto, cur_user, request)
         return get_post_url(request, post)
     except SlugDuplicationError as e:
-        raise HTTPException(
-            status_code=409,
-            detail=e.to_dict()
-        )
+        raise HTTPException(status_code=409, detail=e.to_dict())
 
 
 @app.post("/api/posts/{post_id}/status", name="update-post-status", response_class=JSONResponse)
 async def _update_post_status(post: PostDep, update_post_status_dto: UpdatePostStatusDTODep,
                               cur_user: CurUserDep, request: Request) -> str:
-    update_post_status(post, update_post_status_dto, cur_user)
+    update_post_status(post, update_post_status_dto, cur_user, request)
     return get_post_url(request, post)
 
 
 @app.post("/api/posts/{post_id}/impression", name="update-post-impression", response_class=HTMLResponse)
 async def _update_post_impression(post: PostDep, update_post_impression_dto: UpdatePostImpressionDTODep,
-                                  cur_user: CurUserDep) -> str:
-    update_post_impression(post, update_post_impression_dto, cur_user)
+                                  cur_user: CurUserDep, request: Request) -> str:
+    update_post_impression(post, update_post_impression_dto, cur_user, request)
     (
         post,
         post_impression,
@@ -325,7 +343,7 @@ async def _update_post_impression(post: PostDep, update_post_impression_dto: Upd
 @app.post("/api/posts/{post_id}/comment", name="create-post-comment", response_class=JSONResponse)
 async def _create_post_comment(post: PostDep, post_comment_dto: PostCommentDTO, cur_user: CurUserDep,
                                request: Request) -> str:
-    post_comment = create_post_comment(post, post_comment_dto, cur_user)
+    post_comment = create_post_comment(post, post_comment_dto, cur_user, request)
     return get_post_comment_url(request, post, post_comment)
 
 
@@ -333,13 +351,13 @@ async def _create_post_comment(post: PostDep, post_comment_dto: PostCommentDTO, 
 async def _update_post_comment(post: PostDep, post_comment: PostCommentDep,
                                update_post_comment_dto: UpdatePostCommentDTODep, cur_user: CurUserDep,
                                request: Request) -> str:
-    update_post_comment(post, post_comment, update_post_comment_dto, cur_user)
+    update_post_comment(post, post_comment, update_post_comment_dto, cur_user, request)
     return get_post_comment_url(request, post, post_comment)
 
 
 @app.get("/{slugs_path:path}/posts", name="posts-by-slugs", response_class=HTMLResponse)
 async def posts_page_by_slugs(query_dto: PostQueryBySlugsDep, cur_user: OptCurUserDep) -> HTMLResponse:
-    return base_posts_page(query_dto, cur_user)
+    return _posts_page(query_dto, cur_user)
 
 
 @app.get("/contacts", name="contacts", response_class=HTMLResponse)
@@ -359,7 +377,7 @@ async def _get_post_tags(query_dto: TagQueryDep) -> list[Tag]:
     return get_post_tags(query_dto)
 
 
-def base_users_page(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
+def _users_page(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
     return get_html_content("users.html", {
         "cur_user": cur_user,
         "user_query": query_dto,
@@ -369,12 +387,12 @@ def base_users_page(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> HTMLRes
 
 @app.get("/users", name="users", response_class=HTMLResponse)
 async def users_page(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> str:
-    return base_users_page(query_dto, cur_user)
+    return _users_page(query_dto, cur_user)
 
 
 @app.get("/{type}/users", name="users-by-slugs", response_class=HTMLResponse)
 async def users_page_by_slugs(query_dto: UserQueryBySlugsDep, cur_user: OptCurUserDep) -> HTMLResponse:
-    return base_users_page(query_dto, cur_user)
+    return _users_page(query_dto, cur_user)
 
 
 @app.get("/api/users-fragment", name="users-fragment", response_class=HTMLResponse)
@@ -385,7 +403,7 @@ async def users_fragment(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> st
     })
 
 
-async def base_user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
+async def _user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
     if cur_user:
         (
             posts,
@@ -410,20 +428,20 @@ async def base_user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user:
 
 @app.get("/users/{user_id}", name="user")
 async def user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep):
-    return await base_user_page(user, posts_query_dto, cur_user)
+    return await _user_page(user, posts_query_dto, cur_user)
 
 
 @app.post("/api/users/{user_id}/status", name="update-user-status", response_class=JSONResponse)
 async def _update_user_status(user: UserDep, update_user_status_dto: UpdateUserStatusDTODep,
                               cur_user: CurUserDep, request: Request) -> str:
-    update_user_status(user, update_user_status_dto, cur_user)
+    update_user_status(user, update_user_status_dto, cur_user, request)
     return get_user_url(request, user)
 
 
 @app.post("/api/users/{user_id}/impression", name="update-user-impression", response_class=HTMLResponse)
 async def _update_user_impression(user: UserDep, update_user_impression_dto: UpdateUserImpressionDTODep,
-                                  cur_user: CurUserDep) -> str:
-    update_user_impression(user, update_user_impression_dto, cur_user)
+                                  cur_user: CurUserDep, request: Request) -> str:
+    update_user_impression(user, update_user_impression_dto, cur_user, request)
     (
         user,
         user_impression,
@@ -451,7 +469,7 @@ async def edit_user(user: UserDep, cur_user: CurUserDep) -> str:
 
 @app.patch("/api/users/{user_id}", name="update-user", response_class=JSONResponse)
 async def _update_user(update_user_dto: UpdateUserDTODep, user: UserDep, cur_user: CurUserDep, request: Request) -> str:
-    update_user(user, update_user_dto, cur_user)
+    update_user(user, update_user_dto, cur_user, request)
     return get_user_url(request, user)
 
 
@@ -485,31 +503,13 @@ async def login_callback(request: Request) -> RedirectResponse:
             callback_url=callback_url
         )
         response = RedirectResponse(redirect_url, 302)
-        max_age = get_auth_token_max_age()
         token = create_auth_jwt_token(cognito_user_token)
+        set_token_cookie(token, response)
         user = get_user_by_auth_token(token)
-        response.set_cookie(
-            key="token",
-            value=token,
-            httponly=True,
-            secure=is_prod(),
-            samesite="lax",
-            max_age=max_age,
-        )
-        response.set_cookie(
-            key="user_id",
-            value=user.id,
-            httponly=True,
-            secure=is_prod(),
-            samesite="lax",
-            max_age=max_age,
-        )
+        set_cdn_cache_cookie(user, response)
         return response
     except (InvalidCodeError, CodeExchangeFailedError, InvalidTokenError) as e:
-        raise HTTPException(
-            status_code=400,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/logout", name="logout", response_class=RedirectResponse)
@@ -519,8 +519,8 @@ async def logout(request: Request) -> RedirectResponse:
     provider_redirect_url = get_logout_redirect_url(callback_url)
     response = RedirectResponse(provider_redirect_url)
     response.set_cookie("redirect_url", redirect_url, httponly=True, secure=True)
-    response.delete_cookie("token")
-    response.delete_cookie("user_id")
+    drop_token_cookie(response)
+    drop_cdn_cache_cookie(response)
     return response
 
 
@@ -531,8 +531,8 @@ async def logout_callback(request: Request) -> str:
 
 
 @app.post("/api/dummy-fixtures", name="create-dummy-fixtures")
-async def _create_dummy_fixtures() -> None:
-    return create_dummy_fixtures()
+async def _create_dummy_fixtures(request: Request) -> None:
+    return create_dummy_fixtures(request)
 
 
 @app.get("/privacy-policy", name="policy", response_class=HTMLResponse)
@@ -580,31 +580,27 @@ async def _generate_sitemap(cur_user: CurUserDep, request: Request) -> dict:
     return {"urls_count": urls_count, "sitemap_url": sitemap_url}
 
 
-@app.post("/api/invalidate-cdn-cache", name="invalidate-cdn-cache")
-async def _invalidate_cdn_cache(cur_user: CurUserDep) -> dict:
-    success, items_count = invalidate_cdn_cache(cur_user)
+@app.post("/api/drop-cdn-cache", name="drop-cdn-cache")
+async def _drop_cdn_cache(cur_user: CurUserDep) -> dict:
+    success, items_count = drop_cdn_cache(cur_user)
     return {"success": success, "items_count": items_count}
 
 
 @app.get("/{slug}", name="user-by-slug", response_class=HTMLResponse)
 async def user_page_by_slug(user: UserBySlugDep, posts_query_dto: PostQueryDep,
                             cur_user: OptCurUserDep) -> HTMLResponse:
-    return await base_user_page(user, posts_query_dto, cur_user)
+    return await _user_page(user, posts_query_dto, cur_user)
 
 
 @app.get("/{user_slug}/{post_slug}", name="post-by-slugs", response_class=HTMLResponse)
 async def post_page_by_slugs(post: PostBySlugsDep, cur_user: OptCurUserDep) -> HTMLResponse:
-    return await base_post_page(post, cur_user)
+    return await _post_page(post, cur_user)
 
 
 @app.exception_handler(StarletteHTTPException)
 async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
     logger.error(f"HTTP exception: {str(exc)}")
-    return get_error_response(
-        request,
-        exc.status_code,
-        exc.detail
-    )
+    return get_error_response(request, exc.status_code, exc.detail)
 
 
 @app.exception_handler(RequestValidationError)
@@ -614,20 +610,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     for error in exc.errors():
         field = error["loc"][-1] if len(error["loc"]) > 1 else error["loc"][0]
         details[field] = error["msg"]
-    return get_error_response(
-        request,
-        422,
-        details,
-    )
+    return get_error_response(request, 422, details)
 
 
 @app.exception_handler(NotAuthenticatedError)
 async def not_authenticated_error_handler(request: Request, exc: NotAuthenticatedError):
     logger.error(f"Not authenticated: {str(exc)}")
-    return get_error_response(
-        request,
-        401,
-    )
+    return get_error_response(request, 401)
 
 
 @app.exception_handler(UserBannedError)
@@ -638,29 +627,21 @@ async def user_banned_error_handler(request: Request, exc: UserBannedError):
 @app.exception_handler(NotAuthorizedError)
 async def not_authorized_error_handler(request: Request, exc: NotAuthorizedError):
     logger.error(f"Not authorized: {str(exc)}")
-    return get_error_response(
-        request,
-        403,
-        {"permission": exc.permission},
-    )
+    return get_error_response(request, 403, {"permission": exc.permission})
 
 
 @app.exception_handler(PostByOldSlugRequestedError)
 async def post_redirect_exception_handler(request: Request, exc: PostByOldSlugRequestedError):
     logger.info(f"Redirect: {str(exc.slug)} -> {exc.post.slug}")
-    return RedirectResponse(
-        url=get_post_url(request, exc.post),
-        status_code=301,
-    )
+    url = get_post_url(request, exc.post)
+    return RedirectResponse(url=url, status_code=301)
 
 
 @app.exception_handler(UserByOldSlugRequestedError)
 async def post_redirect_exception_handler(request: Request, exc: UserByOldSlugRequestedError):
     logger.info(f"Redirect: {str(exc.slug)} -> {exc.user.username}")
-    return RedirectResponse(
-        url=get_user_url(request, exc.user),
-        status_code=301,
-    )
+    url = get_user_url(request, exc.user)
+    return RedirectResponse(url=url, status_code=301)
 
 
 handler = Mangum(app)

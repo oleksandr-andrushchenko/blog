@@ -27,9 +27,7 @@
                     </p>
 
                     <form id="generate-sitemap-form" novalidate>
-                        <button class="btn btn-primary" type="submit">
-                            Generate & Notify
-                        </button>
+                        <button class="btn btn-primary" type="submit">Generate & Notify</button>
                     </form>
                 </section>
 
@@ -44,27 +42,25 @@
             </div>
         {% endif %}
 
-        {% if check_auth(cur_user, Permission.INVALIDATE_CDN_CACHE) %}
+        {% if check_auth(cur_user, Permission.DROP_CDN_CACHE) %}
             <div class="col col-4">
                 <section class="border rounded p-4 mb-4 bg-light">
-                    <h2 class="h4 mb-2">Invalidate CDN Cache</h2>
+                    <h2 class="h4 mb-2">Drop CDN Cache</h2>
 
                     <p class="small text-muted mb-3">
                         Invalidate CloudFront Cache.
                     </p>
 
-                    <form id="invalidate-cdn-cache-form" novalidate>
-                        <button class="btn btn-primary" type="submit">
-                            Invalidate
-                        </button>
+                    <form id="drop-cdn-cache-form" novalidate>
+                        <button class="btn btn-primary" type="submit">Drop</button>
                     </form>
                 </section>
 
                 <script>
                   document.addEventListener("DOMContentLoaded", () => {
-                    handleFormSubmit("#invalidate-cdn-cache-form", "{{ url("invalidate-cdn-cache") }}", {
+                    handleFormSubmit("#drop-cdn-cache-form", "{{ url("drop-cdn-cache") }}", {
                       method: "POST",
-                      onSuccess: (res) => `CDN cache invalidated!<br>Items count: ${res.items_count}`,
+                      onSuccess: (res) => `CDN cache dropped!<br>Items count: ${res.items_count}`,
                     })
                   })
                 </script>
