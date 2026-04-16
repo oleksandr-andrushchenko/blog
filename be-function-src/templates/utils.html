@@ -1,10 +1,9 @@
 {% extends "layout.html" %}
 
 {% set title = "Utils" %}
-
-{% block meta_robots %}noindex, nofollow{% endblock %}
-{% block meta_title %}{{ title }} | {{ site_name }}{% endblock %}
-{% block meta_canonical %}{{ url("utils") }}{% endblock %}
+{% set meta_robots = "noindex, nofollow" %}
+{% set meta_title = title ~ " | " ~ site_name %}
+{% set meta_canonical_url = url("utils") %}
 
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), (title): None} %}

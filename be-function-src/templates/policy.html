@@ -2,8 +2,9 @@
 
 {% set title = "Privacy Policy" %}
 
-{% block meta_title %}{{ title }} | {{ site_name }}{% endblock %}
-{% block meta_canonical %}{{ url("policy") }}{% endblock %}
+{% set meta_title = title ~ " | " ~ site_name %}
+{% set meta_robots = "index, follow" %}
+{% set meta_canonical_url = url("policy") %}
 
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), (title): None} %}

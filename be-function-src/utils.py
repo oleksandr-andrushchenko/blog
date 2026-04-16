@@ -722,6 +722,7 @@ def get_live_config():
             "Y": "#FF6D00",  # Bright Orange
             "Z": "#C51162"  # Bright Pink
         },
+        **json.load(open("./data.default.json")),
         **json.load(open("./data.json"))
     }
 
@@ -1201,6 +1202,7 @@ def get_jinja2_env():
         "UserStatus": UserStatus,
         "PostQueryDTO": PostQueryDTO,
         "UserQueryDTO": UserQueryDTO,
+        "img_dims": extract_image_filename_dimensions,
     })
     return jinja2_env
 
@@ -3561,6 +3563,17 @@ def get_cdn_cache_version(user: User) -> str:
     raw = f"{user.id}:{user.cdn_cache_version}"
     import hashlib
     return hashlib.md5(raw.encode()).hexdigest()
+
+
+def extract_image_filename_dimensions(filename: str) -> tuple[int | None, int | None]:
+    if not filename:
+        return None, None
+
+    match = re.search(r'_(\d+)x(\d+)(?:\.\w+)?$', filename)
+    if match:
+        return match.group(1), match.group(2)
+
+    return None, None
 
 
 def create_dummy_fixtures(req) -> None:

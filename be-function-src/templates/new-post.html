@@ -1,8 +1,7 @@
 {% extends "layout.html" %}
 
-{% block meta_robots %}noindex, nofollow{% endblock %}
-{% block meta_title %}New post | {{ site_name }}{% endblock %}
-{% block meta_canonical %}{{ url("create-post") }}{% endblock %}
+{% set meta_title = "New post | " ~ site_name %}
+{% set meta_canonical_url = url("create-post") %}
 
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), "Posts": posts_url(), "New": None} %}
@@ -11,7 +10,5 @@
 {% endblock %}
 
 {% block content %}
-{#    <h1>New post</h1>#}
-{#    <p class="small text-secondary">Create a new article</p>#}
     {% include "fragments/post-form.html" %}
 {% endblock %}

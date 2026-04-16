@@ -10,10 +10,10 @@
 
 {% set icon = val_map[post_query.type]["icon"] if "icon" in val_map[post_query.type] else None %}
 {% set title = ([val_map[post_query.type]["title"]] + (post_query.tags if post_query.tags else [site_about]) + [val_map[post_query.status]["title"]] + ["Posts"]) | select | join(" ") | title %}
+{% set meta_robots = "index, follow" %}
 {% set subtitle = ([val_map[post_query.type]["subtitle"]]  + post_query.tags + [val_map[post_query.status]["subtitle"]] + ["Articles"]) | select | join(" ") | title %}
-
-{% block meta_title %}{{ title }} | {{ site_name }}{% endblock %}
-{% block meta_canonical %}{{ posts_url(query=post_query, tags=post_query.tags|sort) }}{% endblock %}
+{% set meta_title = title ~ " | " ~ site_name %}
+{% set meta_canonical_url = posts_url(query=post_query, tags=post_query.tags|sort) %}
 
 {% block breadcrumbs %}
     {% set breadcrumbs = {"Home": url("index"), "Posts": posts_url()} %}

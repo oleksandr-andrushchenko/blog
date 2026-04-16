@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% set canonical_url = user_url(user) %}
+{% set meta_canonical_url = user_url(user) %}
 {% set val_map = {
     (PostQueryType.LATEST): {"title": "Latest", "subtitle": "Recently added", "icon": "clock-fill"},
     (PostQueryType.POPULAR): {"title": "Popular", "subtitle": "Most rated", "icon": "star-fill"},
@@ -10,30 +10,29 @@
 
 {% set posts_icon = val_map[PostQueryType.LATEST]["icon"] %}
 {% set posts_title = ([val_map[post_query.type]["title"]] + [val_map[post_query.status]["title"]] + ["Posts"]) | select | join(" ") | title %}
+{% set meta_robots = "index, follow" %}
 {% set posts_subtitle = ([val_map[post_query.type]["subtitle"]] + [val_map[post_query.status]["subtitle"]] + ["Articles"]) | select | join(" ") | title %}
-
-{% block meta_title %}{{ user.name }} – {{ site_name }}{% endblock %}
-{% block meta_description %}
+{% set meta_title = user.name ~ " - " ~  site_name %}
+{% block meta_desc %}
     {{- [
         user.name ~ (user.username and ' (@' ~ user.username ~ ')') ~ " blog on " ~ site_name,
         user.headline,
         user.about,
-        meta_description
+        meta_desc
     ] | select | join('. ') | truncate(155, True, '...') -}}
 {% endblock %}
 {% block meta_schema %}
     {{- {
         "@context": "https://schema.org",
         "@type": "Person",
-        "@id": canonical_url,
+        "@id": meta_canonical_url,
         "identifier": user.username or user.id,
         "name": user.name,
-        "url": canonical_url,
+        "url": meta_canonical_url,
         "description": [user.headline, user.about] | select | join('. '),
         "image": static_url(user.avatar_filename) if user.avatar_filename else None
     } | tojson | safe -}}
 {% endblock %}
-{% block meta_canonical %}{{ canonical_url }}{% endblock %}
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), "Users": users_url(), (user.name): None} %}
         {% include "fragments/breadcrumbs.html" %}

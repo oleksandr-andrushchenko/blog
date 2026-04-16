@@ -1,10 +1,10 @@
 {% extends "layout.html" %}
 
 {% set title = "Contacts" %}
+{% set meta_robots = "index, follow" %}
 {% set show_details = contact_phone or contact_email or contact_address or contact_socials %}
-
-{% block meta_title %}{{ title }} | {{ site_name }}{% endblock %}
-{% block meta_canonical %}{{ url("contacts") }}{% endblock %}
+{% set meta_title = title ~ " ~ " ~ site_name %}
+{% set meta_canonical_url = url("contacts") %}
 
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), "Contacts": None} %}

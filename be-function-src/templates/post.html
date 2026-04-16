@@ -1,18 +1,11 @@
 {% extends "layout.html" %}
-{% set canonical_url = post_url(post) %}
+{% set meta_canonical_url = post_url(post) %}
 {% set author_canonical_url = user_url(author) %}
 {% set author_alternate_canonical_url = url("user", user_id=author.id) %}
-{% set index_url = url("index") %}
-{% set meta_description = [
-        post.title,
-        post.preview,
-        meta_description
-    ] | select | join('. ') | truncate(155, True, '...') %}
-{% block meta_title %}{{ post.title }} | by {{ author.name }} | {{ site_name }}{% endblock %}
-{% block meta_description %}{{ meta_description }}{% endblock %}
-{% block meta_keywords %}{{ post.tags|join(",") }},{{ meta_keywords }}{% endblock %}
-{% block meta_author %}{{ author.name }}{% endblock %}
-{% block meta_canonical %}{{ canonical_url }}{% endblock %}
+{% set meta_desc = [post.title, post.preview, meta_desc] | select | join('. ') | truncate(155, True, '...') %}
+{% set meta_title = post.title ~ " | by " ~ author.name ~ " ~ " ~ site_name %}
+{% set meta_robots = "index, follow" %}
+{% set meta_keywords = post.tags | join(",") %}
 {% block meta_schema %}
     {% set author_schema = {
         "@context": "https://schema.org",
@@ -24,18 +17,18 @@
     } %}
     {{- {
         "@context": "https://schema.org",
-        "@id": canonical_url,
+        "@id": meta_canonical_url,
         "@type": "SocialMediaPosting",
         "image": [
             static_url(post.image_filename) if post.image_filename else None
         ],
-        "url": canonical_url,
+        "url": meta_canonical_url,
         "dateCreated": post.created_at | iso_utc,
         "datePublished": (post.published_at | iso_utc) if post.published_at else None,
         "dateModified": (post.updated_at | iso_utc) if post.updated_at and post.published_at and (post.updated_at - post.published_at > 86_400_000) else None,
         "headline": post.title,
         "name": post.title,
-        "description": meta_description,
+        "description": meta_desc,
         "identifier": post.id,
         "author": author_schema,
         "creator": author_schema,
@@ -50,7 +43,7 @@
                 author.website if author.website else None
             ]
         },
-        "mainEntityOfPage": canonical_url,
+        "mainEntityOfPage": meta_canonical_url,
         "isAccessibleForFree": not post.is_premium
     } | tojson | safe -}}
 {% endblock %}

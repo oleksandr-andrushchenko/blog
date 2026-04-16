@@ -9,10 +9,10 @@
 
 {% set icon = val_map[user_query.type]["icon"] if "icon" in val_map[user_query.type] else None %}
 {% set title = ([val_map[user_query.type]["title"]] + [val_map[user_query.status]["title"]] + ["Users"]) | select | join(" ") | title %}
+{% set meta_robots = "index, follow" %}
 {% set subtitle = ([val_map[user_query.type]["subtitle"]] + [val_map[user_query.status]["subtitle"]] + ["Users"]) | select | join(" ") | title %}
-
-{% block meta_title %}{{ title }} | {{ site_name }}{% endblock %}
-{% block meta_canonical %}{{ users_url(query=user_query) }}{% endblock %}
+{% set meta_title = title ~ " | " ~ site_name %}
+{% set meta_canonical_url = users_url(query=user_query) %}
 
 {% block breadcrumbs %}
     {% set breadcrumbs = {"Home": url("index"), "Users": users_url()} %}

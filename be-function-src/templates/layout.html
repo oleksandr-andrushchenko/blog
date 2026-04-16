@@ -11,48 +11,51 @@
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
 
-    {% block google_analytics %}
-        {% if google_analytics_id %}
-            <!-- Google tag (gtag.js) -->
-            <script async src="https://www.googletagmanager.com/gtag/js?id={{ google_analytics_id }}"></script>
-            <script>
-              window.dataLayer = window.dataLayer || []
+    {% if google_analytics_id %}
+        <!-- Google tag (gtag.js) -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id={{ google_analytics_id }}"></script>
+        <script>
+          window.dataLayer = window.dataLayer || []
 
-              function gtag() {
-                dataLayer.push(arguments)
-              }
+          function gtag() {
+            dataLayer.push(arguments)
+          }
 
-              gtag("js", new Date())
-              gtag("config", "{{ google_analytics_id }}")
-            </script>
-        {% endif %}
-    {% endblock %}
+          gtag("js", new Date())
+          gtag("config", "{{ google_analytics_id }}")
+        </script>
+    {% endif %}
 
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>{% block meta_title %}{{ meta_title }}{% endblock %}</title>
-    <meta name="description" content="
-        {%- block meta_description %}{{ meta_description | truncate(155, True, '...') }}{% endblock %}"/>
-    <meta name="keywords" content="{% block meta_keywords %}{{ meta_keywords }}{% endblock %}"/>
-    <meta name="author" content="{% block meta_author %}{{ meta_author }}{% endblock %}"/>
-    <meta name="robots" content="{% block meta_robots %}{{ meta_robots | default("index, follow") }}{% endblock %}">
-    <link rel="canonical" href="{% block meta_canonical %}{% endblock %}">
+    <title>{{ meta_title or site_title }}</title>
+    <meta name="description" content="{{ (meta_desc or site_desc) | truncate(155, True, '...') }}"/>
+    <meta name="keywords" content="{{ meta_keywords }}"/>
+    <meta name="author" content="{{ meta_author }}"/>
+    {% if meta_robots %}
+        <meta name="robots" content="{{ meta_robots }}">
+    {% endif %}
+    <link rel="canonical" href="{{ meta_canonical_url }}">
 
     <meta name="application-name" content="{{ site_name }}"/>
     <meta name="mobile-web-app-capable" content="yes"/>
     <meta name="apple-mobile-web-app-title" content="{{ site_name }}"/>
 
-    <meta property="og:title" content="{{ site_title }}"/>
-    <meta property="og:description" content="{{ site_desc }}"/>
+    <meta property="og:title" content="{{ og_title or meta_title or site_title }}"/>
+    <meta property="og:description" content="{{ og_desc or meta_desc or site_desc }}"/>
     <meta property="og:type" content="website"/>
-    <meta property="og:url" content="{{ index_url }}"/>
-    {% if site_img_filename %}
-        <meta property="og:image" content="{{ static_url(site_img_filename) }}"/>
-        <meta property="og:image:width" content="{{ site_img_width }}"/>
-        <meta property="og:image:height" content="{{ site_img_height }}"/>
-        <meta property="og:image:alt" content="{{ site_img_alt }}"/>
+    <meta property="og:url" content="{{ og_url or meta_canonical_url or index_url }}"/>
+    {% set image_filename = og_img_filename or meta_img_filename or site_img_filename %}
+    <meta property="og:image" content="{{ static_url(image_filename) }}"/>
+    <meta property="og:image:alt"
+          content="{{ og_img_alt or meta_img_alt or meta_title or site_img_title or site_title }}"/>
+    {% set img_width, img_height = img_dims(image_filename) %}
+    {% if img_width and img_height %}
+        <meta property="og:image:width" content="{{ img_width }}"/>
+        <meta property="og:image:height" content="{{ img_height }}"/>
     {% endif %}
+
     <meta property="article:author" content="{{ site_name }}"/>
 
     <script type="application/ld+json">{% block meta_schema %}{{ meta_schema | tojson | safe }}{% endblock %}</script>
