@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 
 {% set title = "Contacts" %}
+{% set show_details = contact_phone or contact_email or contact_address or contact_socials %}
 
 {% block meta_title %}{{ title }} | {{ site_name }}{% endblock %}
 {% block meta_canonical %}{{ url("contacts") }}{% endblock %}
@@ -16,7 +17,7 @@
     <p class="small text-secondary">Contact us</p>
 
     <div class="row g-5">
-        <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-4">
+        <div class="col col-12 {% if show_details %}col-lg-6 col-xl-8{% endif %} d-flex flex-column gap-4">
             <form class="row g-3" id="contact-form" novalidate>
                 <label class="col col-12">
                     <input type="text" class="form-control" id="name" name="name" placeholder="Your Name"
@@ -41,45 +42,48 @@
                 </div>
             </form>
         </div>
-        <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4">
-            <h2 class="mb-0 text-decoration-underline"> Contact details</h2>
-            <div class="d-flex flex-column gap-3">
-                {% if contact_phone %}
-                    <div>
-                        <i class="bi bi-telephone-outbound"></i> Phone
-                        <a class="d-block link-body-emphasis" href="tel:{{ contact_phone }}">{{ contact_phone }}</a>
-                    </div>
-                {% endif %}
-
-                {% if contact_email %}
-                    <div>
-                        <i class="bi bi-envelope-at"></i> Email
-                        <a class="d-block link-body-emphasis" href="mailto:{{ contact_email }}">{{ contact_email }}</a>
-                    </div>
-                {% endif %}
-
-                {% if contact_address %}
-                    <div>
-                        <i class="bi bi-geo"></i> Address
-                        <div>{{ contact_address }}</div>
-                    </div>
-                {% endif %}
-
-                {% if contact_socials %}
-                    <div>
-                        <i class="bi bi-people"></i> Socials
-                        <div class="h3">
-                            {% for contact_social in contact_socials %}
-                                <a href="{{ contact_social.url }}" class="link-dark" target="_blank"
-                                   rel="noopener noreferrer">
-                                    <i class="bi bi-{{ contact_social.icon }}"></i>
-                                </a>
-                            {% endfor %}
+        {% if show_details %}
+            <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4">
+                <h2 class="mb-0 text-decoration-underline"> Contact details</h2>
+                <div class="d-flex flex-column gap-3">
+                    {% if contact_phone %}
+                        <div>
+                            <i class="bi bi-telephone-outbound"></i> Phone
+                            <a class="d-block link-body-emphasis" href="tel:{{ contact_phone }}">{{ contact_phone }}</a>
                         </div>
-                    </div>
-                {% endif %}
+                    {% endif %}
+
+                    {% if contact_email %}
+                        <div>
+                            <i class="bi bi-envelope-at"></i> Email
+                            <a class="d-block link-body-emphasis"
+                               href="mailto:{{ contact_email }}">{{ contact_email }}</a>
+                        </div>
+                    {% endif %}
+
+                    {% if contact_address %}
+                        <div>
+                            <i class="bi bi-geo"></i> Address
+                            <div>{{ contact_address }}</div>
+                        </div>
+                    {% endif %}
+
+                    {% if contact_socials %}
+                        <div>
+                            <i class="bi bi-people"></i> Socials
+                            <div class="h3">
+                                {% for contact_social in contact_socials %}
+                                    <a href="{{ contact_social.url }}" class="link-dark" target="_blank"
+                                       rel="noopener noreferrer">
+                                        <i class="bi bi-{{ contact_social.icon }}"></i>
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
-        </div>
+        {% endif %}
     </div>
 
     <script>

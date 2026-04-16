@@ -190,11 +190,12 @@ async def sync_cdn_cache_cookie_middleware(request: Request, call_next):
 
     if token and not token_was_set and not token_was_deleted:
         cur_user = getattr(request.state, "cur_user", None)
-        req_version = get_cdn_cache_cookie(request)
-        cdn_version = get_cdn_cache_version(cur_user)
+        if cur_user:
+            req_version = get_cdn_cache_cookie(request)
+            cdn_version = get_cdn_cache_version(cur_user)
 
-        if req_version != cdn_version:
-            set_cdn_cache_cookie(cur_user, response)
+            if req_version != cdn_version:
+                set_cdn_cache_cookie(cur_user, response)
 
     return response
 
