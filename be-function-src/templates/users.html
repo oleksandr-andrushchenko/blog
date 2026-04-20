@@ -39,14 +39,16 @@
         <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-4">
             {% if users %}
                 <div class="row g-3" id="users">
-                    {% include "fragments/users.html" %}
+                    {% with image_column_size={"def":3,"md":2} %}
+                        {% include "fragments/users.html" %}
+                    {% endwith %}
                 </div>
 
                 {% with limit=user_query.limit,
-            offset=users[-1].offset,
-            count=users|length,
-            url=url("users-fragment", **user_query.get_dict()),
-            container="#users" %}
+                    offset=users[-1].offset,
+                    count=users|length,
+                    url=url("users-fragment", **user_query.get_dict()),
+                    container="#users" %}
                     {% include "fragments/load-more-button.html" %}
                 {% endwith %}
             {% else %}

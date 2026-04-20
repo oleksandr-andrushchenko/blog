@@ -2,20 +2,20 @@
 {% set vert_gap = vert_gap | default(1) %}
 {% set h_tag_size = h_tag_size | default(2) %}
 {% set h_display_size = h_display_size | default(3) %}
-{% set image_col_size = image_col_size | default({"def":2,"sm":1}) if image else 0 %}
+{% set image_column_size = image_column_size | default({"def":2,"sm":1}) if image else 0 %}
 {% set border = border | default(True) %}
 
 <div class="user row g-3 {% if border %}pb-3 border-bottom{% endif %}"
      {% if user.offset %}data-offset="{{ user.offset }}"{% endif %}>
     {% if image %}
-        <div class="{{ image_col_size | col_classes }}">
+        <div class="{{ image_column_size | column_classes }}">
             <a href="{{ user_url(user) }}">
                 {% include "fragments/user-avatar.html" %}
             </a>
         </div>
     {% endif %}
 
-    <div class="{{ image_col_size | col_classes(inverse=True) }} d-flex flex-column gap-{{ vert_gap }}">
+    <div class="{{ image_column_size | column_classes(inverse=True) }} d-flex flex-column gap-{{ vert_gap }}">
         <a class="link-body-emphasis text-decoration-none d-flex flex-column gap-{{ vert_gap }}"
            href="{{ user_url(user) }}">
             <h{{ h_tag_size }} class="h{{ h_display_size | default(3) }} mb-0">{{ user.name }}</h{{ h_tag_size }}>

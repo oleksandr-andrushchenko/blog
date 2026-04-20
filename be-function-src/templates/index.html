@@ -9,7 +9,7 @@
         <div class="col col-12 col-lg-6 col-xl-8">
             <h1 class="h2 d-inline-block">{{ site_name }}</h1>
             <p class="small text-secondary d-inline-block">&mdash; {{ site_short_desc }}</p>
-            <p>{{ site_desc }}</p>
+            <p class="d-none d-lg-inline-block">{{ site_desc }}</p>
             {% if index_image %}
                 <img src="{{ static_url(index_image.filename) }}"
                      class="img-fluid"
@@ -23,7 +23,10 @@
                 </h2>
                 {% if latest_posts %}
                     <div id="posts" class="d-flex flex-column gap-3">
-                        {% with posts=latest_posts, h_tag_size=3 %}
+                        {% with posts=latest_posts,
+                            h_tag_size=3,
+                            image_column_size={"def":12,"md":3},
+                            image_order_size={"def":12,"md":3} %}
                             {% include "fragments/posts.html" %}
                         {% endwith %}
                     </div>
@@ -63,11 +66,13 @@
                     {% if popular_posts %}
                         <div id="popular-posts" class="d-flex flex-column gap-3">
                             {% with posts=popular_posts,
-                            preview=False,
-                            border=False,
-                            vert_gap=0,
-                            h_tag_size=3,
-                            h_display_size=6 %}
+                                preview=False,
+                                border=False,
+                                vert_gap=0,
+                                h_tag_size=3,
+                                h_display_size=6,
+                                image_column_size={"def":12,"md":3},
+                                image_order_size={"def":12,"md":3} %}
                                 {% include "fragments/posts.html" %}
                             {% endwith %}
 
@@ -163,7 +168,7 @@
             <section class="d-flex flex-column gap-3">
                 <h2 class="mb-0 text-decoration-underline">
                     <a href="{{ users_url(type=UserQueryType.POPULAR) }}" class="link-body-emphasis bi bi-heart-fill">
-                        Popular authors
+                        Popular users
                     </a>
                 </h2>
                 {% if popular_users %}
@@ -173,7 +178,7 @@
                             vert_gap=0,
                             h_tag_size=3,
                             h_display_size=6,
-                            image_col_size=2 %}
+                            image_column_size={"def":3,"md":2} %}
                             {% include "fragments/users.html" %}
                         {% endwith %}
 

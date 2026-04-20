@@ -105,7 +105,10 @@
         <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
             <section class="d-flex flex-column gap-3">
                 <h2 class="mb-0 text-decoration-underline bi bi-person-circle"> Author</h2>
-                {% with user=author, h_tag_size=3, image_col_size=3, border=False %}
+                {% with user=author,
+                    h_tag_size=3,
+                    image_column_size={"def":3,"md":2},
+                    border=False %}
                     {% include "fragments/user.html" %}
                 {% endwith %}
             </section>

@@ -3,12 +3,13 @@
 {% set vert_gap = vert_gap | default(1) %}
 {% set h_tag_size = h_tag_size | default(2) %}
 {% set h_display_size = h_display_size | default(4) %}
-{% set image_col_size = image_col_size | default(3) if image else 0 %}
+{% set image_column_size = image_column_size | default(3) if image else 0 %}
+{% set image_order_size = image_order_size | default(3) if image else 0 %}
 {% set border = border | default(True) %}
 
 <div class="post row g-3 {% if border %}pb-3 border-bottom{% endif %}"
      {% if post.offset %}data-offset="{{ post.offset }}"{% endif %}>
-    <div class="{{ image_col_size | col_classes(inverse=True) }} d-flex flex-column gap-{{ vert_gap }}">
+    <div class="{{ image_order_size | order_classes(inverse=True) }} {{ image_column_size | column_classes(inverse=True) }} d-flex flex-column gap-{{ vert_gap }}">
         <a class="link-body-emphasis text-decoration-none d-flex flex-column gap-{{ vert_gap }}"
            href="{{ post_url(post) }}">
             <h{{ h_tag_size }} class="h{{ h_display_size | default(3) }} mb-0">{{ post.title }}</h{{ h_tag_size }}>
@@ -55,7 +56,7 @@
     </div>
 
     {% if image %}
-        <div class="{{ image_col_size | col_classes }}">
+        <div class="{{ image_order_size | order_classes }} {{ image_column_size | column_classes }}">
             <a href="{{ post_url(post) }}">
                 <img class="img-thumbnail" src="{{ static_url(post.image_filename) }}" alt="{{ post.title }}">
             </a>

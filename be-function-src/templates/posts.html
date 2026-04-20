@@ -46,7 +46,10 @@
         <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-4">
             {% if posts %}
                 <div id="posts" class="d-flex flex-column gap-3">
-                    {% include "fragments/posts.html" %}
+                    {% with image_column_size={"def":12,"md":3},
+                        image_order_size={"def":12,"md":3} %}
+                        {% include "fragments/posts.html" %}
+                    {% endwith %}
                 </div>
 
                 {% with limit=post_query.limit,
