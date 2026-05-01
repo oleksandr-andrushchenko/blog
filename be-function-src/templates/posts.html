@@ -1,14 +1,13 @@
 {% extends "layout.html" %}
 
 {% set val_map = {
-    (PostQueryType.LATEST): {"title": "Latest", "subtitle": "Recently added", "icon": "clock-fill"},
-    (PostQueryType.POPULAR): {"title": "Popular", "subtitle": "Most popular", "icon": "star-fill"},
+    (PostQueryType.LATEST): {"title": "Latest", "subtitle": "Recently added"},
+    (PostQueryType.POPULAR): {"title": "Popular", "subtitle": "Most popular"},
     (PostStatus.PUBLISHED): {"title": None, "subtitle": None},
     (PostStatus.UNPUBLISHED): {"title": "Unpublished", "subtitle": "Unpublished"},
     (PostStatus.REJECTED): {"title": "Rejected", "subtitle": "Rejected"}
 } %}
 
-{% set icon = val_map[post_query.type]["icon"] if "icon" in val_map[post_query.type] else None %}
 {% set title = ([val_map[post_query.type]["title"]] + (post_query.tags if post_query.tags else [site_about]) + [val_map[post_query.status]["title"]] + ["Posts"]) | select | join(" ") | title %}
 {% set meta_robots = "index, follow" %}
 {% set subtitle = ([val_map[post_query.type]["subtitle"]]  + post_query.tags + [val_map[post_query.status]["subtitle"]] + ["Articles"]) | select | join(" ") | title %}
@@ -39,7 +38,7 @@
 {% endblock %}
 
 {% block content %}
-    <h1 class="bi bi-{{ icon }}"> {{ title }}</h1>
+    <h1>{{ title }}</h1>
     <p class="small text-secondary">{{ subtitle }}</p>
 
     <div class="row g-5">

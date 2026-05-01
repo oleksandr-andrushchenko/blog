@@ -10,16 +10,16 @@
             <h1 class="h2 d-inline-block">{{ site_name }}</h1>
             <p class="small text-secondary d-inline-block">&mdash; {{ site_short_desc }}</p>
             <p class="d-none d-lg-inline-block">{{ site_desc }}</p>
-            {% if index_image %}
-                <img src="{{ static_url(index_image.filename) }}"
-                     class="img-fluid"
-                     width="{{ index_image.width }}" height="{{ index_image.height }}"
-                     alt="{{ index_image.alt }}">
+
+            {% if site_img_filename %}
+                {% with filename=site_img_filename, alt=site_about %}
+                    {% include "fragments/image.html" %}
+                {% endwith %}
             {% endif %}
 
             <section class="d-flex flex-column gap-3">
                 <h2 class="mb-0">
-                    <a href="{{ posts_url() }}" class="link-body-emphasis bi bi-clock-fill"> Latest posts</a>
+                    <a href="{{ posts_url() }}" class="link-body-emphasis">Latest posts</a>
                 </h2>
                 {% if latest_posts %}
                     <div id="posts" class="d-flex flex-column gap-3">
@@ -58,10 +58,7 @@
             {% if show_popular_posts %}
                 <section class="d-flex flex-column gap-3">
                     <h2 class="mb-0">
-                        <a href="{{ posts_url(type=PostQueryType.POPULAR) }}"
-                           class="link-body-emphasis bi bi-star-fill">
-                            Popular posts
-                        </a>
+                        <a href="{{ posts_url(type=PostQueryType.POPULAR) }}" class="link-body-emphasis">Popular posts</a>
                     </h2>
                     {% if popular_posts %}
                         <div id="popular-posts" class="d-flex flex-column gap-3">
@@ -94,7 +91,7 @@
             {% endif %}
 
             <section class="d-flex flex-column gap-3">
-                <h2 class="mb-0 text-decoration-underline bi bi-tags-fill"> Popular tags</h2>
+                <h2 class="mb-0 text-decoration-underline">Popular tags</h2>
                 {% if popular_post_tags %}
                     <div id="popular-post-tags">
                         {% for tag in popular_post_tags %}
@@ -143,9 +140,7 @@
                 <section class="card">
                     <div class="card-body d-flex flex-column gap-2">
                         <div class="d-flex align-items-center gap-2 fw-semibold">
-                            <h2 class="h4 mb-0">
-                                Become an Author
-                            </h2>
+                            <h2 class="h4 mb-0">Become an Author</h2>
                         </div>
 
                         <div class="text-muted small">
@@ -167,9 +162,7 @@
 
             <section class="d-flex flex-column gap-3">
                 <h2 class="mb-0 text-decoration-underline">
-                    <a href="{{ users_url(type=UserQueryType.POPULAR) }}" class="link-body-emphasis bi bi-heart-fill">
-                        Popular users
-                    </a>
+                    <a href="{{ users_url(type=UserQueryType.POPULAR) }}" class="link-body-emphasis">Popular users</a>
                 </h2>
                 {% if popular_users %}
                     <div id="popular-users" class="d-flex flex-column gap-3">

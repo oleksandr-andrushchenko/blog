@@ -1,13 +1,12 @@
 {% extends "layout.html" %}
 
 {% set val_map = {
-    (UserQueryType.LATEST): {"title": "Recently Joined", "subtitle": "Recently registered", "icon": "clock-fill"},
-    (UserQueryType.POPULAR): {"title": "Popular", "subtitle": "Most followed", "icon": "heart-fill"},
+    (UserQueryType.LATEST): {"title": "Recently Joined", "subtitle": "Recently registered"},
+    (UserQueryType.POPULAR): {"title": "Popular", "subtitle": "Most followed"},
     (UserStatus.ACTIVE): {"title": None, "subtitle": None},
     (UserStatus.BANNED): {"title": "Banned", "subtitle": "Banned"}
 } %}
 
-{% set icon = val_map[user_query.type]["icon"] if "icon" in val_map[user_query.type] else None %}
 {% set title = ([val_map[user_query.type]["title"]] + [val_map[user_query.status]["title"]] + ["Users"]) | select | join(" ") | title %}
 {% set meta_robots = "index, follow" %}
 {% set subtitle = ([val_map[user_query.type]["subtitle"]] + [val_map[user_query.status]["subtitle"]] + ["Users"]) | select | join(" ") | title %}
@@ -32,7 +31,7 @@
 {% endblock %}
 
 {% block content %}
-    <h1 class="bi bi-{{ icon }}"> {{ title }}</h1>
+    <h1>{{ title }}</h1>
     <p class="small text-secondary">{{ subtitle }}</p>
 
     <div class="row g-5">
