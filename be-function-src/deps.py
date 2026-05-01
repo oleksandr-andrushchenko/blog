@@ -8,7 +8,7 @@ from utils import (
     User,
     PostQueryDTO,
     Post,
-    TagQueryDTO,
+    PostTagQueryDTO,
     UserQueryDTO,
     InvalidTokenError,
     PostNotFoundError,
@@ -34,6 +34,10 @@ from utils import (
     get_cdn_cache_version,
     is_prod,
     get_auth_token_max_age,
+    PostTag,
+    PostTagNotFoundError,
+    get_post_tag,
+    UpdatePostTagDTO,
 )
 
 
@@ -64,6 +68,7 @@ def get_opt_cur_user(request: Request) -> User | None:
     return user
 
 
+CurUserDep = Annotated[User, Depends(get_cur_user)]
 OptCurUserDep = Annotated[Optional[User], Depends(get_opt_cur_user)]
 
 
@@ -72,6 +77,17 @@ def get_post_by_id(post_id: str, cur_user: OptCurUserDep = None) -> Post:
         return get_post(post_id, cur_user)
     except PostNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+def get_post_tag_by_name(post_tag_name: str, cur_user: CurUserDep) -> PostTag:
+    try:
+        return get_post_tag(post_tag_name, cur_user)
+    except PostTagNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+def get_update_post_tag_dto(update_post_tag_dto: UpdatePostTagDTO = Body(...)) -> UpdatePostTagDTO:
+    return update_post_tag_dto
 
 
 def get_user_by_id(user_id: str, cur_user: OptCurUserDep = None) -> User:
@@ -245,7 +261,6 @@ def drop_cdn_cache_cookie(response):
     response.delete_cookie("cdn_version")
 
 
-CurUserDep = Annotated[User, Depends(get_cur_user)]
 UserDep = Annotated[User, Depends(get_user_by_id)]
 UserBySlugDep = Annotated[User, Depends(_get_user_by_slug)]
 UpdateUserDTODep = Annotated[UpdateUserDTO, Depends(get_update_user_dto)]
@@ -263,6 +278,8 @@ PostCommentDep = Annotated[PostComment, Depends(get_post_comment_by_id)]
 UpdatePostCommentDTODep = Annotated[UpdatePostCommentDTO, Depends(get_update_post_dto)]
 UpdatePostCommentImpressionDTODep = Annotated[
     UpdatePostCommentImpressionDTO, Depends(get_update_post_comment_impression_dto)]
-TagQueryDep = Annotated[TagQueryDTO, Depends()]
+PostTagQueryDep = Annotated[PostTagQueryDTO, Depends()]
+PostTagDep = Annotated[PostTag, Depends(get_post_tag_by_name)]
+UpdatePostTagDTODep = Annotated[UpdatePostTagDTO, Depends(get_update_post_tag_dto)]
 ImageFileDTODep = Annotated[ImageFileDTO, Depends(get_image_file)]
 UpdateUserImpressionDTODep = Annotated[UpdateUserImpressionDTO, Depends(get_update_user_impression_dto)]

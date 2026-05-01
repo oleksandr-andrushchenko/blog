@@ -1,0 +1,110 @@
+<form class="d-flex flex-column gap-2" id="post-tag-form" novalidate>
+    <div class="form-group row align-items-center">
+        <div class="col col-2 px-lg-5">
+            {% include "fragments/post-tag-image.html" %}
+        </div>
+        <div class="col-10">
+            <div class="row align-items-center g-3">
+                <div class="col col-6 col-lg-4 col-xl-2">
+                    <div class="form-check text-decoration-underline">
+                        Cover image action
+                    </div>
+
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="image_action" id="keep-image" value="keep"
+                               checked>
+                        <label class="form-check-label" for="keep-image">Keep current</label>
+                    </div>
+
+                    {% if post_tag and post_tag.image_filename %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="image_action" id="delete-image"
+                                   value="delete">
+                            <label class="form-check-label" for="delete-image">Delete current</label>
+                        </div>
+                    {% endif %}
+
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="image_action" id="replace-image"
+                               value="replace">
+                        <label class="form-check-label" for="replace-image">Upload new</label>
+                    </div>
+                </div>
+
+                <div class="col col-6 col-lg-8 col-xl-10" id="upload-image" style="display:none">
+                    <input type="file" class="form-control" id="image_file" name="image_file"
+                           placeholder="Cover image" data-public-file>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-group row">
+        <label for="name" class="col-form-label col-2 label-required">Name</label>
+        <div class="col-10">
+            <input type="text" class="form-control" id="name" name="name" placeholder="Name"
+                   value="{{ post_tag.name if post_tag and post_tag.name else "" }}"{{ " readonly" if post_tag else "" }}>
+        </div>
+    </div>
+
+    <div class="form-group row">
+        <div class="col col-10 offset-2">
+            <button type="submit" class="btn btn-light">
+                <i class="bi {% if post_tag %}bi-arrow-clockwise{% else %}bi-plus-lg{% endif %}"></i>
+                {% if post_tag %}Update{% else %}Create{% endif %} post tag
+            </button>
+        </div>
+    </div>
+</form>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const uploadDiv = document.getElementById("upload-image")
+    const imageRadios = document.querySelectorAll("input[name=\"image_action\"]")
+
+    // Initially hide the upload div
+    uploadDiv.style.display = "none"
+
+    imageRadios.forEach(radio => {
+      radio.addEventListener("change", () => {
+        if (radio.value === "replace" && radio.checked) {
+          uploadDiv.style.display = "block"
+        } else if (radio.checked) {
+          uploadDiv.style.display = "none"
+        }
+      })
+    })
+
+    handleFormSubmit("#post-tag-form", "{{ url('update-post-tag', post_tag_name=post_tag.name) if post_tag else '' }}", {
+      method: "{{ 'PATCH' if post_tag else 'POST' }}",
+      rules: {
+        image_file: [
+          {
+            rule: "required",
+            errorMessage: "Cover image is required"
+          },
+          {
+            rule: "files",
+            value: {
+              files: {
+                extensions: ["jpeg", "jpg", "png"],
+                maxSize: 10000000,
+                minSize: 1000,
+                types: ["image/jpeg", "image/jpg", "image/png"]
+              }
+            }
+          }
+        ],
+        name: [
+          {rule: "required"},
+          {rule: "minLength", value: 1},
+          {rule: "maxLength", value: 100}
+        ],
+      },
+      onSuccess: (res) => {
+        if (res) window.location.href = res
+      },
+      successMessage: "Tag updated!"
+    })
+  })
+</script>

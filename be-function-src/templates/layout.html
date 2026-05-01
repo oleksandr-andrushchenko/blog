@@ -101,7 +101,7 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url("contacts") }}">Contacts</a>
                     </li>
-                    {% if cur_user and check_auth(cur_user, Permission.UTILS_PAGE) %}
+                    {% if cur_user and check_auth(cur_user, Permission.UTILS) %}
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url("utils") }}">Utils</a>
                         </li>

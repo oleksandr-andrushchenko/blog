@@ -11,7 +11,7 @@ from utils import (
     PostQueryDTO,
     PostCommentDTO,
     PostCommentQueryDTO,
-    Tag,
+    PostTag,
     is_prod,
     InvalidTokenError,
     InvalidCodeError,
@@ -71,6 +71,9 @@ from utils import (
     drop_cdn_cache,
     get_user_by_auth_token,
     get_cdn_cache_version,
+    get_post_tag_url,
+    update_post_tag,
+    find_post_tag,
 )
 from deps import (
     OptCurUserDep,
@@ -78,7 +81,7 @@ from deps import (
     CurUserDep,
     PostQueryDep,
     PostDep,
-    TagQueryDep,
+    PostTagQueryDep,
     UserQueryDep,
     UserDep,
     UpdateUserDTODep,
@@ -99,6 +102,8 @@ from deps import (
     set_cdn_cache_cookie,
     drop_cdn_cache_cookie,
     get_cdn_cache_cookie,
+    PostTagDep,
+    UpdatePostTagDTODep,
 )
 import asyncio
 
@@ -255,11 +260,20 @@ async def _post_page(post: PostDep, cur_user: OptCurUserDep) -> HTMLResponse:
     return HTMLResponse(html_content)
 
 
-def _posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
+async def _posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
+    post_tag_name = query_dto.tags[0] if query_dto.tags and len(query_dto.tags) == 1 else None
+    (
+        posts,
+        post_tag,
+    ) = await asyncio.gather(
+        to_thread(get_posts, query_dto, cur_user),
+        to_thread(find_post_tag, post_tag_name) if post_tag_name else asyncio.sleep(0, result=None),
+    )
     return get_html_content("posts.html", {
         "cur_user": cur_user,
         "post_query": query_dto,
-        "posts": get_posts(query_dto, cur_user),
+        "posts": posts,
+        "post_tag": post_tag,
     })
 
 
@@ -284,7 +298,7 @@ async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request
 
 @app.get("/posts", name="posts", response_class=HTMLResponse)
 async def posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep):
-    return _posts_page(query_dto, cur_user)
+    return await _posts_page(query_dto, cur_user)
 
 
 @app.get("/api/posts-fragment", name="posts-fragment", response_class=HTMLResponse)
@@ -361,7 +375,7 @@ async def _update_post_comment(post: PostDep, post_comment: PostCommentDep,
 
 @app.get("/{slugs_path:path}/posts", name="posts-by-slugs", response_class=HTMLResponse)
 async def posts_page_by_slugs(query_dto: PostQueryBySlugsDep, cur_user: OptCurUserDep) -> HTMLResponse:
-    return _posts_page(query_dto, cur_user)
+    return await _posts_page(query_dto, cur_user)
 
 
 @app.get("/contacts", name="contacts", response_class=HTMLResponse)
@@ -376,8 +390,24 @@ async def _create_contact_message(message_dto: ContactMessageDTO, cur_user: OptC
     create_contact_message(message_dto, cur_user)
 
 
+@app.get("/post-tags/{post_tag_name}/edit", name="edit-post-tag", response_class=HTMLResponse)
+async def edit_post_tag(post_tag: PostTagDep, cur_user: CurUserDep) -> str:
+    verify_authorization(cur_user, Permission.UPDATE_POST_TAG, post_tag)
+    return get_html_content("edit-post-tag.html", {
+        "cur_user": cur_user,
+        "post_tag": post_tag,
+    })
+
+
+@app.patch("/api/post-tags/{post_tag_name}", name="update-post-tag", response_class=JSONResponse)
+async def _update_post_tag(update_post_tag_dto: UpdatePostTagDTODep, post_tag: PostTagDep, cur_user: CurUserDep,
+                           request: Request) -> str:
+    update_post_tag(post_tag, update_post_tag_dto, cur_user, request)
+    return get_post_tag_url(request, post_tag)
+
+
 @app.get("/api/post-tags", name="get-post-tags", response_class=JSONResponse)
-async def _get_post_tags(query_dto: TagQueryDep) -> list[Tag]:
+async def _get_post_tags(query_dto: PostTagQueryDep) -> list[PostTag]:
     return get_post_tags(query_dto)
 
 
@@ -579,7 +609,7 @@ async def contribute(cur_user: OptCurUserDep) -> str:
 
 @app.get("/utils", name="utils", response_class=HTMLResponse)
 async def utils(cur_user: CurUserDep) -> str:
-    verify_authorization(cur_user, Permission.UTILS_PAGE)
+    verify_authorization(cur_user, Permission.UTILS)
     return get_html_content("utils.html", {
         "cur_user": cur_user,
     })

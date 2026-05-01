@@ -330,6 +330,11 @@ def sanitize_forbidden_html(value):
     return normalized
 
 
+class PostTagDTO(BaseModel):
+    MIN_LENGTH: ClassVar[int] = 2
+    MAX_LENGTH: ClassVar[int] = 40
+
+
 def sanitize_tags(value):
     if not value:
         return []
@@ -341,7 +346,8 @@ def sanitize_tags(value):
 class PostDTO(BaseModel):
     title: str = Field(..., min_length=10, max_length=500)
     content: str = Field(..., min_length=5_000, max_length=50_000)
-    tags: conlist(constr(min_length=2, max_length=40), min_length=1, max_length=3)
+    tags: conlist(constr(min_length=PostTagDTO.MIN_LENGTH, max_length=PostTagDTO.MAX_LENGTH), min_length=1,
+                  max_length=3)
 
     @field_validator("tags", mode="before")
     @classmethod
@@ -400,16 +406,24 @@ class UserQueryDTO(BaseQueryDTO):
     status: UserStatus = UserStatus.ACTIVE
 
 
-class TagQueryDTO(BaseQueryDTO):
+class PostTagQueryDTO(BaseQueryDTO):
     prefix: str | None = Field(None, min_length=1, max_length=10)
 
 
 @dataclass(slots=True)
-class Tag:
+class PostTag:
     name: str
     rating: int
     posts_count: int
+    image_filename: str | None
     offset: str | None
+
+
+class UpdatePostTagDTO(PostTagDTO):
+    name: str = Field(..., min_length=PostTagDTO.MIN_LENGTH, max_length=PostTagDTO.MAX_LENGTH)
+    image_action: Literal["delete", "replace", "keep"] | None = None
+    # todo: check if file exists
+    image_filename: str | None = None
 
 
 class PostStatus(StrEnum):
@@ -567,11 +581,14 @@ class Permission(StrEnum):
     UPDATE_POST_IMPRESSION = "toggle_post_impression"
     READ_NON_PUBLISHED_POST = "read_non_published_post"
 
+    READ_POST_TAG = "read_post_tag"
+    UPDATE_POST_TAG = "update_post_tag"
+
     CREATE_POST_COMMENT = "create_post_comment"
     UPDATE_POST_COMMENT = "update_post_comment"
     READ_NON_PUBLISHED_POST_COMMENT = "read_non_published_post_comment"
 
-    UTILS_PAGE = "utils_page"
+    UTILS = "utils"
     GENERATE_SITEMAP = "generate_sitemap"
     DROP_CDN_CACHE = "drop_cdn_cache"
 
@@ -623,6 +640,10 @@ class PostByOldSlugRequestedError(Exception):
     def __init__(self, slug: str, post: Post):
         self.slug = slug
         self.post = post
+
+
+class PostTagNotFoundError(BaseError):
+    pass
 
 
 class PostCommentNotFoundError(BaseError):
@@ -985,6 +1006,11 @@ def jinja2_posts_url(ctx, query: PostQueryDTO | None = None, **params) -> str:
     return get_posts_url(ctx.get("request"), query=query, **params)
 
 
+@pass_context
+def jinja2_posts_tag_url(ctx, post_tag: PostTag, **params) -> str:
+    return get_post_tag_url(ctx.get("request"), post_tag, **params)
+
+
 def get_posts_url(req, query: PostQueryDTO | None = None, **params) -> str:
     if not query:
         query = PostQueryDTO()
@@ -1021,6 +1047,52 @@ def get_posts_url(req, query: PostQueryDTO | None = None, **params) -> str:
         return get_url(req, "posts", **params)
 
     return get_url(req, "posts-by-slugs", slugs_path="/".join(slugs), **params)
+
+
+def get_post_tag_url(req, post_tag: PostTag) -> str:
+    return get_posts_url(req, tags=[post_tag.name])
+
+
+def update_post_tag(post_tag: PostTag, update_post_tag_dto: UpdatePostTagDTO, cur_user: User, req) -> None:
+    verify_authorization(cur_user, Permission.UPDATE_POST_TAG, post_tag)
+
+    if cur_user.status == UserStatus.BANNED:
+        raise UserBannedError()
+
+    changes = update_post_tag_dto.model_dump(exclude_unset=True)
+    now = utc_now()
+
+    if not changes:
+        return
+
+    transacts = []
+
+    image_action = changes.pop("image_action", "keep")
+
+    if image_action == "delete":
+        changes["image_filename"] = None
+    elif image_action == "keep":
+        changes.pop("image_filename", None)
+
+    old_image = post_tag.image_filename
+
+    add_dynamodb_post_tag_update_transact(transacts, post_tag, changes)
+
+    try:
+        dynamodb_transact_write(transacts)
+    except DynamoDBTransactionError as e:
+        if e.is_conditional():
+            raise SlugDuplicationError(field="username")
+        raise
+
+    if old_image and image_action in {"delete", "replace"}:
+        drop_public_file(old_image)
+
+    # Invalidate CDN cache globally
+    _drop_cdn_cache(
+        _get_index_url(req),
+        _get_post_tag_urls(post_tag, req),
+    )
 
 
 def parse_posts_url_slugs_path(slugs_path: str) -> dict:
@@ -1214,6 +1286,7 @@ def get_jinja2_env():
         "post_url": jinja2_post_url,
         "posts_url": jinja2_posts_url,
         "users_url": jinja2_users_url,
+        "post_tag_url": jinja2_posts_tag_url,
         "Permission": Permission,
         "check_auth": check_authorization,
         "PostStatus": PostStatus,
@@ -1436,24 +1509,12 @@ def get_user_by_user_token(token: UserTokenDTO) -> User | None:
     # 1: Lookup provider user record
     if token.sub:
         iss = token.iss.split("/")[-1]
-        resp = table.get_item(
-            Key={
-                "pk": f"PROVIDER_USER#{iss}#{token.sub}",
-                "sk": "META"
-            }
-        )
-        provider_user_item = resp.get("Item")
+        provider_user_item = get_dynamodb_item(f"PROVIDER_USER#{iss}#{token.sub}", "META")
         if provider_user_item:
             user_id = provider_user_item["user_id"]
 
             # Fetch user record
-            resp = table.get_item(
-                Key={
-                    "pk": f"USER#{user_id}",
-                    "sk": "META"
-                }
-            )
-            user_item = resp.get("Item")
+            user_item = get_dynamodb_item(f"USER#{user_id}", "META")
 
     # 2: Fallback: lookup user by email
     # todo: user_item instead of provider_user_item (?)
@@ -1955,17 +2016,8 @@ def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User, req)
 
 
 def find_post(post_id: str) -> Post | None:
-    resp = get_dynamodb_table().get_item(
-        Key={
-            "pk": f"POST#{post_id}",
-            "sk": "META"
-        }
-    )
-    item = resp.get("Item")
-    if not item:
-        return None
-
-    return post_from_dynamodb(item)
+    item = get_dynamodb_item(f"POST#{post_id}", "META")
+    return post_from_dynamodb(item) if item else None
 
 
 def get_post(post_id: str, cur_user: User = None) -> Post:
@@ -2136,13 +2188,7 @@ def update_post_comment(post: Post, post_comment: PostComment, update_post_comme
 
 
 def find_post_comment(post_id: str, post_comment_id: str) -> PostComment | None:
-    resp = get_dynamodb_table().get_item(
-        Key={
-            "pk": f"POST#{post_id}",
-            "sk": f"COMMENT#{post_comment_id}"
-        }
-    )
-    item = resp.get("Item")
+    item = get_dynamodb_item(f"POST#{post_id}", f"COMMENT#{post_comment_id}")
     return post_comment_from_dynamodb(item) if item else None
 
 
@@ -2188,17 +2234,8 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
 
 
 def find_user(user_id: str) -> User | None:
-    resp = get_dynamodb_table().get_item(
-        Key={
-            "pk": f"USER#{user_id}",
-            "sk": "META"
-        }
-    )
-    item = resp.get("Item")
-    if not item:
-        return None
-    # logger.debug(f"User: {item}")
-    return user_from_dynamodb(item)
+    item = get_dynamodb_item(f"USER#{user_id}", "META")
+    return user_from_dynamodb(item) if item else None
 
 
 def user_impression_from_dynamodb(d_item: dict[str, Any]) -> UserImpression:
@@ -2214,17 +2251,8 @@ def user_impression_from_dynamodb(d_item: dict[str, Any]) -> UserImpression:
 
 
 def find_user_impression(user: User, cur_user: User) -> UserImpression | None:
-    resp = get_dynamodb_table().get_item(
-        Key={
-            "pk": f"USER#{cur_user.id}",
-            "sk": f"REL#{user.id}"
-        }
-    )
-    item = resp.get("Item")
-    if not item:
-        return None
-    # logger.debug(f"UserImpression: {item}")
-    return user_impression_from_dynamodb(item)
+    item = get_dynamodb_item(f"USER#{cur_user.id}", f"REL#{user.id}")
+    return user_impression_from_dynamodb(item) if item else None
 
 
 def build_dynamodb_put_item_params(
@@ -2369,6 +2397,12 @@ def add_dynamodb_post_update_transact(transacts: list, post: Post, changes: dict
                                             deltas=deltas)
 
 
+def add_dynamodb_post_tag_update_transact(transacts: list, post_tag: PostTag, changes: dict[str, Any] | None = None,
+                                          deltas: dict[str, Any] | None = None) -> None:
+    return add_dynamodb_obj_update_transact(transacts, post_tag, (f"POST_TAG#{post_tag.name}", "META"), changes=changes,
+                                            deltas=deltas)
+
+
 def build_dynamodb_delete_item_params(key: tuple[str, str]) -> dict[str, Any]:
     pk, sk = key
 
@@ -2403,6 +2437,11 @@ def update_dynamodb_item(
     get_dynamodb_table().update_item(**update_item_params["Update"])
 
 
+def get_dynamodb_item(pk: str, sk: str) -> dict[str, Any] | None:
+    resp = get_dynamodb_table().get_item(Key={"pk": pk, "sk": sk})
+    return resp.get("Item")
+
+
 def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req) -> None:
     verify_authorization(cur_user, Permission.UPDATE_USER, user)
 
@@ -2426,8 +2465,6 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
 
     if avatar_action == "delete":
         changes["avatar_filename"] = None
-    elif avatar_action == "replace":
-        pass
     elif avatar_action == "keep":
         changes.pop("avatar_filename", None)
 
@@ -2966,9 +3003,16 @@ def _get_posts_urls(req) -> set[str]:
     urls = set()
     for _type in PostQueryType:
         urls.add(get_posts_url(req, type=_type))
-        for tag in get_post_tags(TagQueryDTO.model_construct(limit=1000)):
+        for tag in get_post_tags(PostTagQueryDTO.model_construct(limit=1000)):
             urls.add(get_posts_url(req, type=_type, tags=[tag.name]))
     return urls
+
+
+def _get_post_tag_urls(post_tag: PostTag, req) -> set[str]:
+    return {
+        get_post_tag_url(req, post_tag),
+        get_url(req, "edit-post-tag", post_tag_name=post_tag.name),
+    }
 
 
 def _get_user_post_urls(user: User, req) -> set[str]:
@@ -2979,31 +3023,32 @@ def _get_user_post_urls(user: User, req) -> set[str]:
     return urls
 
 
-def tag_from_dynamodb(d_item: dict[str, Any]) -> Tag:
+def post_tag_from_dynamodb(d_item: dict[str, Any]) -> PostTag:
     # logger.debug(d_item)
-    return Tag(
+    return PostTag(
         name=d_item["tag_name_sk"],
         rating=d_item["rating_sk"],
         posts_count=d_item.get("posts_count", 0),
+        image_filename=d_item.get("image_filename"),
         offset=None,
     )
 
 
-def get_popular_post_tags(query_dto: TagQueryDTO = None) -> list[Tag]:
+def get_popular_post_tags(query_dto: PostTagQueryDTO = None) -> list[PostTag]:
     if query_dto is None:
-        query_dto = TagQueryDTO()
+        query_dto = PostTagQueryDTO()
 
     return query_dynamodb_items(
         query_dto=query_dto,
         index_name="TAGS_BY_TYPE_RATING",
         key_condition_expr=Key("tag_type_pk").eq("POST_TAG"),
-        map_fn=tag_from_dynamodb,
+        map_fn=post_tag_from_dynamodb,
     )
 
 
-def get_post_tags_by_prefix(query_dto: TagQueryDTO = None) -> list[Tag]:
+def get_post_tags_by_prefix(query_dto: PostTagQueryDTO = None) -> list[PostTag]:
     if query_dto is None:
-        query_dto = TagQueryDTO()
+        query_dto = PostTagQueryDTO()
     resp = query_dynamodb_table(
         index_name="TAGS_BY_TYPE_NAME",
         key_condition_expr=Key("tag_type_pk").eq("POST_TAG") & Key("tag_name_sk").begins_with(query_dto.prefix),
@@ -3011,18 +3056,30 @@ def get_post_tags_by_prefix(query_dto: TagQueryDTO = None) -> list[Tag]:
     )
     items = resp.get("Items", [])
     # logger.debug(f"Tags: {items}")
-    return [tag_from_dynamodb(item) for item in items]
+    return [post_tag_from_dynamodb(item) for item in items]
 
 
-def get_post_tags(query_dto: TagQueryDTO = None) -> list[Tag]:
+def get_post_tags(query_dto: PostTagQueryDTO = None) -> list[PostTag]:
     if query_dto.prefix:
         return get_post_tags_by_prefix(query_dto)
     return get_popular_post_tags(query_dto)
 
 
+def find_post_tag(post_tag_name: str) -> PostTag | None:
+    item = get_dynamodb_item(f"POST_TAG#{post_tag_name}", "META")
+    return post_tag_from_dynamodb(item) if item else None
+
+
+def get_post_tag(post_tag_name: str, cur_user: User) -> PostTag:
+    post_tag = find_post_tag(post_tag_name)
+    if post_tag is None:
+        raise PostTagNotFoundError(f"Post tag '{post_tag_name}' not found")
+    verify_authorization(cur_user, Permission.READ_POST_TAG, post_tag)
+    return post_tag
+
+
 def create_contact_message(message_dto: ContactMessageDTO, user: User = None) -> ContactMessage:
-    if user:
-        verify_authorization(user, Permission.CREATE_CONTACT_MESSAGE)
+    user and verify_authorization(user, Permission.CREATE_CONTACT_MESSAGE)
 
     now = utc_now()
     message_id = str(uuid.uuid4())
@@ -3305,17 +3362,8 @@ def post_impression_from_dynamodb(d_item: dict[str, Any]) -> PostImpression:
 
 
 def find_post_impression(post: Post, user: User) -> PostImpression | None:
-    resp = get_dynamodb_table().get_item(
-        Key={
-            "pk": f"POST#{post.id}",
-            "sk": f"IMP#{user.id}"
-        }
-    )
-    item = resp.get("Item")
-    if not item:
-        return None
-    # logger.debug(f"PostImpression: {item}")
-    return post_impression_from_dynamodb(item)
+    item = get_dynamodb_item(f"POST#{post.id}", f"IMP#{user.id}")
+    return post_impression_from_dynamodb(item) if item else None
 
 
 def update_post_impression(post: Post, update_post_impression_dto: UpdatePostImpressionDTO, cur_user: User,
@@ -3518,12 +3566,12 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
     ])
 
     # Post lists
-    def posts_url(tp: PostQueryType, tg: Tag | None = None) -> str:
+    def posts_url(tp: PostQueryType, tg: PostTag | None = None) -> str:
         return get_posts_url(req, type=tp, tags=[tg.name] if tg else [], full=True)
 
     for type_ in PostQueryType:
         urls.append((posts_url(type_), today))
-        for tag in get_post_tags(TagQueryDTO.model_construct(limit=1000)):
+        for tag in get_post_tags(PostTagQueryDTO.model_construct(limit=1000)):
             if tag.posts_count > 0:
                 urls.append((posts_url(type_, tag), today))
 
@@ -3621,7 +3669,7 @@ def create_dummy_fixtures(req) -> None:
                "publishing software like Aldus PageMaker including versions of Lorem Ipsum."),
         address="1600 Pennsylvania Ave NW, Washington, DC 20500"
     )
-    update_user(root_user, update_user_dto, root_user)
+    update_user(root_user, update_user_dto, root_user, req)
     posts = [
         PostDTO(
             title="Post title #111111111111111111111111",
@@ -3682,7 +3730,8 @@ def create_dummy_fixtures(req) -> None:
         for user2 in created_users:
             if user.id != user2.id:
                 update_user_impression(user, UpdateUserImpressionDTO(
-                    action=UserImpressionAction.FOLLOW if random.random() < .5 else UserImpressionAction.BLOCK), user2)
+                    action=UserImpressionAction.FOLLOW if random.random() < .5 else UserImpressionAction.BLOCK), user2,
+                                       req)
     unpublished_posts = [
         PostDTO(
             title="Unpublished Post title #111111111111111111111111",

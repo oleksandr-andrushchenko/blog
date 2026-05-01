@@ -1,0 +1,29 @@
+{% if filename %}
+    {% set width = None %}
+    {% set height = None %}
+
+    {% if '_' in filename and 'x' in filename %}
+        {% set size_part = filename.rsplit('_', 1)[1].split('.', 1)[0] %}
+        {% if 'x' in size_part %}
+            {% set parts = size_part.split('x') %}
+            {% if parts|length == 2 %}
+                {% set width = parts[0] %}
+                {% set height = parts[1] %}
+            {% endif %}
+        {% endif %}
+    {% endif %}
+
+    <figure class="figure m-0">
+        <img src="{{ static_url(filename) }}"
+             alt="{{ alt or '' }}"
+             class="img-fluid figure-img rounded"
+             {% if width %}width="{{ width }}"{% endif %}
+             {% if height %}height="{{ height }}"{% endif %}>
+
+        {% if caption or alt %}
+            <figcaption class="figure-caption">
+                {{ caption or alt }}
+            </figcaption>
+        {% endif %}
+    </figure>
+{% endif %}

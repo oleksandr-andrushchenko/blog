@@ -1,0 +1,13 @@
+<div>
+    {% if post_tag.image_filename %}
+        <img src="{{ static_url(post_tag.image_filename) }}"
+             class="rounded-circle img-fluid d-block"
+             style="width:100%; height:100%; object-fit:cover;"
+             alt="{{ post_tag.name }}">
+    {% else %}
+        <div class="d-flex align-items-center justify-content-center bg-light text-muted"
+             style="width:100%; height:100%; font-weight:600; font-size:1.25rem;">
+            {{ post_tag.name|upper }}
+        </div>
+    {% endif %}
+</div>
