@@ -9,7 +9,7 @@
         <div class="col col-12 col-lg-6 col-xl-8">
             <h1 class="h2 d-inline-block">{{ site_name }}</h1>
             <p class="small text-secondary d-inline-block">&mdash; {{ site_short_desc }}</p>
-            <p class="d-none d-lg-inline-block">{{ site_desc }}</p>
+            <p class="d-none d-lg-inline-block small">{{ site_desc }}</p>
 
             {% if site_img_filename %}
                 {% with filename=site_img_filename, alt=site_about %}
