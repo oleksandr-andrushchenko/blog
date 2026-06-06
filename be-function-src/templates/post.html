@@ -104,7 +104,7 @@
 
         <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
             <section class="d-flex flex-column gap-3">
-                <h2 class="mb-0 text-decoration-underline bi bi-person-circle"> Author</h2>
+                <h2 class="mb-0 text-decoration-underline">Author</h2>
                 {% with user=author,
                     h_tag_size=3,
                     image_column_size={"def":3,"md":2},
@@ -118,7 +118,7 @@
             {% endwith %}
 
             <section class="d-flex flex-column gap-3">
-                <h2 class="mb-0 text-decoration-underline bi bi-info-circle"> Post info</h2>
+                <h2 class="mb-0 text-decoration-underline">Post info</h2>
                 <div class="d-flex flex-column gap-1">
                     {% if post.tags %}
                         <div>
@@ -163,7 +163,7 @@
             </section>
 
             <section class="d-flex flex-column gap-3">
-                <h2 class="mb-0 text-decoration-underline bi bi-box"> Post actions</h2>
+                <h2 class="mb-0 text-decoration-underline">Post actions</h2>
                 <div class="d-flex flex-column gap-1">
                     {% include "fragments/post-status.html" %}
                     {% include "fragments/post-impressions.html" %}
@@ -188,7 +188,7 @@
 
             {% if related_posts %}
                 <section class="d-flex flex-column gap-3">
-                    <h2 class="mb-0 text-decoration-underline bi bi-list-check"> Related posts</h2>
+                    <h2 class="mb-0 text-decoration-underline">Related posts</h2>
                     <div id="related-posts" class="d-flex flex-column gap-3">
                         {% with posts=related_posts, preview=False, border=False, vert_gap=0, h_tag_size=3, h_display_size=6 %}
                             {% include "fragments/posts.html" %}
