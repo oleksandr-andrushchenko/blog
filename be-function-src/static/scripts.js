@@ -607,7 +607,7 @@ if (window.CONFIG.init_tinymce) {
     powerpaste_word_import: "clean",
     powerpaste_html_import: "clean",
     valid_elements: "figure[class],figcaption[class]," + "img[src|alt|title|class|width|height|style],"
-      + "h2,h3,h4,h5,h6,"
+      + "h2[id],h3[id],h4[id],h5[id],h6[id],"
       + "a[href|target|title],"
       + "b/strong,i/em,u,span[class],"
       + "ul,ol,li,"
