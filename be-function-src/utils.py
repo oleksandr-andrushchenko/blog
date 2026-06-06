@@ -1799,6 +1799,7 @@ def find_static_image_filename(html_content: str) -> str | None:
     # static/<uuid>[optional _<width>x<height>].<ext>
     pattern = (
         rf'<img[^>]+src=["\']'
+        rf'/?'
         rf'([0-9a-fA-F-]+(?:_[0-9]+x[0-9]+)?\.'
         rf'(?:{allowed_extensions}))["\']'
     )

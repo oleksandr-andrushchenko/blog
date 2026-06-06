@@ -613,7 +613,8 @@ if (window.CONFIG.init_tinymce) {
       + "ul,ol,li,"
       + "table[class|border|cellpadding|cellspacing],thead,tbody,tfoot,tr,th[colspan|rowspan],td[colspan|rowspan],"
       + "div[class],br,p,pre[class],code[class],blockquote",
-    document_base_url: window.CONFIG.base_url + "/",
+    relative_urls: false,
+    convert_urls: false,
     table_default_attributes: {class: "table"},
     table_class_list: [
       {title: "Regular", value: "table"},

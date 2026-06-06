@@ -7,7 +7,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <base href="{{ base_url }}">
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
 
@@ -239,7 +238,6 @@
     update_user_impression_url: "{{ url("update-user-impression", user_id="{user_id}") }}",
     init_tinymce: {% if tinymce_api_key %}true{% else %}false{% endif %},
     css_filenames: {{ css_filenames | tojson | safe }},
-    base_url: "{{ base_url }}",
     static_relative_url: "{{ static_url("{filename}") }}",
     upload_public_file_url: "{{ url("upload-public-file") }}"
   }
