@@ -58,6 +58,16 @@ def get_dynamodb_user(user_id: str) -> dict:
     return res["Item"]
 
 
+def get_dynamodb_user_by_email(email: str) -> dict:
+    res = dynamodb_table.query(
+        IndexName="USERS_BY_EMAIL",
+        KeyConditionExpression="user_email_pk = :email",
+        ExpressionAttributeValues={":email": email},
+        Limit=1,
+    )
+    return res["Items"][0]
+
+
 def get_dynamodb_post(post_id: str) -> dict:
     # todo: cache
     res = dynamodb_table.get_item(
@@ -86,8 +96,8 @@ def recreate_dynamodb_table():
     logger.debug(f"🚀 Created table from schema: {table_name}")
 
 
-def get(client: Session, url: str) -> Response:
-    return client.get(f"{TEST_BASE_URL}{url}")
+def get(client: Session, url: str, **kwargs) -> Response:
+    return client.get(f"{TEST_BASE_URL}{url}", **kwargs)
 
 
 def post(client: Session, url: str, json: dict) -> Response:

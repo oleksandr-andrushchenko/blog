@@ -16,6 +16,7 @@ from test_utils import (
     root_user,
     set_dynamodb_user_permissions,
     get_dynamodb_user,
+    get_dynamodb_user_by_email,
     get_dynamodb_post,
     dynamodb_table,
 )
@@ -38,12 +39,8 @@ def get_user(client, user_alias) -> pq:
     return doc
 
 
-def get_me(client):
-    resp = get(client, "/me")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert "id" in data
-    return data["id"]
+def get_logged_in_user_id(user_data: dict) -> str:
+    return get_dynamodb_user_by_email(user_data["email"])["id"]
 
 
 def get_index(client):
@@ -56,9 +53,9 @@ def get_users(client):
     resp = get(client, "/users")
     assert resp.status_code == 200
     doc = pq(resp.text)
-    assert "users" in doc("head title").text()
+    assert "users" in doc("head title").text().lower()
     main_el = doc("main")
-    assert "users" in main_el("h1").text()
+    assert "users" in main_el("h1").text().lower()
     return doc
 
 
@@ -78,9 +75,9 @@ def get_posts(client):
     resp = get(client, "/posts")
     assert resp.status_code == 200
     doc = pq(resp.text)
-    assert "posts" in doc("head title").text()
+    assert "posts" in doc("head title").text().lower()
     main_el = doc("main")
-    assert "posts" in main_el("h1").text()
+    assert "posts" in main_el("h1").text().lower()
     return doc
 
 
@@ -198,22 +195,24 @@ def check_posts(doc, posts_count: int, unpublished_control: bool, rejected_contr
             assert post["title"] in post_el.text()
     else:
         assert not posts_el
-    unpublished_el = main_el('a[href*="status=unpublished"]')
+    form_el = main_el("form")
+    status_controls_el = form_el if form_el else main_el
+    unpublished_el = status_controls_el('a[href*="status=unpublished"]')
     if unpublished_control:
         assert unpublished_el
     else:
         assert not unpublished_el
-    rejected_el = main_el('a[href*="status=rejected"]')
+    rejected_el = status_controls_el('a[href*="status=rejected"]')
     if rejected_control:
         assert rejected_el
     else:
         assert not rejected_el
-    tags_el = main_el('#tags-input')
+    tags_el = form_el('#tags-input')
     if tags_control:
         assert tags_el
     else:
         assert not tags_el
-    popular_el = main_el('a[href*="type=popular"]')
+    popular_el = form_el('a[href*="popular"].bi-star')
     if popular_control:
         assert popular_el
     else:
@@ -233,12 +232,13 @@ def check_users(doc, users_count: int, banned_control: bool, popular_control: bo
             assert user["name"] in user_el.text()
     else:
         assert not users_el
-    banned_el = main_el('a[href*="status=banned"]')
+    form_el = main_el("form")
+    banned_el = form_el('a[href*="status=banned"]')
     if banned_control:
         assert banned_el
     else:
         assert not banned_el
-    popular_el = main_el('a[href*="type=popular"]')
+    popular_el = form_el('a[href*="popular"].bi-heart')
     if popular_control:
         assert popular_el
     else:
@@ -298,14 +298,15 @@ post_ids = {}
 
 
 def test_root_user_first_login(root_user_client):
-    user_ids["root"] = get_me(root_user_client)
+    user_ids["root"] = get_logged_in_user_id(root_user)
     set_dynamodb_user_permissions(user_ids["root"], ["root"])
 
 
 @pytest.mark.parametrize("user_alias", ["regular", "regular_2"])
 def test_regular_user_first_login(request, user_alias):
-    client = get_client(request, user_alias)
-    user_ids[user_alias] = get_me(client)
+    get_client(request, user_alias)
+    user_data = regular_user if user_alias == "regular" else regular_2_user
+    user_ids[user_alias] = get_logged_in_user_id(user_data)
 
 
 def test_guest_user_get_index(guest_client):
@@ -414,8 +415,9 @@ def test_not_found(guest_client, path):
 @pytest.mark.parametrize("user_alias", ["regular", "root"])
 def test_logout(request, user_alias):
     client = get_client(request, user_alias)
-    resp = get(client, "/logout")
-    assert resp.status_code == 200
+    resp = get(client, "/logout", allow_redirects=False)
+    assert resp.status_code in (302, 307)
+    assert resp.headers["location"].endswith("/logout-callback")
 
 
 def test_index_shows_latest_post_comments(guest_client):
