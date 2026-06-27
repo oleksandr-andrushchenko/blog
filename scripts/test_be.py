@@ -420,6 +420,42 @@ def test_logout(request, user_alias):
     assert resp.headers["location"].endswith("/logout-callback")
 
 
+def test_regular_user_can_create_post_comment():
+    comment_user_client = get_logged_in_client({
+        "sub": "commenter-sub",
+        "iss": "commenter-iss",
+        "email": "commenter@example.com",
+    })
+    post_id = str(uuid.uuid4())
+    owner_id = user_ids["root"]
+    now = int(time.time() * 1000)
+
+    dynamodb_table.put_item(Item={
+        "pk": f"POST#{post_id}",
+        "sk": "META",
+        "id": post_id,
+        "title": "Regular comment permission test post",
+        "post_slug": "regular-comment-permission-test-post",
+        "user_id": owner_id,
+        "content": "Long form post content for integration testing. " * 120,
+        "tags": ["testing"],
+        "rating_sk": now,
+        "status": "published",
+        "created_at": now,
+        "published_at": now,
+        "post_status_pk": "POST#published",
+        "post_user_status_pk": f"POST#{owner_id}#published",
+        "comments_count": 0,
+    })
+
+    resp = post(comment_user_client, f"/api/posts/{post_id}/comment", json={
+        "text": "Regular users should be allowed to comment."
+    })
+
+    assert resp.status_code == 200
+    assert resp.json().endswith(f"/posts/{post_id}")
+
+
 def test_index_shows_latest_post_comments(guest_client):
     post_id = str(uuid.uuid4())
     user_id = str(uuid.uuid4())

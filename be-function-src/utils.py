@@ -730,6 +730,7 @@ def get_live_config():
                 Permission.UPDATE_USER_IMPRESSION,
                 Permission.CREATE_POST,
                 Permission.UPDATE_POST_IMPRESSION,
+                Permission.CREATE_POST_COMMENT,
                 Permission.CREATE_CONTACT_MESSAGE,
             ],
             Permission.ROOT: [
@@ -3759,12 +3760,6 @@ def create_dummy_fixtures(req) -> None:
     user_token4 = get_dummy_user_token(sub="p4", email="test4@example.com")
     user4 = upsert_user_by_user_token(user_token4)
     created_users.append(user4)
-
-    for user in (user2, user3, user4):
-        update_dynamodb_item((f"USER#{user.id}", "META"), {
-            "permissions": [Permission.REGULAR, Permission.CREATE_POST_COMMENT]
-        })
-        user.permissions = [Permission.REGULAR, Permission.CREATE_POST_COMMENT]
 
     comment_texts = [
         "This helped clarify the trade-offs. Thanks for writing it.",
