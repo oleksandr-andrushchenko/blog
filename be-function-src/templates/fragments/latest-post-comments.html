@@ -1,0 +1,47 @@
+{% for post_comment in latest_post_comments %}
+    {% set post = post_comment.get_post() %}
+    {% set user = post_comment.get_user() %}
+    <div class="latest-post-comment g-3 pb-3 border-bottom"
+         {% if post_comment.offset %}data-offset="{{ post_comment.offset }}"{% endif %}>
+
+        <figure class="mb-0">
+            <blockquote class="blockquote fs-6 m-0">
+                <p class="text-dark italic">"{{ post_comment.text }}"</p>
+            </blockquote>
+
+            <figcaption class="blockquote-footer m-0 text-muted">
+                <div class="row g-2">
+                    <div class="col col-1">
+                        <a href="{{ user_url(user) }}">
+                            {% include "fragments/user-avatar.html" %}
+                        </a>
+                    </div>
+
+                    <div class="col col-11 d-flex flex-column">
+                        <a class="link-body-emphasis text-decoration-none d-flex flex-column"
+                           href="{{ user_url(user) }}">
+                            {{ user.name }}
+                        </a>
+                    </div>
+                </div>
+                <div class="small text-secondary">Commented on</div>
+                <a class="link-body-emphasis text-decoration-none d-flex flex-column"
+                   href="{{ post_url(post) }}">
+                    {{ post.title }}
+                </a>
+                <div class="small">
+                    <small class="post-comment-created-at text-secondary bi bi-calendar2">
+                        {{ (post_comment.created_at / 1000) | unix_to_full_date }}
+                    </small>
+
+                    {% if post_comment.updated_at and post_comment.updated_at - post_comment.created_at > 86_400_000 %}
+                        <small class="post-comment-updated-at text-secondary">
+                            UPD:
+                            {{ (post_comment.updated_at / 1000) | unix_to_full_date }}
+                        </small>
+                    {% endif %}
+                </div>
+            </figcaption>
+        </figure>
+    </div>
+{% endfor %}

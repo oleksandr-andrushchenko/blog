@@ -6,7 +6,9 @@ RUN dnf install -y zip && dnf clean all
 
 COPY requirements.txt .
 
-RUN pip install -t vendor -r requirements.txt
+RUN pip install -t /opt/vendor -r requirements.txt
+
+ENV PYTHONPATH=/opt/vendor:/app/scripts:/app/be-function-src
 
 COPY . .
 

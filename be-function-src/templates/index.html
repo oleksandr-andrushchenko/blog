@@ -58,7 +58,8 @@
             {% if show_popular_posts %}
                 <section class="d-flex flex-column gap-3">
                     <h2 class="mb-0">
-                        <a href="{{ posts_url(type=PostQueryType.POPULAR) }}" class="link-body-emphasis">Popular posts</a>
+                        <a href="{{ posts_url(type=PostQueryType.POPULAR) }}" class="link-body-emphasis">Popular
+                            posts</a>
                     </h2>
                     {% if popular_posts %}
                         <div id="popular-posts" class="d-flex flex-column gap-3">
@@ -181,6 +182,17 @@
                                 See all popular authors
                             </a>
                         </div>
+                    </div>
+                {% else %}
+                    <div>N/A</div>
+                {% endif %}
+            </section>
+
+            <section class="d-flex flex-column gap-3">
+                <h2 class="mb-0 text-decoration-underline">Latest comments</h2>
+                {% if latest_post_comments %}
+                    <div id="latest-post-comments" class="d-flex flex-column gap-3">
+                        {% include "fragments/latest-post-comments.html" %}
                     </div>
                 {% else %}
                     <div>N/A</div>

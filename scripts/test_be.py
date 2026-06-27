@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import time
+import uuid
+
 import pytest
 from pyquery import PyQuery as pq
 from test_utils import (
@@ -14,6 +17,7 @@ from test_utils import (
     set_dynamodb_user_permissions,
     get_dynamodb_user,
     get_dynamodb_post,
+    dynamodb_table,
 )
 
 
@@ -241,11 +245,24 @@ def check_users(doc, users_count: int, banned_control: bool, popular_control: bo
         assert not popular_el
 
 
+def check_latest_post_comments(doc, comments_count: int, comment_texts: list[str]):
+    main_el = doc("main")
+    comments_el = main_el("#latest-post-comments")
+    if comments_count:
+        assert len(comments_el(".latest-post-comment")) == comments_count
+        rendered_text = comments_el.text()
+        for comment_text in comment_texts:
+            assert comment_text in rendered_text
+    else:
+        assert not comments_el
+
+
 def check_index(doc):
     check_posts(doc, posts_count=0, unpublished_control=False, rejected_control=False, tags_control=False,
                 popular_control=False, post_aliases=list(post_ids.keys()), css_id="posts")
     check_posts(doc, posts_count=0, unpublished_control=False, rejected_control=False, tags_control=False,
                 popular_control=False, post_aliases=list(post_ids.keys()), css_id="popular-posts")
+    check_latest_post_comments(doc, comments_count=0, comment_texts=[])
     check_users(doc, users_count=0, banned_control=False, popular_control=False, user_aliases=[], css_id="users")
     check_users(doc, users_count=3, banned_control=False, popular_control=False, user_aliases=list(user_ids.keys()),
                 css_id="popular-users")
@@ -399,3 +416,58 @@ def test_logout(request, user_alias):
     client = get_client(request, user_alias)
     resp = get(client, "/logout")
     assert resp.status_code == 200
+
+
+def test_index_shows_latest_post_comments(guest_client):
+    post_id = str(uuid.uuid4())
+    user_id = str(uuid.uuid4())
+    now = int(time.time() * 1000)
+    post_title = "Latest comments test post"
+    post_ids["latest_comments"] = post_id
+
+    dynamodb_table.put_item(Item={
+        "pk": f"POST#{post_id}",
+        "sk": "META",
+        "id": post_id,
+        "title": post_title,
+        "post_slug": "latest-comments-test-post",
+        "user_id": user_id,
+        "content": "Long form post content for integration testing. " * 120,
+        "tags": ["testing"],
+        "rating_sk": now,
+        "status": "published",
+        "created_at": now,
+        "published_at": now,
+        "post_status_pk": "POST#published",
+        "post_user_status_pk": f"POST#{user_id}#published",
+        "comments_count": 6,
+    })
+
+    comment_texts = []
+    for i in range(6):
+        comment_id = f"{now + i}#{uuid.uuid4()}"
+        comment_text = f"Latest comment integration text {i}"
+        dynamodb_table.put_item(Item={
+            "pk": f"POST#{post_id}",
+            "sk": f"COMMENT#{comment_id}",
+            "id": comment_id,
+            "post_id": post_id,
+            "post_comment_pk": "POST_COMMENT",
+            "post_title": post_title,
+            "comment_post_slug": "latest-comments-test-post",
+            "user_id": user_id,
+            "user_name": "Comment Author",
+            "text": comment_text,
+            "created_at": now + i,
+        })
+        comment_texts.append(comment_text)
+
+    doc = get_index(guest_client)
+    check_latest_post_comments(doc, comments_count=5, comment_texts=list(reversed(comment_texts[-5:])))
+
+    comments = [pq(el).text() for el in doc("#latest-post-comments .latest-post-comment").items()]
+    assert comment_texts[5] in comments[0]
+    assert comment_texts[1] in comments[-1]
+    assert comment_texts[0] not in doc("#latest-post-comments").text()
+    assert post_title in doc("#latest-post-comments").text()
+

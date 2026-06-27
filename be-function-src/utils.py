@@ -513,6 +513,7 @@ class Post:
 class PostComment:
     id: str
     owner_id: str
+
     user_id: str
     user_name: str | None
     user_avatar_filename: str | None
@@ -528,6 +529,21 @@ class PostComment:
         })
 
     post_id: str
+    post_title: str
+    post_slug: str
+
+    def get_post(self) -> Post:
+        return post_from_dynamodb({
+            "id": self.post_id,
+            "user_id": self.user_id,
+            "content": "",
+            "title": self.post_title,
+            "post_slug": self.post_slug,
+            "status": PostStatus.PUBLISHED,
+            "rating_sk": 0,
+            "created_at": 0,
+        })
+
     text: str
     rating: int
     likes_count: int
@@ -1769,6 +1785,8 @@ def post_comment_from_dynamodb(d_item: dict[str, Any]) -> PostComment:
         user_avatar_filename=d_item.get("user_avatar_filename"),
         user_username=d_item.get("user_username"),
         post_id=d_item["post_id"],
+        post_title=d_item["post_title"],
+        post_slug=d_item.get("comment_post_slug") or d_item["post_slug"],
         text=d_item["text"],
         rating=d_item.get("rating", 0),
         likes_count=d_item.get("likes_count", 0),
@@ -2037,18 +2055,21 @@ def get_post(post_id: str, cur_user: User = None) -> Post:
     return post
 
 
-def find_post_by_slug(slug: str) -> Post | None:
+def find_post_slug_item(slug: str) -> dict[str, Any] | None:
     resp = query_dynamodb_table(
         index_name="POSTS_BY_SLUG",
         key_condition_expr=Key("post_slug").eq(slug),
-        limit=1
     )
-    items = resp.get("Items", [])
-    if not items:
-        return None
-    item = items[0]
+    for item in resp.get("Items", []):
+        if item.get("sk") == "META":
+            return item
+    return None
+
+
+def find_post_by_slug(slug: str) -> Post | None:
+    item = find_post_slug_item(slug)
     # logger.debug(f"Post by slug: {item}")
-    return post_from_dynamodb(item)
+    return post_from_dynamodb(item) if item else None
 
 
 def find_post_by_slug_follow_redirects(slug: str) -> Post | None:
@@ -2061,17 +2082,10 @@ def find_post_by_slug_follow_redirects(slug: str) -> Post | None:
 
         visited.add(current_slug)
 
-        resp = query_dynamodb_table(
-            index_name="POSTS_BY_SLUG",
-            key_condition_expr=Key("post_slug").eq(current_slug),
-            limit=1,
-        )
-
-        items = resp.get("Items", [])
-        if not items:
+        item = find_post_slug_item(current_slug)
+        if not item:
             return None
 
-        item = items[0]
         redirect_to = item.get("redirect_to")
         if redirect_to:
             current_slug = redirect_to
@@ -2108,11 +2122,17 @@ def create_post_comment(post: Post, post_comment_dto: PostCommentDTO, cur_user: 
 
     post_comment_item = {
         "id": comment_id,
-        "post_id": post.id,
+
         "user_id": cur_user.id,
         "user_name": cur_user.name,
         "user_avatar_filename": cur_user.avatar_filename,
         "user_username": cur_user.username,
+
+        "post_id": post.id,
+        "post_title": post.title,
+        "comment_post_slug": post.slug,
+        "post_comment_pk": f"POST_COMMENT",
+
         "text": post_comment_dto.text,
         "created_at": now,
     }
@@ -2139,9 +2159,10 @@ def create_post_comment(post: Post, post_comment_dto: PostCommentDTO, cur_user: 
             raise SlugDuplicationError(field="title")
         raise
 
-    # Invalidate CDN cache for post page globally
+    # Invalidate CDN cache for post page and index globally
     _drop_cdn_cache(
         _get_post_urls(post, req),
+        _get_index_url(req),
     )
 
     return post_comment_from_dynamodb(post_comment_item)
@@ -2846,6 +2867,17 @@ def get_post_comments(post: Post, query_dto: PostCommentQueryDTO | None = None) 
     return query_dynamodb_items(
         query_dto=query_dto,
         key_condition_expr=Key("pk").eq(f"POST#{post.id}") & Key('sk').begins_with(f"COMMENT#"),
+        map_fn=post_comment_from_dynamodb,
+    )
+
+
+def get_latest_post_comments(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[PostComment]:
+    query_dto = PostCommentQueryDTO(limit=limit)
+
+    return query_dynamodb_items(
+        query_dto=query_dto,
+        index_name="POST_COMMENTS_BY_CREATED_AT",
+        key_condition_expr=Key("post_comment_pk").eq(f"POST_COMMENT"),
         map_fn=post_comment_from_dynamodb,
     )
 
@@ -3727,6 +3759,25 @@ def create_dummy_fixtures(req) -> None:
     user_token4 = get_dummy_user_token(sub="p4", email="test4@example.com")
     user4 = upsert_user_by_user_token(user_token4)
     created_users.append(user4)
+
+    for user in (user2, user3, user4):
+        update_dynamodb_item((f"USER#{user.id}", "META"), {
+            "permissions": [Permission.REGULAR, Permission.CREATE_POST_COMMENT]
+        })
+        user.permissions = [Permission.REGULAR, Permission.CREATE_POST_COMMENT]
+
+    comment_texts = [
+        "This helped clarify the trade-offs. Thanks for writing it.",
+        "Good walkthrough. I would like to see more examples around scaling this design.",
+        "The section about operational limits is especially useful.",
+        "Nice article. The diagrams and constraints make the approach easier to follow.",
+    ]
+    for post_index, post in enumerate(created_posts):
+        commenters = [user for user in created_users if user.id != post.owner_id]
+        for comment_index, user in enumerate(commenters[:2]):
+            text = comment_texts[(post_index + comment_index) % len(comment_texts)]
+            create_post_comment(post, PostCommentDTO(text=text), user, req)
+
     import random
     for user in created_users:
         for post in created_posts:

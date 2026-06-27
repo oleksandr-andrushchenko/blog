@@ -65,6 +65,7 @@ from utils import (
     find_post,
     create_post_comment,
     get_post_comments,
+    get_latest_post_comments,
     update_post_comment,
     get_post_comment_url,
     generate_sitemap,
@@ -208,15 +209,18 @@ async def sync_cdn_cache_cookie_middleware(request: Request, call_next):
 @app.get("/", name="index", response_class=HTMLResponse)
 async def index(cur_user: OptCurUserDep) -> str:
     latest_posts_query = PostQueryDTO()
+    latest_post_comments_query = PostCommentQueryDTO(limit=5)
     (
         popular_post_tags,
         latest_posts,
         popular_posts,
+        latest_post_comments,
         popular_users,
     ) = await asyncio.gather(
         to_thread(get_popular_post_tags),
         to_thread(get_latest_published_posts, limit=latest_posts_query.limit),
         to_thread(get_popular_published_posts, limit=5),
+        to_thread(get_latest_post_comments, limit=latest_post_comments_query.limit),
         to_thread(get_popular_active_users, limit=5),
     )
     return get_html_content("index.html", {
@@ -226,6 +230,7 @@ async def index(cur_user: OptCurUserDep) -> str:
         "latest_posts": latest_posts,
         "popular_posts": popular_posts,
         "show_popular_posts": should_show_popular_posts(latest_posts, popular_posts),
+        "latest_post_comments": latest_post_comments,
         "popular_users": popular_users,
     })
 

@@ -405,7 +405,7 @@ recreate-local-dynamodb: drop-local-dynamodb create-local-dynamodb create-local-
 
 .PHONY: tests
 tests:
-	$(DC) exec $(SCRIPTS_CONTAINER) pytest -o log_cli_level=INFO -o log_cli=true -v scripts/test_be.py -v -s
+	$(DC) exec $(SCRIPTS_CONTAINER) python3 -m pytest -o log_cli_level=INFO -o log_cli=true -v scripts/test_be.py -v -s
 
 .PHONY: tail-test-logs
 tail-test-logs: ## Tail test logs
