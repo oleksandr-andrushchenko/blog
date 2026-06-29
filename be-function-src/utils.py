@@ -1389,7 +1389,7 @@ def _drop_cdn_cache(*urls) -> dict[str, Any]:
     else:
         paths = ["/*"]
 
-    if not is_prod():
+    if True or not is_prod():
         return {
             "success": True,
             "invalidation_id": "",

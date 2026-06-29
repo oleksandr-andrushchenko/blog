@@ -175,7 +175,7 @@ async def cache_control_middleware(request: Request, call_next):
         response.headers["Cache-Control"] = "private, no-store"
         return response
 
-    response.headers["Cache-Control"] = "public"
+    response.headers["Cache-Control"] = "no-store"
     return response
 
 
