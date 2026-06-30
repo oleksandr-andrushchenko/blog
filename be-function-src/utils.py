@@ -6,7 +6,7 @@ import datetime
 import logging
 import sys
 from enum import StrEnum
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urlparse
 import base64
 from typing import Callable, ClassVar, Literal, TypeVar, Any, Optional
 from jinja2 import Environment, FileSystemLoader, pass_context
