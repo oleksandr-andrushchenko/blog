@@ -1,7 +1,7 @@
 fastapi
 mangum
 Jinja2>=3.1.3
-pydantic[email]
+pydantic
 httpx
 python-jose
 python-multipart

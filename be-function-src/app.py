@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, Response, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, FileResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -26,11 +26,7 @@ from utils import (
     get_post_url,
     create_post,
     create_contact_message,
-    get_user_token_by_code,
-    get_login_redirect_url,
-    get_logout_redirect_url,
     get_post_tags,
-    create_dummy_fixtures,
     update_post_status,
     get_users,
     get_latest_posts_by_user,
@@ -44,7 +40,6 @@ from utils import (
     Permission,
     verify_authorization,
     update_user,
-    save_public_file,
     update_post,
     find_post_impression,
     update_post_impression,
@@ -60,7 +55,6 @@ from utils import (
     get_allowed_origins,
     get_redirect_url,
     should_show_popular_posts,
-    create_auth_jwt_token,
     get_post_related_posts,
     find_post,
     create_post_comment,
@@ -68,8 +62,6 @@ from utils import (
     get_latest_post_comments,
     update_post_comment,
     get_post_comment_url,
-    generate_sitemap,
-    drop_cdn_cache,
     get_user_by_auth_token,
     get_cdn_cache_version,
     get_post_tag_url,
@@ -125,6 +117,8 @@ if not is_prod():
             static_dir = get_static_files_dir()
             file_path = os.path.join(static_dir, path)
             if os.path.isfile(file_path):
+                from fastapi.responses import FileResponse
+
                 return FileResponse(file_path)
         return await call_next(request)
 
@@ -237,6 +231,8 @@ async def index(cur_user: OptCurUserDep) -> str:
 
 @app.post("/api/public-file", name="upload-public-file", response_class=JSONResponse)
 async def upload_public_file(image_file_dto: ImageFileDTODep) -> str:
+    from utils import save_public_file
+
     return save_public_file(image_file_dto)
 
 
@@ -523,6 +519,8 @@ async def user_posts_fragment(user: UserDep, query_dto: PostQueryDep, cur_user: 
 
 @app.get("/login", name="login", response_class=RedirectResponse)
 async def login(request: Request) -> RedirectResponse:
+    from utils import get_login_redirect_url
+
     redirect_url = get_redirect_url(request)
     callback_url = get_url(request, 'login-callback', full=True)
     provider_redirect_url = get_login_redirect_url(callback_url)
@@ -533,6 +531,8 @@ async def login(request: Request) -> RedirectResponse:
 
 @app.get("/login-callback", name="login-callback", response_class=RedirectResponse)
 async def login_callback(request: Request) -> RedirectResponse:
+    from utils import create_auth_jwt_token, get_user_token_by_code
+
     try:
         redirect_url = request.cookies.get("redirect_url") or get_url(request, "index")
         callback_url = get_url(request, 'login-callback', full=True)
@@ -553,6 +553,8 @@ async def login_callback(request: Request) -> RedirectResponse:
 
 @app.get("/logout", name="logout", response_class=RedirectResponse)
 async def logout(request: Request) -> RedirectResponse:
+    from utils import get_logout_redirect_url
+
     redirect_url = get_redirect_url(request)
     callback_url = get_url(request, 'logout-callback', full=True)
     provider_redirect_url = get_logout_redirect_url(callback_url)
@@ -578,6 +580,8 @@ async def logout_callback(request: Request):
 
 @app.post("/api/dummy-fixtures", name="create-dummy-fixtures")
 async def _create_dummy_fixtures(request: Request) -> None:
+    from utils import create_dummy_fixtures
+
     return create_dummy_fixtures(request)
 
 
@@ -622,12 +626,16 @@ async def utils(cur_user: CurUserDep) -> str:
 
 @app.post("/api/generate-sitemap", name="generate-sitemap")
 async def _generate_sitemap(cur_user: CurUserDep, request: Request) -> dict:
+    from utils import generate_sitemap
+
     urls_count, sitemap_url = generate_sitemap(cur_user, request)
     return {"urls_count": urls_count, "sitemap_url": sitemap_url}
 
 
 @app.post("/api/drop-cdn-cache", name="drop-cdn-cache")
 async def _drop_cdn_cache(cur_user: CurUserDep) -> dict:
+    from utils import drop_cdn_cache
+
     success, items_count = drop_cdn_cache(cur_user)
     return {"success": success, "items_count": items_count}
 

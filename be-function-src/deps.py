@@ -1,4 +1,4 @@
-from fastapi import Request, Depends, HTTPException, Query, UploadFile, File, Body
+from fastapi import Request, Depends, HTTPException, Query, Body
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
@@ -124,7 +124,12 @@ def get_post_query_by_slugs(request: Request, slugs_path: str) -> PostQueryDTO:
         raise RequestValidationError(e.errors())
 
 
-async def get_image_file(file: UploadFile = File(...)):
+async def get_image_file(request: Request):
+    form = await request.form()
+    file = form.get("file")
+    if file is None or not hasattr(file, "read"):
+        raise HTTPException(status_code=422, detail="Missing file")
+
     return ImageFileDTO(
         content=await file.read(),
         filename=file.filename,

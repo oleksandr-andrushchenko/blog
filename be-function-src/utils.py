@@ -6,22 +6,29 @@ import datetime
 import logging
 import sys
 from enum import StrEnum
-from urllib.parse import quote, urlencode, urlparse
+from urllib.parse import quote, urlencode
 import base64
 from typing import Callable, ClassVar, Literal, TypeVar, Any, Optional
 from jinja2 import Environment, FileSystemLoader, pass_context
 import json
 from datetime import datetime, timedelta, timezone
-from pydantic import BaseModel, EmailStr, Field, field_validator, conlist, constr, HttpUrl, computed_field
-from boto3.dynamodb.conditions import Key
-from botocore.exceptions import ClientError
+from pydantic import BaseModel, Field, field_validator, conlist, constr, computed_field
 from zoneinfo import ZoneInfo
 import copy
-import boto3
 from functools import lru_cache, partial
 import asyncio
 from dataclasses import dataclass, asdict
 from decimal import Decimal
+from validation import validate_email_address, validate_http_url
+
+
+def Key(*args, **kwargs):
+    from boto3.dynamodb.conditions import Key as DynamoDBKey
+    return DynamoDBKey(*args, **kwargs)
+
+
+def is_aws_client_error(exc: Exception) -> bool:
+    return exc.__class__.__name__ == "ClientError" and hasattr(exc, "response")
 
 
 def to_thread(func, *args, **kwargs):
@@ -159,12 +166,17 @@ class UpdateUserDTO(UserDTO):
     avatar_filename: str | None = None
     headline: str | None = Field(None, max_length=150)
     about: str | None = Field(None, max_length=2000)
-    website: Optional[HttpUrl] = None
+    website: str | None = Field(None, max_length=255)
     address: str | None = Field(None, max_length=255)
     github_username: str | None = Field(None, min_length=1, max_length=39)
     bmc_username: str | None = Field(None, min_length=1, max_length=50)
 
     GITHUB_USERNAME_PATTERN: ClassVar[re.Pattern] = re.compile(r"^[a-zA-Z0-9-]+$")
+
+    @field_validator("website")
+    @classmethod
+    def validate_website(cls, value: str | None):
+        return validate_http_url(value)
 
     @field_validator("github_username")
     @classmethod
@@ -262,8 +274,13 @@ class UpdateUserImpressionDTO(BaseModel):
 
 class ContactMessageDTO(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
-    email: EmailStr
+    email: str
     message: str = Field(..., min_length=5, max_length=1000)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str):
+        return validate_email_address(value)
 
 
 @dataclass(slots=True)
@@ -930,7 +947,9 @@ def dynamodb_transact_write(transacts: list[dict[str, Any]]):
     """
     try:
         get_dynamodb_table().meta.client.transact_write_items(TransactItems=transacts)
-    except ClientError as e:
+    except Exception as e:
+        if not is_aws_client_error(e):
+            raise
         error_code = e.response.get("Error", {}).get("Code")
         if error_code == "TransactionCanceledException":
             details = []
@@ -1329,6 +1348,7 @@ jinja2_env = Lazy(get_jinja2_env)
 
 @lru_cache
 def get_dynamodb_resource():
+    import boto3
     args = {} if is_prod() else {
         "region_name": get_aws_region(),
         "endpoint_url": get_dynamodb_endpoint(),
@@ -1343,16 +1363,19 @@ def get_dynamodb_table():
 
 @lru_cache
 def get_s3_client():
+    import boto3
     return boto3.client("s3")
 
 
 @lru_cache
 def _get_cf_client():
+    import boto3
     return boto3.client("cloudfront")
 
 
 @lru_cache
 def get_sns_client():
+    import boto3
     return boto3.client("sns")
 
 
@@ -2704,7 +2727,7 @@ def get_posts(query_dto: PostQueryDTO = None, cur_user: User = None) -> list[Pos
 
 def query_dynamodb_table(
         index_name: str | None = None,
-        key_condition_expr: Optional[Key] = None,
+        key_condition_expr: Any = None,
         scan_index_forward: bool | None = None,
         limit: int | None = None,
         exclusive_start_key: dict | None = None,
@@ -2723,7 +2746,9 @@ def query_dynamodb_table(
 
     try:
         return get_dynamodb_table().query(**query_args)
-    except ClientError as e:
+    except Exception as e:
+        if not is_aws_client_error(e):
+            raise
         error_code = e.response["Error"]["Code"]
         # Happens if the index doesn't exist yet (e.g., table is empty)
         if error_code == "ValidationException":
@@ -2739,7 +2764,7 @@ def query_dynamodb_items(
         query_dto: BaseQueryDTO,
         map_fn: Callable[[dict], T],
         index_name: str | None = None,
-        key_condition_expr: Optional[Key] = None,
+        key_condition_expr: Any = None,
 ) -> list[T]:
     """Generic DynamoDB query executor with pagination and mapping."""
     resp = query_dynamodb_table(
@@ -3699,7 +3724,7 @@ def create_dummy_fixtures(req) -> None:
         name="John Doe",
         username="j-doe",
         headline="Software Engineer",
-        website=HttpUrl("https://example.com"),
+        website="https://example.com",
         about=("Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the "
                "industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type "
                "and scrambled it to make a type specimen book. It has survived not only five centuries, but also the "
