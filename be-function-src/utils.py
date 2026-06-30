@@ -3609,7 +3609,10 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
 
     today = datetime.utcnow().date().isoformat()
 
-    def lastmod(ts_ms):
+    def lastmod(ts_ms, fallback_ts_ms=None):
+        ts_ms = ts_ms or fallback_ts_ms
+        if not ts_ms:
+            return today
         return datetime.fromtimestamp(
             float(ts_ms) / 1000,
             tz=timezone.utc
@@ -3646,7 +3649,7 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
     offset = None
     while posts := get_latest_posts(
             PostQueryDTO.model_construct(status=PostStatus.PUBLISHED, limit=1000, offset=offset)):
-        urls.extend([(post_url(post), lastmod(post.updated_at)) for post in posts])
+        urls.extend([(post_url(post), lastmod(post.updated_at, post.created_at)) for post in posts])
         offset = posts[-1].offset
         if not offset:
             break
@@ -3665,7 +3668,7 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
     offset = None
     while users := get_latest_users(
             UserQueryDTO.model_construct(status=UserStatus.ACTIVE, limit=1000, offset=offset)):
-        urls.extend([(user_url(user), lastmod(user.updated_at)) for user in users])
+        urls.extend([(user_url(user), lastmod(user.updated_at, user.created_at)) for user in users])
         offset = users[-1].offset
         if not offset:
             break
