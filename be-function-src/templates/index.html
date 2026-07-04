@@ -18,6 +18,36 @@
             {% endif %}
 
             <section class="d-flex flex-column gap-3 mt-4">
+                <h2 class="mb-0 text-decoration-underline">Popular topics</h2>
+                {% if popular_topic_post_tags %}
+                    <div class="row row-cols-2 row-cols-md-3 g-2 g-md-3">
+                        {% for tag in popular_topic_post_tags %}
+                            <div class="col">
+                                <a href="{{ posts_url(tags=[tag.name]) }}"
+                                   class="d-block position-relative overflow-hidden rounded text-decoration-none link-body-emphasis bg-light border"
+                                   style="aspect-ratio: 16 / 9;">
+                                    {% if tag.image_filename %}
+                                        <img src="{{ static_url(tag.image_filename) }}"
+                                             class="w-100 h-100 object-fit-cover"
+                                             alt="{{ tag.name }}">
+                                        <span class="position-absolute start-0 bottom-0 m-2 px-2 py-1 rounded bg-body bg-opacity-75 small fw-semibold">
+                                            {{ tag.name }}
+                                        </span>
+                                    {% else %}
+                                        <span class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center text-center px-2 fw-semibold text-muted">
+                                            {{ tag.name }}
+                                        </span>
+                                    {% endif %}
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div>N/A</div>
+                {% endif %}
+            </section>
+
+            <section class="d-flex flex-column gap-3 mt-4">
                 <h2 class="mb-0">
                     <a href="{{ posts_url() }}" class="link-body-emphasis">Latest posts</a>
                 </h2>
