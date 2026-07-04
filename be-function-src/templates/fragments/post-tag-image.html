@@ -1,7 +1,7 @@
 <div>
     {% if post_tag.image_filename %}
         <img src="{{ static_url(post_tag.image_filename) }}"
-             class="rounded-circle img-fluid d-block"
+             class="img-fluid figure-img rounded"
              style="width:100%; height:100%; object-fit:cover;"
              alt="{{ post_tag.name }}">
     {% else %}

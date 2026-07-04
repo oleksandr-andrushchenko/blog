@@ -17,7 +17,7 @@
                 {% endwith %}
             {% endif %}
 
-            <section class="d-flex flex-column gap-3">
+            <section class="d-flex flex-column gap-3 mt-4">
                 <h2 class="mb-0">
                     <a href="{{ posts_url() }}" class="link-body-emphasis">Latest posts</a>
                 </h2>
@@ -54,7 +54,7 @@
             </section>
         </div>
 
-        <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
+        <div class="col col-12 col-lg-6 col-xl-4 border-start">
             {% if show_popular_posts %}
                 <section class="d-flex flex-column gap-3">
                     <h2 class="mb-0">
@@ -91,7 +91,7 @@
                 </section>
             {% endif %}
 
-            <section class="d-flex flex-column gap-3">
+            <section class="d-flex flex-column gap-3{% if show_popular_posts %} mt-4{% endif %}">
                 <h2 class="mb-0 text-decoration-underline">Popular tags</h2>
                 {% if popular_post_tags %}
                     <div id="popular-post-tags">
@@ -113,7 +113,7 @@
             </section>
 
             {% if cur_user and cur_user.published_posts_count==0 %}
-                <section class="card">
+                <section class="card mt-4">
                     <div class="card-body d-flex flex-column gap-2">
                         <div class="d-flex align-items-center gap-2 fw-semibold">
                             <i class="bi bi-lightbulb"></i>
@@ -138,7 +138,7 @@
             {% endif %}
 
             {% if not cur_user %}
-                <section class="card">
+                <section class="card mt-4">
                     <div class="card-body d-flex flex-column gap-2">
                         <div class="d-flex align-items-center gap-2 fw-semibold">
                             <h2 class="h4 mb-0">Become an Author</h2>
@@ -161,7 +161,7 @@
                 </section>
             {% endif %}
 
-            <section class="d-flex flex-column gap-3">
+            <section class="d-flex flex-column gap-3 mt-4">
                 <h2 class="mb-0 text-decoration-underline">
                     <a href="{{ users_url(type=UserQueryType.POPULAR) }}" class="link-body-emphasis">Popular users</a>
                 </h2>
@@ -188,7 +188,7 @@
                 {% endif %}
             </section>
 
-            <section class="d-flex flex-column gap-3">
+            <section class="d-flex flex-column gap-3 mt-4">
                 <h2 class="mb-0 text-decoration-underline">Latest comments</h2>
                 {% if latest_post_comments %}
                     <div id="latest-post-comments" class="d-flex flex-column gap-3">

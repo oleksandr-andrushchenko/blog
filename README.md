@@ -76,6 +76,7 @@
 - cache, preload (CDN)
 - separate lambda into several lambdas (can start with for reads and for writes)
 - utils: add drop_cdn_cache (for specific user)
+
 ## Links
 
 - favicon - https://realfavicongenerator.net
