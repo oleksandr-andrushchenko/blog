@@ -20,7 +20,7 @@
             <section class="d-flex flex-column gap-3 mt-4">
                 <h2 class="mb-0 text-decoration-underline">Popular topics</h2>
                 {% if popular_topic_post_tags %}
-                    <div class="row row-cols-1 g-1 row-cols-sm-2 g-sm-2 row-cols-md-3 g-md-3">
+                    <div class="row row-cols-1 row-cols-md-4 g-3">
                         {% for tag in popular_topic_post_tags %}
                             <div class="col">
                                 <a href="{{ posts_url(tags=[tag.slug]) }}"
@@ -28,7 +28,7 @@
                                    style="aspect-ratio: 16 / 9;">
                                     {% if tag.image_filename %}
                                         <img src="{{ static_url(tag.image_filename) }}"
-                                             class="w-100 h-100 object-fit-cover"
+                                             class="w-100 h-100 object-fit-cover img-thumbnail"
                                              alt="{{ tag.name }}">
                                         <span class="position-absolute start-0 bottom-0 m-2 px-2 py-1 rounded bg-body bg-opacity-75 small fw-semibold">
                                             {{ tag.name }}
@@ -55,8 +55,8 @@
                     <div id="posts" class="d-flex flex-column gap-3">
                         {% with posts=latest_posts,
                             h_tag_size=3,
-                            image_column_size={"def":12,"md":4},
-                            image_order_size={"def":12,"md":4} %}
+                            image_column_size={"def":12,"md":3},
+                            image_order_size={"def":12} %}
                             {% include "fragments/posts.html" %}
                         {% endwith %}
                     </div>
@@ -88,8 +88,9 @@
             {% if show_popular_posts %}
                 <section class="d-flex flex-column gap-3">
                     <h2 class="mb-0">
-                        <a href="{{ posts_url(type=PostQueryType.POPULAR) }}" class="link-body-emphasis">Popular
-                            posts</a>
+                        <a href="{{ posts_url(type=PostQueryType.POPULAR) }}" class="link-body-emphasis">
+                            Popular posts
+                        </a>
                     </h2>
                     {% if popular_posts %}
                         <div id="popular-posts" class="d-flex flex-column gap-3">
@@ -100,7 +101,7 @@
                                 h_tag_size=3,
                                 h_display_size=6,
                                 image_column_size={"def":12,"md":3},
-                                image_order_size={"def":12,"md":3} %}
+                                image_order_size={"def":12} %}
                                 {% include "fragments/posts.html" %}
                             {% endwith %}
 

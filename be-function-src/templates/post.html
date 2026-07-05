@@ -190,7 +190,13 @@
                 <section class="d-flex flex-column gap-3">
                     <h2 class="mb-0 text-decoration-underline">Related posts</h2>
                     <div id="related-posts" class="d-flex flex-column gap-3">
-                        {% with posts=related_posts, preview=False, border=False, vert_gap=0, h_tag_size=3, h_display_size=6 %}
+                        {% with posts=related_posts,
+                            preview=False,
+                            border=False,
+                            vert_gap=0,
+                            h_tag_size=3,
+                            h_display_size=6,
+                            image_order_size={"def":12} %}
                             {% include "fragments/posts.html" %}
                         {% endwith %}
                     </div>
