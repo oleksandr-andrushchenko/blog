@@ -299,6 +299,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
 
   const tagify = new Tagify(input, {
     whitelist: [], // maxTags: 3,
+    tagTextProp: "name",
     enforceWhitelist: false, // validate: tag => /^[0-9A-Za-z-.#]{2,20}$/.test(tag.value) || "Invalid tag",
     dropdown: {
       // enabled: 1,
@@ -392,7 +393,10 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
       })
       .then(data => {
         if (!data) return
-        tagify.whitelist = data.map(d => (typeof d === "string" ? d : d.name)).filter(Boolean)
+        tagify.whitelist = data.map(d => {
+          if (typeof d === "string") return {value: d, name: d}
+          return {value: d.slug || d.name, name: d.name || d.slug}
+        }).filter(d => d.value)
         tagify.loading(false)
         tagify.dropdown.show(value)
       })

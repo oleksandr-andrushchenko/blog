@@ -3,7 +3,7 @@
        type="text"
        class="form-control {{ class_name }}"
        placeholder="Tags"
-       value="{{ ",".join(value) if value else "" }}"
+       value='{% if tag_items is defined and tag_items %}{{ tag_items | tojson | safe }}{% else %}{{ ",".join(value) if value else "" }}{% endif %}'
        data-url="{{ url }}"
        {% if inject_hidden %}data-inject-hidden{% endif %}
        {% if auto_submit %}data-auto-submit{% endif %}

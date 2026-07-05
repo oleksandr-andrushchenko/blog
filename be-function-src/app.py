@@ -19,6 +19,7 @@ from utils import (
     SlugDuplicationError,
     NotAuthorizedError,
     PostByOldSlugRequestedError,
+    PostTagByOldSlugRequestedError,
     UserByOldSlugRequestedError,
     logger,
     get_html_content,
@@ -263,17 +264,29 @@ async def _post_page(post: PostDep, cur_user: OptCurUserDep) -> HTMLResponse:
 
 
 async def _posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
-    post_tag_name = query_dto.tags[0] if query_dto.tags and len(query_dto.tags) == 1 else None
+    post_tag_slug = query_dto.tags[0] if query_dto.tags and len(query_dto.tags) == 1 else None
     (
         posts,
         post_tag,
+        post_query_tags,
     ) = await asyncio.gather(
         to_thread(get_posts, query_dto, cur_user),
-        to_thread(find_post_tag, post_tag_name) if post_tag_name else asyncio.sleep(0, result=None),
+        to_thread(find_post_tag, post_tag_slug) if post_tag_slug else asyncio.sleep(0, result=None),
+        asyncio.gather(*(to_thread(find_post_tag, tag) for tag in query_dto.tags)),
     )
+    if post_tag and post_tag_slug and post_tag.slug != post_tag_slug:
+        raise PostTagByOldSlugRequestedError(post_tag_slug, post_tag)
+
+    post_query_tag_names = [tag.name if tag else slug for tag, slug in zip(post_query_tags, query_dto.tags)]
+    post_query_tag_items = [
+        {"value": slug, "name": name}
+        for slug, name in zip(query_dto.tags, post_query_tag_names)
+    ]
     return get_html_content("posts.html", {
         "cur_user": cur_user,
         "post_query": query_dto,
+        "post_query_tag_names": post_query_tag_names,
+        "post_query_tag_items": post_query_tag_items,
         "posts": posts,
         "post_tag": post_tag,
     })
@@ -392,7 +405,7 @@ async def _create_contact_message(message_dto: ContactMessageDTO, cur_user: OptC
     create_contact_message(message_dto, cur_user)
 
 
-@app.get("/post-tags/{post_tag_name}/edit", name="edit-post-tag", response_class=HTMLResponse)
+@app.get("/post-tags/{slug}/edit", name="edit-post-tag", response_class=HTMLResponse)
 async def edit_post_tag(post_tag: PostTagDep, cur_user: CurUserDep) -> str:
     verify_authorization(cur_user, Permission.UPDATE_POST_TAG, post_tag)
     return get_html_content("edit-post-tag.html", {
@@ -401,7 +414,7 @@ async def edit_post_tag(post_tag: PostTagDep, cur_user: CurUserDep) -> str:
     })
 
 
-@app.patch("/api/post-tags/{post_tag_name}", name="update-post-tag", response_class=JSONResponse)
+@app.patch("/api/post-tags/{slug}", name="update-post-tag", response_class=JSONResponse)
 async def _update_post_tag(update_post_tag_dto: UpdatePostTagDTODep, post_tag: PostTagDep, cur_user: CurUserDep,
                            request: Request) -> str:
     update_post_tag(post_tag, update_post_tag_dto, cur_user, request)
@@ -696,6 +709,16 @@ async def post_redirect_exception_handler(request: Request, exc: PostByOldSlugRe
 async def post_redirect_exception_handler(request: Request, exc: UserByOldSlugRequestedError):
     logger.info(f"Redirect: {str(exc.slug)} -> {exc.user.username}")
     url = get_user_url(request, exc.user)
+    return RedirectResponse(url=url, status_code=301)
+
+
+@app.exception_handler(PostTagByOldSlugRequestedError)
+async def post_tag_redirect_exception_handler(request: Request, exc: PostTagByOldSlugRequestedError):
+    logger.info(f"Redirect: {str(exc.slug)} -> {exc.post_tag.slug}")
+    if request.url.path.startswith("/post-tags/"):
+        url = get_url(request, "edit-post-tag", slug=exc.post_tag.slug)
+    else:
+        url = get_post_tag_url(request, exc.post_tag)
     return RedirectResponse(url=url, status_code=301)
 
 

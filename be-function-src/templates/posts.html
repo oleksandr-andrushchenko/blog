@@ -98,6 +98,7 @@
                             <small class="text-secondary bi bi-tags"> Filter by tags:</small>
                             {% with url=url("get-post-tags"),
                             value=post_query.tags,
+                            tag_items=post_query_tag_items,
                             auto_submit=False,
                             inject_hidden=True %}
                                 {% include "fragments/tags-input.html" %}
@@ -141,7 +142,7 @@
 
                 {% if post_tag and cur_user and check_auth(cur_user, Permission.UPDATE_POST_TAG) %}
                     <div>
-                        <a href="{{ url("edit-post-tag", post_tag_name=post_query.tags[0]) }}"
+                        <a href="{{ url("edit-post-tag", slug=post_query.tags[0]) }}"
                            class="btn btn-light bi bi-pencil">
                             Edit post tag
                         </a>

@@ -20,10 +20,10 @@
             <section class="d-flex flex-column gap-3 mt-4">
                 <h2 class="mb-0 text-decoration-underline">Popular topics</h2>
                 {% if popular_topic_post_tags %}
-                    <div class="row row-cols-2 row-cols-md-3 g-2 g-md-3">
+                    <div class="row row-cols-1 g-1 row-cols-sm-2 g-sm-2 row-cols-md-3 g-md-3">
                         {% for tag in popular_topic_post_tags %}
                             <div class="col">
-                                <a href="{{ posts_url(tags=[tag.name]) }}"
+                                <a href="{{ posts_url(tags=[tag.slug]) }}"
                                    class="d-block position-relative overflow-hidden rounded text-decoration-none link-body-emphasis bg-light border"
                                    style="aspect-ratio: 16 / 9;">
                                     {% if tag.image_filename %}
@@ -55,8 +55,8 @@
                     <div id="posts" class="d-flex flex-column gap-3">
                         {% with posts=latest_posts,
                             h_tag_size=3,
-                            image_column_size={"def":12,"md":3},
-                            image_order_size={"def":12,"md":3} %}
+                            image_column_size={"def":12,"md":4},
+                            image_order_size={"def":12,"md":4} %}
                             {% include "fragments/posts.html" %}
                         {% endwith %}
                     </div>
@@ -126,7 +126,7 @@
                 {% if popular_post_tags %}
                     <div id="popular-post-tags">
                         {% for tag in popular_post_tags %}
-                            <a href="{{ posts_url(tags=[tag.name]) }}" class="btn btn-light btn-sm post-tag mb-1">
+                            <a href="{{ posts_url(tags=[tag.slug]) }}" class="btn btn-light btn-sm post-tag mb-1">
                                 <h3 class="h6 fw-normal mb-0">{{ tag.name }} ({{ tag.posts_count }})</h3>
                             </a>
                         {% endfor %}

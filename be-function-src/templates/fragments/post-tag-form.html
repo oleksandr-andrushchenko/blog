@@ -43,7 +43,7 @@
         <label for="name" class="col-form-label col-2 label-required">Name</label>
         <div class="col-10">
             <input type="text" class="form-control" id="name" name="name" placeholder="Name"
-                   value="{{ post_tag.name if post_tag and post_tag.name else "" }}"{{ " readonly" if post_tag else "" }}>
+                   value="{{ post_tag.name if post_tag and post_tag.name else "" }}">
         </div>
     </div>
 
@@ -75,7 +75,7 @@
       })
     })
 
-    handleFormSubmit("#post-tag-form", "{{ url('update-post-tag', post_tag_name=post_tag.name) if post_tag else '' }}", {
+    handleFormSubmit("#post-tag-form", "{{ url('update-post-tag', slug=post_tag.slug) if post_tag else '' }}", {
       method: "{{ 'PATCH' if post_tag else 'POST' }}",
       rules: {
         image_file: [
@@ -97,8 +97,8 @@
         ],
         name: [
           {rule: "required"},
-          {rule: "minLength", value: 1},
-          {rule: "maxLength", value: 100}
+          {rule: "minLength", value: 2},
+          {rule: "maxLength", value: 40}
         ],
       },
       onSuccess: (res) => {

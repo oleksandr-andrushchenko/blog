@@ -435,6 +435,7 @@ class PostTagQueryDTO(BaseQueryDTO):
 @dataclass(slots=True)
 class PostTag:
     name: str
+    slug: str
     rating: int
     posts_count: int
     image_filename: str | None
@@ -682,6 +683,12 @@ class PostByOldSlugRequestedError(Exception):
 
 class PostTagNotFoundError(BaseError):
     pass
+
+
+class PostTagByOldSlugRequestedError(Exception):
+    def __init__(self, slug: str, post_tag: PostTag):
+        self.slug = slug
+        self.post_tag = post_tag
 
 
 class PostCommentNotFoundError(BaseError):
@@ -1091,7 +1098,8 @@ def get_posts_url(req, query: PostQueryDTO | None = None, **params) -> str:
 
 
 def get_post_tag_url(req, post_tag: PostTag) -> str:
-    return get_posts_url(req, tags=[post_tag.name])
+    return get_posts_url(req, tags=[post_tag.slug])
+
 
 
 def update_post_tag(post_tag: PostTag, update_post_tag_dto: UpdatePostTagDTO, cur_user: User, req) -> None:
@@ -1101,12 +1109,15 @@ def update_post_tag(post_tag: PostTag, update_post_tag_dto: UpdatePostTagDTO, cu
         raise UserBannedError()
 
     changes = update_post_tag_dto.model_dump(exclude_unset=True)
-    now = utc_now()
-
     if not changes:
         return
 
-    transacts = []
+    now = utc_now()
+
+    new_name = changes.pop("name", None)
+    if new_name is not None:
+        new_name = sanitize_html(new_name).strip()
+        changes["name"] = new_name
 
     image_action = changes.pop("image_action", "keep")
 
@@ -1116,15 +1127,68 @@ def update_post_tag(post_tag: PostTag, update_post_tag_dto: UpdatePostTagDTO, cu
         changes.pop("image_filename", None)
 
     old_image = post_tag.image_filename
+    old_slug = post_tag.slug
+    new_slug = to_kebab_case(changes["name"]) if "name" in changes else old_slug
+    slug_changed = new_slug != old_slug
+    transacts = []
 
-    add_dynamodb_post_tag_update_transact(transacts, post_tag, changes)
+    if slug_changed:
+        old_item = get_dynamodb_item(f"POST_TAG#{old_slug}", "META")
+        if old_item is None:
+            raise PostTagNotFoundError(f"Post tag '{old_slug}' not found")
+
+        new_item = {k: v for k, v in old_item.items() if k not in {"pk", "sk"}}
+        new_item.update(changes)
+        new_item["tag_name_sk"] = new_slug
+        new_item["updated_at"] = now
+
+        redirect_item = {
+            "tag_name_sk": old_slug,
+            "redirect_to": new_slug,
+            "created_at": now,
+        }
+        add_dynamodb_put_transact(transacts, (f"POST_TAG_REDIRECT#{old_slug}", "META"), redirect_item, new_pk_only=True)
+        add_dynamodb_put_transact(transacts, (f"POST_TAG#{new_slug}", "META"), new_item, new_pk_only=True)
+        add_dynamodb_delete_transact(transacts, (f"POST_TAG#{old_slug}", "META"))
+
+        from itertools import combinations
+        for post in get_latest_posts_by_tags(PostQueryDTO.model_construct(tags=[old_slug], limit=1000)):
+            old_tags = list(post.tags)
+            new_tags = list(dict.fromkeys(new_slug if tag == old_slug else tag for tag in old_tags))
+            add_dynamodb_post_update_transact(transacts, post, {"tags": new_tags})
+
+            for r in range(1, len(old_tags) + 1):
+                for combo in combinations(sorted(old_tags), r):
+                    if old_slug in combo:
+                        add_dynamodb_delete_transact(
+                            transacts,
+                            ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{post.created_at}#{post.id}")
+                        )
+
+            for r in range(1, len(new_tags) + 1):
+                for combo in combinations(sorted(new_tags), r):
+                    if new_slug in combo:
+                        add_dynamodb_put_transact(
+                            transacts,
+                            ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{post.created_at}#{post.id}"),
+                            {"post_id": post.id}
+                        )
+    else:
+        add_dynamodb_post_tag_update_transact(transacts, post_tag, changes)
 
     try:
         dynamodb_transact_write(transacts)
     except DynamoDBTransactionError as e:
         if e.is_conditional():
-            raise SlugDuplicationError(field="username")
+            raise SlugDuplicationError(field="name")
         raise
+
+    if "name" in changes:
+        post_tag.name = changes["name"]
+    if slug_changed:
+        post_tag.slug = new_slug
+    if "image_filename" in changes:
+        post_tag.image_filename = changes["image_filename"]
 
     if old_image and image_action in {"delete", "replace"}:
         drop_public_file(old_image)
@@ -1133,6 +1197,7 @@ def update_post_tag(post_tag: PostTag, update_post_tag_dto: UpdatePostTagDTO, cu
     _drop_cdn_cache(
         _get_index_url(req),
         _get_post_tag_urls(post_tag, req),
+        _get_posts_urls(req) if slug_changed else [],
     )
 
 
@@ -1929,14 +1994,15 @@ def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User, req)
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
+    changes = update_post_dto.model_dump(exclude_unset=True)
+    if not changes:
+        return
+
     old_status = post.status
     published_already = old_status == PostStatus.PUBLISHED
     should_set_status_to_unpublished = False
     now = utc_now()
 
-    changes = update_post_dto.model_dump(exclude_unset=True)
-    if not changes:
-        return
     for k, v in changes.items():
         if k == "title":
             changes[k] = sanitize_html(v)
@@ -2450,7 +2516,7 @@ def add_dynamodb_post_update_transact(transacts: list, post: Post, changes: dict
 
 def add_dynamodb_post_tag_update_transact(transacts: list, post_tag: PostTag, changes: dict[str, Any] | None = None,
                                           deltas: dict[str, Any] | None = None) -> None:
-    return add_dynamodb_obj_update_transact(transacts, post_tag, (f"POST_TAG#{post_tag.name}", "META"), changes=changes,
+    return add_dynamodb_obj_update_transact(transacts, post_tag, (f"POST_TAG#{post_tag.slug}", "META"), changes=changes,
                                             deltas=deltas)
 
 
@@ -2980,6 +3046,7 @@ def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, 
                     },
                     "UpdateExpression": (
                         "SET #new_tag_name_sk = if_not_exists(#new_tag_name_sk, :tag_name_sk), "
+                        "    #new_name = if_not_exists(#new_name, :name), "
                         "    #new_tag_type_pk = if_not_exists(#new_tag_type_pk, :tag_type_pk), "
                         "    #new_rating_sk = if_not_exists(#new_rating_sk, :def_rating_sk) + :rating_sk_inc, "
                         "    #posts_count = if_not_exists(#posts_count, :zero) + :inc, "
@@ -2988,6 +3055,7 @@ def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, 
                     ),
                     "ExpressionAttributeNames": {
                         "#new_tag_name_sk": "tag_name_sk",
+                        "#new_name": "name",
                         "#new_tag_type_pk": "tag_type_pk",
                         "#new_rating_sk": "rating_sk",
                         "#posts_count": "posts_count",
@@ -2996,6 +3064,7 @@ def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, 
                     },
                     "ExpressionAttributeValues": {
                         ":tag_name_sk": tag,
+                        ":name": tag,
                         ":tag_type_pk": "POST_TAG",
                         ":now": now,
                         ":def_rating_sk": compute_rating_sk(0, now),
@@ -3068,14 +3137,14 @@ def _get_posts_urls(req) -> set[str]:
     for _type in PostQueryType:
         urls.add(get_posts_url(req, type=_type))
         for tag in get_post_tags(PostTagQueryDTO.model_construct(limit=1000)):
-            urls.add(get_posts_url(req, type=_type, tags=[tag.name]))
+            urls.add(get_posts_url(req, type=_type, tags=[tag.slug]))
     return urls
 
 
 def _get_post_tag_urls(post_tag: PostTag, req) -> set[str]:
     return {
         get_post_tag_url(req, post_tag),
-        get_url(req, "edit-post-tag", post_tag_name=post_tag.name),
+        get_url(req, "edit-post-tag", slug=post_tag.slug),
     }
 
 
@@ -3089,8 +3158,10 @@ def _get_user_post_urls(user: User, req) -> set[str]:
 
 def post_tag_from_dynamodb(d_item: dict[str, Any]) -> PostTag:
     # logger.debug(d_item)
+    slug = d_item["tag_name_sk"]
     return PostTag(
-        name=d_item["tag_name_sk"],
+        name=d_item.get("name") or slug,
+        slug=slug,
         rating=d_item["rating_sk"],
         posts_count=d_item.get("posts_count", 0),
         image_filename=d_item.get("image_filename"),
@@ -3129,16 +3200,46 @@ def get_post_tags(query_dto: PostTagQueryDTO = None) -> list[PostTag]:
     return get_popular_post_tags(query_dto)
 
 
-def find_post_tag(post_tag_name: str) -> PostTag | None:
-    item = get_dynamodb_item(f"POST_TAG#{post_tag_name}", "META")
-    return post_tag_from_dynamodb(item) if item else None
+def find_post_tag_slug_item(slug: str) -> dict[str, Any] | None:
+    item = get_dynamodb_item(f"POST_TAG#{slug}", "META")
+    if item:
+        return item
+    return get_dynamodb_item(f"POST_TAG_REDIRECT#{slug}", "META")
 
 
-def get_post_tag(post_tag_name: str, cur_user: User) -> PostTag:
-    post_tag = find_post_tag(post_tag_name)
+def find_post_tag_by_slug_follow_redirects(slug: str) -> PostTag | None:
+    visited = set()
+    current_slug = slug
+
+    while True:
+        if current_slug in visited:
+            raise RuntimeError("Redirect loop detected")
+
+        visited.add(current_slug)
+
+        item = find_post_tag_slug_item(current_slug)
+        if not item:
+            return None
+
+        redirect_to = item.get("redirect_to")
+        if redirect_to:
+            current_slug = redirect_to
+            continue
+
+        return post_tag_from_dynamodb(item)
+
+
+def find_post_tag(slug: str) -> PostTag | None:
+    return find_post_tag_by_slug_follow_redirects(slug)
+
+
+def get_post_tag(slug: str, cur_user: User) -> PostTag:
+    post_tag = find_post_tag_by_slug_follow_redirects(slug)
     if post_tag is None:
-        raise PostTagNotFoundError(f"Post tag '{post_tag_name}' not found")
+        raise PostTagNotFoundError(f"Post tag '{slug}' not found")
     verify_authorization(cur_user, Permission.READ_POST_TAG, post_tag)
+    if post_tag.slug != slug:
+        raise PostTagByOldSlugRequestedError(slug, post_tag)
     return post_tag
 
 

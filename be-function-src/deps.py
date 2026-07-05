@@ -79,9 +79,9 @@ def get_post_by_id(post_id: str, cur_user: OptCurUserDep = None) -> Post:
         raise HTTPException(status_code=404, detail=str(e))
 
 
-def get_post_tag_by_name(post_tag_name: str, cur_user: CurUserDep) -> PostTag:
+def get_post_tag_by_slug(slug: str, cur_user: CurUserDep) -> PostTag:
     try:
-        return get_post_tag(post_tag_name, cur_user)
+        return get_post_tag(slug, cur_user)
     except PostTagNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -284,7 +284,7 @@ UpdatePostCommentDTODep = Annotated[UpdatePostCommentDTO, Depends(get_update_pos
 UpdatePostCommentImpressionDTODep = Annotated[
     UpdatePostCommentImpressionDTO, Depends(get_update_post_comment_impression_dto)]
 PostTagQueryDep = Annotated[PostTagQueryDTO, Depends()]
-PostTagDep = Annotated[PostTag, Depends(get_post_tag_by_name)]
+PostTagDep = Annotated[PostTag, Depends(get_post_tag_by_slug)]
 UpdatePostTagDTODep = Annotated[UpdatePostTagDTO, Depends(get_update_post_tag_dto)]
 ImageFileDTODep = Annotated[ImageFileDTO, Depends(get_image_file)]
 UpdateUserImpressionDTODep = Annotated[UpdateUserImpressionDTO, Depends(get_update_user_impression_dto)]

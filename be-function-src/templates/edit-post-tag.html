@@ -2,10 +2,10 @@
 
 {% set title = ("Edit " ~ post_tag.name) | trim %}
 {% set meta_title = title ~ " " ~ site_name %}
-{% set meta_canonical_url = url("edit-post-tag", post_tag_name=post_tag.name) %}
+{% set meta_canonical_url = url("edit-post-tag", slug=post_tag.slug) %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), "Posts": posts_url(), (post_tag.name|title): posts_url(tags=[post_tag.name]), "Edit": None} %}
+    {% with breadcrumbs = {"Home": url("index"), "Posts": posts_url(), (post_tag.name|title): posts_url(tags=[post_tag.slug]), "Edit": None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
