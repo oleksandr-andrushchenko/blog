@@ -187,7 +187,11 @@
 
                 {% if posts %}
                     <div id="posts" class="d-flex flex-column gap-3">
-                        {% include "fragments/posts.html" %}
+                        {% with h_tag_size=3,
+                            image_column_size={"def":12,"md":3},
+                            image_order_size={"def":12} %}
+                            {% include "fragments/posts.html" %}
+                        {% endwith %}
                     </div>
 
                     {% with limit=post_query.limit,
