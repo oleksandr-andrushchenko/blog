@@ -12,7 +12,7 @@
             <p class="d-none d-lg-inline-block small">{{ site_desc }}</p>
 
             {% if False and site_img_filename %}
-                {% with filename=site_img_filename, alt=site_about %}
+                {% with filename=site_img_filename, alt=site_about, figure=True %}
                     {% include "fragments/image.html" %}
                 {% endwith %}
             {% endif %}
@@ -27,9 +27,12 @@
                                    class="d-block position-relative overflow-hidden rounded text-decoration-none link-body-emphasis bg-light border"
                                    style="aspect-ratio: 16 / 9;">
                                     {% if tag.image_filename %}
-                                        <img src="{{ static_url(tag.image_filename) }}"
-                                             class="w-100 h-100 object-fit-cover img-thumbnail"
-                                             alt="{{ tag.name }}">
+                                        {% with filename=tag.image_filename,
+                                            alt=tag.name,
+                                            img_class="w-100 h-100 object-fit-cover img-thumbnail",
+                                            figure=False %}
+                                            {% include "fragments/image.html" %}
+                                        {% endwith %}
                                         <span class="position-absolute start-0 bottom-0 m-2 px-2 py-1 rounded bg-body bg-opacity-75 small fw-semibold">
                                             {{ tag.name }}
                                         </span>

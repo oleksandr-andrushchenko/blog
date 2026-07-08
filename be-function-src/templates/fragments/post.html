@@ -12,7 +12,11 @@
     {% if image %}
         <div class="{{ image_order_size | order_classes }} {{ image_column_size | column_classes }}">
             <a href="{{ post_url(post) }}">
-                <img class="img-thumbnail" src="{{ static_url(post.image_filename) }}" alt="{{ post.title }}">
+                {% with filename=post.image_filename,
+                    alt=post.title,
+                    img_class="img-thumbnail" %}
+                    {% include "fragments/image.html" %}
+                {% endwith %}
             </a>
         </div>
     {% endif %}

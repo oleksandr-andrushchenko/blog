@@ -1,9 +1,11 @@
 <div>
     {% if post_tag.image_filename %}
-        <img src="{{ static_url(post_tag.image_filename) }}"
-             class="img-fluid figure-img rounded"
-             style="width:100%; height:100%; object-fit:cover;"
-             alt="{{ post_tag.name }}">
+        {% with filename=post_tag.image_filename,
+            alt=post_tag.name,
+            img_class="img-fluid figure-img rounded",
+            img_style="width:100%; height:100%; object-fit:cover;" %}
+            {% include "fragments/image.html" %}
+        {% endwith %}
     {% else %}
         <div class="d-flex align-items-center justify-content-center bg-light text-muted"
              style="width:100%; height:100%; font-weight:600; font-size:1.25rem;">

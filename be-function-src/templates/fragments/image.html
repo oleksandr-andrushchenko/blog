@@ -1,29 +1,39 @@
 {% if filename %}
-    {% set width = None %}
-    {% set height = None %}
+    {% set figure = figure | default(False) %}
+    {% set figure_class = figure_class | default("figure m-0") %}
+    {% set img_class = img_class | default("img-fluid figure-img rounded") %}
+    {% set img_style = img_style | default(None) %}
+    {% set width = width | default(None) %}
+    {% set height = height | default(None) %}
+    {% set loading = loading | default(None) %}
+    {% set decoding = decoding | default(None) %}
 
-    {% if '_' in filename and 'x' in filename %}
+    {% if (not width or not height) and '_' in filename and 'x' in filename %}
         {% set size_part = filename.rsplit('_', 1)[1].split('.', 1)[0] %}
         {% if 'x' in size_part %}
             {% set parts = size_part.split('x') %}
             {% if parts|length == 2 %}
-                {% set width = parts[0] %}
-                {% set height = parts[1] %}
+                {% set width = width or parts[0] %}
+                {% set height = height or parts[1] %}
             {% endif %}
         {% endif %}
     {% endif %}
 
-    <figure class="figure m-0">
-        <img src="{{ static_url(filename) }}"
-             alt="{{ alt or '' }}"
-             class="img-fluid figure-img rounded"
-             {% if width %}width="{{ width }}"{% endif %}
-             {% if height %}height="{{ height }}"{% endif %}>
+    {% macro image_tag() %}
+        <img src="{{ static_url(filename) }}" alt="{{ alt or '' }}" class="{{ img_class }}"{% if img_style %} style="{{ img_style }}"{% endif %}{% if width %} width="{{ width }}"{% endif %}{% if height %} height="{{ height }}"{% endif %}{% if loading %} loading="{{ loading }}"{% endif %}{% if decoding %} decoding="{{ decoding }}"{% endif %}>
+    {% endmacro %}
 
-        {% if caption or alt %}
-            <figcaption class="figure-caption">
-                {{ caption or alt }}
-            </figcaption>
-        {% endif %}
-    </figure>
+    {% if figure %}
+        <figure class="{{ figure_class }}">
+            {{ image_tag() }}
+
+            {% if caption or alt %}
+                <figcaption class="figure-caption">
+                    {{ caption or alt }}
+                </figcaption>
+            {% endif %}
+        </figure>
+    {% else %}
+        {{ image_tag() }}
+    {% endif %}
 {% endif %}

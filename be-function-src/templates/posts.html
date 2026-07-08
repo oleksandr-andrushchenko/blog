@@ -44,7 +44,7 @@
     <div class="row g-5">
         <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-4">
             {% if post_tag and post_tag.image_filename %}
-                {% with filename=post_tag.image_filename, alt=title %}
+                {% with filename=post_tag.image_filename, alt=title, figure=True %}
                     {% include "fragments/image.html" %}
                 {% endwith %}
             {% endif %}
