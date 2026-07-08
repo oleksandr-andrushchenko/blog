@@ -1,10 +1,10 @@
 {% set image = image | default(True) and post.image_filename %}
 {% set preview = preview | default(True) and post.preview %}
 {% set vert_gap = vert_gap | default(1) %}
-{% set h_tag_size = h_tag_size | default(2) %}
+{% set h_tag_size = h_tag_size | default(3) %}
 {% set h_display_size = h_display_size | default(4) %}
-{% set image_column_size = image_column_size | default(3) if image else 0 %}
-{% set image_order_size = image_order_size | default(3) if image else 0 %}
+{% set image_column_size = image_column_size | default({"def":12,"md":3}) if image else 0 %}
+{% set image_order_size = image_order_size | default({"def":12}) if image else 0 %}
 {% set border = border | default(True) %}
 
 <div class="post row g-3 {% if border %}pb-3 border-bottom{% endif %}"

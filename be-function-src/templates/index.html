@@ -53,10 +53,7 @@
                 </h2>
                 {% if latest_posts %}
                     <div id="posts" class="d-flex flex-column gap-3">
-                        {% with posts=latest_posts,
-                            h_tag_size=3,
-                            image_column_size={"def":12,"md":3},
-                            image_order_size={"def":12} %}
+                        {% with posts=latest_posts %}
                             {% include "fragments/posts.html" %}
                         {% endwith %}
                     </div>
@@ -98,10 +95,7 @@
                                 preview=False,
                                 border=False,
                                 vert_gap=0,
-                                h_tag_size=3,
-                                h_display_size=6,
-                                image_column_size={"def":12,"md":3},
-                                image_order_size={"def":12} %}
+                                h_display_size=6 %}
                                 {% include "fragments/posts.html" %}
                             {% endwith %}
 

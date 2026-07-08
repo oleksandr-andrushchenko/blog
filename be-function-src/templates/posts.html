@@ -51,8 +51,7 @@
 
             {% if posts %}
                 <section id="posts" class="d-flex flex-column gap-3">
-                    {% with image_column_size={"def":12,"md":3},
-                        image_order_size={"def":12} %}
+                    {% with h_tag_size=2 %}
                         {% include "fragments/posts.html" %}
                     {% endwith %}
                 </section>
