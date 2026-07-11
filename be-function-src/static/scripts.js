@@ -77,7 +77,9 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
     statusDiv.textContent = ""
 
     let data = {}
-    form.querySelectorAll("[name]").forEach(input => {
+    form.querySelectorAll("input[name], select[name], textarea[name]").forEach(input => {
+      if (input.disabled) return
+
       // handle radio buttons separately
       if (input.type === "radio") {
         if (input.checked) data[input.name] = input.value
@@ -101,7 +103,9 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
       if (!validator) {
         // Simple frontend validation fallback
         let hasError = false
-        form.querySelectorAll("[required]").forEach(input => {
+        form.querySelectorAll("input[required], select[required], textarea[required]").forEach(input => {
+          if (input.disabled) return
+
           if (!input.value.trim()) {
             input.classList.add("is-invalid")
             hasError = true
