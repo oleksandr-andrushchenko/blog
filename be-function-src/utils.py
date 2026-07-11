@@ -429,7 +429,7 @@ class UserQueryDTO(BaseQueryDTO):
 
 
 class PostTagQueryDTO(BaseQueryDTO):
-    prefix: str | None = Field(None, min_length=PostTagDTO.MIN_LENGTH, max_length=PostTagDTO.MAX_LENGTH)
+    prefix: str | None = Field(None, min_length=1, max_length=PostTagDTO.MAX_LENGTH)
 
 
 @dataclass(slots=True)

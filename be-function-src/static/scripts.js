@@ -1,4 +1,6 @@
 // Form validation & submission
+const toKebabCase = str => String(str || "").trim().toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-")
+
 function handleFormSubmit(formSelector, submitUrl, options = {}) {
   const {
     method = "POST",
@@ -46,7 +48,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
               if (!value) return true
               const values = JSON.parse(value)
               if (!Array.isArray(values)) return true
-              const items = values.map(item => item.value.trim()).filter(Boolean)
+              const items = values.map(item => toKebabCase(item.value)).filter(Boolean)
               return items.length >= minCnt && items.length <= maxCnt && items.every(t => t.length >= minLen && t.length <= maxLen)
             }, errorMessage: `Tags must be ${minCnt}–${maxCnt} items, ${minLen}–${maxLen} chars each`
           }
@@ -88,7 +90,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
 
     if (hasTags) {
       const values = JSON.parse(form.tags.value)
-      data.tags = values.map(item => item.value.trim()).filter(Boolean)
+      data.tags = values.map(item => toKebabCase(item.value)).filter(Boolean)
     }
 
     let msgClass = "danger"
@@ -296,11 +298,33 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
   const injectHidden = input.dataset.hasOwnProperty("injectHidden")
   const autoSubmit = input.dataset.hasOwnProperty("autoSubmit")
   const form = input.closest("form")
+  const escapeHtml = value => String(value || "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;"
+  })[char])
 
   const tagify = new Tagify(input, {
     whitelist: [], // maxTags: 3,
     tagTextProp: "name",
     enforceWhitelist: false, // validate: tag => /^[0-9A-Za-z-.#]{2,20}$/.test(tag.value) || "Invalid tag",
+    transformTag(tagData) {
+      // Keep an existing tag's slug/name pair intact. Only normalize free-form
+      // values; replacing tags from the `add` event makes Tagify briefly see the
+      // selected value twice and reject/remove it as a duplicate.
+      if (!tagData.name || tagData.name === tagData.value) {
+        tagData.value = toKebabCase(tagData.value)
+        tagData.name = tagData.value
+      }
+    },
+    templates: {
+      dropdownItem(tagData) {
+        const className = tagData.class ? ` ${tagData.class}` : ""
+        return `<div ${this.getAttributes(tagData)} class="tagify__dropdown__item${className}" tabindex="0" role="option">${escapeHtml(tagData.name || tagData.value)}</div>`
+      }
+    },
     dropdown: {
       // enabled: 1,
       // maxItems: 10,
@@ -309,9 +333,14 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
   })
 
   let controller // for aborting the previous fetch
+  let currentSuggestions = []
 
-  // normalize tags: lowercase + kebab-case
-  const toKebabCase = str => str.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+  const toTagItem = d => {
+    if (typeof d === "string") return {value: d, name: d}
+    const value = d.slug || d.value || d.name
+    const name = d.name || d.slug || d.value
+    return value ? {value, name} : null
+  }
 
   if (injectHidden) {
     input.removeAttribute("name")
@@ -345,16 +374,24 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
 
   function onInput(e) {
     const value = e.detail.value
+    const prefix = toKebabCase(value)
     tagify.whitelist = []
+    currentSuggestions = []
     tagify.dropdown.hide()
 
     controller && controller.abort()
+
+    if (!prefix) {
+      tagify.loading(false)
+      return
+    }
+
     controller = new AbortController()
 
     tagify.loading(true)
 
     const u = new URL(url, window.location.origin)
-    u.searchParams.set("prefix", value)
+    u.searchParams.set("prefix", prefix)
     fetch(u.toString(), {
       headers: {"Content-Type": "application/json"}, signal: controller.signal
     })
@@ -393,10 +430,8 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
       })
       .then(data => {
         if (!data) return
-        tagify.whitelist = data.map(d => {
-          if (typeof d === "string") return {value: d, name: d}
-          return {value: d.slug || d.name, name: d.name || d.slug}
-        }).filter(d => d.value)
+        currentSuggestions = data.map(toTagItem).filter(Boolean)
+        tagify.whitelist = currentSuggestions
         tagify.loading(false)
         tagify.dropdown.show(value)
       })
@@ -406,14 +441,6 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
       })
   }
 
-  // event fired when a tag is added
-  tagify.on("add", (e) => {
-    const normalized = toKebabCase(e.detail.data.value)
-    if (normalized !== e.detail.data.value) {
-      tagify.removeTag(e.detail.data.value, true) // remove old
-      tagify.addTags([normalized], true) // add normalized
-    }
-  })
 
   if (autoSubmit) {
     tagify.on("change", () => form.requestSubmit())
