@@ -414,3 +414,6 @@ tail-test-logs: ## Tail test logs
 .PHONY: tail-scripts-logs
 tail-scripts-logs: ## Tail scripts logs
 	$(DC) logs -f $(SCRIPTS_CONTAINER)
+
+.PHONY: deploy
+deploy: aws-login deploy-site-files deploy-code-files deploy-infra ## Deploy static and code files
