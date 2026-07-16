@@ -4,7 +4,7 @@
 {% set meta_robots = "index, follow" %}
 {% set show_details = contact_phone or contact_email or contact_address or contact_socials %}
 {% set meta_title = title ~ " ~ " ~ site_name %}
-{% set meta_canonical_url = url("contacts") %}
+{% set meta_canonical_url = url("contacts", full=True) %}
 
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), "Contacts": None} %}

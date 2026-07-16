@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% set meta_canonical_url = user_url(user) %}
+{% set meta_canonical_url = user_url(user, full=True) %}
 {% set val_map = {
     (PostQueryType.LATEST): {"title": "Latest", "subtitle": "Recently added", "icon": "clock-fill"},
     (PostQueryType.POPULAR): {"title": "Popular", "subtitle": "Most rated", "icon": "star-fill"},

@@ -3,7 +3,7 @@
 {% set title = "Utils" %}
 {% set meta_robots = "noindex, nofollow" %}
 {% set meta_title = title ~ " | " ~ site_name %}
-{% set meta_canonical_url = url("utils") %}
+{% set meta_canonical_url = url("utils", full=True) %}
 
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), (title): None} %}

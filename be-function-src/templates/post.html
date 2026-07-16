@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% set meta_canonical_url = post_url(post) %}
+{% set meta_canonical_url = post_url(post, full=True) %}
 {% set author_canonical_url = user_url(author) %}
 {% set author_alternate_canonical_url = url("user", user_id=author.id) %}
 {% set meta_desc = [post.title, post.preview, meta_desc] | select | join('. ') | truncate(155, True, '...') %}

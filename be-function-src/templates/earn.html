@@ -5,7 +5,7 @@
 
 {% set meta_title = title ~ " | " ~ site_name %}
 {% set meta_robots = "index, follow" %}
-{% set meta_canonical_url = url("earn") %}
+{% set meta_canonical_url = url("earn", full=True) %}
 
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), (title): None} %}

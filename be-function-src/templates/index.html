@@ -2,7 +2,7 @@
 
 {% set meta_title = site_name ~ " - " ~ site_short_desc %}
 {% set meta_robots = "index, follow" %}
-{% set meta_canonical_url = url("index") %}
+{% set meta_canonical_url = url("index", full=True) %}
 
 {% block content %}
     <div class="row g-5 pt-4">

@@ -11,7 +11,7 @@
 {% set meta_robots = "index, follow" %}
 {% set subtitle = ([val_map[user_query.type]["subtitle"]] + [val_map[user_query.status]["subtitle"]] + ["Users"]) | select | join(" ") | title %}
 {% set meta_title = title ~ " | " ~ site_name %}
-{% set meta_canonical_url = users_url(query=user_query) %}
+{% set meta_canonical_url = users_url(query=user_query, full=True) %}
 
 {% block breadcrumbs %}
     {% set breadcrumbs = {"Home": url("index"), "Users": users_url()} %}

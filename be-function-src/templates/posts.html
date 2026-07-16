@@ -12,7 +12,7 @@
 {% set meta_robots = "index, follow" %}
 {% set subtitle = ([val_map[post_query.type]["subtitle"]]  + post_query.tags + [val_map[post_query.status]["subtitle"]] + ["Articles"]) | select | join(" ") | title %}
 {% set meta_title = title ~ " | " ~ site_name %}
-{% set meta_canonical_url = posts_url(query=post_query, tags=post_query.tags|sort) %}
+{% set meta_canonical_url = posts_url(query=post_query, tags=post_query.tags|sort, full=True) %}
 
 {% block breadcrumbs %}
     {% set breadcrumbs = {"Home": url("index"), "Posts": posts_url()} %}

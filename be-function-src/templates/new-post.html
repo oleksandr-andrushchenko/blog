@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 
 {% set meta_title = "New post | " ~ site_name %}
-{% set meta_canonical_url = url("create-post") %}
+{% set meta_canonical_url = url("create-post", full=True) %}
 
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), "Posts": posts_url(), "New": None} %}

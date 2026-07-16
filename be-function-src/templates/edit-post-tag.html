@@ -2,7 +2,7 @@
 
 {% set title = ("Edit " ~ post_tag.name) | trim %}
 {% set meta_title = title ~ " " ~ site_name %}
-{% set meta_canonical_url = url("edit-post-tag", slug=post_tag.slug) %}
+{% set meta_canonical_url = url("edit-post-tag", slug=post_tag.slug, full=True) %}
 
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), "Posts": posts_url(), (post_tag.name|title): posts_url(tags=[post_tag.slug]), "Edit": None} %}
