@@ -8,7 +8,3 @@ Disallow: /*?
 
 # --- BLOCK API ROUTES ---
 Disallow: /api/
-
-# --- BLOCK NON-HTML / STATIC FILE TYPES ---
-Disallow: /*.css
-Disallow: /*.js
