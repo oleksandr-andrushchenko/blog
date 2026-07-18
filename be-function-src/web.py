@@ -87,6 +87,8 @@ async def resolve(function, request):
             if default is inspect.Parameter.empty: default = None
             values[name] = request.query_params.getlist(name) if get_origin(
                 annotation) is list else request.query_params.get(name, default)
+    if inspect.isclass(function) and is_dataclass(function):
+        return parse_dto(function, values)
     result = function(**values)
     return await result if inspect.isawaitable(result) else result
 

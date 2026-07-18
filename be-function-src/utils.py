@@ -1947,7 +1947,7 @@ def update_post_comment(post: Post, post_comment: PostComment, update_post_comme
 
     transacts = []
 
-    add_dynamodb_update_transact(transacts, (f"POST#{post.id}", f"COMMENT{post_comment.id}"), changes)
+    add_dynamodb_update_transact(transacts, (f"POST#{post.id}", f"COMMENT#{post_comment.id}"), changes)
 
     add_dynamodb_user_update_transact(transacts, cur_user, deltas={
         # Invalidate CDN cache for current user
@@ -3014,7 +3014,10 @@ def get_user_token_by_code(code: str, callback_url: str) -> UserTokenDTO:
         tokens = {"id_token": id_token}
         user_token = user_token_from_jwt_claims(claims, encode_offset(tokens))
     else:
-        token_args = decode_offset(code) if code else {}
+        try:
+            token_args = decode_offset(code) if code else {}
+        except (ValueError, UnicodeError) as exc:
+            raise InvalidCodeError("Invalid code") from exc
         user_token = get_dummy_user_token(**token_args)
 
     upsert_user_by_user_token(user_token)

@@ -8,6 +8,7 @@ from utils import (
     UserQueryDTO,
     InvalidTokenError,
     PostNotFoundError,
+    PostCommentNotFoundError,
     UserNotFoundError,
     get_html_content,
     get_user_by_auth_token,
@@ -125,11 +126,13 @@ async def get_image_file(request: Request):
     file = form.get("file")
     if file is None or not hasattr(file, "read"):
         raise HTTPException(status_code=422, detail="Missing file")
-
-    return ImageFileDTO(
-        content=await file.read(),
-        filename=file.filename,
-    )
+    try:
+        return ImageFileDTO(
+            content=await file.read(),
+            filename=file.filename,
+        )
+    except ValueError as exc:
+        raise RequestValidationError({"file": str(exc)}) from exc
 
 
 def get_update_user_dto(update_user_dto: UpdateUserDTO = Body(...)) -> UpdateUserDTO:
@@ -153,10 +156,10 @@ def get_update_post_impression_dto(
     return update_post_impression_dto
 
 
-def get_post_comment_by_id(post_id: str, post_comment_id: str) -> PostComment:
+def get_post_comment_by_id(post_id: str, comment_id: str) -> PostComment:
     try:
-        return get_post_comment(post_id, post_comment_id)
-    except PostNotFoundError as e:
+        return get_post_comment(post_id, comment_id)
+    except PostCommentNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
@@ -276,7 +279,7 @@ UpdatePostImpressionDTODep = Annotated[UpdatePostImpressionDTO, Depends(get_upda
 PostQueryDep = Annotated[PostQueryDTO, Depends(get_post_query)]
 PostQueryBySlugsDep = Annotated[PostQueryDTO, Depends(get_post_query_by_slugs)]
 PostCommentDep = Annotated[PostComment, Depends(get_post_comment_by_id)]
-UpdatePostCommentDTODep = Annotated[UpdatePostCommentDTO, Depends(get_update_post_dto)]
+UpdatePostCommentDTODep = Annotated[UpdatePostCommentDTO, Depends(get_update_post_comment_dto)]
 UpdatePostCommentImpressionDTODep = Annotated[
     UpdatePostCommentImpressionDTO, Depends(get_update_post_comment_impression_dto)]
 PostTagQueryDep = Annotated[PostTagQueryDTO, Depends()]

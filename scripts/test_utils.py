@@ -100,9 +100,14 @@ def get(client: Session, url: str, **kwargs) -> Response:
     return client.get(f"{TEST_BASE_URL}{url}", **kwargs)
 
 
-def post(client: Session, url: str, json: dict) -> Response:
-    return client.post(f"{TEST_BASE_URL}{url}", json=json)
+def post(client: Session, url: str, json: dict = None, **kwargs) -> Response:
+    return client.post(f"{TEST_BASE_URL}{url}", json=json, **kwargs)
 
+
+
+
+def patch(client: Session, url: str, json: dict = None, **kwargs) -> Response:
+    return client.patch(f"{TEST_BASE_URL}{url}", json=json, **kwargs)
 
 def get_guest_client() -> Session:
     return Session()
