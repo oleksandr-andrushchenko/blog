@@ -19,10 +19,13 @@ import asyncio
 from dataclasses import dataclass, asdict
 from decimal import Decimal
 from validation import validate_email_address, validate_http_url
-from query_dtos import (BaseQueryDTO, ArticleCommentQueryDTO, ArticleQueryDTO, ArticleQueryType, ArticleStatus, ArticleTagQueryDTO, UserQueryDTO, UserQueryType, UserStatus)
+from query_dtos import (BaseQueryDTO, ArticleCommentQueryDTO, ArticleQueryDTO, ArticleQueryType, ArticleStatus,
+                        ArticleTagQueryDTO, UserQueryDTO, UserQueryType, UserStatus)
 from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO, UserTokenDTO
 from user_dtos import UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO, UserImpressionAction
-from article_dtos import (ArticleCommentDTO, ArticleCommentImpressionAction, ArticleDTO, ArticleImpressionAction, UpdateArticleCommentDTO, UpdateArticleCommentImpressionDTO, UpdateArticleDTO, UpdateArticleImpressionDTO, UpdateArticleStatusDTO, UpdateArticleTagDTO)
+from article_dtos import (ArticleCommentDTO, ArticleCommentImpressionAction, ArticleDTO, ArticleImpressionAction,
+                          UpdateArticleCommentDTO, UpdateArticleCommentImpressionDTO, UpdateArticleDTO,
+                          UpdateArticleImpressionDTO, UpdateArticleStatusDTO, UpdateArticleTagDTO)
 
 
 def Key(*args, **kwargs):
@@ -37,7 +40,6 @@ def is_aws_client_error(exc: Exception) -> bool:
 def to_thread(func, *args, **kwargs):
     loop = asyncio.get_event_loop()
     return loop.run_in_executor(None, partial(func, *args, **kwargs))
-
 
 
 @dataclass(slots=True)
@@ -80,8 +82,6 @@ class UserImpression:
     target_user_id: str
     created_at: int
     updated_at: int | None
-
-
 
 
 @dataclass(slots=True)
@@ -153,9 +153,6 @@ def sanitize_forbidden_html(value):
     return normalized
 
 
-
-
-
 @dataclass(slots=True)
 class ArticleTag:
     name: str
@@ -166,8 +163,6 @@ class ArticleTag:
     offset: str | None
 
 
-
-
 @dataclass(slots=True)
 class ArticleImpression:
     owner_id: str
@@ -176,7 +171,6 @@ class ArticleImpression:
     user_id: str
     created_at: int
     updated_at: int | None
-
 
 
 @dataclass(slots=True)
@@ -250,10 +244,6 @@ class ArticleComment:
     offset: str | None
 
 
-
-
-
-
 @dataclass(slots=True)
 class ArticleCommentImpression:
     owner_id: str
@@ -262,7 +252,6 @@ class ArticleCommentImpression:
     user_id: str
     created_at: int
     updated_at: int | None
-
 
 
 class Permission(StrEnum):
@@ -770,8 +759,8 @@ def get_article_tag_url(req, article_tag: ArticleTag) -> str:
     return get_articles_url(req, tags=[article_tag.slug])
 
 
-
-def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateArticleTagDTO, cur_user: User, req) -> None:
+def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateArticleTagDTO, cur_user: User,
+                       req) -> None:
     verify_authorization(cur_user, Permission.UPDATE_ARTICLE_TAG, article_tag)
 
     if cur_user.status == UserStatus.BANNED:
@@ -861,13 +850,6 @@ def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateAr
 
     if old_image and image_action in {"delete", "replace"}:
         drop_public_file(old_image)
-
-    # Invalidate CDN cache globally
-    _drop_cdn_cache(
-        _get_index_url(req),
-        _get_article_tag_urls(article_tag, req),
-        _get_articles_urls(req) if slug_changed else [],
-    )
 
 
 def parse_articles_url_slugs_path(slugs_path: str) -> dict:
@@ -1146,7 +1128,7 @@ def _drop_cdn_cache(*urls) -> dict[str, Any]:
     else:
         paths = ["/*"]
 
-    if True or not is_prod():
+    if not is_prod():
         return {
             "success": True,
             "invalidation_id": "",
@@ -1699,7 +1681,8 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
             }
             add_dynamodb_put_transact(transacts, (f"POST_REDIRECT#{old_slug}", "META"), redirect_item, new_pk_only=True)
             # Create new slug lock
-            add_dynamodb_put_transact(transacts, (f"POST_SLUG#{slug}", "META"), {"post_id": article.id}, new_pk_only=True)
+            add_dynamodb_put_transact(transacts, (f"POST_SLUG#{slug}", "META"), {"post_id": article.id},
+                                      new_pk_only=True)
 
     old_content = article.content
     content = changes.get("content", old_content)
@@ -1746,7 +1729,8 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
             from itertools import combinations
             for r in range(1, len(old_tags) + 1):
                 for combo in combinations(sorted(old_tags), r):
-                    article_tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{article.created_at}#{article.id}")
+                    article_tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo),
+                                             f"POST#{article.created_at}#{article.id}")
                     add_dynamodb_delete_transact(transacts, article_tag_combo_key)
 
     if published_already and should_set_status_to_unpublished:
@@ -1788,14 +1772,6 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
             k = "slug"
         if hasattr(article, k):
             setattr(article, k, v)
-
-    # Invalidate CDN cache globally
-    _drop_cdn_cache(
-        _get_article_urls(article, req),
-        _get_user_urls(article_owner, req),
-        _get_index_url(req) if status_changed else [],
-        _get_articles_urls(req) if status_changed else [],
-    )
 
 
 def find_article(article_id: str) -> Article | None:
@@ -1868,7 +1844,8 @@ def get_article_by_slugs(user_slug: str, article_slug: str, cur_user: User = Non
     return article
 
 
-def create_article_comment(article: Article, article_comment_dto: ArticleCommentDTO, cur_user: User, req) -> ArticleComment:
+def create_article_comment(article: Article, article_comment_dto: ArticleCommentDTO, cur_user: User,
+                           req) -> ArticleComment:
     verify_authorization(cur_user, Permission.CREATE_ARTICLE_COMMENT)
 
     if cur_user.status == UserStatus.BANNED:
@@ -1918,17 +1895,12 @@ def create_article_comment(article: Article, article_comment_dto: ArticleComment
             raise SlugDuplicationError(field="title")
         raise
 
-    # Invalidate CDN cache for post page and index globally
-    _drop_cdn_cache(
-        _get_article_urls(article, req),
-        _get_index_url(req),
-    )
-
     return article_comment_from_dynamodb(article_comment_item)
 
 
-def update_article_comment(article: Article, article_comment: ArticleComment, update_article_comment_dto: UpdateArticleCommentDTO,
-                        cur_user: User, req) -> None:
+def update_article_comment(article: Article, article_comment: ArticleComment,
+                           update_article_comment_dto: UpdateArticleCommentDTO,
+                           cur_user: User, req) -> None:
     verify_authorization(cur_user, Permission.UPDATE_ARTICLE_COMMENT, article_comment)
 
     if cur_user.status == UserStatus.BANNED:
@@ -1966,11 +1938,6 @@ def update_article_comment(article: Article, article_comment: ArticleComment, up
     for key, value in changes.items():
         if hasattr(article_comment, key):
             setattr(article_comment, key, value)
-
-    # Invalidate CDN cache for post page globally
-    _drop_cdn_cache(
-        _get_article_urls(article, req),
-    )
 
 
 def find_article_comment(article_id: str, article_comment_id: str) -> ArticleComment | None:
@@ -2178,14 +2145,16 @@ def add_dynamodb_user_update_transact(transacts: list, user: User, changes: dict
 
 
 def add_dynamodb_article_update_transact(transacts: list, article: Article, changes: dict[str, Any] | None = None,
-                                      deltas: dict[str, Any] | None = None) -> None:
+                                         deltas: dict[str, Any] | None = None) -> None:
     return add_dynamodb_obj_update_transact(transacts, article, (f"POST#{article.id}", "META"), changes=changes,
                                             deltas=deltas)
 
 
-def add_dynamodb_article_tag_update_transact(transacts: list, article_tag: ArticleTag, changes: dict[str, Any] | None = None,
-                                          deltas: dict[str, Any] | None = None) -> None:
-    return add_dynamodb_obj_update_transact(transacts, article_tag, (f"POST_TAG#{article_tag.slug}", "META"), changes=changes,
+def add_dynamodb_article_tag_update_transact(transacts: list, article_tag: ArticleTag,
+                                             changes: dict[str, Any] | None = None,
+                                             deltas: dict[str, Any] | None = None) -> None:
+    return add_dynamodb_obj_update_transact(transacts, article_tag, (f"POST_TAG#{article_tag.slug}", "META"),
+                                            changes=changes,
                                             deltas=deltas)
 
 
@@ -2302,15 +2271,6 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
     if old_avatar and avatar_action in {"delete", "replace"}:
         drop_public_file(old_avatar)
 
-    # Invalidate CDN cache globally
-    _drop_cdn_cache(
-        _get_user_urls(user, req),
-        # todo: add checks (if only photo,name or headline has changed)
-        _get_user_article_urls(user, req),
-        # todo: index page (if popular user)
-        # todo: users page (if on top)
-    )
-
 
 def update_user_status(user: User, update_user_status_dto: UpdateUserStatusDTO, cur_user: User, req) -> None:
     # logger.debug(f"update_user_status: user: {user}, cur_user: {cur_user}")
@@ -2346,13 +2306,6 @@ def update_user_status(user: User, update_user_status_dto: UpdateUserStatusDTO, 
     # logger.debug(transacts)
 
     dynamodb_transact_write(transacts)
-
-    # Invalidate CDN cache globally
-    _drop_cdn_cache(
-        _get_index_url(req),
-        _get_user_urls(user, req),
-        _get_users_urls(req),
-    )
 
 
 def get_user(user_id: str, cur_user: User = None) -> User:
@@ -2666,7 +2619,8 @@ def get_popular_articles_by_tags(query_dto: ArticleQueryDTO = None, cur_user: Us
     return filtered_articles
 
 
-def update_article_status(article: Article, update_article_status_dto: UpdateArticleStatusDTO, cur_user: User, req) -> None:
+def update_article_status(article: Article, update_article_status_dto: UpdateArticleStatusDTO, cur_user: User,
+                          req) -> None:
     # logger.debug(f"update_post_status: post: {post}, cur_user: {cur_user}")
     verify_authorization(cur_user, Permission.UPDATE_ARTICLE_STATUS)
 
@@ -2765,64 +2719,6 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
     # logger.debug(transacts)
 
     dynamodb_transact_write(transacts)
-
-    # Invalidate CDN cache globally
-    _drop_cdn_cache(
-        _get_article_urls(article, req),
-        _get_user_urls(article_owner, req),
-        _get_index_url(req),
-        _get_articles_urls(req),
-    )
-
-
-def _get_user_urls(user: User, req) -> set[str]:
-    return {
-        get_user_url(req, user),
-        get_static_user_url(req, user),
-    }
-
-
-def _get_index_url(req) -> str:
-    return get_url(req, "index")
-
-
-def _get_article_urls(article: Article, req) -> set[str]:
-    return {
-        get_article_url(req, article),
-        get_static_article_url(req, article),
-        get_url(req, "edit-article", article_id=article.id),
-    }
-
-
-def _get_users_urls(req) -> set[str]:
-    urls = set()
-    for _type in UserQueryType:
-        urls.add(get_users_url(req, type=_type))
-    return urls
-
-
-def _get_articles_urls(req) -> set[str]:
-    urls = set()
-    for _type in ArticleQueryType:
-        urls.add(get_articles_url(req, type=_type))
-        for tag in get_article_tags(ArticleTagQueryDTO(limit=1000)):
-            urls.add(get_articles_url(req, type=_type, tags=[tag.slug]))
-    return urls
-
-
-def _get_article_tag_urls(article_tag: ArticleTag, req) -> set[str]:
-    return {
-        get_article_tag_url(req, article_tag),
-        get_url(req, "edit-article-tag", slug=article_tag.slug),
-    }
-
-
-def _get_user_article_urls(user: User, req) -> set[str]:
-    urls = set()
-    for article in get_latest_articles_by_user(user, ArticleQueryDTO(limit=1000)):
-        urls.add(get_article_url(req, article))
-        urls.add(get_static_article_url(req, article))
-    return urls
 
 
 def article_tag_from_dynamodb(d_item: dict[str, Any]) -> ArticleTag:
@@ -3203,8 +3099,9 @@ def find_article_impression(article: Article, user: User) -> ArticleImpression |
     return article_impression_from_dynamodb(item) if item else None
 
 
-def update_article_impression(article: Article, update_article_impression_dto: UpdateArticleImpressionDTO, cur_user: User,
-                           req) -> None:
+def update_article_impression(article: Article, update_article_impression_dto: UpdateArticleImpressionDTO,
+                              cur_user: User,
+                              req) -> None:
     verify_authorization(cur_user, Permission.UPDATE_ARTICLE_IMPRESSION, article)
 
     if cur_user.status == UserStatus.BANNED:
@@ -3273,11 +3170,6 @@ def update_article_impression(article: Article, update_article_impression_dto: U
 
     logger.debug(transacts)
     dynamodb_transact_write(transacts)
-
-    # Invalidate CDN cache for post page globally
-    _drop_cdn_cache(
-        _get_article_urls(article, req),
-    )
 
 
 def update_user_impression(user: User, update_relation_dto: UpdateUserImpressionDTO, cur_user: User, req) -> None:
@@ -3349,11 +3241,6 @@ def update_user_impression(user: User, update_relation_dto: UpdateUserImpression
     add_dynamodb_user_update_transact(transacts, user, deltas=user_deltas)
 
     dynamodb_transact_write(transacts)
-
-    # Invalidate CDN cache globally
-    _drop_cdn_cache(
-        _get_user_urls(user, req),
-    )
 
 
 def enum_to_value(obj):
@@ -3579,7 +3466,7 @@ def create_dummy_fixtures(req) -> None:
         for article in created_articles:
             update_article_impression(article, UpdateArticleImpressionDTO(
                 action=ArticleImpressionAction.LIKE if random.random() < .5 else ArticleImpressionAction.DISLIKE), user,
-                                   req)
+                                      req)
         for user2 in created_users:
             if user.id != user2.id:
                 update_user_impression(user, UpdateUserImpressionDTO(
@@ -3624,5 +3511,5 @@ def create_dummy_fixtures(req) -> None:
     for article in rejected_articles:
         created_article = create_article(article, user3)
         update_article_status(created_article,
-                           UpdateArticleStatusDTO(status=ArticleStatus.REJECTED, comment="Some rejection reason"),
-                           root_user, req)
+                              UpdateArticleStatusDTO(status=ArticleStatus.REJECTED, comment="Some rejection reason"),
+                              root_user, req)
