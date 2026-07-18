@@ -3294,7 +3294,7 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
 
     # Post lists
     def articles_url(tp: ArticleQueryType, tg: ArticleTag | None = None) -> str:
-        return get_articles_url(req, type=tp, tags=[tg.name] if tg else [], full=True)
+        return get_articles_url(req, type=tp, tags=[tg.slug] if tg else [], full=True)
 
     for type_ in ArticleQueryType:
         urls.append((articles_url(type_), today))

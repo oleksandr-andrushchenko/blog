@@ -854,6 +854,11 @@ def test_admin_page_sitemap_and_cache_endpoints_success_and_failure(guest_client
     sitemap_success = post(root_client, "/api/generate-sitemap", json={})
     assert sitemap_success.status_code == 200, sitemap_success.text
     assert sitemap_success.json()["urls_count"] > 0
+    sitemap = get(guest_client, "/sitemap.xml")
+    assert sitemap.status_code == 200
+    assert "/functional-tag-updated/articles" in sitemap.text
+    assert "/popular/functional-tag-updated/articles" in sitemap.text
+    assert "/Functional Tag Updated/articles" not in sitemap.text
     sitemap_failure = post(regular_client, "/api/generate-sitemap", json={})
     assert sitemap_failure.status_code == 403
 
