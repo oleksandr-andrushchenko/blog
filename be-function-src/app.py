@@ -1,47 +1,47 @@
-from web import Application, Request, Response, HTTPException, HTMLResponse, JSONResponse, RedirectResponse, \
+from web import Application, Request, Response, HTTPException, HTMLResponse, JSONResponse, RedirectResponse,\
     RequestValidationError, CORSMiddleware, FileResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from lambda_adapter import make_handler
 from utils import (
     to_thread,
     ContactMessageDTO,
-    PostDTO,
-    PostQueryDTO,
-    PostCommentDTO,
-    PostCommentQueryDTO,
-    PostTag,
+    ArticleDTO,
+    ArticleQueryDTO,
+    ArticleCommentDTO,
+    ArticleCommentQueryDTO,
+    ArticleTag,
     is_prod,
     InvalidTokenError,
     InvalidCodeError,
     CodeExchangeFailedError,
     SlugDuplicationError,
     NotAuthorizedError,
-    PostByOldSlugRequestedError,
-    PostTagByOldSlugRequestedError,
+    ArticleByOldSlugRequestedError,
+    ArticleTagByOldSlugRequestedError,
     UserByOldSlugRequestedError,
     logger,
     get_html_content,
     get_url,
-    get_post_url,
-    create_post,
+    get_article_url,
+    create_article,
     create_contact_message,
-    get_post_tags,
-    update_post_status,
+    get_article_tags,
+    update_article_status,
     get_users,
-    get_latest_posts_by_user,
-    get_posts,
-    get_latest_published_posts,
-    get_popular_post_tags,
-    get_popular_published_posts,
+    get_latest_articles_by_user,
+    get_articles,
+    get_latest_published_articles,
+    get_popular_article_tags,
+    get_popular_published_articles,
     find_user,
     jinja2_env,
     get_popular_active_users,
     Permission,
     verify_authorization,
     update_user,
-    update_post,
-    find_post_impression,
-    update_post_impression,
+    update_article,
+    find_article_impression,
+    update_article_impression,
     update_user_impression,
     find_user_impression,
     get_user_url,
@@ -53,49 +53,49 @@ from utils import (
     utc_now,
     get_allowed_origins,
     get_redirect_url,
-    should_show_popular_posts,
-    get_post_related_posts,
-    find_post,
-    create_post_comment,
-    get_post_comments,
-    get_latest_post_comments,
-    update_post_comment,
-    get_post_comment_url,
+    should_show_popular_articles,
+    get_article_related_articles,
+    find_article,
+    create_article_comment,
+    get_article_comments,
+    get_latest_article_comments,
+    update_article_comment,
+    get_article_comment_url,
     get_user_by_auth_token,
     get_cdn_cache_version,
-    get_post_tag_url,
-    update_post_tag,
-    find_post_tag,
+    get_article_tag_url,
+    update_article_tag,
+    find_article_tag,
 )
 from deps import (
     OptCurUserDep,
     ImageFileDTODep,
     CurUserDep,
-    PostQueryDep,
-    PostDep,
-    PostTagQueryDep,
+    ArticleQueryDep,
+    ArticleDep,
+    ArticleTagQueryDep,
     UserQueryDep,
     UserDep,
     UpdateUserDTODep,
     get_error_response,
-    UpdatePostDTODep,
-    UpdatePostStatusDTODep,
-    UpdatePostImpressionDTODep,
+    UpdateArticleDTODep,
+    UpdateArticleStatusDTODep,
+    UpdateArticleImpressionDTODep,
     UpdateUserImpressionDTODep,
     UserBySlugDep,
-    PostBySlugsDep,
+    ArticleBySlugsDep,
     UpdateUserStatusDTODep,
-    PostCommentDep,
-    UpdatePostCommentDTODep,
-    PostQueryBySlugsDep,
+    ArticleCommentDep,
+    UpdateArticleCommentDTODep,
+    ArticleQueryBySlugsDep,
     UserQueryBySlugsDep,
     set_token_cookie,
     drop_token_cookie,
     set_cdn_cache_cookie,
     drop_cdn_cache_cookie,
     get_cdn_cache_cookie,
-    PostTagDep,
-    UpdatePostTagDTODep,
+    ArticleTagDep,
+    UpdateArticleTagDTODep,
 )
 import asyncio
 
@@ -122,6 +122,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def redirect_legacy_article_endpoints(request: Request, call_next):
+    path = request.url.path
+    replacements = (
+        ("/api/posts", "/api/articles"),
+        ("/api/post-tags", "/api/article-tags"),
+        ("/post-tags", "/article-tags"),
+        ("/posts-fragment", "/articles-fragment"),
+    )
+    for old, new in replacements:
+        if old in path:
+            path = path.replace(old, new, 1)
+            url = path + (f"?{request.url.query}" if request.url.query else "")
+            return RedirectResponse(url=url, status_code=308)
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -195,30 +212,30 @@ async def sync_cdn_cache_cookie_middleware(request: Request, call_next):
 
 @app.get("/", name="index", response_class=HTMLResponse)
 async def index(cur_user: OptCurUserDep) -> str:
-    latest_posts_query = PostQueryDTO()
-    latest_post_comments_query = PostCommentQueryDTO(limit=5)
+    latest_articles_query = ArticleQueryDTO()
+    latest_article_comments_query = ArticleCommentQueryDTO(limit=5)
     (
-        popular_post_tags,
-        latest_posts,
-        popular_posts,
-        latest_post_comments,
+        popular_article_tags,
+        latest_articles,
+        popular_articles,
+        latest_article_comments,
         popular_users,
     ) = await asyncio.gather(
-        to_thread(get_popular_post_tags),
-        to_thread(get_latest_published_posts, limit=latest_posts_query.limit),
-        to_thread(get_popular_published_posts, limit=5),
-        to_thread(get_latest_post_comments, limit=latest_post_comments_query.limit),
+        to_thread(get_popular_article_tags),
+        to_thread(get_latest_published_articles, limit=latest_articles_query.limit),
+        to_thread(get_popular_published_articles, limit=5),
+        to_thread(get_latest_article_comments, limit=latest_article_comments_query.limit),
         to_thread(get_popular_active_users, limit=5),
     )
     return get_html_content("index.html", {
         "cur_user": cur_user,
-        "popular_topic_post_tags": popular_post_tags[:8],
-        "popular_post_tags": popular_post_tags[8:],
-        "latest_posts_query": latest_posts_query,
-        "latest_posts": latest_posts,
-        "popular_posts": popular_posts,
-        "show_popular_posts": should_show_popular_posts(latest_posts, popular_posts),
-        "latest_post_comments": latest_post_comments,
+        "popular_topic_article_tags": popular_article_tags[:8],
+        "popular_article_tags": popular_article_tags[8:],
+        "latest_articles_query": latest_articles_query,
+        "latest_articles": latest_articles,
+        "popular_articles": popular_articles,
+        "show_popular_articles": should_show_popular_articles(latest_articles, popular_articles),
+        "latest_article_comments": latest_article_comments,
         "popular_users": popular_users,
     })
 
@@ -230,159 +247,184 @@ async def upload_public_file(image_file_dto: ImageFileDTODep) -> str:
     return save_public_file(image_file_dto)
 
 
-async def _post_page(post: PostDep, cur_user: OptCurUserDep) -> HTMLResponse:
+async def _article_page(article: ArticleDep, cur_user: OptCurUserDep) -> HTMLResponse:
     (
         author,
-        post_impression,
-        related_posts,
+        article_impression,
+        related_articles,
         comments,
     ) = await asyncio.gather(
-        to_thread(find_user, post.user_id),
-        to_thread(find_post_impression, post, cur_user) if cur_user else asyncio.sleep(0, result=None),
-        to_thread(get_post_related_posts, post),
-        to_thread(get_post_comments, post),
+        to_thread(find_user, article.user_id),
+        to_thread(find_article_impression, article, cur_user) if cur_user else asyncio.sleep(0, result=None),
+        to_thread(get_article_related_articles, article),
+        to_thread(get_article_comments, article),
     )
 
-    html_content = get_html_content("post.html", {
+    html_content = get_html_content("article.html", {
         "cur_user": cur_user,
-        "post": post,
+        "article": article,
         "author": author,
-        "post_impression": post_impression,
-        "related_posts": related_posts,
+        "article_impression": article_impression,
+        "related_articles": related_articles,
         "comments": comments,
-        "comments_query": PostCommentQueryDTO()
+        "comments_query": ArticleCommentQueryDTO()
     })
     return HTMLResponse(html_content)
 
 
-async def _posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
-    post_tag_slug = query_dto.tags[0] if query_dto.tags and len(query_dto.tags) == 1 else None
+async def _articles_page(query_dto: ArticleQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
+    article_tag_slug = query_dto.tags[0] if query_dto.tags and len(query_dto.tags) == 1 else None
     (
-        posts,
-        post_tag,
-        post_query_tags,
+        articles,
+        article_tag,
+        article_query_tags,
     ) = await asyncio.gather(
-        to_thread(get_posts, query_dto, cur_user),
-        to_thread(find_post_tag, post_tag_slug) if post_tag_slug else asyncio.sleep(0, result=None),
-        asyncio.gather(*(to_thread(find_post_tag, tag) for tag in query_dto.tags)),
+        to_thread(get_articles, query_dto, cur_user),
+        to_thread(find_article_tag, article_tag_slug) if article_tag_slug else asyncio.sleep(0, result=None),
+        asyncio.gather(*(to_thread(find_article_tag, tag) for tag in query_dto.tags)),
     )
-    if post_tag and post_tag_slug and post_tag.slug != post_tag_slug:
-        raise PostTagByOldSlugRequestedError(post_tag_slug, post_tag)
+    if article_tag and article_tag_slug and article_tag.slug != article_tag_slug:
+        raise ArticleTagByOldSlugRequestedError(article_tag_slug, article_tag)
 
-    post_query_tag_names = [tag.name if tag else slug for tag, slug in zip(post_query_tags, query_dto.tags)]
-    post_query_tag_items = [
+    article_query_tag_names = [tag.name if tag else slug for tag, slug in zip(article_query_tags, query_dto.tags)]
+    article_query_tag_items = [
         {"value": slug, "name": name}
-        for slug, name in zip(query_dto.tags, post_query_tag_names)
+        for slug, name in zip(query_dto.tags, article_query_tag_names)
     ]
-    return get_html_content("posts.html", {
+    return get_html_content("articles.html", {
         "cur_user": cur_user,
-        "post_query": query_dto,
-        "post_query_tag_names": post_query_tag_names,
-        "post_query_tag_items": post_query_tag_items,
-        "posts": posts,
-        "post_tag": post_tag,
+        "article_query": query_dto,
+        "article_query_tag_names": article_query_tag_names,
+        "article_query_tag_items": article_query_tag_items,
+        "articles": articles,
+        "article_tag": article_tag,
     })
 
 
-@app.get("/posts/new", name="new-post", response_class=HTMLResponse)
-async def new_post(cur_user: CurUserDep) -> str:
-    verify_authorization(cur_user, Permission.CREATE_POST)
+@app.get("/articles/new", name="new-article", response_class=HTMLResponse)
+async def new_article(cur_user: CurUserDep) -> str:
+    verify_authorization(cur_user, Permission.CREATE_ARTICLE)
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError
-    return get_html_content("new-post.html", {
+    return get_html_content("new-article.html", {
         "cur_user": cur_user
     })
 
 
-@app.post("/api/posts", name="create-post", response_class=JSONResponse)
-async def _create_post(post_dto: PostDTO, cur_user: CurUserDep, request: Request) -> str:
+@app.post("/api/articles", name="create-article", response_class=JSONResponse)
+async def _create_article(article_dto: ArticleDTO, cur_user: CurUserDep, request: Request) -> str:
     try:
-        post = create_post(post_dto, cur_user)
-        return get_post_url(request, post)
+        article = create_article(article_dto, cur_user)
+        return get_article_url(request, article)
     except SlugDuplicationError as e:
         raise HTTPException(status_code=409, detail=e.to_dict())
 
 
-@app.get("/posts", name="posts", response_class=HTMLResponse)
-async def posts_page(query_dto: PostQueryDep, cur_user: OptCurUserDep):
-    return await _posts_page(query_dto, cur_user)
+@app.get("/articles", name="articles", response_class=HTMLResponse)
+async def articles_page(query_dto: ArticleQueryDep, cur_user: OptCurUserDep):
+    return await _articles_page(query_dto, cur_user)
 
 
-@app.get("/api/posts-fragment", name="posts-fragment", response_class=HTMLResponse)
-async def posts_fragment(query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
-    return get_html_content("fragments/posts.html", {
-        "posts": get_posts(query_dto, cur_user)
+@app.get("/api/articles-fragment", name="articles-fragment", response_class=HTMLResponse)
+async def articles_fragment(query_dto: ArticleQueryDep, cur_user: OptCurUserDep) -> str:
+    return get_html_content("fragments/articles.html", {
+        "articles": get_articles(query_dto, cur_user)
     })
 
 
-@app.get("/posts/{post_id}", name="post")
-async def post_page(post: PostDep, cur_user: OptCurUserDep):
-    return await _post_page(post, cur_user)
+@app.get("/articles/{article_id}", name="article")
+async def article_page(article: ArticleDep, cur_user: OptCurUserDep):
+    return await _article_page(article, cur_user)
 
 
-@app.get("/posts/{post_id}/edit", name="edit-post", response_class=HTMLResponse)
-async def edit_post(post: PostDep, cur_user: CurUserDep) -> str:
-    verify_authorization(cur_user, Permission.UPDATE_USER, post)
+@app.get("/articles/{article_id}/edit", name="edit-article", response_class=HTMLResponse)
+async def edit_article(article: ArticleDep, cur_user: CurUserDep) -> str:
+    verify_authorization(cur_user, Permission.UPDATE_USER, article)
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError
-    return get_html_content("edit-post.html", {
+    return get_html_content("edit-article.html", {
         "cur_user": cur_user,
-        "post": post
+        "article": article
     })
 
 
-@app.patch("/api/posts/{post_id}", name="update-post", response_class=JSONResponse)
-async def _update_post(post: PostDep, update_post_dto: UpdatePostDTODep, cur_user: CurUserDep, request: Request) -> str:
+@app.patch("/api/articles/{article_id}", name="update-article", response_class=JSONResponse)
+async def _update_article(article: ArticleDep, update_article_dto: UpdateArticleDTODep, cur_user: CurUserDep, request: Request) -> str:
     try:
-        update_post(post, update_post_dto, cur_user, request)
-        return get_post_url(request, post)
+        update_article(article, update_article_dto, cur_user, request)
+        return get_article_url(request, article)
     except SlugDuplicationError as e:
         raise HTTPException(status_code=409, detail=e.to_dict())
 
 
-@app.post("/api/posts/{post_id}/status", name="update-post-status", response_class=JSONResponse)
-async def _update_post_status(post: PostDep, update_post_status_dto: UpdatePostStatusDTODep,
+@app.post("/api/articles/{article_id}/status", name="update-article-status", response_class=JSONResponse)
+async def _update_article_status(article: ArticleDep, update_article_status_dto: UpdateArticleStatusDTODep,
                               cur_user: CurUserDep, request: Request) -> str:
-    update_post_status(post, update_post_status_dto, cur_user, request)
-    return get_post_url(request, post)
+    update_article_status(article, update_article_status_dto, cur_user, request)
+    return get_article_url(request, article)
 
 
-@app.post("/api/posts/{post_id}/impression", name="update-post-impression", response_class=HTMLResponse)
-async def _update_post_impression(post: PostDep, update_post_impression_dto: UpdatePostImpressionDTODep,
+@app.post("/api/articles/{article_id}/impression", name="update-article-impression", response_class=HTMLResponse)
+async def _update_article_impression(article: ArticleDep, update_article_impression_dto: UpdateArticleImpressionDTODep,
                                   cur_user: CurUserDep, request: Request) -> str:
-    update_post_impression(post, update_post_impression_dto, cur_user, request)
+    update_article_impression(article, update_article_impression_dto, cur_user, request)
     (
-        post,
-        post_impression,
+        article,
+        article_impression,
     ) = await asyncio.gather(
-        to_thread(find_post, post.id),
-        to_thread(find_post_impression, post, cur_user),
+        to_thread(find_article, article.id),
+        to_thread(find_article_impression, article, cur_user),
     )
-    return get_html_content("fragments/post-impressions.html", {
-        "post": post,
-        "post_impression": post_impression,
+    return get_html_content("fragments/article-impressions.html", {
+        "article": article,
+        "article_impression": article_impression,
         "cur_user": cur_user,
     })
 
 
-@app.post("/api/posts/{post_id}/comment", name="create-post-comment", response_class=JSONResponse)
-async def _create_post_comment(post: PostDep, post_comment_dto: PostCommentDTO, cur_user: CurUserDep,
+@app.post("/api/articles/{article_id}/comment", name="create-article-comment", response_class=JSONResponse)
+async def _create_article_comment(article: ArticleDep, article_comment_dto: ArticleCommentDTO, cur_user: CurUserDep,
                                request: Request) -> str:
-    post_comment = create_post_comment(post, post_comment_dto, cur_user, request)
-    return get_post_comment_url(request, post, post_comment)
+    article_comment = create_article_comment(article, article_comment_dto, cur_user, request)
+    return get_article_comment_url(request, article, article_comment)
 
 
-@app.patch("/api/posts/{post_id}/comments/{comment_id}", name="update-post-comment", response_class=JSONResponse)
-async def _update_post_comment(post: PostDep, post_comment: PostCommentDep,
-                               update_post_comment_dto: UpdatePostCommentDTODep, cur_user: CurUserDep,
+@app.patch("/api/articles/{article_id}/comments/{comment_id}", name="update-article-comment", response_class=JSONResponse)
+async def _update_article_comment(article: ArticleDep, article_comment: ArticleCommentDep,
+                               update_article_comment_dto: UpdateArticleCommentDTODep, cur_user: CurUserDep,
                                request: Request) -> str:
-    update_post_comment(post, post_comment, update_post_comment_dto, cur_user, request)
-    return get_post_comment_url(request, post, post_comment)
+    update_article_comment(article, article_comment, update_article_comment_dto, cur_user, request)
+    return get_article_comment_url(request, article, article_comment)
 
 
-@app.get("/{slugs_path:path}/posts", name="posts-by-slugs", response_class=HTMLResponse)
-async def posts_page_by_slugs(query_dto: PostQueryBySlugsDep, cur_user: OptCurUserDep) -> HTMLResponse:
-    return await _posts_page(query_dto, cur_user)
+@app.get("/{slugs_path:path}/articles", name="articles-by-slugs", response_class=HTMLResponse)
+async def articles_page_by_slugs(query_dto: ArticleQueryBySlugsDep, cur_user: OptCurUserDep) -> HTMLResponse:
+    return await _articles_page(query_dto, cur_user)
+
+
+def _legacy_articles_redirect(request: Request) -> RedirectResponse:
+    path = request.url.path
+    if path == "/posts" or path.startswith("/posts/"):
+        path = "/articles" + path[len("/posts"):]
+    elif path == "/post" or path.startswith("/post/"):
+        path = "/articles" + path[len("/post"):]
+    elif path.endswith("/posts"):
+        path = path[:-len("/posts")] + "/articles"
+    url = path + (f"?{request.url.query}" if request.url.query else "")
+    return RedirectResponse(url=url, status_code=301)
+
+
+@app.get("/posts", name="legacy-posts")
+@app.get("/post", name="legacy-singular-articles")
+@app.get("/posts/new", name="legacy-new-article")
+@app.get("/post/new", name="legacy-singular-new-article")
+@app.get("/posts/{article_id}", name="legacy-article")
+@app.get("/post/{article_id}", name="legacy-singular-article")
+@app.get("/posts/{article_id}/edit", name="legacy-edit-article")
+@app.get("/post/{article_id}/edit", name="legacy-singular-edit-article")
+@app.get("/{slugs_path:path}/posts", name="legacy-posts-by-slugs")
+async def legacy_articles_redirect(request: Request) -> RedirectResponse:
+    return _legacy_articles_redirect(request)
 
 
 @app.get("/contacts", name="contacts", response_class=HTMLResponse)
@@ -397,25 +439,25 @@ async def _create_contact_message(message_dto: ContactMessageDTO, cur_user: OptC
     create_contact_message(message_dto, cur_user)
 
 
-@app.get("/post-tags/{slug}/edit", name="edit-post-tag", response_class=HTMLResponse)
-async def edit_post_tag(post_tag: PostTagDep, cur_user: CurUserDep) -> str:
-    verify_authorization(cur_user, Permission.UPDATE_POST_TAG, post_tag)
-    return get_html_content("edit-post-tag.html", {
+@app.get("/article-tags/{slug}/edit", name="edit-article-tag", response_class=HTMLResponse)
+async def edit_article_tag(article_tag: ArticleTagDep, cur_user: CurUserDep) -> str:
+    verify_authorization(cur_user, Permission.UPDATE_ARTICLE_TAG, article_tag)
+    return get_html_content("edit-article-tag.html", {
         "cur_user": cur_user,
-        "post_tag": post_tag,
+        "article_tag": article_tag,
     })
 
 
-@app.patch("/api/post-tags/{slug}", name="update-post-tag", response_class=JSONResponse)
-async def _update_post_tag(update_post_tag_dto: UpdatePostTagDTODep, post_tag: PostTagDep, cur_user: CurUserDep,
+@app.patch("/api/article-tags/{slug}", name="update-article-tag", response_class=JSONResponse)
+async def _update_article_tag(update_article_tag_dto: UpdateArticleTagDTODep, article_tag: ArticleTagDep, cur_user: CurUserDep,
                            request: Request) -> str:
-    update_post_tag(post_tag, update_post_tag_dto, cur_user, request)
-    return get_post_tag_url(request, post_tag)
+    update_article_tag(article_tag, update_article_tag_dto, cur_user, request)
+    return get_article_tag_url(request, article_tag)
 
 
-@app.get("/api/post-tags", name="get-post-tags", response_class=JSONResponse)
-async def _get_post_tags(query_dto: PostTagQueryDep) -> list[PostTag]:
-    return get_post_tags(query_dto)
+@app.get("/api/article-tags", name="get-article-tags", response_class=JSONResponse)
+async def _get_article_tags(query_dto: ArticleTagQueryDep) -> list[ArticleTag]:
+    return get_article_tags(query_dto)
 
 
 def _users_page(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
@@ -444,32 +486,32 @@ async def users_fragment(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> st
     })
 
 
-async def _user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
+async def _user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
     if cur_user:
         (
-            posts,
+            articles,
             user_impression,
         ) = await asyncio.gather(
-            to_thread(get_latest_posts_by_user, user, posts_query_dto, cur_user),
+            to_thread(get_latest_articles_by_user, user, articles_query_dto, cur_user),
             to_thread(find_user_impression, user, cur_user),
         )
     else:
-        posts = get_latest_posts_by_user(user, posts_query_dto, cur_user)
+        articles = get_latest_articles_by_user(user, articles_query_dto, cur_user)
         user_impression = None
 
     html_content = get_html_content("user.html", {
         "cur_user": cur_user,
         "user": user,
-        "post_query": posts_query_dto,
-        "posts": posts,
+        "article_query": articles_query_dto,
+        "articles": articles,
         "user_impression": user_impression,
     })
     return HTMLResponse(html_content)
 
 
 @app.get("/users/{user_id}", name="user")
-async def user_page(user: UserDep, posts_query_dto: PostQueryDep, cur_user: OptCurUserDep):
-    return await _user_page(user, posts_query_dto, cur_user)
+async def user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_user: OptCurUserDep):
+    return await _user_page(user, articles_query_dto, cur_user)
 
 
 @app.post("/api/users/{user_id}/status", name="update-user-status", response_class=JSONResponse)
@@ -514,11 +556,11 @@ async def _update_user(update_user_dto: UpdateUserDTODep, user: UserDep, cur_use
     return get_user_url(request, user)
 
 
-@app.get("/api/users/{user_id}/posts-fragment", name="user-posts-fragment", response_class=HTMLResponse)
-async def user_posts_fragment(user: UserDep, query_dto: PostQueryDep, cur_user: OptCurUserDep) -> str:
-    return get_html_content("fragments/posts.html", {
+@app.get("/api/users/{user_id}/articles-fragment", name="user-articles-fragment", response_class=HTMLResponse)
+async def user_articles_fragment(user: UserDep, query_dto: ArticleQueryDep, cur_user: OptCurUserDep) -> str:
+    return get_html_content("fragments/articles.html", {
         "query": query_dto,
-        "posts": get_latest_posts_by_user(user, query_dto, cur_user),
+        "articles": get_latest_articles_by_user(user, query_dto, cur_user),
         "cur_user": cur_user,
     })
 
@@ -647,14 +689,14 @@ async def _drop_cdn_cache(cur_user: CurUserDep) -> dict:
 
 
 @app.get("/{slug}", name="user-by-slug", response_class=HTMLResponse)
-async def user_page_by_slug(user: UserBySlugDep, posts_query_dto: PostQueryDep,
+async def user_page_by_slug(user: UserBySlugDep, articles_query_dto: ArticleQueryDep,
                             cur_user: OptCurUserDep) -> HTMLResponse:
-    return await _user_page(user, posts_query_dto, cur_user)
+    return await _user_page(user, articles_query_dto, cur_user)
 
 
-@app.get("/{user_slug}/{post_slug}", name="post-by-slugs", response_class=HTMLResponse)
-async def post_page_by_slugs(post: PostBySlugsDep, cur_user: OptCurUserDep) -> HTMLResponse:
-    return await _post_page(post, cur_user)
+@app.get("/{user_slug}/{article_slug}", name="article-by-slugs", response_class=HTMLResponse)
+async def article_page_by_slugs(article: ArticleBySlugsDep, cur_user: OptCurUserDep) -> HTMLResponse:
+    return await _article_page(article, cur_user)
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -690,27 +732,27 @@ async def not_authorized_error_handler(request: Request, exc: NotAuthorizedError
     return get_error_response(request, 403, {"permission": exc.permission})
 
 
-@app.exception_handler(PostByOldSlugRequestedError)
-async def post_redirect_exception_handler(request: Request, exc: PostByOldSlugRequestedError):
-    logger.info(f"Redirect: {str(exc.slug)} -> {exc.post.slug}")
-    url = get_post_url(request, exc.post)
+@app.exception_handler(ArticleByOldSlugRequestedError)
+async def article_redirect_exception_handler(request: Request, exc: ArticleByOldSlugRequestedError):
+    logger.info(f"Redirect: {str(exc.slug)} -> {exc.article.slug}")
+    url = get_article_url(request, exc.article)
     return RedirectResponse(url=url, status_code=301)
 
 
 @app.exception_handler(UserByOldSlugRequestedError)
-async def post_redirect_exception_handler(request: Request, exc: UserByOldSlugRequestedError):
+async def article_redirect_exception_handler(request: Request, exc: UserByOldSlugRequestedError):
     logger.info(f"Redirect: {str(exc.slug)} -> {exc.user.username}")
     url = get_user_url(request, exc.user)
     return RedirectResponse(url=url, status_code=301)
 
 
-@app.exception_handler(PostTagByOldSlugRequestedError)
-async def post_tag_redirect_exception_handler(request: Request, exc: PostTagByOldSlugRequestedError):
-    logger.info(f"Redirect: {str(exc.slug)} -> {exc.post_tag.slug}")
-    if request.url.path.startswith("/post-tags/"):
-        url = get_url(request, "edit-post-tag", slug=exc.post_tag.slug)
+@app.exception_handler(ArticleTagByOldSlugRequestedError)
+async def article_tag_redirect_exception_handler(request: Request, exc: ArticleTagByOldSlugRequestedError):
+    logger.info(f"Redirect: {str(exc.slug)} -> {exc.article_tag.slug}")
+    if request.url.path.startswith("/article-tags/"):
+        url = get_url(request, "edit-article-tag", slug=exc.article_tag.slug)
     else:
-        url = get_post_tag_url(request, exc.post_tag)
+        url = get_article_tag_url(request, exc.article_tag)
     return RedirectResponse(url=url, status_code=301)
 
 

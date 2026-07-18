@@ -19,10 +19,10 @@ import asyncio
 from dataclasses import dataclass, asdict
 from decimal import Decimal
 from validation import validate_email_address, validate_http_url
-from query_dtos import (BaseQueryDTO, PostCommentQueryDTO, PostQueryDTO, PostQueryType, PostStatus, PostTagQueryDTO, UserQueryDTO, UserQueryType, UserStatus)
+from query_dtos import (BaseQueryDTO, ArticleCommentQueryDTO, ArticleQueryDTO, ArticleQueryType, ArticleStatus, ArticleTagQueryDTO, UserQueryDTO, UserQueryType, UserStatus)
 from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO, UserTokenDTO
 from user_dtos import UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO, UserImpressionAction
-from post_dtos import (PostCommentDTO, PostCommentImpressionAction, PostDTO, PostImpressionAction, UpdatePostCommentDTO, UpdatePostCommentImpressionDTO, UpdatePostDTO, UpdatePostImpressionDTO, UpdatePostStatusDTO, UpdatePostTagDTO)
+from article_dtos import (ArticleCommentDTO, ArticleCommentImpressionAction, ArticleDTO, ArticleImpressionAction, UpdateArticleCommentDTO, UpdateArticleCommentImpressionDTO, UpdateArticleDTO, UpdateArticleImpressionDTO, UpdateArticleStatusDTO, UpdateArticleTagDTO)
 
 
 def Key(*args, **kwargs):
@@ -56,14 +56,14 @@ class User:
     providers: dict[str, dict[str, str | None]]
     permissions: list[str]
     status: UserStatus
-    published_posts_count: int
-    unpublished_posts_count: int
-    rejected_posts_count: int
+    published_articles_count: int
+    unpublished_articles_count: int
+    rejected_articles_count: int
     rating: int
     followers_count: int
     following_count: int
     comment: str | None
-    post_comments_count: int
+    article_comments_count: int
     bmc_username: str | None
     redirect_to: str | None
     cdn_cache_version: int
@@ -157,11 +157,11 @@ def sanitize_forbidden_html(value):
 
 
 @dataclass(slots=True)
-class PostTag:
+class ArticleTag:
     name: str
     slug: str
     rating: int
-    posts_count: int
+    articles_count: int
     image_filename: str | None
     offset: str | None
 
@@ -169,10 +169,10 @@ class PostTag:
 
 
 @dataclass(slots=True)
-class PostImpression:
+class ArticleImpression:
     owner_id: str
-    post_id: str
-    action: PostImpressionAction
+    article_id: str
+    action: ArticleImpressionAction
     user_id: str
     created_at: int
     updated_at: int | None
@@ -180,7 +180,7 @@ class PostImpression:
 
 
 @dataclass(slots=True)
-class Post:
+class Article:
     id: str
     owner_id: str
     title: str
@@ -190,7 +190,7 @@ class Post:
     content: str
     preview: str | None
     tags: list[str]
-    status: PostStatus
+    status: ArticleStatus
     comment: str | None
     rating: int
     likes_count: int
@@ -206,7 +206,7 @@ class Post:
 
 
 @dataclass(slots=True)
-class PostComment:
+class ArticleComment:
     id: str
     owner_id: str
 
@@ -224,18 +224,18 @@ class PostComment:
             "created_at": 0,
         })
 
-    post_id: str
-    post_title: str
-    post_slug: str
+    article_id: str
+    article_title: str
+    article_slug: str
 
-    def get_post(self) -> Post:
-        return post_from_dynamodb({
-            "id": self.post_id,
+    def get_article(self) -> Article:
+        return article_from_dynamodb({
+            "id": self.article_id,
             "user_id": self.user_id,
             "content": "",
-            "title": self.post_title,
-            "post_slug": self.post_slug,
-            "status": PostStatus.PUBLISHED,
+            "title": self.article_title,
+            "post_slug": self.article_slug,
+            "status": ArticleStatus.PUBLISHED,
             "rating_sk": 0,
             "created_at": 0,
         })
@@ -255,10 +255,10 @@ class PostComment:
 
 
 @dataclass(slots=True)
-class PostCommentImpression:
+class ArticleCommentImpression:
     owner_id: str
-    post_id: str
-    action: PostCommentImpressionAction
+    article_id: str
+    action: ArticleCommentImpressionAction
     user_id: str
     created_at: int
     updated_at: int | None
@@ -275,19 +275,19 @@ class Permission(StrEnum):
     UPDATE_USER_IMPRESSION = "update_user_impression"
     READ_NON_ACTIVE_USER = "read_non_active_user"
 
-    CREATE_POST = "create_post"
-    UPDATE_POST = "update_post"
-    UPDATE_POST_STATUS = "update_post_status"
+    CREATE_ARTICLE = "create_post"
+    UPDATE_ARTICLE = "update_post"
+    UPDATE_ARTICLE_STATUS = "update_post_status"
     CREATE_CONTACT_MESSAGE = "create_contact_message"
-    UPDATE_POST_IMPRESSION = "toggle_post_impression"
-    READ_NON_PUBLISHED_POST = "read_non_published_post"
+    UPDATE_ARTICLE_IMPRESSION = "toggle_post_impression"
+    READ_NON_PUBLISHED_ARTICLE = "read_non_published_post"
 
-    READ_POST_TAG = "read_post_tag"
-    UPDATE_POST_TAG = "update_post_tag"
+    READ_ARTICLE_TAG = "read_post_tag"
+    UPDATE_ARTICLE_TAG = "update_post_tag"
 
-    CREATE_POST_COMMENT = "create_post_comment"
-    UPDATE_POST_COMMENT = "update_post_comment"
-    READ_NON_PUBLISHED_POST_COMMENT = "read_non_published_post_comment"
+    CREATE_ARTICLE_COMMENT = "create_post_comment"
+    UPDATE_ARTICLE_COMMENT = "update_post_comment"
+    READ_NON_PUBLISHED_ARTICLE_COMMENT = "read_non_published_post_comment"
 
     UTILS = "utils"
     GENERATE_SITEMAP = "generate_sitemap"
@@ -328,36 +328,36 @@ class SlugDuplicationError(BaseError):
         super().__init__(message=message, field=field)
 
 
-class PostNotFoundError(BaseError):
+class ArticleNotFoundError(BaseError):
     pass
 
 
-class PostAlreadyPublishedError(BaseError):
-    def __init__(self, message: str = "Post already published", field: str = "title"):
+class ArticleAlreadyPublishedError(BaseError):
+    def __init__(self, message: str = "Article already published", field: str = "title"):
         super().__init__(message=message, field=field)
 
 
-class PostByOldSlugRequestedError(Exception):
-    def __init__(self, slug: str, post: Post):
+class ArticleByOldSlugRequestedError(Exception):
+    def __init__(self, slug: str, article: Article):
         self.slug = slug
-        self.post = post
+        self.article = article
 
 
-class PostTagNotFoundError(BaseError):
+class ArticleTagNotFoundError(BaseError):
     pass
 
 
-class PostTagByOldSlugRequestedError(Exception):
-    def __init__(self, slug: str, post_tag: PostTag):
+class ArticleTagByOldSlugRequestedError(Exception):
+    def __init__(self, slug: str, article_tag: ArticleTag):
         self.slug = slug
-        self.post_tag = post_tag
+        self.article_tag = article_tag
 
 
-class PostCommentNotFoundError(BaseError):
+class ArticleCommentNotFoundError(BaseError):
     pass
 
 
-class PostCommentNonEditableError(BaseError):
+class ArticleCommentNonEditableError(BaseError):
     pass
 
 
@@ -414,9 +414,9 @@ def get_live_config():
         "permission_hierarchy": {
             Permission.REGULAR: [
                 Permission.UPDATE_USER_IMPRESSION,
-                Permission.CREATE_POST,
-                Permission.UPDATE_POST_IMPRESSION,
-                Permission.CREATE_POST_COMMENT,
+                Permission.CREATE_ARTICLE,
+                Permission.UPDATE_ARTICLE_IMPRESSION,
+                Permission.CREATE_ARTICLE_COMMENT,
                 Permission.CREATE_CONTACT_MESSAGE,
             ],
             Permission.ROOT: [
@@ -694,22 +694,22 @@ def get_static_user_url(req, user: User, **params) -> str:
 
 
 @pass_context
-def jinja2_post_url(ctx, post: Post, **params) -> str:
-    return get_post_url(ctx.get("request"), post, **params)
+def jinja2_article_url(ctx, article: Article, **params) -> str:
+    return get_article_url(ctx.get("request"), article, **params)
 
 
-def get_post_url(req, post: Post, **params) -> str:
-    if post.user_slug:
-        return get_url(req, "post-by-slugs", user_slug=post.user_slug, post_slug=post.slug, **params)
-    return get_static_post_url(req, post, **params)
+def get_article_url(req, article: Article, **params) -> str:
+    if article.user_slug:
+        return get_url(req, "article-by-slugs", user_slug=article.user_slug, article_slug=article.slug, **params)
+    return get_static_article_url(req, article, **params)
 
 
-def get_static_post_url(req, post: Post, **params) -> str:
-    return get_url(req, "post", post_id=post.id, **params)
+def get_static_article_url(req, article: Article, **params) -> str:
+    return get_url(req, "article", article_id=article.id, **params)
 
 
-def get_post_comment_url(req, post: Post, post_comment: PostComment, **params) -> str:
-    return get_post_url(req, post, **params)
+def get_article_comment_url(req, article: Article, article_comment: ArticleComment, **params) -> str:
+    return get_article_url(req, article, **params)
 
 
 def get_current_url(req) -> str:
@@ -719,18 +719,18 @@ def get_current_url(req) -> str:
 
 
 @pass_context
-def jinja2_posts_url(ctx, query: PostQueryDTO | None = None, **params) -> str:
-    return get_posts_url(ctx.get("request"), query=query, **params)
+def jinja2_articles_url(ctx, query: ArticleQueryDTO | None = None, **params) -> str:
+    return get_articles_url(ctx.get("request"), query=query, **params)
 
 
 @pass_context
-def jinja2_posts_tag_url(ctx, post_tag: PostTag, **params) -> str:
-    return get_post_tag_url(ctx.get("request"), post_tag, **params)
+def jinja2_articles_tag_url(ctx, article_tag: ArticleTag, **params) -> str:
+    return get_article_tag_url(ctx.get("request"), article_tag, **params)
 
 
-def get_posts_url(req, query: PostQueryDTO | None = None, **params) -> str:
+def get_articles_url(req, query: ArticleQueryDTO | None = None, **params) -> str:
     if not query:
-        query = PostQueryDTO()
+        query = ArticleQueryDTO()
 
     params = query.get_dict(params)
 
@@ -739,7 +739,7 @@ def get_posts_url(req, query: PostQueryDTO | None = None, **params) -> str:
     type_ = params.pop("type", None)
     if type_:
         type_ = str(type_)
-        if type_ != str(PostQueryDTO.DEFAULT_TYPE):
+        if type_ != str(ArticleQueryDTO.DEFAULT_TYPE):
             slugs.append(type_)
 
     tags = params.pop("tags", None)
@@ -749,35 +749,35 @@ def get_posts_url(req, query: PostQueryDTO | None = None, **params) -> str:
     status = params.pop("status", None)
     if status:
         status = str(status)
-        if status != str(PostQueryDTO.DEFAULT_STATUS):
+        if status != str(ArticleQueryDTO.DEFAULT_STATUS):
             params["status"] = status
 
     offset = params.pop("offset", None)
-    if offset and offset != PostQueryDTO.DEFAULT_OFFSET:
+    if offset and offset != ArticleQueryDTO.DEFAULT_OFFSET:
         params["offset"] = offset
 
     limit = params.pop("limit", None)
-    if limit and limit != PostQueryDTO.DEFAULT_LIMIT:
+    if limit and limit != ArticleQueryDTO.DEFAULT_LIMIT:
         params["limit"] = limit
 
     if not slugs:
-        return get_url(req, "posts", **params)
+        return get_url(req, "articles", **params)
 
-    return get_url(req, "posts-by-slugs", slugs_path="/".join(slugs), **params)
-
-
-def get_post_tag_url(req, post_tag: PostTag) -> str:
-    return get_posts_url(req, tags=[post_tag.slug])
+    return get_url(req, "articles-by-slugs", slugs_path="/".join(slugs), **params)
 
 
+def get_article_tag_url(req, article_tag: ArticleTag) -> str:
+    return get_articles_url(req, tags=[article_tag.slug])
 
-def update_post_tag(post_tag: PostTag, update_post_tag_dto: UpdatePostTagDTO, cur_user: User, req) -> None:
-    verify_authorization(cur_user, Permission.UPDATE_POST_TAG, post_tag)
+
+
+def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateArticleTagDTO, cur_user: User, req) -> None:
+    verify_authorization(cur_user, Permission.UPDATE_ARTICLE_TAG, article_tag)
 
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
-    changes = update_post_tag_dto.changes()
+    changes = update_article_tag_dto.changes()
     if not changes:
         return
 
@@ -795,8 +795,8 @@ def update_post_tag(post_tag: PostTag, update_post_tag_dto: UpdatePostTagDTO, cu
     elif image_action == "keep":
         changes.pop("image_filename", None)
 
-    old_image = post_tag.image_filename
-    old_slug = post_tag.slug
+    old_image = article_tag.image_filename
+    old_slug = article_tag.slug
     new_slug = to_kebab_case(changes["name"]) if "name" in changes else old_slug
     slug_changed = new_slug != old_slug
     transacts = []
@@ -804,7 +804,7 @@ def update_post_tag(post_tag: PostTag, update_post_tag_dto: UpdatePostTagDTO, cu
     if slug_changed:
         old_item = get_dynamodb_item(f"POST_TAG#{old_slug}", "META")
         if old_item is None:
-            raise PostTagNotFoundError(f"Post tag '{old_slug}' not found")
+            raise ArticleTagNotFoundError(f"Article tag '{old_slug}' not found")
 
         new_item = {k: v for k, v in old_item.items() if k not in {"pk", "sk"}}
         new_item.update(changes)
@@ -821,17 +821,17 @@ def update_post_tag(post_tag: PostTag, update_post_tag_dto: UpdatePostTagDTO, cu
         add_dynamodb_delete_transact(transacts, (f"POST_TAG#{old_slug}", "META"))
 
         from itertools import combinations
-        for post in get_latest_posts_by_tags(PostQueryDTO(tags=[old_slug], limit=1000)):
-            old_tags = list(post.tags)
+        for article in get_latest_articles_by_tags(ArticleQueryDTO(tags=[old_slug], limit=1000)):
+            old_tags = list(article.tags)
             new_tags = list(dict.fromkeys(new_slug if tag == old_slug else tag for tag in old_tags))
-            add_dynamodb_post_update_transact(transacts, post, {"tags": new_tags})
+            add_dynamodb_article_update_transact(transacts, article, {"tags": new_tags})
 
             for r in range(1, len(old_tags) + 1):
                 for combo in combinations(sorted(old_tags), r):
                     if old_slug in combo:
                         add_dynamodb_delete_transact(
                             transacts,
-                            ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{post.created_at}#{post.id}")
+                            ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{article.created_at}#{article.id}")
                         )
 
             for r in range(1, len(new_tags) + 1):
@@ -839,11 +839,11 @@ def update_post_tag(post_tag: PostTag, update_post_tag_dto: UpdatePostTagDTO, cu
                     if new_slug in combo:
                         add_dynamodb_put_transact(
                             transacts,
-                            ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{post.created_at}#{post.id}"),
-                            {"post_id": post.id}
+                            ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{article.created_at}#{article.id}"),
+                            {"post_id": article.id}
                         )
     else:
-        add_dynamodb_post_tag_update_transact(transacts, post_tag, changes)
+        add_dynamodb_article_tag_update_transact(transacts, article_tag, changes)
 
     try:
         dynamodb_transact_write(transacts)
@@ -853,11 +853,11 @@ def update_post_tag(post_tag: PostTag, update_post_tag_dto: UpdatePostTagDTO, cu
         raise
 
     if "name" in changes:
-        post_tag.name = changes["name"]
+        article_tag.name = changes["name"]
     if slug_changed:
-        post_tag.slug = new_slug
+        article_tag.slug = new_slug
     if "image_filename" in changes:
-        post_tag.image_filename = changes["image_filename"]
+        article_tag.image_filename = changes["image_filename"]
 
     if old_image and image_action in {"delete", "replace"}:
         drop_public_file(old_image)
@@ -865,12 +865,12 @@ def update_post_tag(post_tag: PostTag, update_post_tag_dto: UpdatePostTagDTO, cu
     # Invalidate CDN cache globally
     _drop_cdn_cache(
         _get_index_url(req),
-        _get_post_tag_urls(post_tag, req),
-        _get_posts_urls(req) if slug_changed else [],
+        _get_article_tag_urls(article_tag, req),
+        _get_articles_urls(req) if slug_changed else [],
     )
 
 
-def parse_posts_url_slugs_path(slugs_path: str) -> dict:
+def parse_articles_url_slugs_path(slugs_path: str) -> dict:
     data = {}
     slugs = [p for p in slugs_path.split("/") if p]
 
@@ -878,7 +878,7 @@ def parse_posts_url_slugs_path(slugs_path: str) -> dict:
         return {}
 
     try:
-        data["type"] = PostQueryType(slugs[0])
+        data["type"] = ArticleQueryType(slugs[0])
         slugs = slugs[1:]
     except ValueError:
         pass
@@ -1058,19 +1058,19 @@ def get_jinja2_env():
         "static_url": jinja2_static_url,
         "url": jinja2_url,
         "user_url": jinja2_user_url,
-        "post_url": jinja2_post_url,
-        "posts_url": jinja2_posts_url,
+        "article_url": jinja2_article_url,
+        "articles_url": jinja2_articles_url,
         "users_url": jinja2_users_url,
-        "post_tag_url": jinja2_posts_tag_url,
+        "article_tag_url": jinja2_articles_tag_url,
         "Permission": Permission,
         "check_auth": check_authorization,
-        "PostStatus": PostStatus,
-        "PostImpressionAction": PostImpressionAction,
+        "ArticleStatus": ArticleStatus,
+        "ArticleImpressionAction": ArticleImpressionAction,
         "UserImpressionAction": UserImpressionAction,
-        "PostQueryType": PostQueryType,
+        "ArticleQueryType": ArticleQueryType,
         "UserQueryType": UserQueryType,
         "UserStatus": UserStatus,
-        "PostQueryDTO": PostQueryDTO,
+        "ArticleQueryDTO": ArticleQueryDTO,
         "UserQueryDTO": UserQueryDTO,
         "img_dims": extract_image_filename_dimensions,
     })
@@ -1504,10 +1504,10 @@ def get_user_token_by_auth_jwt_token(token: str | None) -> UserTokenDTO | None:
         raise InvalidTokenError("Invalid session token")
 
 
-def post_from_dynamodb(d_item: dict[str, Any]) -> Post:
+def article_from_dynamodb(d_item: dict[str, Any]) -> Article:
     owner_id = d_item["user_id"]
     content = d_item["content"]
-    return Post(
+    return Article(
         id=d_item["id"],
         owner_id=owner_id,
         title=d_item["title"],
@@ -1533,18 +1533,18 @@ def post_from_dynamodb(d_item: dict[str, Any]) -> Post:
     )
 
 
-def post_comment_from_dynamodb(d_item: dict[str, Any]) -> PostComment:
+def article_comment_from_dynamodb(d_item: dict[str, Any]) -> ArticleComment:
     owner_id = d_item["user_id"]
-    return PostComment(
+    return ArticleComment(
         id=d_item["id"],
         owner_id=owner_id,
         user_id=owner_id,
         user_name=d_item.get("user_name"),
         user_avatar_filename=d_item.get("user_avatar_filename"),
         user_username=d_item.get("user_username"),
-        post_id=d_item["post_id"],
-        post_title=d_item["post_title"],
-        post_slug=d_item.get("comment_post_slug") or d_item["post_slug"],
+        article_id=d_item["post_id"],
+        article_title=d_item["post_title"],
+        article_slug=d_item.get("comment_post_slug") or d_item["post_slug"],
         text=d_item["text"],
         rating=d_item.get("rating", 0),
         likes_count=d_item.get("likes_count", 0),
@@ -1592,26 +1592,26 @@ def find_static_image_filename(html_content: str) -> str | None:
     return match.group(1)
 
 
-def create_post(post_dto: PostDTO, cur_user: User) -> Post:
-    verify_authorization(cur_user, Permission.CREATE_POST)
+def create_article(article_dto: ArticleDTO, cur_user: User) -> Article:
+    verify_authorization(cur_user, Permission.CREATE_ARTICLE)
 
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
     now = utc_now()
-    status = PostStatus.UNPUBLISHED
-    post_id = str(uuid.uuid4())
-    title = sanitize_html(post_dto.title)
-    content = sanitize_forbidden_html(post_dto.content)
+    status = ArticleStatus.UNPUBLISHED
+    article_id = str(uuid.uuid4())
+    title = sanitize_html(article_dto.title)
+    content = sanitize_forbidden_html(article_dto.content)
     preview = find_preview(content)
     image_filename = find_static_image_filename(content)
-    tags = sanitize_tags(post_dto.tags)
+    tags = sanitize_tags(article_dto.tags)
     slug = to_kebab_case(title)
 
     transacts = []
 
-    post_item = {
-        "id": post_id,
+    article_item = {
+        "id": article_id,
         "title": title,
         "post_slug": slug,
         "user_id": cur_user.id,
@@ -1624,12 +1624,12 @@ def create_post(post_dto: PostDTO, cur_user: User) -> Post:
         "post_user_status_pk": f"POST#{cur_user.id}#{status}",
     }
     if preview:
-        post_item["preview"] = preview
+        article_item["preview"] = preview
     if image_filename:
-        post_item["image_filename"] = image_filename
+        article_item["image_filename"] = image_filename
     if cur_user.username:
-        post_item["user_slug"] = cur_user.username
-    add_dynamodb_put_transact(transacts, (f"POST#{post_id}", "META"), post_item, new_pk_only=True)
+        article_item["user_slug"] = cur_user.username
+    add_dynamodb_put_transact(transacts, (f"POST#{article_id}", "META"), article_item, new_pk_only=True)
 
     add_dynamodb_user_update_transact(transacts, cur_user, deltas={
         "unpublished_posts_count": 1,
@@ -1637,7 +1637,7 @@ def create_post(post_dto: PostDTO, cur_user: User) -> Post:
         "cdn_cache_version": 1,
     })
     # todo: should be unique in combination with username (cur_user, post)
-    add_dynamodb_put_transact(transacts, (f"POST_SLUG#{slug}", "META"), {"post_id": post_id}, new_pk_only=True)
+    add_dynamodb_put_transact(transacts, (f"POST_SLUG#{slug}", "META"), {"post_id": article_id}, new_pk_only=True)
 
     try:
         dynamodb_transact_write(transacts)
@@ -1646,7 +1646,7 @@ def create_post(post_dto: PostDTO, cur_user: User) -> Post:
             raise SlugDuplicationError(field="title")
         raise
 
-    return post_from_dynamodb(post_item)
+    return article_from_dynamodb(article_item)
 
 
 def get_text_diff_percentage(t1, t2) -> int:
@@ -1657,18 +1657,18 @@ def get_text_diff_percentage(t1, t2) -> int:
     return int(change_percentage)
 
 
-def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User, req) -> None:
-    verify_authorization(cur_user, Permission.UPDATE_POST, post)
+def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_user: User, req) -> None:
+    verify_authorization(cur_user, Permission.UPDATE_ARTICLE, article)
 
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
-    changes = update_post_dto.changes()
+    changes = update_article_dto.changes()
     if not changes:
         return
 
-    old_status = post.status
-    published_already = old_status == PostStatus.PUBLISHED
+    old_status = article.status
+    published_already = old_status == ArticleStatus.PUBLISHED
     should_set_status_to_unpublished = False
     now = utc_now()
 
@@ -1682,12 +1682,12 @@ def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User, req)
 
     transacts = []
 
-    old_title = post.title
+    old_title = article.title
     title = changes.get("title", old_title)
     if title != old_title:
         if published_already and get_text_diff_percentage(old_title, title) > 10:
             should_set_status_to_unpublished = True
-        old_slug = post.slug
+        old_slug = article.slug
         slug = to_kebab_case(title)
         if old_slug != slug:
             changes["post_slug"] = slug
@@ -1699,9 +1699,9 @@ def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User, req)
             }
             add_dynamodb_put_transact(transacts, (f"POST_REDIRECT#{old_slug}", "META"), redirect_item, new_pk_only=True)
             # Create new slug lock
-            add_dynamodb_put_transact(transacts, (f"POST_SLUG#{slug}", "META"), {"post_id": post.id}, new_pk_only=True)
+            add_dynamodb_put_transact(transacts, (f"POST_SLUG#{slug}", "META"), {"post_id": article.id}, new_pk_only=True)
 
-    old_content = post.content
+    old_content = article.content
     content = changes.get("content", old_content)
     if content != old_content:
         if published_already and get_text_diff_percentage(old_content, content) > 10:
@@ -1709,7 +1709,7 @@ def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User, req)
         changes["preview"] = find_preview(content)
         changes["image_filename"] = find_static_image_filename(content)
 
-    old_tags = sorted(post.tags)
+    old_tags = sorted(article.tags)
     tags = sorted(changes.get("tags", old_tags))
     if tags != old_tags:
         if published_already:
@@ -1746,31 +1746,31 @@ def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User, req)
             from itertools import combinations
             for r in range(1, len(old_tags) + 1):
                 for combo in combinations(sorted(old_tags), r):
-                    post_tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{post.created_at}#{post.id}")
-                    add_dynamodb_delete_transact(transacts, post_tag_combo_key)
+                    article_tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{article.created_at}#{article.id}")
+                    add_dynamodb_delete_transact(transacts, article_tag_combo_key)
 
     if published_already and should_set_status_to_unpublished:
-        changes["status"] = PostStatus.UNPUBLISHED
+        changes["status"] = ArticleStatus.UNPUBLISHED
 
-    post_owner = get_user(post.owner_id)
+    article_owner = get_user(article.owner_id)
     # Invalidate CDN cache for post owner
-    post_owner_deltas = {"cdn_cache_version": 1}
+    article_owner_deltas = {"cdn_cache_version": 1}
 
-    status = changes.get("status", post.status)
+    status = changes.get("status", article.status)
     status_changed = status != old_status
     if status_changed:
         # Update post lists
         changes["post_status_pk"] = f"POST#{status}"
-        changes["post_user_status_pk"] = f"POST#{post.user_id}#{status}"
+        changes["post_user_status_pk"] = f"POST#{article.user_id}#{status}"
 
         # User post counters
-        post_owner_deltas[f"{old_status}_posts_count"] = -1
-        post_owner_deltas[f"{status}_posts_count"] = 1
+        article_owner_deltas[f"{old_status}_posts_count"] = -1
+        article_owner_deltas[f"{status}_posts_count"] = 1
 
-    add_dynamodb_user_update_transact(transacts, post_owner, deltas=post_owner_deltas)
-    add_dynamodb_post_update_transact(transacts, post, changes)
+    add_dynamodb_user_update_transact(transacts, article_owner, deltas=article_owner_deltas)
+    add_dynamodb_article_update_transact(transacts, article, changes)
 
-    if cur_user.id != post_owner.id:
+    if cur_user.id != article_owner.id:
         add_dynamodb_user_update_transact(transacts, cur_user, deltas={
             # Invalidate CDN cache for current user
             "cdn_cache_version": 1
@@ -1786,35 +1786,35 @@ def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User, req)
     for k, v in changes.items():
         if k == "post_slug":
             k = "slug"
-        if hasattr(post, k):
-            setattr(post, k, v)
+        if hasattr(article, k):
+            setattr(article, k, v)
 
     # Invalidate CDN cache globally
     _drop_cdn_cache(
-        _get_post_urls(post, req),
-        _get_user_urls(post_owner, req),
+        _get_article_urls(article, req),
+        _get_user_urls(article_owner, req),
         _get_index_url(req) if status_changed else [],
-        _get_posts_urls(req) if status_changed else [],
+        _get_articles_urls(req) if status_changed else [],
     )
 
 
-def find_post(post_id: str) -> Post | None:
-    item = get_dynamodb_item(f"POST#{post_id}", "META")
-    return post_from_dynamodb(item) if item else None
+def find_article(article_id: str) -> Article | None:
+    item = get_dynamodb_item(f"POST#{article_id}", "META")
+    return article_from_dynamodb(item) if item else None
 
 
-def get_post(post_id: str, cur_user: User = None) -> Post:
-    post = find_post(post_id)
-    if post is None:
-        raise PostNotFoundError(f"Post '{post_id}' not found")
-    if post.status != PostStatus.PUBLISHED:
+def get_article(article_id: str, cur_user: User = None) -> Article:
+    article = find_article(article_id)
+    if article is None:
+        raise ArticleNotFoundError(f"Post '{article_id}' not found")
+    if article.status != ArticleStatus.PUBLISHED:
         if not cur_user:
             raise NotAuthenticatedError()
-        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POST, post)
-    return post
+        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE, article)
+    return article
 
 
-def find_post_slug_item(slug: str) -> dict[str, Any] | None:
+def find_article_slug_item(slug: str) -> dict[str, Any] | None:
     resp = query_dynamodb_table(
         index_name="POSTS_BY_SLUG",
         key_condition_expr=Key("post_slug").eq(slug),
@@ -1825,13 +1825,13 @@ def find_post_slug_item(slug: str) -> dict[str, Any] | None:
     return None
 
 
-def find_post_by_slug(slug: str) -> Post | None:
-    item = find_post_slug_item(slug)
+def find_article_by_slug(slug: str) -> Article | None:
+    item = find_article_slug_item(slug)
     # logger.debug(f"Post by slug: {item}")
-    return post_from_dynamodb(item) if item else None
+    return article_from_dynamodb(item) if item else None
 
 
-def find_post_by_slug_follow_redirects(slug: str) -> Post | None:
+def find_article_by_slug_follow_redirects(slug: str) -> Article | None:
     visited = set()
     current_slug = slug
 
@@ -1841,7 +1841,7 @@ def find_post_by_slug_follow_redirects(slug: str) -> Post | None:
 
         visited.add(current_slug)
 
-        item = find_post_slug_item(current_slug)
+        item = find_article_slug_item(current_slug)
         if not item:
             return None
 
@@ -1850,26 +1850,26 @@ def find_post_by_slug_follow_redirects(slug: str) -> Post | None:
             current_slug = redirect_to
             continue
 
-        return post_from_dynamodb(item)
+        return article_from_dynamodb(item)
 
 
-def get_post_by_slugs(user_slug: str, post_slug: str, cur_user: User = None) -> Post:
-    post = find_post_by_slug_follow_redirects(post_slug)
-    if post is None:
-        raise PostNotFoundError(f"Post '{post_slug}' not found")
-    if post.user_slug != user_slug:
+def get_article_by_slugs(user_slug: str, article_slug: str, cur_user: User = None) -> Article:
+    article = find_article_by_slug_follow_redirects(article_slug)
+    if article is None:
+        raise ArticleNotFoundError(f"Post '{article_slug}' not found")
+    if article.user_slug != user_slug:
         raise UserNotFoundError(f"User '{user_slug}' not found")
-    if post.status != PostStatus.PUBLISHED:
+    if article.status != ArticleStatus.PUBLISHED:
         if not cur_user:
             raise NotAuthenticatedError()
-        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POST, post)
-    if post.slug != post_slug:
-        raise PostByOldSlugRequestedError(post_slug, post)
-    return post
+        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE, article)
+    if article.slug != article_slug:
+        raise ArticleByOldSlugRequestedError(article_slug, article)
+    return article
 
 
-def create_post_comment(post: Post, post_comment_dto: PostCommentDTO, cur_user: User, req) -> PostComment:
-    verify_authorization(cur_user, Permission.CREATE_POST_COMMENT)
+def create_article_comment(article: Article, article_comment_dto: ArticleCommentDTO, cur_user: User, req) -> ArticleComment:
+    verify_authorization(cur_user, Permission.CREATE_ARTICLE_COMMENT)
 
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
@@ -1879,7 +1879,7 @@ def create_post_comment(post: Post, post_comment_dto: PostCommentDTO, cur_user: 
 
     transacts = []
 
-    post_comment_item = {
+    article_comment_item = {
         "id": comment_id,
 
         "user_id": cur_user.id,
@@ -1887,26 +1887,26 @@ def create_post_comment(post: Post, post_comment_dto: PostCommentDTO, cur_user: 
         "user_avatar_filename": cur_user.avatar_filename,
         "user_username": cur_user.username,
 
-        "post_id": post.id,
-        "post_title": post.title,
-        "comment_post_slug": post.slug,
+        "post_id": article.id,
+        "post_title": article.title,
+        "comment_post_slug": article.slug,
         "post_comment_pk": f"POST_COMMENT",
 
-        "text": post_comment_dto.text,
+        "text": article_comment_dto.text,
         "created_at": now,
     }
 
-    add_dynamodb_put_transact(transacts, (f"POST#{post.id}", f"COMMENT#{comment_id}"), post_comment_item)
-    add_dynamodb_post_update_transact(transacts, post, deltas={"comments_count": 1})
+    add_dynamodb_put_transact(transacts, (f"POST#{article.id}", f"COMMENT#{comment_id}"), article_comment_item)
+    add_dynamodb_article_update_transact(transacts, article, deltas={"comments_count": 1})
     add_dynamodb_user_update_transact(transacts, cur_user, deltas={
         "post_comments_count": 1,
         # Invalidate CDN cache for current user
         "cdn_cache_version": 1,
     })
 
-    if cur_user.id != post.owner_id:
-        post_owner = get_user(post.owner_id)
-        add_dynamodb_user_update_transact(transacts, post_owner, deltas={
+    if cur_user.id != article.owner_id:
+        article_owner = get_user(article.owner_id)
+        add_dynamodb_user_update_transact(transacts, article_owner, deltas={
             # Invalidate CDN cache for post owner
             "cdn_cache_version": 1
         })
@@ -1920,24 +1920,24 @@ def create_post_comment(post: Post, post_comment_dto: PostCommentDTO, cur_user: 
 
     # Invalidate CDN cache for post page and index globally
     _drop_cdn_cache(
-        _get_post_urls(post, req),
+        _get_article_urls(article, req),
         _get_index_url(req),
     )
 
-    return post_comment_from_dynamodb(post_comment_item)
+    return article_comment_from_dynamodb(article_comment_item)
 
 
-def update_post_comment(post: Post, post_comment: PostComment, update_post_comment_dto: UpdatePostCommentDTO,
+def update_article_comment(article: Article, article_comment: ArticleComment, update_article_comment_dto: UpdateArticleCommentDTO,
                         cur_user: User, req) -> None:
-    verify_authorization(cur_user, Permission.UPDATE_POST_COMMENT, post_comment)
+    verify_authorization(cur_user, Permission.UPDATE_ARTICLE_COMMENT, article_comment)
 
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
-    if post_comment.likes_count != 0 or post_comment.dislikes_count != 0:
-        raise PostCommentNonEditableError()
+    if article_comment.likes_count != 0 or article_comment.dislikes_count != 0:
+        raise ArticleCommentNonEditableError()
 
-    changes = update_post_comment_dto.changes()
+    changes = update_article_comment_dto.changes()
     if not changes:
         return
 
@@ -1947,16 +1947,16 @@ def update_post_comment(post: Post, post_comment: PostComment, update_post_comme
 
     transacts = []
 
-    add_dynamodb_update_transact(transacts, (f"POST#{post.id}", f"COMMENT#{post_comment.id}"), changes)
+    add_dynamodb_update_transact(transacts, (f"POST#{article.id}", f"COMMENT#{article_comment.id}"), changes)
 
     add_dynamodb_user_update_transact(transacts, cur_user, deltas={
         # Invalidate CDN cache for current user
         "cdn_cache_version": 1
     })
 
-    if cur_user.id != post.owner_id:
-        post_owner = get_user(post.owner_id)
-        add_dynamodb_user_update_transact(transacts, post_owner, deltas={
+    if cur_user.id != article.owner_id:
+        article_owner = get_user(article.owner_id)
+        add_dynamodb_user_update_transact(transacts, article_owner, deltas={
             # Invalidate CDN cache for post owner
             "cdn_cache_version": 1
         })
@@ -1964,25 +1964,25 @@ def update_post_comment(post: Post, post_comment: PostComment, update_post_comme
     dynamodb_transact_write(transacts)
 
     for key, value in changes.items():
-        if hasattr(post_comment, key):
-            setattr(post_comment, key, value)
+        if hasattr(article_comment, key):
+            setattr(article_comment, key, value)
 
     # Invalidate CDN cache for post page globally
     _drop_cdn_cache(
-        _get_post_urls(post, req),
+        _get_article_urls(article, req),
     )
 
 
-def find_post_comment(post_id: str, post_comment_id: str) -> PostComment | None:
-    item = get_dynamodb_item(f"POST#{post_id}", f"COMMENT#{post_comment_id}")
-    return post_comment_from_dynamodb(item) if item else None
+def find_article_comment(article_id: str, article_comment_id: str) -> ArticleComment | None:
+    item = get_dynamodb_item(f"POST#{article_id}", f"COMMENT#{article_comment_id}")
+    return article_comment_from_dynamodb(item) if item else None
 
 
-def get_post_comment(post_id: str, post_comment_id: str) -> PostComment:
-    post_comment = find_post_comment(post_id, post_comment_id)
-    if post_comment is None:
-        raise PostCommentNotFoundError(f"Post comment '{post_comment_id}' not found")
-    return post_comment
+def get_article_comment(article_id: str, article_comment_id: str) -> ArticleComment:
+    article_comment = find_article_comment(article_id, article_comment_id)
+    if article_comment is None:
+        raise ArticleCommentNotFoundError(f"Article comment '{article_comment_id}' not found")
+    return article_comment
 
 
 def user_from_dynamodb(d_item: dict[str, Any]) -> User:
@@ -2002,14 +2002,14 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         providers=d_item.get("providers", {}),
         permissions=d_item.get("permissions", [Permission.REGULAR]),
         status=d_item.get("status", UserStatus.ACTIVE),
-        published_posts_count=d_item.get("published_posts_count", 0),
-        unpublished_posts_count=d_item.get("unpublished_posts_count", 0),
-        rejected_posts_count=d_item.get("rejected_posts_count", 0),
+        published_articles_count=d_item.get("published_posts_count", 0),
+        unpublished_articles_count=d_item.get("unpublished_posts_count", 0),
+        rejected_articles_count=d_item.get("rejected_posts_count", 0),
         rating=d_item.get("rating_sk", 0),
         followers_count=d_item.get("followers_count", 0),
         following_count=d_item.get("following_count", 0),
         comment=d_item.get("comment"),
-        post_comments_count=d_item.get("post_comments_count", 0),
+        article_comments_count=d_item.get("post_comments_count", 0),
         bmc_username=d_item.get("bmc_username"),
         redirect_to=d_item.get("redirect_to"),
         cdn_cache_version=d_item.get("cdn_cache_version", 0),
@@ -2177,15 +2177,15 @@ def add_dynamodb_user_update_transact(transacts: list, user: User, changes: dict
                                             deltas=deltas)
 
 
-def add_dynamodb_post_update_transact(transacts: list, post: Post, changes: dict[str, Any] | None = None,
+def add_dynamodb_article_update_transact(transacts: list, article: Article, changes: dict[str, Any] | None = None,
                                       deltas: dict[str, Any] | None = None) -> None:
-    return add_dynamodb_obj_update_transact(transacts, post, (f"POST#{post.id}", "META"), changes=changes,
+    return add_dynamodb_obj_update_transact(transacts, article, (f"POST#{article.id}", "META"), changes=changes,
                                             deltas=deltas)
 
 
-def add_dynamodb_post_tag_update_transact(transacts: list, post_tag: PostTag, changes: dict[str, Any] | None = None,
+def add_dynamodb_article_tag_update_transact(transacts: list, article_tag: ArticleTag, changes: dict[str, Any] | None = None,
                                           deltas: dict[str, Any] | None = None) -> None:
-    return add_dynamodb_obj_update_transact(transacts, post_tag, (f"POST_TAG#{post_tag.slug}", "META"), changes=changes,
+    return add_dynamodb_obj_update_transact(transacts, article_tag, (f"POST_TAG#{article_tag.slug}", "META"), changes=changes,
                                             deltas=deltas)
 
 
@@ -2272,14 +2272,14 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
                 # Create new slug lock
                 add_dynamodb_put_transact(transacts, (f"USER_SLUG#{slug}", "META"), {"user_id": user.id},
                                           new_pk_only=True)
-                posts = get_latest_published_posts_by_user(user)
-                for post in posts:
-                    add_dynamodb_post_update_transact(transacts, post, {"user_slug": slug})
+                articles = get_latest_published_articles_by_user(user)
+                for article in articles:
+                    add_dynamodb_article_update_transact(transacts, article, {"user_slug": slug})
         else:
             add_dynamodb_delete_transact(transacts, (f"USER_SLUG#{old_slug}", "META"))
-            posts = get_latest_published_posts_by_user(user)
-            for post in posts:
-                add_dynamodb_post_update_transact(transacts, post, {"user_slug": None})
+            articles = get_latest_published_articles_by_user(user)
+            for article in articles:
+                add_dynamodb_article_update_transact(transacts, article, {"user_slug": None})
 
     add_dynamodb_user_update_transact(transacts, user, changes, {
         # Invalidate CDN cache for user
@@ -2306,7 +2306,7 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
     _drop_cdn_cache(
         _get_user_urls(user, req),
         # todo: add checks (if only photo,name or headline has changed)
-        _get_user_post_urls(user, req),
+        _get_user_article_urls(user, req),
         # todo: index page (if popular user)
         # todo: users page (if on top)
     )
@@ -2448,16 +2448,16 @@ def decode_offset(token: str) -> dict | None:
     )
 
 
-def get_posts(query_dto: PostQueryDTO = None, cur_user: User = None) -> list[Post]:
+def get_articles(query_dto: ArticleQueryDTO = None, cur_user: User = None) -> list[Article]:
     if query_dto is None:
-        query_dto = PostQueryDTO()
-    if query_dto.type == PostQueryType.POPULAR:
+        query_dto = ArticleQueryDTO()
+    if query_dto.type == ArticleQueryType.POPULAR:
         if query_dto.tags:
-            return get_popular_posts_by_tags(query_dto, cur_user)
-        return get_popular_posts(query_dto, cur_user)
+            return get_popular_articles_by_tags(query_dto, cur_user)
+        return get_popular_articles(query_dto, cur_user)
     if query_dto.tags:
-        return get_latest_posts_by_tags(query_dto, cur_user)
-    return get_latest_posts(query_dto, cur_user)
+        return get_latest_articles_by_tags(query_dto, cur_user)
+    return get_latest_articles(query_dto, cur_user)
 
 
 def query_dynamodb_table(
@@ -2520,67 +2520,67 @@ def query_dynamodb_items(
     return results
 
 
-def get_latest_posts(query_dto: PostQueryDTO = None, cur_user: User = None) -> list[Post]:
+def get_latest_articles(query_dto: ArticleQueryDTO = None, cur_user: User = None) -> list[Article]:
     if query_dto is None:
-        query_dto = PostQueryDTO()
+        query_dto = ArticleQueryDTO()
 
-    if query_dto.status != PostStatus.PUBLISHED:
+    if query_dto.status != ArticleStatus.PUBLISHED:
         if not cur_user:
             raise NotAuthenticatedError()
-        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POST)
+        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE)
 
     return query_dynamodb_items(
         query_dto=query_dto,
         index_name="POSTS_BY_STATUS_CREATED_AT_2",
         key_condition_expr=Key("post_status_pk").eq(f"POST#{query_dto.status}"),
-        map_fn=post_from_dynamodb,
+        map_fn=article_from_dynamodb,
     )
 
 
-def get_latest_published_posts(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[Post]:
-    query_dto = PostQueryDTO(limit=limit)
-    return get_latest_posts(query_dto)
+def get_latest_published_articles(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[Article]:
+    query_dto = ArticleQueryDTO(limit=limit)
+    return get_latest_articles(query_dto)
 
 
-def get_popular_posts(query_dto: PostQueryDTO = None, cur_user: User = None) -> list[Post]:
+def get_popular_articles(query_dto: ArticleQueryDTO = None, cur_user: User = None) -> list[Article]:
     if query_dto is None:
-        query_dto = PostQueryDTO()
+        query_dto = ArticleQueryDTO()
 
-    if query_dto.status != PostStatus.PUBLISHED:
+    if query_dto.status != ArticleStatus.PUBLISHED:
         if not cur_user:
             raise NotAuthenticatedError()
-        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POST)
+        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE)
 
     return query_dynamodb_items(
         query_dto=query_dto,
         index_name="POSTS_BY_STATUS_RATING",
         key_condition_expr=Key("post_status_pk").eq(f"POST#{query_dto.status}"),
-        map_fn=post_from_dynamodb,
+        map_fn=article_from_dynamodb,
     )
 
 
-def should_show_popular_posts(latest_posts: list[Post], popular_posts: list[Post]) -> bool:
+def should_show_popular_articles(latest_articles: list[Article], popular_articles: list[Article]) -> bool:
     """
     Show popular posts only if popular_posts differ from latest_posts.
     Comparison is based on post IDs.
     """
-    latest_ids = [post.id for post in latest_posts]
-    popular_ids = [post.id for post in popular_posts]
+    latest_ids = [article.id for article in latest_articles]
+    popular_ids = [article.id for article in popular_articles]
 
     # Show popular posts only if the lists are not exactly equal
     return latest_ids != popular_ids
 
 
-def get_popular_published_posts(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[Post]:
-    query_dto = PostQueryDTO(limit=limit)
-    return get_popular_posts(query_dto)
+def get_popular_published_articles(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[Article]:
+    query_dto = ArticleQueryDTO(limit=limit)
+    return get_popular_articles(query_dto)
 
 
-def get_latest_posts_by_tags(query_dto: PostQueryDTO = None, cur_user: User = None) -> list[Post]:
+def get_latest_articles_by_tags(query_dto: ArticleQueryDTO = None, cur_user: User = None) -> list[Article]:
     if query_dto is None:
-        query_dto = PostQueryDTO()
+        query_dto = ArticleQueryDTO()
     if not query_dto.tags:
-        return get_latest_posts(query_dto, cur_user)
+        return get_latest_articles(query_dto, cur_user)
 
     table = get_dynamodb_table()
     query_args = {
@@ -2597,86 +2597,86 @@ def get_latest_posts_by_tags(query_dto: PostQueryDTO = None, cur_user: User = No
         return []
 
     # Batch get post metadata
-    post_ids = set([item["post_id"] for item in combo_items])
-    keys = [{"pk": f"POST#{post_id}", "sk": "META"} for post_id in post_ids]
+    article_ids = set([item["post_id"] for item in combo_items])
+    keys = [{"pk": f"POST#{article_id}", "sk": "META"} for article_id in article_ids]
     resp = table.meta.client.batch_get_item(RequestItems={table.name: {"Keys": keys}})
-    post_items = resp["Responses"].get(table.name, [])
+    article_items = resp["Responses"].get(table.name, [])
 
     # Maintain original order
-    post_items_map = {item["id"]: item for item in post_items}
-    ordered_posts = [post_items_map[pid] for pid in post_ids if pid in post_items_map]
+    article_items_map = {item["id"]: item for item in article_items}
+    ordered_articles = [article_items_map[pid] for pid in article_ids if pid in article_items_map]
 
-    posts = [post_from_dynamodb(item) for item in ordered_posts]
-    if len(posts) == query_dto.limit:
-        posts[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
-    return posts
-
-
-def get_post_related_posts(post: Post) -> list[Post]:
-    query_dto = PostQueryDTO()
-    query_dto.tags = post.tags
-    posts = get_popular_posts_by_tags(query_dto)
-    return [p for p in posts if p.id != post.id]
+    articles = [article_from_dynamodb(item) for item in ordered_articles]
+    if len(articles) == query_dto.limit:
+        articles[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
+    return articles
 
 
-def get_post_comments(post: Post, query_dto: PostCommentQueryDTO | None = None) -> list[PostComment]:
-    if post.comments_count == 0:
+def get_article_related_articles(article: Article) -> list[Article]:
+    query_dto = ArticleQueryDTO()
+    query_dto.tags = article.tags
+    articles = get_popular_articles_by_tags(query_dto)
+    return [p for p in articles if p.id != article.id]
+
+
+def get_article_comments(article: Article, query_dto: ArticleCommentQueryDTO | None = None) -> list[ArticleComment]:
+    if article.comments_count == 0:
         return []
     if query_dto is None:
-        query_dto = PostCommentQueryDTO()
+        query_dto = ArticleCommentQueryDTO()
 
     return query_dynamodb_items(
         query_dto=query_dto,
-        key_condition_expr=Key("pk").eq(f"POST#{post.id}") & Key('sk').begins_with(f"COMMENT#"),
-        map_fn=post_comment_from_dynamodb,
+        key_condition_expr=Key("pk").eq(f"POST#{article.id}") & Key('sk').begins_with(f"COMMENT#"),
+        map_fn=article_comment_from_dynamodb,
     )
 
 
-def get_latest_post_comments(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[PostComment]:
-    query_dto = PostCommentQueryDTO(limit=limit)
+def get_latest_article_comments(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[ArticleComment]:
+    query_dto = ArticleCommentQueryDTO(limit=limit)
 
     return query_dynamodb_items(
         query_dto=query_dto,
         index_name="POST_COMMENTS_BY_CREATED_AT",
         key_condition_expr=Key("post_comment_pk").eq(f"POST_COMMENT"),
-        map_fn=post_comment_from_dynamodb,
+        map_fn=article_comment_from_dynamodb,
     )
 
 
-def get_popular_posts_by_tags(query_dto: PostQueryDTO = None, cur_user: User = None) -> list[Post]:
+def get_popular_articles_by_tags(query_dto: ArticleQueryDTO = None, cur_user: User = None) -> list[Article]:
     if query_dto is None:
-        query_dto = PostQueryDTO()
+        query_dto = ArticleQueryDTO()
 
     # Increase limit to fetch more posts before filtering
     query_dto_copy = copy.copy(query_dto)
     query_dto_copy.limit = max(query_dto.limit * 5, 100)
 
-    posts = get_popular_posts(query_dto_copy, cur_user)
+    articles = get_popular_articles(query_dto_copy, cur_user)
 
     if not query_dto.tags:
-        return posts
+        return articles
 
-    offset = posts[-1].offset if posts else None
+    offset = articles[-1].offset if articles else None
 
     # Filter by tags
-    filtered_posts = [post for post in posts if set(query_dto.tags).issubset(set(post.tags))]
-    if filtered_posts:
-        filtered_posts[-1].offset = offset
+    filtered_articles = [article for article in articles if set(query_dto.tags).issubset(set(article.tags))]
+    if filtered_articles:
+        filtered_articles[-1].offset = offset
 
-    return filtered_posts
+    return filtered_articles
 
 
-def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, cur_user: User, req) -> None:
+def update_article_status(article: Article, update_article_status_dto: UpdateArticleStatusDTO, cur_user: User, req) -> None:
     # logger.debug(f"update_post_status: post: {post}, cur_user: {cur_user}")
-    verify_authorization(cur_user, Permission.UPDATE_POST_STATUS)
+    verify_authorization(cur_user, Permission.UPDATE_ARTICLE_STATUS)
 
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
-    if post.status == PostStatus.PUBLISHED:
-        raise PostAlreadyPublishedError()
+    if article.status == ArticleStatus.PUBLISHED:
+        raise ArticleAlreadyPublishedError()
 
-    changes = update_post_status_dto.changes()
+    changes = update_article_status_dto.changes()
     if not changes:
         return
     for k, v in changes.items():
@@ -2684,14 +2684,14 @@ def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, 
     if not "comment" in changes:
         changes["comment"] = None
 
-    old_status = post.status
+    old_status = article.status
     status = changes["status"]
     now = utc_now()
 
     transacts = []
 
-    post_owner = get_user(post.owner_id)
-    add_dynamodb_user_update_transact(transacts, post_owner, deltas={
+    article_owner = get_user(article.owner_id)
+    add_dynamodb_user_update_transact(transacts, article_owner, deltas={
         # User post counters
         f"{old_status}_posts_count": -1,
         f"{status}_posts_count": 1,
@@ -2699,13 +2699,13 @@ def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, 
         f"cdn_cache_version": 1,
     })
 
-    if status == PostStatus.PUBLISHED:
-        if not post.published_at:
+    if status == ArticleStatus.PUBLISHED:
+        if not article.published_at:
             changes["published_at"] = now
-        if post_owner:
-            changes["user_slug"] = post_owner.username
+        if article_owner:
+            changes["user_slug"] = article_owner.username
         # Upsert tags
-        for tag in post.tags:
+        for tag in article.tags:
             transacts.append({
                 "Update": {
                     "TableName": get_dynamodb_table_name(),
@@ -2746,17 +2746,17 @@ def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, 
 
         # Create post tag combos
         from itertools import combinations
-        for r in range(1, len(post.tags) + 1):
-            for combo in combinations(sorted(post.tags), r):
-                post_tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{post.created_at}#{post.id}")
-                add_dynamodb_put_transact(transacts, post_tag_combo_key, {"post_id": post.id})
+        for r in range(1, len(article.tags) + 1):
+            for combo in combinations(sorted(article.tags), r):
+                article_tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{article.created_at}#{article.id}")
+                add_dynamodb_put_transact(transacts, article_tag_combo_key, {"post_id": article.id})
 
     changes["post_status_pk"] = f"POST#{status}"
-    changes["post_user_status_pk"] = f"POST#{post.user_id}#{status}"
+    changes["post_user_status_pk"] = f"POST#{article.user_id}#{status}"
 
-    add_dynamodb_post_update_transact(transacts, post, changes)
+    add_dynamodb_article_update_transact(transacts, article, changes)
 
-    if cur_user.id != post_owner.id:
+    if cur_user.id != article_owner.id:
         add_dynamodb_user_update_transact(transacts, cur_user, deltas={
             # Invalidate CDN cache for current user
             "cdn_cache_version": 1
@@ -2768,10 +2768,10 @@ def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, 
 
     # Invalidate CDN cache globally
     _drop_cdn_cache(
-        _get_post_urls(post, req),
-        _get_user_urls(post_owner, req),
+        _get_article_urls(article, req),
+        _get_user_urls(article_owner, req),
         _get_index_url(req),
-        _get_posts_urls(req),
+        _get_articles_urls(req),
     )
 
 
@@ -2786,11 +2786,11 @@ def _get_index_url(req) -> str:
     return get_url(req, "index")
 
 
-def _get_post_urls(post: Post, req) -> set[str]:
+def _get_article_urls(article: Article, req) -> set[str]:
     return {
-        get_post_url(req, post),
-        get_static_post_url(req, post),
-        get_url(req, "edit-post", post_id=post.id),
+        get_article_url(req, article),
+        get_static_article_url(req, article),
+        get_url(req, "edit-article", article_id=article.id),
     }
 
 
@@ -2801,58 +2801,58 @@ def _get_users_urls(req) -> set[str]:
     return urls
 
 
-def _get_posts_urls(req) -> set[str]:
+def _get_articles_urls(req) -> set[str]:
     urls = set()
-    for _type in PostQueryType:
-        urls.add(get_posts_url(req, type=_type))
-        for tag in get_post_tags(PostTagQueryDTO(limit=1000)):
-            urls.add(get_posts_url(req, type=_type, tags=[tag.slug]))
+    for _type in ArticleQueryType:
+        urls.add(get_articles_url(req, type=_type))
+        for tag in get_article_tags(ArticleTagQueryDTO(limit=1000)):
+            urls.add(get_articles_url(req, type=_type, tags=[tag.slug]))
     return urls
 
 
-def _get_post_tag_urls(post_tag: PostTag, req) -> set[str]:
+def _get_article_tag_urls(article_tag: ArticleTag, req) -> set[str]:
     return {
-        get_post_tag_url(req, post_tag),
-        get_url(req, "edit-post-tag", slug=post_tag.slug),
+        get_article_tag_url(req, article_tag),
+        get_url(req, "edit-article-tag", slug=article_tag.slug),
     }
 
 
-def _get_user_post_urls(user: User, req) -> set[str]:
+def _get_user_article_urls(user: User, req) -> set[str]:
     urls = set()
-    for post in get_latest_posts_by_user(user, PostQueryDTO(limit=1000)):
-        urls.add(get_post_url(req, post))
-        urls.add(get_static_post_url(req, post))
+    for article in get_latest_articles_by_user(user, ArticleQueryDTO(limit=1000)):
+        urls.add(get_article_url(req, article))
+        urls.add(get_static_article_url(req, article))
     return urls
 
 
-def post_tag_from_dynamodb(d_item: dict[str, Any]) -> PostTag:
+def article_tag_from_dynamodb(d_item: dict[str, Any]) -> ArticleTag:
     # logger.debug(d_item)
     slug = d_item["tag_name_sk"]
-    return PostTag(
+    return ArticleTag(
         name=d_item.get("name") or slug,
         slug=slug,
         rating=d_item["rating_sk"],
-        posts_count=d_item.get("posts_count", 0),
+        articles_count=d_item.get("posts_count", 0),
         image_filename=d_item.get("image_filename"),
         offset=None,
     )
 
 
-def get_popular_post_tags(query_dto: PostTagQueryDTO = None) -> list[PostTag]:
+def get_popular_article_tags(query_dto: ArticleTagQueryDTO = None) -> list[ArticleTag]:
     if query_dto is None:
-        query_dto = PostTagQueryDTO()
+        query_dto = ArticleTagQueryDTO()
 
     return query_dynamodb_items(
         query_dto=query_dto,
         index_name="TAGS_BY_TYPE_RATING",
         key_condition_expr=Key("tag_type_pk").eq("POST_TAG"),
-        map_fn=post_tag_from_dynamodb,
+        map_fn=article_tag_from_dynamodb,
     )
 
 
-def get_post_tags_by_prefix(query_dto: PostTagQueryDTO = None) -> list[PostTag]:
+def get_article_tags_by_prefix(query_dto: ArticleTagQueryDTO = None) -> list[ArticleTag]:
     if query_dto is None:
-        query_dto = PostTagQueryDTO()
+        query_dto = ArticleTagQueryDTO()
     resp = query_dynamodb_table(
         index_name="TAGS_BY_TYPE_NAME",
         key_condition_expr=Key("tag_type_pk").eq("POST_TAG") & Key("tag_name_sk").begins_with(query_dto.prefix),
@@ -2860,23 +2860,23 @@ def get_post_tags_by_prefix(query_dto: PostTagQueryDTO = None) -> list[PostTag]:
     )
     items = resp.get("Items", [])
     # logger.debug(f"Tags: {items}")
-    return [post_tag_from_dynamodb(item) for item in items]
+    return [article_tag_from_dynamodb(item) for item in items]
 
 
-def get_post_tags(query_dto: PostTagQueryDTO = None) -> list[PostTag]:
+def get_article_tags(query_dto: ArticleTagQueryDTO = None) -> list[ArticleTag]:
     if query_dto.prefix:
-        return get_post_tags_by_prefix(query_dto)
-    return get_popular_post_tags(query_dto)
+        return get_article_tags_by_prefix(query_dto)
+    return get_popular_article_tags(query_dto)
 
 
-def find_post_tag_slug_item(slug: str) -> dict[str, Any] | None:
+def find_article_tag_slug_item(slug: str) -> dict[str, Any] | None:
     item = get_dynamodb_item(f"POST_TAG#{slug}", "META")
     if item:
         return item
     return get_dynamodb_item(f"POST_TAG_REDIRECT#{slug}", "META")
 
 
-def find_post_tag_by_slug_follow_redirects(slug: str) -> PostTag | None:
+def find_article_tag_by_slug_follow_redirects(slug: str) -> ArticleTag | None:
     visited = set()
     current_slug = slug
 
@@ -2886,7 +2886,7 @@ def find_post_tag_by_slug_follow_redirects(slug: str) -> PostTag | None:
 
         visited.add(current_slug)
 
-        item = find_post_tag_slug_item(current_slug)
+        item = find_article_tag_slug_item(current_slug)
         if not item:
             return None
 
@@ -2895,21 +2895,21 @@ def find_post_tag_by_slug_follow_redirects(slug: str) -> PostTag | None:
             current_slug = redirect_to
             continue
 
-        return post_tag_from_dynamodb(item)
+        return article_tag_from_dynamodb(item)
 
 
-def find_post_tag(slug: str) -> PostTag | None:
-    return find_post_tag_by_slug_follow_redirects(slug)
+def find_article_tag(slug: str) -> ArticleTag | None:
+    return find_article_tag_by_slug_follow_redirects(slug)
 
 
-def get_post_tag(slug: str, cur_user: User) -> PostTag:
-    post_tag = find_post_tag_by_slug_follow_redirects(slug)
-    if post_tag is None:
-        raise PostTagNotFoundError(f"Post tag '{slug}' not found")
-    verify_authorization(cur_user, Permission.READ_POST_TAG, post_tag)
-    if post_tag.slug != slug:
-        raise PostTagByOldSlugRequestedError(slug, post_tag)
-    return post_tag
+def get_article_tag(slug: str, cur_user: User) -> ArticleTag:
+    article_tag = find_article_tag_by_slug_follow_redirects(slug)
+    if article_tag is None:
+        raise ArticleTagNotFoundError(f"Article tag '{slug}' not found")
+    verify_authorization(cur_user, Permission.READ_ARTICLE_TAG, article_tag)
+    if article_tag.slug != slug:
+        raise ArticleTagByOldSlugRequestedError(slug, article_tag)
+    return article_tag
 
 
 def create_contact_message(message_dto: ContactMessageDTO, user: User = None) -> ContactMessage:
@@ -3103,7 +3103,7 @@ def get_latest_users(query_dto: UserQueryDTO = None, cur_user: User = None) -> l
 
 def get_users(query_dto: UserQueryDTO = None, cur_user: User = None) -> list[User]:
     if query_dto is None:
-        query_dto = PostQueryDTO()
+        query_dto = ArticleQueryDTO()
     if query_dto.type == UserQueryType.POPULAR:
         return get_popular_users(query_dto, cur_user)
     return get_latest_users(query_dto, cur_user)
@@ -3140,27 +3140,27 @@ def jinja2_iso_utc(timestamp_ms: int) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def get_latest_published_posts_by_user(user: User) -> list[Post]:
-    return get_latest_posts_by_user(user)
+def get_latest_published_articles_by_user(user: User) -> list[Article]:
+    return get_latest_articles_by_user(user)
 
 
-def get_latest_posts_by_user(user: User, query_dto: PostQueryDTO = None, cur_user: User = None) -> list[Post]:
+def get_latest_articles_by_user(user: User, query_dto: ArticleQueryDTO = None, cur_user: User = None) -> list[Article]:
     if query_dto is None:
-        query_dto = PostQueryDTO()
+        query_dto = ArticleQueryDTO()
 
-    if query_dto.status != PostStatus.PUBLISHED:
+    if query_dto.status != ArticleStatus.PUBLISHED:
         if not cur_user:
             raise NotAuthenticatedError()
-        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_POST, user)
+        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE, user)
 
-    if getattr(user, f"{query_dto.status}_posts_count") == 0:
+    if getattr(user, f"{query_dto.status}_articles_count") == 0:
         return []
 
     return query_dynamodb_items(
         query_dto=query_dto,
         index_name="POSTS_BY_USER_STATUS_CREATED_AT_2",
         key_condition_expr=Key("post_user_status_pk").eq(f"POST#{user.id}#{query_dto.status}"),
-        map_fn=post_from_dynamodb,
+        map_fn=article_from_dynamodb,
     )
 
 
@@ -3186,11 +3186,11 @@ def get_popular_active_users(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[Us
     return get_popular_users(query_dto)
 
 
-def post_impression_from_dynamodb(d_item: dict[str, Any]) -> PostImpression:
+def article_impression_from_dynamodb(d_item: dict[str, Any]) -> ArticleImpression:
     user_id = d_item["user_id"]
-    return PostImpression(
+    return ArticleImpression(
         owner_id=user_id,
-        post_id=d_item["post_id"],
+        article_id=d_item["post_id"],
         user_id=user_id,
         action=d_item["action"],
         created_at=d_item["created_at"],
@@ -3198,75 +3198,75 @@ def post_impression_from_dynamodb(d_item: dict[str, Any]) -> PostImpression:
     )
 
 
-def find_post_impression(post: Post, user: User) -> PostImpression | None:
-    item = get_dynamodb_item(f"POST#{post.id}", f"IMP#{user.id}")
-    return post_impression_from_dynamodb(item) if item else None
+def find_article_impression(article: Article, user: User) -> ArticleImpression | None:
+    item = get_dynamodb_item(f"POST#{article.id}", f"IMP#{user.id}")
+    return article_impression_from_dynamodb(item) if item else None
 
 
-def update_post_impression(post: Post, update_post_impression_dto: UpdatePostImpressionDTO, cur_user: User,
+def update_article_impression(article: Article, update_article_impression_dto: UpdateArticleImpressionDTO, cur_user: User,
                            req) -> None:
-    verify_authorization(cur_user, Permission.UPDATE_POST_IMPRESSION, post)
+    verify_authorization(cur_user, Permission.UPDATE_ARTICLE_IMPRESSION, article)
 
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
-    current_impression = find_post_impression(post, cur_user)
+    current_impression = find_article_impression(article, cur_user)
     current_action = current_impression.action if current_impression else None
-    action = update_post_impression_dto.action
-    post_impression_item = {
-        "post_id": post.id,
+    action = update_article_impression_dto.action
+    article_impression_item = {
+        "post_id": article.id,
         "user_id": cur_user.id,
         "action": action,
     }
     transacts = []
 
-    post_deltas = {}
-    post_imp_key = (f"POST#{post.id}", f"IMP#{cur_user.id}")
+    article_deltas = {}
+    article_imp_key = (f"POST#{article.id}", f"IMP#{cur_user.id}")
 
-    if action == PostImpressionAction.LIKE:
-        if current_action == PostImpressionAction.LIKE:
-            add_dynamodb_delete_transact(transacts, post_imp_key)
-            post_deltas["likes_count"] = -1
-            post_deltas["rating_sk"] = compute_rating_sk(-1)
-        elif current_action == PostImpressionAction.DISLIKE:
-            add_dynamodb_update_transact(transacts, post_imp_key, {"action": PostImpressionAction.LIKE})
-            post_deltas["dislikes_count"] = -1
-            post_deltas["likes_count"] = 1
-            post_deltas["rating_sk"] = compute_rating_sk(2)
+    if action == ArticleImpressionAction.LIKE:
+        if current_action == ArticleImpressionAction.LIKE:
+            add_dynamodb_delete_transact(transacts, article_imp_key)
+            article_deltas["likes_count"] = -1
+            article_deltas["rating_sk"] = compute_rating_sk(-1)
+        elif current_action == ArticleImpressionAction.DISLIKE:
+            add_dynamodb_update_transact(transacts, article_imp_key, {"action": ArticleImpressionAction.LIKE})
+            article_deltas["dislikes_count"] = -1
+            article_deltas["likes_count"] = 1
+            article_deltas["rating_sk"] = compute_rating_sk(2)
         else:
-            add_dynamodb_put_transact(transacts, post_imp_key,
-                                      {**post_impression_item, "action": PostImpressionAction.LIKE},
+            add_dynamodb_put_transact(transacts, article_imp_key,
+                                      {**article_impression_item, "action": ArticleImpressionAction.LIKE},
                                       new_pk_only=True)
-            post_deltas["likes_count"] = 1
-            post_deltas["rating_sk"] = compute_rating_sk(1)
+            article_deltas["likes_count"] = 1
+            article_deltas["rating_sk"] = compute_rating_sk(1)
 
-    elif action == PostImpressionAction.DISLIKE:
-        if current_action == PostImpressionAction.DISLIKE:
-            add_dynamodb_delete_transact(transacts, post_imp_key)
-            post_deltas["dislikes_count"] = -1
-            post_deltas["rating_sk"] = compute_rating_sk(1)
-        elif current_action == PostImpressionAction.LIKE:
-            add_dynamodb_update_transact(transacts, post_imp_key, {"action": PostImpressionAction.DISLIKE})
-            post_deltas["likes_count"] = -1
-            post_deltas["dislikes_count"] = 1
-            post_deltas["rating_sk"] = compute_rating_sk(-2)
+    elif action == ArticleImpressionAction.DISLIKE:
+        if current_action == ArticleImpressionAction.DISLIKE:
+            add_dynamodb_delete_transact(transacts, article_imp_key)
+            article_deltas["dislikes_count"] = -1
+            article_deltas["rating_sk"] = compute_rating_sk(1)
+        elif current_action == ArticleImpressionAction.LIKE:
+            add_dynamodb_update_transact(transacts, article_imp_key, {"action": ArticleImpressionAction.DISLIKE})
+            article_deltas["likes_count"] = -1
+            article_deltas["dislikes_count"] = 1
+            article_deltas["rating_sk"] = compute_rating_sk(-2)
         else:
-            add_dynamodb_put_transact(transacts, post_imp_key,
-                                      {**post_impression_item, "action": PostImpressionAction.DISLIKE},
+            add_dynamodb_put_transact(transacts, article_imp_key,
+                                      {**article_impression_item, "action": ArticleImpressionAction.DISLIKE},
                                       new_pk_only=True)
-            post_deltas["dislikes_count"] = 1
-            post_deltas["rating_sk"] = compute_rating_sk(-1)
+            article_deltas["dislikes_count"] = 1
+            article_deltas["rating_sk"] = compute_rating_sk(-1)
 
-    add_dynamodb_post_update_transact(transacts, post, deltas=post_deltas)
+    add_dynamodb_article_update_transact(transacts, article, deltas=article_deltas)
 
     add_dynamodb_user_update_transact(transacts, cur_user, deltas={
         # Invalidate CDN cache for current user
         "cdn_cache_version": 1
     })
 
-    if cur_user.id != post.owner_id:
-        post_owner = get_user(post.owner_id)
-        add_dynamodb_user_update_transact(transacts, post_owner, deltas={
+    if cur_user.id != article.owner_id:
+        article_owner = get_user(article.owner_id)
+        add_dynamodb_user_update_transact(transacts, article_owner, deltas={
             # Invalidate CDN cache for post owner
             "cdn_cache_version": 1
         })
@@ -3276,7 +3276,7 @@ def update_post_impression(post: Post, update_post_impression_dto: UpdatePostImp
 
     # Invalidate CDN cache for post page globally
     _drop_cdn_cache(
-        _get_post_urls(post, req),
+        _get_article_urls(article, req),
     )
 
 
@@ -3406,24 +3406,24 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
     ])
 
     # Post lists
-    def posts_url(tp: PostQueryType, tg: PostTag | None = None) -> str:
-        return get_posts_url(req, type=tp, tags=[tg.name] if tg else [], full=True)
+    def articles_url(tp: ArticleQueryType, tg: ArticleTag | None = None) -> str:
+        return get_articles_url(req, type=tp, tags=[tg.name] if tg else [], full=True)
 
-    for type_ in PostQueryType:
-        urls.append((posts_url(type_), today))
-        for tag in get_post_tags(PostTagQueryDTO(limit=1000)):
-            if tag.posts_count > 0:
-                urls.append((posts_url(type_, tag), today))
+    for type_ in ArticleQueryType:
+        urls.append((articles_url(type_), today))
+        for tag in get_article_tags(ArticleTagQueryDTO(limit=1000)):
+            if tag.articles_count > 0:
+                urls.append((articles_url(type_, tag), today))
 
     # Posts
-    def post_url(post: Post) -> str:
-        return get_post_url(req, post, full=True)
+    def article_url(article: Article) -> str:
+        return get_article_url(req, article, full=True)
 
     offset = None
-    while posts := get_latest_posts(
-            PostQueryDTO(status=PostStatus.PUBLISHED, limit=1000, offset=offset)):
-        urls.extend([(post_url(post), lastmod(post.updated_at, post.created_at)) for post in posts])
-        offset = posts[-1].offset
+    while articles := get_latest_articles(
+            ArticleQueryDTO(status=ArticleStatus.PUBLISHED, limit=1000, offset=offset)):
+        urls.extend([(article_url(article), lastmod(article.updated_at, article.created_at)) for article in articles])
+        offset = articles[-1].offset
         if not offset:
             break
 
@@ -3489,7 +3489,7 @@ def extract_image_filename_dimensions(filename: str) -> tuple[int | None, int | 
 def create_dummy_fixtures(req) -> None:
     if is_prod():
         return
-    created_posts = []
+    created_articles = []
     created_users = []
     user_token = get_dummy_user_token()
     root_user = upsert_user_by_user_token(user_token)
@@ -3510,51 +3510,51 @@ def create_dummy_fixtures(req) -> None:
         address="1600 Pennsylvania Ave NW, Washington, DC 20500"
     )
     update_user(root_user, update_user_dto, root_user, req)
-    posts = [
-        PostDTO(
-            title="Post title #111111111111111111111111",
-            content="Post content #111111111111111111111111" * 150,
+    articles = [
+        ArticleDTO(
+            title="Article title #111111111111111111111111",
+            content="Article content #111111111111111111111111" * 150,
             tags=["tag1", "tag2", "tag3"]
         ),
-        PostDTO(
-            title="Post title #22222222222222222222222",
-            content="Post content #222222222222222222222222" * 150,
+        ArticleDTO(
+            title="Article title #22222222222222222222222",
+            content="Article content #222222222222222222222222" * 150,
             tags=["tag2", "tag3"]
         ),
-        PostDTO(
-            title="Post title #3333333333333333333333333",
-            content="Post content #33333333333333333333333" * 150,
+        ArticleDTO(
+            title="Article title #3333333333333333333333333",
+            content="Article content #33333333333333333333333" * 150,
             tags=["tag1", "tag3"]
         ),
     ]
-    for post in posts:
-        created_post = create_post(post, root_user)
-        update_post_status(created_post, UpdatePostStatusDTO(status=PostStatus.PUBLISHED), root_user, req)
-        created_posts.append(created_post)
+    for article in articles:
+        created_article = create_article(article, root_user)
+        update_article_status(created_article, UpdateArticleStatusDTO(status=ArticleStatus.PUBLISHED), root_user, req)
+        created_articles.append(created_article)
     user_token2 = get_dummy_user_token(sub="p2", email="test2@example.com", name="Some test user")
     user2 = upsert_user_by_user_token(user_token2)
     created_users.append(user2)
-    posts = [
-        PostDTO(
-            title="Post title #111111111111111111111111 for user 2",
-            content="Post content #111111111111111111111111" * 150,
+    articles = [
+        ArticleDTO(
+            title="Article title #111111111111111111111111 for user 2",
+            content="Article content #111111111111111111111111" * 150,
             tags=["tag3"]
         ),
-        PostDTO(
-            title="Post title #22222222222222222222222 for user 2",
-            content="Post content #222222222222222222222222" * 150,
+        ArticleDTO(
+            title="Article title #22222222222222222222222 for user 2",
+            content="Article content #222222222222222222222222" * 150,
             tags=["tag2"]
         ),
-        PostDTO(
-            title="Post title #3333333333333333333333333 for user 2",
-            content="Post content #33333333333333333333333" * 150,
+        ArticleDTO(
+            title="Article title #3333333333333333333333333 for user 2",
+            content="Article content #33333333333333333333333" * 150,
             tags=["tag4"]
         ),
     ]
-    for post in posts:
-        created_post = create_post(post, user2)
-        update_post_status(created_post, UpdatePostStatusDTO(status=PostStatus.PUBLISHED), root_user, req)
-        created_posts.append(created_post)
+    for article in articles:
+        created_article = create_article(article, user2)
+        update_article_status(created_article, UpdateArticleStatusDTO(status=ArticleStatus.PUBLISHED), root_user, req)
+        created_articles.append(created_article)
     user_token3 = get_dummy_user_token(sub="p3", email="test3@example.com")
     user3 = upsert_user_by_user_token(user_token3)
     created_users.append(user3)
@@ -3568,61 +3568,61 @@ def create_dummy_fixtures(req) -> None:
         "The section about operational limits is especially useful.",
         "Nice article. The diagrams and constraints make the approach easier to follow.",
     ]
-    for post_index, post in enumerate(created_posts):
-        commenters = [user for user in created_users if user.id != post.owner_id]
+    for article_index, article in enumerate(created_articles):
+        commenters = [user for user in created_users if user.id != article.owner_id]
         for comment_index, user in enumerate(commenters[:2]):
-            text = comment_texts[(post_index + comment_index) % len(comment_texts)]
-            create_post_comment(post, PostCommentDTO(text=text), user, req)
+            text = comment_texts[(article_index + comment_index) % len(comment_texts)]
+            create_article_comment(article, ArticleCommentDTO(text=text), user, req)
 
     import random
     for user in created_users:
-        for post in created_posts:
-            update_post_impression(post, UpdatePostImpressionDTO(
-                action=PostImpressionAction.LIKE if random.random() < .5 else PostImpressionAction.DISLIKE), user,
+        for article in created_articles:
+            update_article_impression(article, UpdateArticleImpressionDTO(
+                action=ArticleImpressionAction.LIKE if random.random() < .5 else ArticleImpressionAction.DISLIKE), user,
                                    req)
         for user2 in created_users:
             if user.id != user2.id:
                 update_user_impression(user, UpdateUserImpressionDTO(
                     action=UserImpressionAction.FOLLOW if random.random() < .5 else UserImpressionAction.BLOCK), user2,
                                        req)
-    unpublished_posts = [
-        PostDTO(
-            title="Unpublished Post title #111111111111111111111111",
-            content="Post content #111111111111111111111111" * 150,
+    unpublished_articles = [
+        ArticleDTO(
+            title="Unpublished Article title #111111111111111111111111",
+            content="Article content #111111111111111111111111" * 150,
             tags=["tag1", "tag2", "tag3"]
         ),
-        PostDTO(
-            title="Unpublished Post title #22222222222222222222222",
-            content="Post content #2222222222222222222222" * 150,
+        ArticleDTO(
+            title="Unpublished Article title #22222222222222222222222",
+            content="Article content #2222222222222222222222" * 150,
             tags=["tag2", "tag3"]
         ),
-        PostDTO(
-            title="Unpublished Post title #3333333333333333333333333",
-            content="Post content #333333333333333333333" * 150,
+        ArticleDTO(
+            title="Unpublished Article title #3333333333333333333333333",
+            content="Article content #333333333333333333333" * 150,
             tags=["tag1", "tag3"]
         ),
     ]
-    for post in unpublished_posts:
-        create_post(post, user2)
-    rejected_posts = [
-        PostDTO(
-            title="Rejected Post title #111111111111111111111111",
-            content="Post content #111111111111111111111111" * 150,
+    for article in unpublished_articles:
+        create_article(article, user2)
+    rejected_articles = [
+        ArticleDTO(
+            title="Rejected Article title #111111111111111111111111",
+            content="Article content #111111111111111111111111" * 150,
             tags=["tag1", "tag2", "tag3"]
         ),
-        PostDTO(
-            title="Rejected Post title #22222222222222222222222",
-            content="Post content #2222222222222222222222" * 150,
+        ArticleDTO(
+            title="Rejected Article title #22222222222222222222222",
+            content="Article content #2222222222222222222222" * 150,
             tags=["tag2", "tag3"]
         ),
-        PostDTO(
-            title="Rejected Post title #3333333333333333333333333",
-            content="Post content #333333333333333333333" * 150,
+        ArticleDTO(
+            title="Rejected Article title #3333333333333333333333333",
+            content="Article content #333333333333333333333" * 150,
             tags=["tag1", "tag3"]
         ),
     ]
-    for post in rejected_posts:
-        created_post = create_post(post, user3)
-        update_post_status(created_post,
-                           UpdatePostStatusDTO(status=PostStatus.REJECTED, comment="Some rejection reason"),
+    for article in rejected_articles:
+        created_article = create_article(article, user3)
+        update_article_status(created_article,
+                           UpdateArticleStatusDTO(status=ArticleStatus.REJECTED, comment="Some rejection reason"),
                            root_user, req)

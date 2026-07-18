@@ -89,7 +89,7 @@
             <div class="collapse navbar-collapse" id="navbar">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ posts_url() }}">Posts</a>
+                        <a class="nav-link" href="{{ articles_url() }}">Articles</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ users_url() }}">Users</a>
@@ -109,11 +109,11 @@
 
                 <ul class="navbar-nav">
                     {% if cur_user %}
-                        {% if check_auth(cur_user, Permission.CREATE_POST) %}
+                        {% if check_auth(cur_user, Permission.CREATE_ARTICLE) %}
                             <li class="nav-item">
                                 <a class="nav-link{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %} bi bi-pencil-fill"
-                                   href="{{ url("new-post") }}">
-                                    New post
+                                   href="{{ url("new-article") }}">
+                                    New article
                                 </a>
                             </li>
                         {% endif %}
@@ -136,8 +136,8 @@
                     {% else %}
                         <li class="nav-item">
                             <a class="nav-link bi bi-pencil-fill"
-                               href="{{ url("login", redirect_url=url("new-post")|urlencode) }}">
-                                New post
+                               href="{{ url("login", redirect_url=url("new-article")|urlencode) }}">
+                                New article
                             </a>
                         </li>
                         <li class="nav-item">
@@ -232,8 +232,8 @@
 <script>
   window.CONFIG = {
     current_user: {{ ({"id": cur_user.id} | tojson) if cur_user else "null" }},
-    update_post_status_url: "{{ url("update-post-status", post_id="{post_id}") }}",
-    update_post_impression_url: "{{ url("update-post-impression", post_id="{post_id}") }}",
+    update_article_status_url: "{{ url("update-article-status", article_id="{article_id}") }}",
+    update_article_impression_url: "{{ url("update-article-impression", article_id="{article_id}") }}",
     update_user_status_url: "{{ url("update-user-status", user_id="{user_id}") }}",
     update_user_impression_url: "{{ url("update-user-impression", user_id="{user_id}") }}",
     init_tinymce: {% if tinymce_api_key %}true{% else %}false{% endif %},

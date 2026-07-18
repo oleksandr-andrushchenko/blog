@@ -27,7 +27,7 @@
                 data-user-id="{{ user.id }}"
                 data-status="{{ UserStatus.BANNED.value }}"
                 {% if not is_banned %}
-                title="Ban this post"
+                title="Ban this article"
                 {% endif %}>
             {% if is_banned %}<i class="bi bi-x-lg"></i>{% endif %} {% if is_banned %}Banned{% else %}Ban{% endif %}
         </button>

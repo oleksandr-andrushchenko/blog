@@ -1,7 +1,7 @@
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 
-from query_dtos import PostStatus
+from query_dtos import ArticleStatus
 
 
 def _tags(values):
@@ -15,7 +15,7 @@ def _tags(values):
 
 
 @dataclass(slots=True)
-class PostDTO:
+class ArticleDTO:
     title: str
     content: str
     tags: list[str]
@@ -31,12 +31,12 @@ class PostDTO:
         return asdict(self)
 
 
-class UpdatePostDTO(PostDTO):
+class UpdateArticleDTO(ArticleDTO):
     pass
 
 
 @dataclass(slots=True)
-class UpdatePostTagDTO:
+class UpdateArticleTagDTO:
     name: str
     image_action: str | None = None
     image_filename: str | None = None
@@ -52,34 +52,34 @@ class UpdatePostTagDTO:
 
 
 @dataclass(slots=True)
-class UpdatePostStatusDTO:
-    status: PostStatus
+class UpdateArticleStatusDTO:
+    status: ArticleStatus
     comment: str | None = None
 
     def __post_init__(self):
-        self.status = PostStatus(self.status)
-        if self.status == PostStatus.REJECTED and not self.comment:
-            raise ValueError("Comment is required when rejecting a post")
+        self.status = ArticleStatus(self.status)
+        if self.status == ArticleStatus.REJECTED and not self.comment:
+            raise ValueError("Comment is required when rejecting an article")
 
     def changes(self):
         return asdict(self)
 
 
-class PostImpressionAction(StrEnum):
+class ArticleImpressionAction(StrEnum):
     LIKE = "like"
     DISLIKE = "dislike"
 
 
 @dataclass(slots=True)
-class UpdatePostImpressionDTO:
-    action: PostImpressionAction
+class UpdateArticleImpressionDTO:
+    action: ArticleImpressionAction
 
     def __post_init__(self):
-        self.action = PostImpressionAction(self.action)
+        self.action = ArticleImpressionAction(self.action)
 
 
 @dataclass(slots=True)
-class PostCommentDTO:
+class ArticleCommentDTO:
     text: str
 
     def __post_init__(self):
@@ -90,18 +90,18 @@ class PostCommentDTO:
         return asdict(self)
 
 
-class UpdatePostCommentDTO(PostCommentDTO):
+class UpdateArticleCommentDTO(ArticleCommentDTO):
     pass
 
 
-class PostCommentImpressionAction(StrEnum):
+class ArticleCommentImpressionAction(StrEnum):
     LIKE = "like"
     DISLIKE = "dislike"
 
 
 @dataclass(slots=True)
-class UpdatePostCommentImpressionDTO:
-    action: PostCommentImpressionAction
+class UpdateArticleCommentImpressionDTO:
+    action: ArticleCommentImpressionAction
 
     def __post_init__(self):
-        self.action = PostCommentImpressionAction(self.action)
+        self.action = ArticleCommentImpressionAction(self.action)

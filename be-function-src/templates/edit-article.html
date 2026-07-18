@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+
+{% set title = ("Edit " ~ article.title) | trim %}
+{% set meta_title = title ~ " | " ~ site_name %}
+{% set meta_canonical_url = url("edit-article", article_id=article.id, full=True) %}
+
+{% block breadcrumbs %}
+    {% with breadcrumbs = {"Home": url("index"), "Articles": articles_url(), (article.title): article_url(article), "Edit": None} %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
+{% endblock %}
+
+{% block content %}
+    {% include "fragments/article-form.html" %}
+{% endblock %}

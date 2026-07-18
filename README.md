@@ -68,7 +68,6 @@
 - check SEO carefully and fix issues (redirect, canonical, robots, index/follow, titles, etc.)
 - generate tag combos for post pages (article's tag combos for crawlers)
 - implement & show images for each tag
-- add redirect from Posts to Articles
 - remove personal contact details
 - optimize page speed loading: first bite for cold starts
 - cache, preload (CDN)

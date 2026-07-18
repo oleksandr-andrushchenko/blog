@@ -1,0 +1,49 @@
+{% if article.status != ArticleStatus.PUBLISHED and cur_user and check_auth(cur_user, Permission.UPDATE_ARTICLE_STATUS) %}
+    <div class="input-group">
+        <!-- Publish Article -->
+        {% set is_published = article.status == ArticleStatus.PUBLISHED %}
+        <button type="button"
+                class="btn {% if is_published %}btn-success active{% else %}btn-light btn-article-publish{% endif %}"
+                data-article-id="{{ article.id }}"
+                data-status="{{ ArticleStatus.PUBLISHED.value }}"
+                {% if not is_published %}
+                title="Publish this article"
+                {% endif %}>
+            {% if is_published %}<i class="bi bi-check2-all"></i>{% endif %} {% if is_published %}Published{% else %}
+            Publish{% endif %}
+        </button>
+
+        <!-- Unpublish Article -->
+        {% set is_unpublished = article.status == ArticleStatus.UNPUBLISHED %}
+        <button type="button"
+                class="btn {% if is_unpublished %}btn-warning active{% else %}btn-light btn-article-unpublish{% endif %}"
+                data-article-id="{{ article.id }}"
+                data-status="{{ ArticleStatus.UNPUBLISHED.value }}"
+                {% if not is_unpublished %}
+                title="Unpublish this article"
+                {% endif %}>
+            {% if is_unpublished %}<i class="bi bi-clock"></i>{% endif %} {% if is_unpublished %}Unpublished{% else %}
+            Unpublish{% endif %}
+        </button>
+
+        <!-- Reject Article -->
+        {% set is_rejected = article.status == ArticleStatus.REJECTED %}
+        <input type="text"
+               class="form-control"
+               name="comment"
+               id="comment"
+               placeholder="Rejection reason..."
+               value="{{ article.comment if article and article.comment else '' }}"
+               {% if is_rejected %}disabled{% endif %}>
+        <button type="button"
+                class="btn {% if is_rejected %}btn-danger active{% else %}btn-light btn-article-reject{% endif %}"
+                data-article-id="{{ article.id }}"
+                data-status="{{ ArticleStatus.REJECTED.value }}"
+                {% if not is_rejected %}
+                title="Reject this article"
+                {% endif %}>
+            {% if is_rejected %}<i class="bi bi-x-lg"></i>{% endif %} {% if is_rejected %}Rejected{% else %}
+            Reject{% endif %}
+        </button>
+    </div>
+{% endif %}

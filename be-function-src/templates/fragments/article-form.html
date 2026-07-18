@@ -1,28 +1,28 @@
-<form class="row" id="post-form" novalidate>
+<form class="row" id="article-form" novalidate>
     <div class="col col-12 col-lg-6 col-xl-8">
         <label class="w-100">
             <textarea class="form-control h1 border-0" id="title" name="title" placeholder="Title"
-                      required rows="1" autofocus>{{ post.title if post else "" }}</textarea>
+                      required rows="1" autofocus>{{ article.title if article else "" }}</textarea>
         </label>
     </div>
 
     <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-2">
         <label class="w-100">
             <textarea class="form-control editor" id="content" name="content" placeholder="Content" rows="12"
-                      required minlength="1000" maxlength="10000">{{ post.content if post else "" }}</textarea>
+                      required minlength="1000" maxlength="10000">{{ article.content if article else "" }}</textarea>
         </label>
     </div>
 
     <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-2">
         <small class="text-secondary bi bi-tags"> Tags:</small>
-        {% with url=url("get-post-tags"), value=post.tags if post else [] %}
+        {% with url=url("get-article-tags"), value=article.tags if article else [] %}
             {% include "fragments/tags-input.html" %}
         {% endwith %}
 
         <div>
             <button type="submit" class="btn btn-light">
-                <i class="bi {% if post %}bi-arrow-clockwise{% else %}bi-plus-lg{% endif %}"></i>
-                {% if post %}Update{% else %}Create{% endif %} post
+                <i class="bi {% if article %}bi-arrow-clockwise{% else %}bi-plus-lg{% endif %}"></i>
+                {% if article %}Update{% else %}Create{% endif %} article
             </button>
         </div>
     </div>
@@ -30,8 +30,8 @@
 
 <script>
   document.addEventListener("DOMContentLoaded", () => {
-    handleFormSubmit("#post-form", "{{ url('update-post', post_id=post.id) if post else url('create-post') }}", {
-      method: "{{ 'PATCH' if post else 'POST' }}",
+    handleFormSubmit("#article-form", "{{ url('update-article', article_id=article.id) if article else url('create-article') }}", {
+      method: "{{ 'PATCH' if article else 'POST' }}",
       rules: {
         title: [
           {rule: "required"},
@@ -51,7 +51,7 @@
       onSuccess: (res) => {
         if (res) window.location.href = res
       },
-      successMessage: "Post created!"
+      successMessage: "Article created!"
     })
   })
 </script>

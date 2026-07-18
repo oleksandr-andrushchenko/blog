@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+
+{% set meta_title = "New article | " ~ site_name %}
+{% set meta_canonical_url = url("create-article", full=True) %}
+
+{% block breadcrumbs %}
+    {% with breadcrumbs = {"Home": url("index"), "Articles": articles_url(), "New": None} %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
+{% endblock %}
+
+{% block content %}
+    {% include "fragments/article-form.html" %}
+{% endblock %}

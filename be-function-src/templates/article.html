@@ -1,11 +1,11 @@
 {% extends "layout.html" %}
-{% set meta_canonical_url = post_url(post, full=True) %}
+{% set meta_canonical_url = article_url(article, full=True) %}
 {% set author_canonical_url = user_url(author) %}
 {% set author_alternate_canonical_url = url("user", user_id=author.id) %}
-{% set meta_desc = [post.title, post.preview, meta_desc] | select | join('. ') | truncate(155, True, '...') %}
-{% set meta_title = post.title ~ " | by " ~ author.name ~ " ~ " ~ site_name %}
+{% set meta_desc = [article.title, article.preview, meta_desc] | select | join('. ') | truncate(155, True, '...') %}
+{% set meta_title = article.title ~ " | by " ~ author.name ~ " ~ " ~ site_name %}
 {% set meta_robots = "index, follow" %}
-{% set meta_keywords = post.tags | join(",") %}
+{% set meta_keywords = article.tags | join(",") %}
 {% block meta_schema %}
     {% set author_schema = {
         "@context": "https://schema.org",
@@ -18,18 +18,18 @@
     {{- {
         "@context": "https://schema.org",
         "@id": meta_canonical_url,
-        "@type": "SocialMediaPosting",
+        "@type": "SocialMediaArticleing",
         "image": [
-            static_url(post.image_filename) if post.image_filename else None
+            static_url(article.image_filename) if article.image_filename else None
         ],
         "url": meta_canonical_url,
-        "dateCreated": post.created_at | iso_utc,
-        "datePublished": (post.published_at | iso_utc) if post.published_at else None,
-        "dateModified": (post.updated_at | iso_utc) if post.updated_at and post.published_at and (post.updated_at - post.published_at > 86_400_000) else None,
-        "headline": post.title,
-        "name": post.title,
+        "dateCreated": article.created_at | iso_utc,
+        "datePublished": (article.published_at | iso_utc) if article.published_at else None,
+        "dateModified": (article.updated_at | iso_utc) if article.updated_at and article.published_at and (article.updated_at - article.published_at > 86_400_000) else None,
+        "headline": article.title,
+        "name": article.title,
         "description": meta_desc,
-        "identifier": post.id,
+        "identifier": article.id,
         "author": author_schema,
         "creator": author_schema,
         "publisher": {
@@ -44,57 +44,57 @@
             ]
         },
         "mainEntityOfPage": meta_canonical_url,
-        "isAccessibleForFree": not post.is_premium
+        "isAccessibleForFree": not article.is_premium
     } | tojson | safe -}}
 {% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), "Posts": posts_url(), (post.title): None} %}
+    {% with breadcrumbs = {"Home": url("index"), "Articles": articles_url(), (article.title): None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
 
 {% block content %}
     <div class="row g-5">
-        <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column overflow-auto post-content">
+        <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column overflow-auto article-content">
             <article>
                 <header>
-                    <h1>{{ post.title }}</h1>
+                    <h1>{{ article.title }}</h1>
 
                     <p class="small text-secondary">
                         By <a href="{{ user_url(author) }}" class="link-secondary">{{ author.name }}</a>
-                        {% if post.published_at %}
+                        {% if article.published_at %}
                             &mdash;
                             Published on
-                            <time>{{ (post.published_at / 1000) | unix_to_full_date }}</time>
-                            {% if post.updated_at and post.updated_at - post.published_at > 86_400_000 %}
+                            <time>{{ (article.published_at / 1000) | unix_to_full_date }}</time>
+                            {% if article.updated_at and article.updated_at - article.published_at > 86_400_000 %}
                                 &mdash; Modified on
-                                <time>{{ (post.updated_at / 1000) | unix_to_full_date }}</time>
+                                <time>{{ (article.updated_at / 1000) | unix_to_full_date }}</time>
                             {% endif %}
                         {% endif %}
                     </p>
                 </header>
-                {{ post.content }}
+                {{ article.content }}
             </article>
 
-            <section class="post-comments">
-                <h3>Comments ({{ post.comments_count }})</h3>
+            <section class="article-comments">
+                <h3>Comments ({{ article.comments_count }})</h3>
 
                 <div class="d-flex flex-column gap-4">
-                    {% include "fragments/post-comment-form.html" %}
+                    {% include "fragments/article-comment-form.html" %}
 
                     {% if comments %}
-                        <div id="post-comments" class="d-flex flex-column gap-3">
-                            {% with post_comments=comments %}
-                                {% include "fragments/post-comments.html" %}
+                        <div id="article-comments" class="d-flex flex-column gap-3">
+                            {% with article_comments=comments %}
+                                {% include "fragments/article-comments.html" %}
                             {% endwith %}
                         </div>
 
                         {% with limit=comments_query.limit,
                             offset=comments[-1].offset,
                             count=comments|length,
-                            url=url("post-comments-fragment", **comments_query.get_dict()),
-                            container="#post-comments" %}
+                            url=url("article-comments-fragment", **comments_query.get_dict()),
+                            container="#article-comments" %}
                             {% include "fragments/load-more-button.html" %}
                         {% endwith %}
                     {% endif %}
@@ -118,25 +118,25 @@
             {% endwith %}
 
             <section class="d-flex flex-column gap-3">
-                <h2 class="mb-0 text-decoration-underline">Post info</h2>
+                <h2 class="mb-0 text-decoration-underline">Article info</h2>
                 <div class="d-flex flex-column gap-1">
-                    {% if post.tags %}
+                    {% if article.tags %}
                         <div>
                             <small class="text-secondary bi bi-tags"> Tags:</small>
-                            {% for tag in post.tags %}
-                                <a href="{{ posts_url(tags=[tag]) }}" class="btn btn-light btn-sm">
+                            {% for tag in article.tags %}
+                                <a href="{{ articles_url(tags=[tag]) }}" class="btn btn-light btn-sm">
                                     {{ tag }}
                                 </a>
                             {% endfor %}
                         </div>
                     {% endif %}
 
-                    {% if post.status == PostStatus.REJECTED %}
+                    {% if article.status == ArticleStatus.REJECTED %}
                         <div>
                             <small class="text-secondary">Status:</small>
-                            <span class="badge text-bg-danger fs-5" title="{{ post.comment }}">Rejected</span>
+                            <span class="badge text-bg-danger fs-5" title="{{ article.comment }}">Rejected</span>
                         </div>
-                    {% elif post.status == PostStatus.UNPUBLISHED %}
+                    {% elif article.status == ArticleStatus.UNPUBLISHED %}
                         <div>
                             <small class="text-secondary">Status:</small>
                             <span class="badge text-bg-warning fs-6">Unpublished (Pending)</span>
@@ -145,38 +145,38 @@
 
                     <div>
                         <small class="text-secondary bi bi-calendar2"> Created:</small>
-                        {{ (post.created_at / 1000) | unix_to_full_date }}
+                        {{ (article.created_at / 1000) | unix_to_full_date }}
 
-                        {% if post.updated_at %}
+                        {% if article.updated_at %}
                             <br>
                             <small class="text-secondary">Updated:</small>
-                            {{ (post.updated_at / 1000) | unix_to_full_date }}
+                            {{ (article.updated_at / 1000) | unix_to_full_date }}
                         {% endif %}
 
-                        {% if post.published_at %}
+                        {% if article.published_at %}
                             <br>
                             <small class="text-secondary">Published:</small>
-                            {{ (post.published_at / 1000) | unix_to_full_date }}
+                            {{ (article.published_at / 1000) | unix_to_full_date }}
                         {% endif %}
                     </div>
                 </div>
             </section>
 
             <section class="d-flex flex-column gap-3">
-                <h2 class="mb-0 text-decoration-underline">Post actions</h2>
+                <h2 class="mb-0 text-decoration-underline">Article actions</h2>
                 <div class="d-flex flex-column gap-1">
-                    {% include "fragments/post-status.html" %}
-                    {% include "fragments/post-impressions.html" %}
+                    {% include "fragments/article-status.html" %}
+                    {% include "fragments/article-impressions.html" %}
 
-                    {% if cur_user and check_auth(cur_user, Permission.UPDATE_POST, post) %}
+                    {% if cur_user and check_auth(cur_user, Permission.UPDATE_ARTICLE, article) %}
                         <div>
-                            <a href="{{ url("edit-post", post_id=post.id) }}" class="btn btn-light bi bi-pencil">
-                                Edit post
+                            <a href="{{ url("edit-article", article_id=article.id) }}" class="btn btn-light bi bi-pencil">
+                                Edit article
                             </a>
                         </div>
                     {% endif %}
 
-                    {% with url_to_copy=url("post", post_id=post.id, full=True), copy_url_label="Copy persistent article link" %}
+                    {% with url_to_copy=url("article", article_id=article.id, full=True), copy_url_label="Copy persistent article link" %}
                         {% include "fragments/copy-url.html" %}
                     {% endwith %}
 
@@ -186,18 +186,18 @@
                 </div>
             </section>
 
-            {% if related_posts %}
+            {% if related_articles %}
                 <section class="d-flex flex-column gap-3">
-                    <h2 class="mb-0 text-decoration-underline">Related posts</h2>
-                    <div id="related-posts" class="d-flex flex-column gap-3">
-                        {% with posts=related_posts,
+                    <h2 class="mb-0 text-decoration-underline">Related articles</h2>
+                    <div id="related-articles" class="d-flex flex-column gap-3">
+                        {% with articles=related_articles,
                             preview=False,
                             border=False,
                             vert_gap=0,
                             h_tag_size=3,
                             h_display_size=6,
                             image_order_size={"def":12} %}
-                            {% include "fragments/posts.html" %}
+                            {% include "fragments/articles.html" %}
                         {% endwith %}
                     </div>
                 </section>

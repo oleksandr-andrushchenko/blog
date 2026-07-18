@@ -12,7 +12,7 @@ from test_utils import (
     get_guest_client,
     get_logged_in_client,
     get,
-    post,
+     post,
     patch,
     regular_user,
     regular_2_user,
@@ -20,7 +20,7 @@ from test_utils import (
     set_dynamodb_user_permissions,
     get_dynamodb_user,
     get_dynamodb_user_by_email,
-    get_dynamodb_post,
+    get_dynamodb_article,
     dynamodb_table,
 )
 
@@ -74,24 +74,24 @@ def get_user_by_slug(client, user):
     return pq(resp.text)
 
 
-def get_posts(client):
-    resp = get(client, "/posts")
+def get_articles(client):
+    resp = get(client, "/articles")
     assert resp.status_code == 200
     doc = pq(resp.text)
-    assert "posts" in doc("head title").text().lower()
+    assert "articles" in doc("head title").text().lower()
     main_el = doc("main")
-    assert "posts" in main_el("h1").text().lower()
+    assert "articles" in main_el("h1").text().lower()
     return doc
 
 
-def get_post_by_id(client, post):
-    resp = get(client, f"/posts/{post['id']}")
+def get_article_by_id(client, article):
+    resp = get(client, f"/articles/{article['id']}")
     assert resp.status_code == 200
     return pq(resp.text)
 
 
-def get_post_by_slug(client, post):
-    resp = get(client, f"/{post['user_slug']}/{post['slug']}")
+def get_article_by_slug(client, article):
+    resp = get(client, f"/{article['user_slug']}/{article['slug']}")
     assert resp.status_code == 200
     return pq(resp.text)
 
@@ -108,7 +108,7 @@ def get_user_href(user: dict) -> str:
     return f"/users/{user['id']}"
 
 
-def get_post_href(post: dict, user: dict | None = None) -> str:
+def get_article_href(article: dict, user: dict | None = None) -> str:
     if username := user.get("username"):
         return f"/{username}"
     return f"/users/{user['id']}"
@@ -117,11 +117,11 @@ def get_post_href(post: dict, user: dict | None = None) -> str:
 def check_header(doc, user_alias: str | None):
     header_el = doc("header")
     assert header_el('a[href$="/"]')
-    assert header_el('a[href$="/posts"]')
+    assert header_el('a[href$="/articles"]')
     assert header_el('a[href$="/users"]')
     assert header_el('a[href$="/contacts"]')
     if user_alias:
-        assert header_el('a[href$="/posts/new"]')
+        assert header_el('a[href$="/articles/new"]')
         assert header_el('a[href$="/logout"]')
         user = get_dynamodb_user(user_ids[user_alias])
         assert header_el('a[href$="' + get_user_href(user) + '"]')
@@ -184,20 +184,20 @@ def check_user(doc, followers_count: int, following_count: int, follow_control: 
     check_user_status(doc, activate_control=activate_control, ban_control=ban_control)
 
 
-def check_posts(doc, posts_count: int, unpublished_control: bool, rejected_control: bool, tags_control: bool,
-                popular_control: bool, post_aliases: list[str], css_id="posts"):
+def check_articles(doc, articles_count: int, unpublished_control: bool, rejected_control: bool, tags_control: bool,
+                popular_control: bool, article_aliases: list[str], css_id="articles"):
     main_el = doc("main")
-    posts_el = main_el("#" + css_id)
-    if posts_count:
-        assert len(posts_el(".post")) == posts_count
-        for post_alias in post_aliases:
-            post = get_dynamodb_post(post_ids[post_alias])
-            user = get_dynamodb_user(post["user_id"])
-            post_el = main_el('a[href$="' + get_post_href(post, user) + '"]')
-            assert post_el
-            assert post["title"] in post_el.text()
+    articles_el = main_el("#" + css_id)
+    if articles_count:
+        assert len(articles_el(".article")) == articles_count
+        for article_alias in article_aliases:
+            article = get_dynamodb_article(article_ids[article_alias])
+            user = get_dynamodb_user(article["user_id"])
+            article_el = main_el('a[href$="' + get_article_href(article, user) + '"]')
+            assert article_el
+            assert article["title"] in article_el.text()
     else:
-        assert not posts_el
+        assert not articles_el
     form_el = main_el("form")
     status_controls_el = form_el if form_el else main_el
     unpublished_el = status_controls_el('a[href*="status=unpublished"]')
@@ -248,11 +248,11 @@ def check_users(doc, users_count: int, banned_control: bool, popular_control: bo
         assert not popular_el
 
 
-def check_latest_post_comments(doc, comments_count: int, comment_texts: list[str]):
+def check_latest_article_comments(doc, comments_count: int, comment_texts: list[str]):
     main_el = doc("main")
-    comments_el = main_el("#latest-post-comments")
+    comments_el = main_el("#latest-article-comments")
     if comments_count:
-        assert len(comments_el(".latest-post-comment")) == comments_count
+        assert len(comments_el(".latest-article-comment")) == comments_count
         rendered_text = comments_el.text()
         for comment_text in comment_texts:
             assert comment_text in rendered_text
@@ -261,11 +261,11 @@ def check_latest_post_comments(doc, comments_count: int, comment_texts: list[str
 
 
 def check_index(doc):
-    check_posts(doc, posts_count=0, unpublished_control=False, rejected_control=False, tags_control=False,
-                popular_control=False, post_aliases=list(post_ids.keys()), css_id="posts")
-    check_posts(doc, posts_count=0, unpublished_control=False, rejected_control=False, tags_control=False,
-                popular_control=False, post_aliases=list(post_ids.keys()), css_id="popular-posts")
-    check_latest_post_comments(doc, comments_count=0, comment_texts=[])
+    check_articles(doc, articles_count=0, unpublished_control=False, rejected_control=False, tags_control=False,
+                popular_control=False, article_aliases=list(article_ids.keys()), css_id="articles")
+    check_articles(doc, articles_count=0, unpublished_control=False, rejected_control=False, tags_control=False,
+                popular_control=False, article_aliases=list(article_ids.keys()), css_id="popular-articles")
+    check_latest_article_comments(doc, comments_count=0, comment_texts=[])
     check_users(doc, users_count=0, banned_control=False, popular_control=False, user_aliases=[], css_id="users")
     check_users(doc, users_count=3, banned_control=False, popular_control=False, user_aliases=list(user_ids.keys()),
                 css_id="popular-users")
@@ -297,7 +297,7 @@ def root_user_client():
 
 
 user_ids = {}
-post_ids = {}
+article_ids = {}
 
 
 def test_root_user_first_login(root_user_client):
@@ -332,8 +332,8 @@ def test_guest_user_get_user(guest_client, user_alias):
     check_header(doc, user_alias=None)
     check_user(doc, followers_count=0, following_count=0, follow_control=False, block_control=False, user_alias=None,
                activate_control=False, ban_control=False)
-    check_posts(doc, posts_count=0, unpublished_control=False, rejected_control=False, tags_control=False,
-                popular_control=False, post_aliases=list(post_ids.keys()), css_id="posts")
+    check_articles(doc, articles_count=0, unpublished_control=False, rejected_control=False, tags_control=False,
+                popular_control=False, article_aliases=list(article_ids.keys()), css_id="articles")
 
 
 @pytest.mark.parametrize("user_alias", ["regular_2", "root"])
@@ -342,8 +342,8 @@ def test_regular_user_get_other_user(regular_user_client, user_alias):
     check_header(doc, user_alias="regular")
     check_user(doc, followers_count=0, following_count=0, follow_control=True, block_control=True, user_alias=None,
                activate_control=False, ban_control=False)
-    check_posts(doc, posts_count=0, unpublished_control=False, rejected_control=False, tags_control=False,
-                popular_control=False, post_aliases=list(post_ids.keys()), css_id="posts")
+    check_articles(doc, articles_count=0, unpublished_control=False, rejected_control=False, tags_control=False,
+                popular_control=False, article_aliases=list(article_ids.keys()), css_id="articles")
 
 
 def test_regular_user_get_self_user(regular_user_client):
@@ -352,8 +352,8 @@ def test_regular_user_get_self_user(regular_user_client):
     check_header(doc, user_alias=user_alias)
     check_user(doc, followers_count=0, following_count=0, follow_control=False, block_control=False,
                user_alias=user_alias, activate_control=False, ban_control=False)
-    check_posts(doc, posts_count=0, unpublished_control=True, rejected_control=True, popular_control=False,
-                tags_control=False, post_aliases=list(post_ids.keys()), css_id="posts")
+    check_articles(doc, articles_count=0, unpublished_control=True, rejected_control=True, popular_control=False,
+                tags_control=False, article_aliases=list(article_ids.keys()), css_id="articles")
 
 
 def test_root_user_get_user(root_user_client):
@@ -362,8 +362,8 @@ def test_root_user_get_user(root_user_client):
     check_header(doc, user_alias="root")
     check_user(doc, followers_count=0, following_count=0, follow_control=True, block_control=True,
                user_alias=user_alias, activate_control=False, ban_control=True)
-    check_posts(doc, posts_count=0, unpublished_control=True, rejected_control=True, popular_control=False,
-                tags_control=False, post_aliases=list(post_ids.keys()), css_id="posts")
+    check_articles(doc, articles_count=0, unpublished_control=True, rejected_control=True, popular_control=False,
+                tags_control=False, article_aliases=list(article_ids.keys()), css_id="articles")
 
 
 def test_guest_user_get_users(guest_client):
@@ -384,22 +384,22 @@ def test_root_user_get_users(root_user_client):
                 css_id="users")
 
 
-def test_guest_user_get_posts(guest_client):
-    doc = get_posts(guest_client)
-    check_posts(doc, posts_count=0, unpublished_control=False, rejected_control=False, tags_control=True,
-                popular_control=True, post_aliases=list(post_ids.keys()), css_id="posts")
+def test_guest_user_get_articles(guest_client):
+    doc = get_articles(guest_client)
+    check_articles(doc, articles_count=0, unpublished_control=False, rejected_control=False, tags_control=True,
+                popular_control=True, article_aliases=list(article_ids.keys()), css_id="articles")
 
 
-def test_regular_user_get_posts(regular_user_client):
-    doc = get_posts(regular_user_client)
-    check_posts(doc, posts_count=0, unpublished_control=False, rejected_control=False, tags_control=True,
-                popular_control=True, post_aliases=list(post_ids.keys()), css_id="posts")
+def test_regular_user_get_articles(regular_user_client):
+    doc = get_articles(regular_user_client)
+    check_articles(doc, articles_count=0, unpublished_control=False, rejected_control=False, tags_control=True,
+                popular_control=True, article_aliases=list(article_ids.keys()), css_id="articles")
 
 
-def test_root_user_get_posts(root_user_client):
-    doc = get_posts(root_user_client)
-    check_posts(doc, posts_count=0, unpublished_control=True, rejected_control=True, tags_control=True,
-                popular_control=True, post_aliases=list(post_ids.keys()), css_id="posts")
+def test_root_user_get_articles(root_user_client):
+    doc = get_articles(root_user_client)
+    check_articles(doc, articles_count=0, unpublished_control=True, rejected_control=True, tags_control=True,
+                popular_control=True, article_aliases=list(article_ids.keys()), css_id="articles")
 
 
 @pytest.mark.parametrize("user_alias", ["regular", "root"])
@@ -423,24 +423,24 @@ def test_logout(request, user_alias):
     assert resp.headers["location"].endswith("/logout-callback")
 
 
-def test_regular_user_can_create_post_comment():
+def test_regular_user_can_create_article_comment():
     comment_user_client = get_logged_in_client({
         "sub": "commenter-sub",
         "iss": "commenter-iss",
         "email": "commenter@example.com",
     })
-    post_id = str(uuid.uuid4())
+    article_id = str(uuid.uuid4())
     owner_id = user_ids["root"]
     now = int(time.time() * 1000)
 
     dynamodb_table.put_item(Item={
-        "pk": f"POST#{post_id}",
+        "pk": f"POST#{article_id}",
         "sk": "META",
-        "id": post_id,
-        "title": "Regular comment permission test post",
-        "post_slug": "regular-comment-permission-test-post",
+        "id": article_id,
+        "title": "Regular comment permission test article",
+        "post_slug": "regular-comment-permission-test-article",
         "user_id": owner_id,
-        "content": "Long form post content for integration testing. " * 120,
+        "content": "Long form article content for integration testing. " * 120,
         "tags": ["testing"],
         "rating_sk": now,
         "status": "published",
@@ -451,29 +451,29 @@ def test_regular_user_can_create_post_comment():
         "comments_count": 0,
     })
 
-    resp = post(comment_user_client, f"/api/posts/{post_id}/comment", json={
+    resp = post(comment_user_client, f"/api/articles/{article_id}/comment", json={
         "text": "Regular users should be allowed to comment."
     })
 
     assert resp.status_code == 200
-    assert resp.json().endswith(f"/posts/{post_id}")
+    assert resp.json().endswith(f"/articles/{article_id}")
 
 
-def test_index_shows_latest_post_comments(guest_client):
-    post_id = str(uuid.uuid4())
+def test_index_shows_latest_article_comments(guest_client):
+    article_id = str(uuid.uuid4())
     user_id = str(uuid.uuid4())
     now = int(time.time() * 1000)
-    post_title = "Latest comments test post"
-    post_ids["latest_comments"] = post_id
+    article_title = "Latest comments test article"
+    article_ids["latest_comments"] = article_id
 
     dynamodb_table.put_item(Item={
-        "pk": f"POST#{post_id}",
+        "pk": f"POST#{article_id}",
         "sk": "META",
-        "id": post_id,
-        "title": post_title,
-        "post_slug": "latest-comments-test-post",
+        "id": article_id,
+        "title": article_title,
+        "post_slug": "latest-comments-test-article",
         "user_id": user_id,
-        "content": "Long form post content for integration testing. " * 120,
+        "content": "Long form article content for integration testing. " * 120,
         "tags": ["testing"],
         "rating_sk": now,
         "status": "published",
@@ -489,13 +489,13 @@ def test_index_shows_latest_post_comments(guest_client):
         comment_id = f"{now + i}#{uuid.uuid4()}"
         comment_text = f"Latest comment integration text {i}"
         dynamodb_table.put_item(Item={
-            "pk": f"POST#{post_id}",
+            "pk": f"POST#{article_id}",
             "sk": f"COMMENT#{comment_id}",
             "id": comment_id,
-            "post_id": post_id,
+            "post_id": article_id,
             "post_comment_pk": "POST_COMMENT",
-            "post_title": post_title,
-            "comment_post_slug": "latest-comments-test-post",
+            "post_title": article_title,
+            "comment_post_slug": "latest-comments-test-article",
             "user_id": user_id,
             "user_name": "Comment Author",
             "text": comment_text,
@@ -504,25 +504,67 @@ def test_index_shows_latest_post_comments(guest_client):
         comment_texts.append(comment_text)
 
     doc = get_index(guest_client)
-    check_latest_post_comments(doc, comments_count=5, comment_texts=list(reversed(comment_texts[-5:])))
+    check_latest_article_comments(doc, comments_count=5, comment_texts=list(reversed(comment_texts[-5:])))
 
-    comments = [pq(el).text() for el in doc("#latest-post-comments .latest-post-comment").items()]
+    comments = [pq(el).text() for el in doc("#latest-article-comments .latest-article-comment").items()]
     assert comment_texts[5] in comments[0]
     assert comment_texts[1] in comments[-1]
-    assert comment_texts[0] not in doc("#latest-post-comments").text()
-    assert post_title in doc("#latest-post-comments").text()
+    assert comment_texts[0] not in doc("#latest-article-comments").text()
+    assert article_title in doc("#latest-article-comments").text()
 
+
+
+@pytest.mark.parametrize(("legacy_path", "article_path"), [
+    ("/posts", "/articles"),
+    ("/post", "/articles"),
+    ("/posts/new", "/articles/new"),
+    ("/post/new", "/articles/new"),
+    ("/posts/example-id", "/articles/example-id"),
+    ("/post/example-id", "/articles/example-id"),
+    ("/posts/example-id/edit", "/articles/example-id/edit"),
+    ("/post/example-id/edit", "/articles/example-id/edit"),
+    ("/latest/python/posts", "/latest/python/articles"),
+])
+def test_legacy_article_page_urls_redirect_to_articles(guest_client, legacy_path, article_path):
+    response = get(guest_client, f"{legacy_path}?limit=5", allow_redirects=False)
+    assert response.status_code == 301
+    assert response.headers["location"] == f"{article_path}?limit=5"
+
+
+@pytest.mark.parametrize(("method", "legacy_path", "article_path"), [
+    ("get", "/api/posts-fragment", "/api/articles-fragment"),
+    ("get", "/api/users/example-id/posts-fragment", "/api/users/example-id/articles-fragment"),
+    ("post", "/api/posts", "/api/articles"),
+    ("patch", "/api/posts/example-id", "/api/articles/example-id"),
+    ("post", "/api/posts/example-id/status", "/api/articles/example-id/status"),
+    ("post", "/api/posts/example-id/impression", "/api/articles/example-id/impression"),
+    ("post", "/api/posts/example-id/comment", "/api/articles/example-id/comment"),
+    ("patch", "/api/posts/example-id/comments/example-comment-id",
+     "/api/articles/example-id/comments/example-comment-id"),
+    ("get", "/post-tags/example-tag/edit", "/article-tags/example-tag/edit"),
+    ("get", "/api/post-tags", "/api/article-tags"),
+    ("patch", "/api/post-tags/example-tag", "/api/article-tags/example-tag"),
+])
+def test_legacy_article_endpoint_urls_preserve_method_and_redirect(
+        guest_client, method, legacy_path, article_path):
+    request = {"get": get, "post": post, "patch": patch}[method]
+    kwargs = {"allow_redirects": False}
+    if method != "get":
+        kwargs["json"] = {}
+    response = request(guest_client, f"{legacy_path}?limit=5", **kwargs)
+    assert response.status_code == 308
+    assert response.headers["location"] == f"{article_path}?limit=5"
 
 
 @pytest.mark.parametrize("path", [
     "/",
-    "/posts",
+    "/articles",
     "/contacts",
     "/users",
     "/latest/users",
-    "/api/posts-fragment",
+    "/api/articles-fragment",
     "/api/users-fragment",
-    "/api/post-tags",
+    "/api/article-tags",
     "/privacy-policy",
     "/rules",
     "/terms-of-service",
@@ -537,12 +579,12 @@ def test_public_read_endpoints_success_and_wrong_method_failure(guest_client, pa
 
 
 @pytest.mark.parametrize("path", [
-    "/posts?limit=invalid",
-    "/api/posts-fragment?limit=0",
+    "/articles?limit=invalid",
+    "/api/articles-fragment?limit=0",
     "/users?type=invalid",
     "/invalid/users",
     "/api/users-fragment?status=invalid",
-    "/api/post-tags?prefix=",
+    "/api/article-tags?prefix=",
 ])
 def test_public_query_endpoints_reject_invalid_parameters(guest_client, path):
     response = get(guest_client, path)
@@ -600,12 +642,12 @@ def test_user_edit_update_and_fragment_endpoints_success_and_failure(root_user_c
     update_failure = patch(root_user_client, f"/api/users/{root_id}", json={"name": ""})
     assert update_failure.status_code == 422
 
-    fragment_success = get(guest_client, f"/api/users/{root_id}/posts-fragment")
+    fragment_success = get(guest_client, f"/api/users/{root_id}/articles-fragment")
     assert fragment_success.status_code == 200
     user_read_failure = get(guest_client, "/users/missing-user")
     assert user_read_failure.status_code == 404
 
-    fragment_failure = get(guest_client, "/api/users/missing-user/posts-fragment")
+    fragment_failure = get(guest_client, "/api/users/missing-user/articles-fragment")
     assert fragment_failure.status_code == 404
 
     slug_success = get(guest_client, "/root-functional")
@@ -636,110 +678,110 @@ def test_user_status_endpoint_success_and_validation_failure(root_user_client):
 
 
 
-POST_CONTENT = "Functional endpoint coverage content. " * 160
+ARTICLE_CONTENT = "Functional endpoint coverage content. " * 160
 
 
-def test_post_create_and_new_page_endpoints_success_and_failure(guest_client):
+def test_article_create_and_new_page_endpoints_success_and_failure(guest_client):
     root_client = get_logged_in_client(root_user)
 
-    new_success = get(root_client, "/posts/new")
+    new_success = get(root_client, "/articles/new")
     assert new_success.status_code == 200
-    new_failure = get(guest_client, "/posts/new")
+    new_failure = get(guest_client, "/articles/new")
     assert new_failure.status_code == 401
 
-    create_success = post(root_client, "/api/posts", json={
+    create_success = post(root_client, "/api/articles", json={
         "title": "Functional endpoint coverage article",
-        "content": POST_CONTENT,
+        "content": ARTICLE_CONTENT,
         "tags": ["functional-tag", "coverage-tag"],
     })
     assert create_success.status_code == 200, create_success.text
-    post_item = next(
+    article_item = next(
         item for item in dynamodb_table.scan()["Items"]
         if item.get("title") == "Functional endpoint coverage article"
     )
-    functional_state["post_id"] = post_item["id"]
-    functional_state["post_slug"] = post_item["post_slug"]
+    functional_state["article_id"] = article_item["id"]
+    functional_state["article_slug"] = article_item["post_slug"]
 
-    create_failure = post(root_client, "/api/posts", json={
+    create_failure = post(root_client, "/api/articles", json={
         "title": "short",
-        "content": POST_CONTENT,
+        "content": ARTICLE_CONTENT,
         "tags": ["functional-tag"],
     })
     assert create_failure.status_code == 422
 
 
-def test_post_read_edit_update_status_endpoints_success_and_failure(guest_client):
+def test_article_read_edit_update_status_endpoints_success_and_failure(guest_client):
     root_client = get_logged_in_client(root_user)
     regular_client = get_logged_in_client(regular_user)
-    post_id = functional_state["post_id"]
+    article_id = functional_state["article_id"]
 
-    read_success = get(root_client, f"/posts/{post_id}")
+    read_success = get(root_client, f"/articles/{article_id}")
     assert read_success.status_code == 200, read_success.text
-    read_failure = get(guest_client, "/posts/missing-post")
+    read_failure = get(guest_client, "/articles/missing-article")
     assert read_failure.status_code == 404
 
-    edit_success = get(root_client, f"/posts/{post_id}/edit")
+    edit_success = get(root_client, f"/articles/{article_id}/edit")
     assert edit_success.status_code == 200
-    edit_failure = get(regular_client, f"/posts/{post_id}/edit")
+    edit_failure = get(regular_client, f"/articles/{article_id}/edit")
     assert edit_failure.status_code == 403
 
-    update_success = patch(root_client, f"/api/posts/{post_id}", json={
+    update_success = patch(root_client, f"/api/articles/{article_id}", json={
         "title": "Updated functional endpoint coverage article",
-        "content": POST_CONTENT,
+        "content": ARTICLE_CONTENT,
         "tags": ["functional-tag", "coverage-tag"],
     })
     assert update_success.status_code == 200, update_success.text
-    functional_state["post_slug"] = "updated-functional-endpoint-coverage-article"
-    update_failure = patch(root_client, f"/api/posts/{post_id}", json={
+    functional_state["article_slug"] = "updated-functional-endpoint-coverage-article"
+    update_failure = patch(root_client, f"/api/articles/{article_id}", json={
         "title": "bad",
-        "content": POST_CONTENT,
+        "content": ARTICLE_CONTENT,
         "tags": ["functional-tag"],
     })
     assert update_failure.status_code == 422
 
-    status_success = post(root_client, f"/api/posts/{post_id}/status", json={"status": "published"})
+    status_success = post(root_client, f"/api/articles/{article_id}/status", json={"status": "published"})
     assert status_success.status_code == 200, status_success.text
-    status_failure = post(root_client, f"/api/posts/{post_id}/status", json={"status": "invalid"})
+    status_failure = post(root_client, f"/api/articles/{article_id}/status", json={"status": "invalid"})
     assert status_failure.status_code == 422
 
-    slug_success = get(guest_client, f"/root-functional/{functional_state["post_slug"]}")
+    slug_success = get(guest_client, f"/root-functional/{functional_state["article_slug"]}")
     assert slug_success.status_code == 200, slug_success.text
-    slug_failure = get(guest_client, "/root-functional/missing-post")
+    slug_failure = get(guest_client, "/root-functional/missing-article")
     assert slug_failure.status_code == 404
 
-    posts_by_slug_success = get(guest_client, "/root-functional/posts")
-    assert posts_by_slug_success.status_code == 200
-    posts_by_slug_failure = get(guest_client, "/invalid/latest/posts?limit=0")
-    assert posts_by_slug_failure.status_code == 422
+    articles_by_slug_success = get(guest_client, "/root-functional/articles")
+    assert articles_by_slug_success.status_code == 200
+    articles_by_slug_failure = get(guest_client, "/invalid/latest/articles?limit=0")
+    assert articles_by_slug_failure.status_code == 422
 
 
-def test_post_impression_comment_and_comment_update_endpoints_success_and_failure(guest_client):
+def test_article_impression_comment_and_comment_update_endpoints_success_and_failure(guest_client):
     regular_client = get_logged_in_client(regular_user)
-    post_id = functional_state["post_id"]
+    article_id = functional_state["article_id"]
 
-    impression_success = post(regular_client, f"/api/posts/{post_id}/impression", json={"action": "like"})
+    impression_success = post(regular_client, f"/api/articles/{article_id}/impression", json={"action": "like"})
     assert impression_success.status_code == 200, impression_success.text
-    impression_failure = post(guest_client, f"/api/posts/{post_id}/impression", json={"action": "like"})
+    impression_failure = post(guest_client, f"/api/articles/{article_id}/impression", json={"action": "like"})
     assert impression_failure.status_code == 401
 
     comment_text = "Functional endpoint comment"
-    comment_success = post(regular_client, f"/api/posts/{post_id}/comment", json={"text": comment_text})
+    comment_success = post(regular_client, f"/api/articles/{article_id}/comment", json={"text": comment_text})
     assert comment_success.status_code == 200, comment_success.text
     comment_item = next(
         item for item in dynamodb_table.scan()["Items"]
-        if item.get("post_id") == post_id and item.get("text") == comment_text
+        if item.get("post_id") == article_id and item.get("text") == comment_text
     )
     comment_id = comment_item["id"]
     encoded_comment_id = quote(comment_id, safe="")
     functional_state["comment_id"] = comment_id
-    comment_failure = post(regular_client, f"/api/posts/{post_id}/comment", json={"text": ""})
+    comment_failure = post(regular_client, f"/api/articles/{article_id}/comment", json={"text": ""})
     assert comment_failure.status_code == 422
 
-    update_success = patch(regular_client, f"/api/posts/{post_id}/comments/{encoded_comment_id}", json={
+    update_success = patch(regular_client, f"/api/articles/{article_id}/comments/{encoded_comment_id}", json={
         "text": "Updated functional endpoint comment",
     })
     assert update_success.status_code == 200, update_success.text
-    update_failure = patch(regular_client, f"/api/posts/{post_id}/comments/missing-comment", json={
+    update_failure = patch(regular_client, f"/api/articles/{article_id}/comments/missing-comment", json={
         "text": "Still valid text",
     })
     assert update_failure.status_code == 404
@@ -778,22 +820,22 @@ def test_contact_message_endpoint_success_and_validation_failure(guest_client):
     assert failure.status_code == 422
 
 
-def test_post_tag_edit_and_update_endpoints_success_and_failure():
+def test_article_tag_edit_and_update_endpoints_success_and_failure():
     root_client = get_logged_in_client(root_user)
     regular_client = get_logged_in_client(regular_user)
 
-    edit_success = get(root_client, "/post-tags/functional-tag/edit")
+    edit_success = get(root_client, "/article-tags/functional-tag/edit")
     assert edit_success.status_code == 200, edit_success.text
-    edit_failure = get(regular_client, "/post-tags/functional-tag/edit")
+    edit_failure = get(regular_client, "/article-tags/functional-tag/edit")
     assert edit_failure.status_code == 403
 
-    update_success = patch(root_client, "/api/post-tags/functional-tag", json={
+    update_success = patch(root_client, "/api/article-tags/functional-tag", json={
         "name": "Functional Tag Updated",
         "image_action": "keep",
         "image_file": None,
     })
     assert update_success.status_code == 200, update_success.text
-    update_failure = patch(root_client, "/api/post-tags/functional-tag-updated", json={
+    update_failure = patch(root_client, "/api/article-tags/functional-tag-updated", json={
         "name": "X",
         "image_action": "keep",
     })

@@ -68,11 +68,11 @@ def get_dynamodb_user_by_email(email: str) -> dict:
     return res["Items"][0]
 
 
-def get_dynamodb_post(post_id: str) -> dict:
+def get_dynamodb_article(article_id: str) -> dict:
     # todo: cache
     res = dynamodb_table.get_item(
         Key={
-            "pk": f"POST#{post_id}",
+            "pk": f"POST#{article_id}",
             "sk": "META"
         }
     )

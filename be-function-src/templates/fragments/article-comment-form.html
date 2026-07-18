@@ -1,0 +1,34 @@
+<form id="article-comment-form" novalidate>
+    <div class="form-group">
+        <label class="w-100">
+            <textarea class="form-control" id="text" name="text" placeholder="Write a comment" required
+                      rows="3">{{ article_comment.text if article_comment else "" }}</textarea>
+        </label>
+    </div>
+
+    <button type="submit" class="btn btn-light">
+        <i class="bi {% if article_comment %}bi-arrow-clockwise{% else %}bi-plus-lg{% endif %}"></i>
+        {% if article_comment %}Update{% else %}Add{% endif %} article comment
+    </button>
+</form>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    {% set form_url = url('update-article-comment', article_id=article.id, article_comment_id=article_comment.id) if article_comment
+    else url('create-article-comment', article_id=article.id) %}
+    handleFormSubmit("#article-comment-form", "{{ form_url }}", {
+      method: "{{ 'PATCH' if article_comment else 'POST' }}",
+      rules: {
+        text: [
+          {rule: "required"},
+          {rule: "minLength", value: 1},
+          {rule: "maxLength", value: 5_000}
+        ],
+      },
+      onSuccess: (res) => {
+        if (res) window.location.href = res
+      },
+      successMessage: "Article comment added!"
+    })
+  })
+</script>

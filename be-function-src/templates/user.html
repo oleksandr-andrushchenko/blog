@@ -1,17 +1,17 @@
 {% extends "layout.html" %}
 {% set meta_canonical_url = user_url(user, full=True) %}
 {% set val_map = {
-    (PostQueryType.LATEST): {"title": "Latest", "subtitle": "Recently added", "icon": "clock-fill"},
-    (PostQueryType.POPULAR): {"title": "Popular", "subtitle": "Most rated", "icon": "star-fill"},
-    (PostStatus.PUBLISHED): {"title": None, "subtitle": None},
-    (PostStatus.UNPUBLISHED): {"title": "Unpublished", "subtitle": "Unpublished"},
-    (PostStatus.REJECTED): {"title": "Rejected", "subtitle": "Rejected"}
+    (ArticleQueryType.LATEST): {"title": "Latest", "subtitle": "Recently added", "icon": "clock-fill"},
+    (ArticleQueryType.POPULAR): {"title": "Popular", "subtitle": "Most rated", "icon": "star-fill"},
+    (ArticleStatus.PUBLISHED): {"title": None, "subtitle": None},
+    (ArticleStatus.UNPUBLISHED): {"title": "Unpublished", "subtitle": "Unpublished"},
+    (ArticleStatus.REJECTED): {"title": "Rejected", "subtitle": "Rejected"}
 } %}
 
-{% set posts_icon = val_map[PostQueryType.LATEST]["icon"] %}
-{% set posts_title = ([val_map[post_query.type]["title"]] + [val_map[post_query.status]["title"]] + ["Posts"]) | select | join(" ") | title %}
+{% set articles_icon = val_map[ArticleQueryType.LATEST]["icon"] %}
+{% set articles_title = ([val_map[article_query.type]["title"]] + [val_map[article_query.status]["title"]] + ["Articles"]) | select | join(" ") | title %}
 {% set meta_robots = "index, follow" %}
-{% set posts_subtitle = ([val_map[post_query.type]["subtitle"]] + [val_map[post_query.status]["subtitle"]] + ["Articles"]) | select | join(" ") | title %}
+{% set articles_subtitle = ([val_map[article_query.type]["subtitle"]] + [val_map[article_query.status]["subtitle"]] + ["Articles"]) | select | join(" ") | title %}
 {% set meta_title = user.name ~ " - " ~  site_name %}
 {% block meta_desc %}
     {{- [
@@ -93,7 +93,7 @@
                         </div>
                     {% endif %}
 
-                    {% if user.bmc_username and user.published_posts_count %}
+                    {% if user.bmc_username and user.published_articles_count %}
                         <div>
                             <small class="text-secondary bi bi-currency-dollar"> Buy Me a Coffee:</small>
                             <a class="text-decoration-none link-body-emphasis d-inline-block me-2"
@@ -124,12 +124,12 @@
                         </div>
 
                         <div class="d-flex align-items-center gap-1">
-                            <span class="bi bi-pencil text-secondary"> {{ user.published_posts_count }}</span>
-                            <span class="text-secondary">Posts</span>
+                            <span class="bi bi-pencil text-secondary"> {{ user.published_articles_count }}</span>
+                            <span class="text-secondary">Articles</span>
                         </div>
 
                         <div class="d-flex align-items-center gap-1">
-                            <span class="bi bi-chat text-secondary"> {{ user.post_comments_count }}</span>
+                            <span class="bi bi-chat text-secondary"> {{ user.article_comments_count }}</span>
                             <span class="text-secondary">Comments</span>
                         </div>
                     </div>
@@ -153,48 +153,48 @@
             {% endif %}
 
             <section class="d-flex flex-column gap-3">
-                <h2 class="mb-0 text-decoration-underline">{{ posts_title }}</h2>
+                <h2 class="mb-0 text-decoration-underline">{{ articles_title }}</h2>
 
-                {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_POST, user) %}
+                {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE, user) %}
                     <div class="d-flex justify-content-start align-items-center gap-1">
                         <small class="text-secondary">Filter by status:</small>
 
                         <div class="btn-group">
-                            {% set is_published = post_query.status == PostStatus.PUBLISHED %}
-                            <a href="{{ user_url(user, **post_query.get_dict({"status": None if is_published else PostStatus.PUBLISHED.value})) }}"
+                            {% set is_published = article_query.status == ArticleStatus.PUBLISHED %}
+                            <a href="{{ user_url(user, **article_query.get_dict({"status": None if is_published else ArticleStatus.PUBLISHED.value})) }}"
                                class="btn {% if is_published %}btn-success active{% else %}btn-light{% endif %}">
-                                {{ PostStatus.PUBLISHED | title }} ({{ user.published_posts_count }})
+                                {{ ArticleStatus.PUBLISHED | title }} ({{ user.published_articles_count }})
                             </a>
 
-                            {% set is_unpublished = post_query.status == PostStatus.UNPUBLISHED %}
-                            <a href="{{ user_url(user, **post_query.get_dict({"status": None if is_unpublished else PostStatus.UNPUBLISHED.value})) }}"
+                            {% set is_unpublished = article_query.status == ArticleStatus.UNPUBLISHED %}
+                            <a href="{{ user_url(user, **article_query.get_dict({"status": None if is_unpublished else ArticleStatus.UNPUBLISHED.value})) }}"
                                class="btn {% if is_unpublished %}btn-warning active{% else %}btn-light{% endif %}">
-                                {{ PostStatus.UNPUBLISHED | title }} ({{ user.unpublished_posts_count }})
+                                {{ ArticleStatus.UNPUBLISHED | title }} ({{ user.unpublished_articles_count }})
                             </a>
 
-                            {% set is_rejected = post_query.status == PostStatus.REJECTED %}
-                            <a href="{{ user_url(user, **post_query.get_dict({"status": None if is_rejected else PostStatus.REJECTED.value})) }}"
+                            {% set is_rejected = article_query.status == ArticleStatus.REJECTED %}
+                            <a href="{{ user_url(user, **article_query.get_dict({"status": None if is_rejected else ArticleStatus.REJECTED.value})) }}"
                                class="btn {% if is_rejected %}btn-danger active{% else %}btn-light{% endif %}">
-                                {{ PostStatus.REJECTED | title }} ({{ user.rejected_posts_count }})
+                                {{ ArticleStatus.REJECTED | title }} ({{ user.rejected_articles_count }})
                             </a>
                         </div>
 
-                        {% if post_query.has_params() %}
+                        {% if article_query.has_params() %}
                             <a href="{{ user_url(user) }}" class="btn btn-light bi bi-x-lg"> Reset</a>
                         {% endif %}
                     </div>
                 {% endif %}
 
-                {% if posts %}
-                    <div id="posts" class="d-flex flex-column gap-3">
-                        {% include "fragments/posts.html" %}
+                {% if articles %}
+                    <div id="articles" class="d-flex flex-column gap-3">
+                        {% include "fragments/articles.html" %}
                     </div>
 
-                    {% with limit=post_query.limit,
-                        offset=posts[-1].offset,
-                        count=posts|length,
-                        url=url("user-posts-fragment", user_id=user.id, **post_query.get_dict()),
-                        container="#posts" %}
+                    {% with limit=article_query.limit,
+                        offset=articles[-1].offset,
+                        count=articles|length,
+                        url=url("user-articles-fragment", user_id=user.id, **article_query.get_dict()),
+                        container="#articles" %}
                         {% include "fragments/load-more-button.html" %}
                     {% endwith %}
                 {% else %}
@@ -204,7 +204,7 @@
         </div>
 
         <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
-            {% if user.published_posts_count %}
+            {% if user.published_articles_count %}
                 {% with header="Enjoy this author’s work?" %}
                     {% include "fragments/bmc-donate.html" %}
                 {% endwith %}

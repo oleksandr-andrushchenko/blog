@@ -60,7 +60,7 @@ class UserQueryDTO(BaseQueryDTO):
 
 
 @dataclass(slots=True)
-class PostTagQueryDTO(BaseQueryDTO):
+class ArticleTagQueryDTO(BaseQueryDTO):
     prefix: str | None = None
 
     def __post_init__(self):
@@ -72,35 +72,35 @@ class PostTagQueryDTO(BaseQueryDTO):
         return BaseQueryDTO.has_params(self) or self.prefix is not None
 
 
-class PostQueryType(StrEnum):
+class ArticleQueryType(StrEnum):
     LATEST = "latest"
     POPULAR = "popular"
 
 
-class PostStatus(StrEnum):
+class ArticleStatus(StrEnum):
     UNPUBLISHED = "unpublished"
     PUBLISHED = "published"
     REJECTED = "rejected"
 
 
 @dataclass(slots=True)
-class PostQueryDTO(BaseQueryDTO):
-    DEFAULT_TYPE = PostQueryType.LATEST
-    DEFAULT_STATUS = PostStatus.PUBLISHED
+class ArticleQueryDTO(BaseQueryDTO):
+    DEFAULT_TYPE = ArticleQueryType.LATEST
+    DEFAULT_STATUS = ArticleStatus.PUBLISHED
 
     tags: list[str] = field(default_factory=list)
-    type: PostQueryType = PostQueryType.LATEST
-    status: PostStatus = PostStatus.PUBLISHED
+    type: ArticleQueryType = ArticleQueryType.LATEST
+    status: ArticleStatus = ArticleStatus.PUBLISHED
 
     def __post_init__(self):
         BaseQueryDTO.__post_init__(self)
-        self.type = PostQueryType(self.type)
-        self.status = PostStatus(self.status)
+        self.type = ArticleQueryType(self.type)
+        self.status = ArticleStatus(self.status)
 
     def has_params(self):
         return BaseQueryDTO.has_params(self) or bool(self.tags) or self.type != self.DEFAULT_TYPE or self.status != self.DEFAULT_STATUS
 
 
 @dataclass(slots=True)
-class PostCommentQueryDTO(BaseQueryDTO):
+class ArticleCommentQueryDTO(BaseQueryDTO):
     pass

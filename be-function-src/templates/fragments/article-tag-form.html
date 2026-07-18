@@ -1,7 +1,7 @@
-<form class="d-flex flex-column gap-2" id="post-tag-form" novalidate>
+<form class="d-flex flex-column gap-2" id="article-tag-form" novalidate>
     <div class="form-group row align-items-center">
         <div class="col col-2">
-            {% include "fragments/post-tag-image.html" %}
+            {% include "fragments/article-tag-image.html" %}
         </div>
         <div class="col-10">
             <div class="row align-items-center g-3">
@@ -16,7 +16,7 @@
                         <label class="form-check-label" for="keep-image">Keep current</label>
                     </div>
 
-                    {% if post_tag and post_tag.image_filename %}
+                    {% if article_tag and article_tag.image_filename %}
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="image_action" id="delete-image"
                                    value="delete">
@@ -43,15 +43,15 @@
         <label for="name" class="col-form-label col-2 label-required">Name</label>
         <div class="col-10">
             <input type="text" class="form-control" id="name" name="name" placeholder="Name"
-                   value="{{ post_tag.name if post_tag and post_tag.name else "" }}">
+                   value="{{ article_tag.name if article_tag and article_tag.name else "" }}">
         </div>
     </div>
 
     <div class="form-group row">
         <div class="col col-10 offset-2">
             <button type="submit" class="btn btn-light">
-                <i class="bi {% if post_tag %}bi-arrow-clockwise{% else %}bi-plus-lg{% endif %}"></i>
-                {% if post_tag %}Update{% else %}Create{% endif %} post tag
+                <i class="bi {% if article_tag %}bi-arrow-clockwise{% else %}bi-plus-lg{% endif %}"></i>
+                {% if article_tag %}Update{% else %}Create{% endif %} article tag
             </button>
         </div>
     </div>
@@ -75,8 +75,8 @@
       })
     })
 
-    handleFormSubmit("#post-tag-form", "{{ url('update-post-tag', slug=post_tag.slug) if post_tag else '' }}", {
-      method: "{{ 'PATCH' if post_tag else 'POST' }}",
+    handleFormSubmit("#article-tag-form", "{{ url('update-article-tag', slug=article_tag.slug) if article_tag else '' }}", {
+      method: "{{ 'PATCH' if article_tag else 'POST' }}",
       rules: {
         image_file: [
           {

@@ -2,39 +2,39 @@ from web import Body, Depends, HTMLResponse, HTTPException, JSONResponse, Query,
 from typing import Annotated, Optional
 from utils import (
     User,
-    PostQueryDTO,
-    Post,
-    PostTagQueryDTO,
+    ArticleQueryDTO,
+    Article,
+    ArticleTagQueryDTO,
     UserQueryDTO,
     InvalidTokenError,
-    PostNotFoundError,
-    PostCommentNotFoundError,
+    ArticleNotFoundError,
+    ArticleCommentNotFoundError,
     UserNotFoundError,
     get_html_content,
     get_user_by_auth_token,
-    get_post,
+    get_article,
     get_user,
     UpdateUserDTO,
     ImageFileDTO,
-    UpdatePostDTO,
-    UpdatePostStatusDTO,
-    UpdatePostImpressionDTO,
+    UpdateArticleDTO,
+    UpdateArticleStatusDTO,
+    UpdateArticleImpressionDTO,
     UpdateUserImpressionDTO,
     get_user_by_slug,
-    get_post_by_slugs,
-    PostComment,
+    get_article_by_slugs,
+    ArticleComment,
     UpdateUserStatusDTO,
-    UpdatePostCommentDTO,
-    UpdatePostCommentImpressionDTO,
-    get_post_comment,
-    parse_posts_url_slugs_path,
+    UpdateArticleCommentDTO,
+    UpdateArticleCommentImpressionDTO,
+    get_article_comment,
+    parse_articles_url_slugs_path,
     get_cdn_cache_version,
     is_prod,
     get_auth_token_max_age,
-    PostTag,
-    PostTagNotFoundError,
-    get_post_tag,
-    UpdatePostTagDTO,
+    ArticleTag,
+    ArticleTagNotFoundError,
+    get_article_tag,
+    UpdateArticleTagDTO,
 )
 
 
@@ -69,22 +69,22 @@ CurUserDep = Annotated[User, Depends(get_cur_user)]
 OptCurUserDep = Annotated[Optional[User], Depends(get_opt_cur_user)]
 
 
-def get_post_by_id(post_id: str, cur_user: OptCurUserDep = None) -> Post:
+def get_article_by_id(article_id: str, cur_user: OptCurUserDep = None) -> Article:
     try:
-        return get_post(post_id, cur_user)
-    except PostNotFoundError as e:
+        return get_article(article_id, cur_user)
+    except ArticleNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
-def get_post_tag_by_slug(slug: str, cur_user: CurUserDep) -> PostTag:
+def get_article_tag_by_slug(slug: str, cur_user: CurUserDep) -> ArticleTag:
     try:
-        return get_post_tag(slug, cur_user)
-    except PostTagNotFoundError as e:
+        return get_article_tag(slug, cur_user)
+    except ArticleTagNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
-def get_update_post_tag_dto(update_post_tag_dto: UpdatePostTagDTO = Body(...)) -> UpdatePostTagDTO:
-    return update_post_tag_dto
+def get_update_article_tag_dto(update_article_tag_dto: UpdateArticleTagDTO = Body(...)) -> UpdateArticleTagDTO:
+    return update_article_tag_dto
 
 
 def get_user_by_id(user_id: str, cur_user: OptCurUserDep = None) -> User:
@@ -103,20 +103,20 @@ def get_user_query_by_slugs(request: Request, type: str) -> UserQueryDTO:
         raise RequestValidationError({"query": str(e)})
 
 
-def get_post_query(request: Request, tags: list[str] = Query([])) -> PostQueryDTO:
+def get_article_query(request: Request, tags: list[str] = Query([])) -> ArticleQueryDTO:
     data = dict(request.query_params)
     data.update({"tags": tags})
     try:
-        return PostQueryDTO(**data)
+        return ArticleQueryDTO(**data)
     except ValueError as e:
         raise RequestValidationError({"query": str(e)})
 
 
-def get_post_query_by_slugs(request: Request, slugs_path: str) -> PostQueryDTO:
+def get_article_query_by_slugs(request: Request, slugs_path: str) -> ArticleQueryDTO:
     data = dict(request.query_params)
-    data.update(parse_posts_url_slugs_path(slugs_path))
+    data.update(parse_articles_url_slugs_path(slugs_path))
     try:
-        return PostQueryDTO(**data)
+        return ArticleQueryDTO(**data)
     except ValueError as e:
         raise RequestValidationError({"query": str(e)})
 
@@ -143,33 +143,33 @@ def get_update_user_status_dto(update_user_status_dto: UpdateUserStatusDTO = Bod
     return update_user_status_dto
 
 
-def get_update_post_dto(update_post_dto: UpdatePostDTO = Body(...)) -> UpdatePostDTO:
-    return update_post_dto
+def get_update_article_dto(update_article_dto: UpdateArticleDTO = Body(...)) -> UpdateArticleDTO:
+    return update_article_dto
 
 
-def get_update_post_status_dto(update_post_status_dto: UpdatePostStatusDTO = Body(...)) -> UpdatePostStatusDTO:
-    return update_post_status_dto
+def get_update_article_status_dto(update_article_status_dto: UpdateArticleStatusDTO = Body(...)) -> UpdateArticleStatusDTO:
+    return update_article_status_dto
 
 
-def get_update_post_impression_dto(
-        update_post_impression_dto: UpdatePostImpressionDTO = Body(...)) -> UpdatePostImpressionDTO:
-    return update_post_impression_dto
+def get_update_article_impression_dto(
+        update_article_impression_dto: UpdateArticleImpressionDTO = Body(...)) -> UpdateArticleImpressionDTO:
+    return update_article_impression_dto
 
 
-def get_post_comment_by_id(post_id: str, comment_id: str) -> PostComment:
+def get_article_comment_by_id(article_id: str, comment_id: str) -> ArticleComment:
     try:
-        return get_post_comment(post_id, comment_id)
-    except PostCommentNotFoundError as e:
+        return get_article_comment(article_id, comment_id)
+    except ArticleCommentNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
-def get_update_post_comment_dto(update_post_comment_dto: UpdatePostCommentDTO = Body(...)) -> UpdatePostCommentDTO:
-    return update_post_comment_dto
+def get_update_article_comment_dto(update_article_comment_dto: UpdateArticleCommentDTO = Body(...)) -> UpdateArticleCommentDTO:
+    return update_article_comment_dto
 
 
-def get_update_post_comment_impression_dto(update_post_comment_impression_dto: UpdatePostCommentImpressionDTO = Body(
-    ...)) -> UpdatePostCommentImpressionDTO:
-    return update_post_comment_impression_dto
+def get_update_article_comment_impression_dto(update_article_comment_impression_dto: UpdateArticleCommentImpressionDTO = Body(
+    ...)) -> UpdateArticleCommentImpressionDTO:
+    return update_article_comment_impression_dto
 
 
 def get_update_user_impression_dto(
@@ -184,10 +184,10 @@ def _get_user_by_slug(slug: str, cur_user: OptCurUserDep = None) -> User:
         raise HTTPException(status_code=404, detail=str(e))
 
 
-def _get_post_by_slugs(user_slug: str, post_slug: str, cur_user: OptCurUserDep = None) -> Post:
+def _get_article_by_slugs(user_slug: str, article_slug: str, cur_user: OptCurUserDep = None) -> Article:
     try:
-        return get_post_by_slugs(user_slug, post_slug, cur_user)
-    except PostNotFoundError as e:
+        return get_article_by_slugs(user_slug, article_slug, cur_user)
+    except ArticleNotFoundError as e:
         raise HTTPException(
             status_code=404,
             detail=str(e),
@@ -271,19 +271,19 @@ UpdateUserDTODep = Annotated[UpdateUserDTO, Depends(get_update_user_dto)]
 UpdateUserStatusDTODep = Annotated[UpdateUserStatusDTO, Depends(get_update_user_status_dto)]
 UserQueryDep = Annotated[UserQueryDTO, Depends()]
 UserQueryBySlugsDep = Annotated[UserQueryDTO, Depends(get_user_query_by_slugs)]
-PostDep = Annotated[Post, Depends(get_post_by_id)]
-PostBySlugsDep = Annotated[Post, Depends(_get_post_by_slugs)]
-UpdatePostDTODep = Annotated[UpdatePostDTO, Depends(get_update_post_dto)]
-UpdatePostStatusDTODep = Annotated[UpdatePostStatusDTO, Depends(get_update_post_status_dto)]
-UpdatePostImpressionDTODep = Annotated[UpdatePostImpressionDTO, Depends(get_update_post_impression_dto)]
-PostQueryDep = Annotated[PostQueryDTO, Depends(get_post_query)]
-PostQueryBySlugsDep = Annotated[PostQueryDTO, Depends(get_post_query_by_slugs)]
-PostCommentDep = Annotated[PostComment, Depends(get_post_comment_by_id)]
-UpdatePostCommentDTODep = Annotated[UpdatePostCommentDTO, Depends(get_update_post_comment_dto)]
-UpdatePostCommentImpressionDTODep = Annotated[
-    UpdatePostCommentImpressionDTO, Depends(get_update_post_comment_impression_dto)]
-PostTagQueryDep = Annotated[PostTagQueryDTO, Depends()]
-PostTagDep = Annotated[PostTag, Depends(get_post_tag_by_slug)]
-UpdatePostTagDTODep = Annotated[UpdatePostTagDTO, Depends(get_update_post_tag_dto)]
+ArticleDep = Annotated[Article, Depends(get_article_by_id)]
+ArticleBySlugsDep = Annotated[Article, Depends(_get_article_by_slugs)]
+UpdateArticleDTODep = Annotated[UpdateArticleDTO, Depends(get_update_article_dto)]
+UpdateArticleStatusDTODep = Annotated[UpdateArticleStatusDTO, Depends(get_update_article_status_dto)]
+UpdateArticleImpressionDTODep = Annotated[UpdateArticleImpressionDTO, Depends(get_update_article_impression_dto)]
+ArticleQueryDep = Annotated[ArticleQueryDTO, Depends(get_article_query)]
+ArticleQueryBySlugsDep = Annotated[ArticleQueryDTO, Depends(get_article_query_by_slugs)]
+ArticleCommentDep = Annotated[ArticleComment, Depends(get_article_comment_by_id)]
+UpdateArticleCommentDTODep = Annotated[UpdateArticleCommentDTO, Depends(get_update_article_comment_dto)]
+UpdateArticleCommentImpressionDTODep = Annotated[
+    UpdateArticleCommentImpressionDTO, Depends(get_update_article_comment_impression_dto)]
+ArticleTagQueryDep = Annotated[ArticleTagQueryDTO, Depends()]
+ArticleTagDep = Annotated[ArticleTag, Depends(get_article_tag_by_slug)]
+UpdateArticleTagDTODep = Annotated[UpdateArticleTagDTO, Depends(get_update_article_tag_dto)]
 ImageFileDTODep = Annotated[ImageFileDTO, Depends(get_image_file)]
 UpdateUserImpressionDTODep = Annotated[UpdateUserImpressionDTO, Depends(get_update_user_impression_dto)]

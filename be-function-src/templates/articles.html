@@ -1,0 +1,153 @@
+{% extends "layout.html" %}
+
+{% set val_map = {
+    (ArticleQueryType.LATEST): {"title": "Latest", "subtitle": "Recently added"},
+    (ArticleQueryType.POPULAR): {"title": "Popular", "subtitle": "Most popular"},
+    (ArticleStatus.PUBLISHED): {"title": None, "subtitle": None},
+    (ArticleStatus.UNPUBLISHED): {"title": "Unpublished", "subtitle": "Unpublished"},
+    (ArticleStatus.REJECTED): {"title": "Rejected", "subtitle": "Rejected"}
+} %}
+
+{% set title = ([val_map[article_query.type]["title"]] + (article_query.tags if article_query.tags else [site_about]) + [val_map[article_query.status]["title"]] + ["Articles"]) | select | join(" ") | title %}
+{% set meta_robots = "index, follow" %}
+{% set subtitle = ([val_map[article_query.type]["subtitle"]]  + article_query.tags + [val_map[article_query.status]["subtitle"]] + ["Articles"]) | select | join(" ") | title %}
+{% set meta_title = title ~ " | " ~ site_name %}
+{% set meta_canonical_url = articles_url(query=article_query, tags=article_query.tags|sort, full=True) %}
+
+{% block breadcrumbs %}
+    {% set breadcrumbs = {"Home": url("index"), "Articles": articles_url()} %}
+
+    {% if article_query.type and article_query.type != ArticleQueryDTO.DEFAULT_TYPE %}
+        {% set breadcrumbs = breadcrumbs.update({article_query.type | title: articles_url(type=article_query.type)}) or breadcrumbs %}
+    {% endif %}
+
+    {% set ns = namespace(path_tags=[]) %}
+    {% for tag in article_query.tags %}
+        {% set ns.path_tags = ns.path_tags + [tag] %}
+        {% set breadcrumbs = breadcrumbs.update({tag | title: articles_url(tags=ns.path_tags, type=article_query.type)}) or breadcrumbs %}
+    {% endfor %}
+
+    {% if article_query.status and article_query.status != ArticleQueryDTO.DEFAULT_STATUS %}
+        {% set breadcrumbs = breadcrumbs.update({article_query.status | title: articles_url(type=article_query.status)}) or breadcrumbs %}
+    {% endif %}
+
+    {% set last_key = (breadcrumbs.keys() | list)[-1] %}
+    {% set breadcrumbs = breadcrumbs.update({ last_key: None }) or breadcrumbs %}
+
+    {% include "fragments/breadcrumbs.html" %}
+{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    <p class="small text-secondary">{{ subtitle }}</p>
+
+    <div class="row g-5">
+        <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-4">
+            {% if article_tag and article_tag.image_filename %}
+                {% with filename=article_tag.image_filename, alt=title, figure=True %}
+                    {% include "fragments/image.html" %}
+                {% endwith %}
+            {% endif %}
+
+            {% if articles %}
+                <section id="articles" class="d-flex flex-column gap-3">
+                    {% with h_tag_size=2 %}
+                        {% include "fragments/articles.html" %}
+                    {% endwith %}
+                </section>
+
+                {% with limit=article_query.limit,
+                    offset=articles[-1].offset,
+                    count=articles|length,
+                    url=url("articles-fragment", **article_query.get_dict()),
+                    container="#articles" %}
+                    {% include "fragments/load-more-button.html" %}
+                {% endwith %}
+            {% else %}
+                <div>N/A</div>
+            {% endif %}
+        </div>
+
+        <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
+            <section class="d-flex flex-column gap-3">
+                <h2 class="mb-0 text-decoration-underline bi bi-filter"> Filter articles</h2>
+
+                <form action="{{ articles_url() }}" method="get">
+                    <input type="hidden" name="type" value="{{ article_query.type }}">
+                    <input type="hidden" name="status" value="{{ article_query.status }}">
+
+                    <div class="d-flex flex-column gap-1">
+                        <div>
+                            <small class="text-secondary bi bi-sort-down"> Show:</small>
+                            <div class="btn-group">
+                                {% set is_latest = article_query.type == ArticleQueryType.LATEST %}
+                                <a href="{{ articles_url(**article_query.get_dict({"type": None if is_latest else ArticleQueryType.LATEST})) }}"
+                                   class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
+                                    {{ ArticleQueryType.LATEST | title }} first
+                                </a>
+                                {% set is_popular = article_query.type == ArticleQueryType.POPULAR %}
+                                <a href="{{ articles_url(**article_query.get_dict({"type": None if is_popular else ArticleQueryType.POPULAR})) }}"
+                                   class="btn {% if is_popular %}btn-primary active{% else %}btn-light{% endif %} bi bi-star{{ "-fill" if is_popular else "" }}">
+                                    {{ ArticleQueryType.POPULAR | title }} first
+                                </a>
+                            </div>
+                        </div>
+
+                        <div>
+                            <small class="text-secondary bi bi-tags"> Filter by tags:</small>
+                            {% with url=url("get-article-tags"),
+                            value=article_query.tags,
+                            tag_items=article_query_tag_items,
+                            auto_submit=False,
+                            inject_hidden=True %}
+                                {% include "fragments/tags-input.html" %}
+                            {% endwith %}
+
+                            <button class="btn btn-light bi bi-search" type="submit"> Search</button>
+                        </div>
+
+                        {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE) %}
+                            <div>
+                                <small class="text-secondary bi bi-toggle2-on"> Filter by status:</small>
+                                <div class="btn-group">
+                                    {% set is_published = article_query.status == ArticleStatus.PUBLISHED %}
+                                    <a href="{{ articles_url(**article_query.get_dict({"status": None if is_published else ArticleStatus.PUBLISHED})) }}"
+                                       class="btn {% if is_published %}btn-success active{% else %}btn-light{% endif %}">
+                                        {{ ArticleStatus.PUBLISHED | title }}
+                                    </a>
+
+                                    {% set is_unpublished = article_query.status == ArticleStatus.UNPUBLISHED %}
+                                    <a href="{{ articles_url(**article_query.get_dict({"status": None if is_unpublished else ArticleStatus.UNPUBLISHED})) }}"
+                                       class="btn {% if is_unpublished %}btn-warning active{% else %}btn-light{% endif %}">
+                                        {{ ArticleStatus.UNPUBLISHED | title }}
+                                    </a>
+
+                                    {% set is_rejected = article_query.status == ArticleStatus.REJECTED %}
+                                    <a href="{{ articles_url(**article_query.get_dict({"status": None if is_rejected else ArticleStatus.REJECTED})) }}"
+                                       class="btn {% if is_rejected %}btn-danger active{% else %}btn-light{% endif %}">
+                                        {{ ArticleStatus.REJECTED | title }}
+                                    </a>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        {% if article_query.has_params() %}
+                            <div>
+                                <a href="{{ articles_url() }}" class="btn btn-light bi bi-x-lg"> Reset</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </form>
+
+                {% if article_tag and cur_user and check_auth(cur_user, Permission.UPDATE_ARTICLE_TAG) %}
+                    <div>
+                        <a href="{{ url("edit-article-tag", slug=article_query.tags[0]) }}"
+                           class="btn btn-light bi bi-pencil">
+                            Edit article tag
+                        </a>
+                    </div>
+                {% endif %}
+            </section>
+        </div>
+    </div>
+{% endblock %}

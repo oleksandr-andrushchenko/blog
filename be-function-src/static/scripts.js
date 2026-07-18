@@ -455,12 +455,12 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
 const tooltipTriggerList = document.querySelectorAll("[title], [data-bs-toggle=\"tooltip\"]")
 const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
 
-// Publish post
-$(".btn-post-publish, .btn-post-unpublish").on("click", function () {
+// Publish article
+$(".btn-article-publish, .btn-article-unpublish").on("click", function () {
   const $btn = $(this)
-  const postId = $btn.data("post-id")
+  const articleId = $btn.data("article-id")
   const status = $btn.data("status")
-  const url = window.CONFIG.update_post_status_url.replace("{post_id}", postId)
+  const url = window.CONFIG.update_article_status_url.replace("{article_id}", articleId)
 
   $btn.prop("disabled", true).addClass("disabled")
 
@@ -468,20 +468,20 @@ $(".btn-post-publish, .btn-post-unpublish").on("click", function () {
     url, method: "POST", contentType: "application/json", data: JSON.stringify({status}), success: function () {
       window.location.reload()
     }, error: function (xhr) {
-      console.error(`Error on post ${status}:`, xhr.responseText)
-      alert(`Failed to ${status} post.`)
+      console.error(`Error on article ${status}:`, xhr.responseText)
+      alert(`Failed to ${status} article.`)
     }, complete: function () {
       $btn.prop("disabled", false).removeClass("disabled")
     }
   })
 })
 
-// Reject post
-$(".btn-post-reject").on("click", function () {
+// Reject article
+$(".btn-article-reject").on("click", function () {
   const $btn = $(this)
-  const postId = $btn.data("post-id")
+  const articleId = $btn.data("article-id")
   const status = $btn.data("status")
-  const url = window.CONFIG.update_post_status_url.replace("{post_id}", postId)
+  const url = window.CONFIG.update_article_status_url.replace("{article_id}", articleId)
   const comment = $btn.closest(".input-group").find("input[name='comment']").val().trim()
 
   if (!comment) {
@@ -500,8 +500,8 @@ $(".btn-post-reject").on("click", function () {
       window.location.reload()
     },
     error: function (xhr) {
-      console.error("Error rejecting post:", xhr.responseText)
-      alert("Failed to reject post.")
+      console.error("Error rejecting article:", xhr.responseText)
+      alert("Failed to reject article.")
     },
     complete: function () {
       $btn.prop("disabled", false).removeClass("disabled")
@@ -509,21 +509,21 @@ $(".btn-post-reject").on("click", function () {
   })
 })
 
-// Like/dislike post (post impression)
-$(document).on("click", ".btn-post-like, .btn-post-dislike", function () {
+// Like/dislike article (article impression)
+$(document).on("click", ".btn-article-like, .btn-article-dislike", function () {
   const $btn = $(this)
-  const postId = $btn.data("post-id")
+  const articleId = $btn.data("article-id")
   const action = $btn.data("action")
-  const url = window.CONFIG.update_post_impression_url.replace("{post_id}", postId)
+  const url = window.CONFIG.update_article_impression_url.replace("{article_id}", articleId)
 
   $btn.prop("disabled", true).addClass("disabled")
 
   $.ajax({
     url, method: "POST", contentType: "application/json", data: JSON.stringify({action}), success: function (res) {
-      $btn.closest(".post-impressions").replaceWith(res)
+      $btn.closest(".article-impressions").replaceWith(res)
     }, error: function (xhr) {
-      console.error(`Error on post ${action}:`, xhr.responseText)
-      alert(`Failed to ${action} post. Please try again.`)
+      console.error(`Error on article ${action}:`, xhr.responseText)
+      alert(`Failed to ${action} article. Please try again.`)
     }, complete: function () {
       $btn.prop("disabled", false).removeClass("disabled")
     }

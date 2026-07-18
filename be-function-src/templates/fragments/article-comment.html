@@ -1,0 +1,34 @@
+{% set user = article_comment.get_user() %}
+
+<div class="article-comment" {% if article_comment.offset %}data-offset="{{ article_comment.offset }}"{% endif %}>
+    <div class="row g-2">
+        <div class="col col-1">
+            <a href="{{ user_url(user) }}">
+                {% include "fragments/user-avatar.html" %}
+            </a>
+        </div>
+
+        <div class="col col-11 d-flex flex-column">
+            <a class="link-body-emphasis text-decoration-none d-flex flex-column" href="{{ user_url(user) }}">
+                {{ user.name }}
+            </a>
+
+            <small class="article-comment-created-at text-secondary bi bi-calendar2">
+                {{ (article_comment.created_at / 1000) | unix_to_full_date }}
+            </small>
+
+            {% if article_comment.updated_at and article_comment.updated_at - article_comment.created_at > 86_400_000 %}
+                <small class="article-comment-updated-at text-secondary">
+                    UPD:
+                    {{ (article_comment.updated_at / 1000) | unix_to_full_date }}
+                </small>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="article-comment-text">
+        {{ article_comment.text }}
+    </div>
+
+    {#    {% include "fragments/article-impressions.html" %}#}
+</div>

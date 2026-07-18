@@ -46,7 +46,7 @@
                     <li><a href="{{ url("edit-user", user_id=cur_user.id) }}" class="link-body-emphasis">Add</a> an
                         optional donation username or link
                     </li>
-                    <li><a href="{{ url("new-post") }}" class="link-body-emphasis">Publish content</a></li>
+                    <li><a href="{{ url("new-article") }}" class="link-body-emphasis">Publish content</a></li>
                 {% else %}
                     <li><a href="{{ url('login', redirect_url=url("earn") | urlencode) }}" class="link-body-emphasis">Create an Account</a></li>
                     <li>Add an optional donation username or link</li>
@@ -72,7 +72,7 @@
             <ul>
                 <li>
                     <strong>Buy Me a Coffee</strong> — add your username to enable a donation button on your profile and
-                    posts.
+                    articles.
                 </li>
             </ul>
 
@@ -97,7 +97,7 @@
                 <li>Provide value to readers</li>
                 <li>Use examples where helpful</li>
                 <li>Keep content readable and organized</li>
-                <li>Maintain consistency across your posts</li>
+                <li>Maintain consistency across your articles</li>
             </ul>
         </section>
 

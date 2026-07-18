@@ -40,15 +40,15 @@
                 </small>
             {% endif %}
 
-            {% if user.published_posts_count %}
-                <small class="text-secondary bi bi-pencil" title="Posts written">
-                    {{ user.published_posts_count }}
+            {% if user.published_articles_count %}
+                <small class="text-secondary bi bi-pencil" title="Articles written">
+                    {{ user.published_articles_count }}
                 </small>
             {% endif %}
 
-            {% if user.post_comments_count %}
-                <small class="text-secondary bi bi-chat" title="Post comments added">
-                    {{ user.post_comments_count }}
+            {% if user.article_comments_count %}
+                <small class="text-secondary bi bi-chat" title="Article comments added">
+                    {{ user.article_comments_count }}
                 </small>
             {% endif %}
         </div>

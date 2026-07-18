@@ -1,12 +1,12 @@
-{% for post_comment in latest_post_comments %}
-    {% set post = post_comment.get_post() %}
-    {% set user = post_comment.get_user() %}
-    <div class="latest-post-comment g-3 pb-3 border-bottom"
-         {% if post_comment.offset %}data-offset="{{ post_comment.offset }}"{% endif %}>
+{% for article_comment in latest_article_comments %}
+    {% set article = article_comment.get_article() %}
+    {% set user = article_comment.get_user() %}
+    <div class="latest-article-comment g-3 pb-3 border-bottom"
+         {% if article_comment.offset %}data-offset="{{ article_comment.offset }}"{% endif %}>
 
         <figure class="mb-0">
             <blockquote class="blockquote fs-6 m-0">
-                <p class="text-dark italic">"{{ post_comment.text }}"</p>
+                <p class="text-dark italic">"{{ article_comment.text }}"</p>
             </blockquote>
 
             <figcaption class="blockquote-footer m-0 text-muted">
@@ -26,18 +26,18 @@
                 </div>
                 <div class="small text-secondary">Commented on</div>
                 <a class="link-body-emphasis text-decoration-none d-flex flex-column"
-                   href="{{ post_url(post) }}">
-                    {{ post.title }}
+                   href="{{ article_url(article) }}">
+                    {{ article.title }}
                 </a>
                 <div class="small">
-                    <small class="post-comment-created-at text-secondary bi bi-calendar2">
-                        {{ (post_comment.created_at / 1000) | unix_to_full_date }}
+                    <small class="article-comment-created-at text-secondary bi bi-calendar2">
+                        {{ (article_comment.created_at / 1000) | unix_to_full_date }}
                     </small>
 
-                    {% if post_comment.updated_at and post_comment.updated_at - post_comment.created_at > 86_400_000 %}
-                        <small class="post-comment-updated-at text-secondary">
+                    {% if article_comment.updated_at and article_comment.updated_at - article_comment.created_at > 86_400_000 %}
+                        <small class="article-comment-updated-at text-secondary">
                             UPD:
-                            {{ (post_comment.updated_at / 1000) | unix_to_full_date }}
+                            {{ (article_comment.updated_at / 1000) | unix_to_full_date }}
                         </small>
                     {% endif %}
                 </div>
