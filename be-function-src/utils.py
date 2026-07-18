@@ -12,7 +12,6 @@ from typing import Callable, ClassVar, Literal, TypeVar, Any, Optional
 from jinja2 import Environment, FileSystemLoader, pass_context
 import json
 from datetime import datetime, timedelta, timezone
-from pydantic import BaseModel, Field, field_validator, conlist, constr, computed_field
 from zoneinfo import ZoneInfo
 import copy
 from functools import lru_cache, partial
@@ -20,6 +19,10 @@ import asyncio
 from dataclasses import dataclass, asdict
 from decimal import Decimal
 from validation import validate_email_address, validate_http_url
+from query_dtos import (BaseQueryDTO, PostCommentQueryDTO, PostQueryDTO, PostQueryType, PostStatus, PostTagQueryDTO, UserQueryDTO, UserQueryType, UserStatus)
+from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO, UserTokenDTO
+from user_dtos import UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO, UserImpressionAction
+from post_dtos import (PostCommentDTO, PostCommentImpressionAction, PostDTO, PostImpressionAction, UpdatePostCommentDTO, UpdatePostCommentImpressionDTO, UpdatePostDTO, UpdatePostImpressionDTO, UpdatePostStatusDTO, UpdatePostTagDTO)
 
 
 def Key(*args, **kwargs):
@@ -35,23 +38,6 @@ def to_thread(func, *args, **kwargs):
     loop = asyncio.get_event_loop()
     return loop.run_in_executor(None, partial(func, *args, **kwargs))
 
-
-class UserTokenDTO(BaseModel):
-    sub: str
-    iss: str  # "cognito", "google", etc.
-    email: str | None = None
-    name: str | None = None
-    username: str | None = None  # only for Cognito native
-    iat: datetime | None = None  # issued at
-    exp: datetime | None = None  # expiration
-    max_age: int | None = None
-    aud: str | list[str] | None = None  # audience / client_id
-    plain_token: str | None = None  # plain token
-
-
-class UserStatus(StrEnum):
-    ACTIVE = "active"
-    BANNED = "banned"
 
 
 @dataclass(slots=True)
@@ -86,178 +72,6 @@ class User:
     offset: str | None
 
 
-class FileDTO(BaseModel):
-    content: bytes
-    filename: str
-
-    @computed_field
-    @property
-    def size(self) -> int:
-        return len(self.content)
-
-    @computed_field
-    @property
-    def extension(self) -> str | None:
-        import filetype
-        kind = filetype.guess(self.content)
-        if kind:
-            return kind.extension
-        return None
-
-
-class ImageFileDTO(FileDTO):
-    MAX_IMAGE_SIZE: ClassVar[int] = 2 * 1024 * 1024  # 2 MB
-    ALLOWED_IMAGE_EXTENSIONS: ClassVar[set[str]] = {"jpg", "jpeg", "png", "gif"}
-
-    @computed_field
-    @property
-    def size(self) -> int:
-        size = super().size
-        if size > self.MAX_IMAGE_SIZE:
-            raise ValueError(f"File too large: {size} bytes, max {self.MAX_IMAGE_SIZE}")
-        return size
-
-    @computed_field
-    @property
-    def extension(self) -> str:
-        image_type = super().extension
-        if image_type not in self.ALLOWED_IMAGE_EXTENSIONS:
-            raise ValueError(f"Invalid image type: {image_type}")
-        return image_type
-
-
-class UserDTO(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100)
-    username: str | None = Field(None, min_length=3, max_length=30)
-
-    USERNAME_PATTERN: ClassVar[re.Pattern] = re.compile(r"^[a-z0-9-]+$")
-    USERNAME_BLACKLIST: ClassVar[set[str]] = {
-        "api", "posts", "posts-fragment", "contacts", "post-tags", "users", "users-fragment", "login", "login-callback",
-        "logout", "logout-callback", "dummy-fixtures", "me", "privacy-policy", "rules", "terms-of-service",
-        "earn-with-us", "popular", "utils",
-    }
-
-    @field_validator("username")
-    @classmethod
-    def validate_username(cls, value: str):
-        if value is None:
-            return value
-
-        value = value.strip()
-
-        if not cls.USERNAME_PATTERN.match(value):
-            raise ValueError("Username must contain only lowercase letters, numbers, and hyphens")
-
-        if value.startswith("-") or value.endswith("-"):
-            raise ValueError("Username cannot start or end with a hyphen")
-
-        if "--" in value:
-            raise ValueError("Username cannot contain consecutive hyphens")
-
-        if value in cls.USERNAME_BLACKLIST:
-            raise ValueError("This word can't be a username")
-
-        return value
-
-
-class UpdateUserDTO(UserDTO):
-    avatar_action: Literal["delete", "replace", "keep"] | None = None
-    # todo: check if file exists
-    avatar_filename: str | None = None
-    headline: str | None = Field(None, max_length=150)
-    about: str | None = Field(None, max_length=2000)
-    website: str | None = Field(None, max_length=255)
-    address: str | None = Field(None, max_length=255)
-    github_username: str | None = Field(None, min_length=1, max_length=39)
-    bmc_username: str | None = Field(None, min_length=1, max_length=50)
-
-    GITHUB_USERNAME_PATTERN: ClassVar[re.Pattern] = re.compile(r"^[a-zA-Z0-9-]+$")
-
-    @field_validator("website")
-    @classmethod
-    def validate_website(cls, value: str | None):
-        return validate_http_url(value)
-
-    @field_validator("github_username")
-    @classmethod
-    def validate_github_username(cls, value: str | None):
-        if value is None:
-            return value
-
-        value = value.strip()
-
-        # Allow users to paste full GitHub URL
-        if "github.com/" in value:
-            value = value.split("github.com/")[-1].strip("/")
-            # Handle cases like github.com/user/repo
-            value = value.split("/")[0]
-
-        # Normalize
-        value = value.lower()
-
-        if not cls.GITHUB_USERNAME_PATTERN.match(value):
-            raise ValueError(
-                "GitHub username must contain only letters, numbers, and hyphens"
-            )
-
-        if value.startswith("-") or value.endswith("-"):
-            raise ValueError("GitHub username cannot start or end with a hyphen")
-
-        if "--" in value:
-            raise ValueError("GitHub username cannot contain consecutive hyphens")
-
-        return value
-
-    BMC_USERNAME_PATTERN: ClassVar[re.Pattern] = re.compile(r"^[a-zA-Z0-9.]+$")
-
-    @field_validator("bmc_username")
-    @classmethod
-    def validate_bmc_username(cls, value: str | None):
-        if value is None:
-            return value
-
-        value = value.strip()
-
-        # Allow users to paste full URL and extract username
-        if "buymeacoffee.com/" in value:
-            value = value.split("buymeacoffee.com/")[-1].strip("/")
-
-        # Normalize
-        value = value.lower()
-
-        # Validate pattern
-        if not cls.BMC_USERNAME_PATTERN.match(value):
-            raise ValueError(
-                "BMC username must contain only letters, numbers, and dots"
-            )
-
-        if value.startswith(".") or value.endswith("."):
-            raise ValueError("BMC username cannot start or end with a dot")
-
-        if ".." in value:
-            raise ValueError("BMC username cannot contain consecutive dots")
-
-        return value
-
-
-class UpdateUserStatusDTO(BaseModel):
-    status: UserStatus = Field(...)
-    comment: str = Field(None)
-
-    @field_validator("comment")
-    @classmethod
-    def validate_comment(cls, value, info):
-        status = info.data.get("status")
-        if status == UserStatus.BANNED and not value:
-            raise ValueError("Comment is required when banning a user")
-        return value
-
-
-class UserImpressionAction(StrEnum):
-    FOLLOW = "follow"
-    BLOCK = "block"
-
-
 @dataclass(slots=True)
 class UserImpression:
     owner_id: str
@@ -268,19 +82,6 @@ class UserImpression:
     updated_at: int | None
 
 
-class UpdateUserImpressionDTO(BaseModel):
-    action: UserImpressionAction = Field(...)
-
-
-class ContactMessageDTO(BaseModel):
-    name: str = Field(..., min_length=2, max_length=100)
-    email: str
-    message: str = Field(..., min_length=5, max_length=1000)
-
-    @field_validator("email")
-    @classmethod
-    def validate_email(cls, value: str):
-        return validate_email_address(value)
 
 
 @dataclass(slots=True)
@@ -352,84 +153,7 @@ def sanitize_forbidden_html(value):
     return normalized
 
 
-class PostTagDTO(BaseModel):
-    MIN_LENGTH: ClassVar[int] = 2
-    MAX_LENGTH: ClassVar[int] = 40
 
-
-def sanitize_tags(value):
-    if not value:
-        return []
-    # lowercase, kebab-case, dedupe
-    normalized = [to_kebab_case(t) for t in value]
-    return list(dict.fromkeys(normalized))
-
-
-class PostDTO(BaseModel):
-    title: str = Field(..., min_length=10, max_length=500)
-    content: str = Field(..., min_length=5_000, max_length=50_000)
-    tags: conlist(constr(min_length=PostTagDTO.MIN_LENGTH, max_length=PostTagDTO.MAX_LENGTH), min_length=1,
-                  max_length=3)
-
-    @field_validator("tags", mode="before")
-    @classmethod
-    def normalize_tags(cls, value):
-        return sanitize_tags(value)
-
-
-# todo: rename to ReplacePostDTO (?)
-class UpdatePostDTO(PostDTO):
-    pass
-
-
-class BaseQueryDTO(BaseModel):
-    DEFAULT_OFFSET: ClassVar[str | None] = None
-    DEFAULT_LIMIT: ClassVar[int] = 20
-
-    offset: str | None = DEFAULT_OFFSET
-    limit: int = Field(default=DEFAULT_LIMIT, ge=1, le=20)
-
-    def get_dict(self, rewrite: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Return a dictionary representation of the model."""
-        data = self.model_dump()
-        if rewrite:
-            data.update(rewrite)
-        return enum_to_value(data)
-
-    def has_params(self) -> bool:
-        """Return True if any field differs from its default value."""
-        for name, info in self.model_fields.items():
-            value = getattr(self, name)
-
-            # skip fields that are None or empty lists/dicts
-            if value in (None, [], {}):
-                continue
-
-            # compare with default if it exists
-            if info.default is not None:
-                if value != info.default:
-                    return True
-            else:
-                # field has no default, any non-empty value counts
-                return True
-        return False
-
-
-class UserQueryType(StrEnum):
-    LATEST = "latest"
-    POPULAR = "popular"
-
-
-class UserQueryDTO(BaseQueryDTO):
-    DEFAULT_TYPE: ClassVar[UserQueryType] = UserQueryType.LATEST
-    DEFAULT_STATUS: ClassVar[UserStatus] = UserStatus.ACTIVE
-
-    type: UserQueryType = UserQueryType.LATEST
-    status: UserStatus = UserStatus.ACTIVE
-
-
-class PostTagQueryDTO(BaseQueryDTO):
-    prefix: str | None = Field(None, min_length=1, max_length=PostTagDTO.MAX_LENGTH)
 
 
 @dataclass(slots=True)
@@ -442,49 +166,6 @@ class PostTag:
     offset: str | None
 
 
-class UpdatePostTagDTO(PostTagDTO):
-    name: str = Field(..., min_length=PostTagDTO.MIN_LENGTH, max_length=PostTagDTO.MAX_LENGTH)
-    image_action: Literal["delete", "replace", "keep"] | None = None
-    # todo: check if file exists
-    image_filename: str | None = None
-
-
-class PostStatus(StrEnum):
-    UNPUBLISHED = "unpublished"
-    PUBLISHED = "published"
-    REJECTED = "rejected"
-
-
-class PostQueryType(StrEnum):
-    LATEST = "latest"
-    POPULAR = "popular"
-
-
-class PostQueryDTO(BaseQueryDTO):
-    DEFAULT_TYPE: ClassVar[PostQueryType] = PostQueryType.LATEST
-    DEFAULT_STATUS: ClassVar[PostStatus] = PostStatus.PUBLISHED
-
-    tags: list[str] | None = Field(default_factory=list)  # noqa
-    type: PostQueryType = DEFAULT_TYPE
-    status: PostStatus = DEFAULT_STATUS
-
-
-class UpdatePostStatusDTO(BaseModel):
-    status: PostStatus = Field(...)
-    comment: str = Field(None)
-
-    @field_validator("comment")
-    @classmethod
-    def validate_comment(cls, value, info):
-        status = info.data.get("status")
-        if status == PostStatus.REJECTED and not value:
-            raise ValueError("Comment is required when rejecting a post")
-        return value
-
-
-class PostImpressionAction(StrEnum):
-    LIKE = "like"
-    DISLIKE = "dislike"
 
 
 @dataclass(slots=True)
@@ -496,9 +177,6 @@ class PostImpression:
     created_at: int
     updated_at: int | None
 
-
-class UpdatePostImpressionDTO(BaseModel):
-    action: PostImpressionAction = Field(...)
 
 
 @dataclass(slots=True)
@@ -572,21 +250,8 @@ class PostComment:
     offset: str | None
 
 
-class PostCommentQueryDTO(BaseQueryDTO):
-    pass
 
 
-class PostCommentDTO(BaseModel):
-    text: str = Field(..., min_length=1, max_length=5_000)
-
-
-class UpdatePostCommentDTO(PostDTO):
-    pass
-
-
-class PostCommentImpressionAction(StrEnum):
-    LIKE = "like"
-    DISLIKE = "dislike"
 
 
 @dataclass(slots=True)
@@ -598,9 +263,6 @@ class PostCommentImpression:
     created_at: int
     updated_at: int | None
 
-
-class UpdatePostCommentImpressionDTO(BaseModel):
-    action: PostCommentImpressionAction = Field(...)
 
 
 class Permission(StrEnum):
@@ -885,7 +547,7 @@ class Lazy:
 def verify_authorization(
         user: User,
         permission: str,
-        resource: BaseModel = None,
+        resource: object = None,
         permissions: list[str] | None = None,
         hierarchy: dict[str, list[str]] | None = None,
 ) -> bool:
@@ -925,7 +587,7 @@ def verify_authorization(
 def check_authorization(
         user: User,
         permission: str,
-        resource: BaseModel = None,
+        resource: object = None,
         permissions: list[str] | None = None,
         hierarchy: dict[str, list[str]] | None = None
 ) -> bool:
@@ -941,6 +603,13 @@ def to_kebab_case(s: str) -> str:
     s = re.sub(r"[^\w\s-]", "", s)
     s = re.sub(r"\s+", "-", s)
     return s
+
+
+def sanitize_tags(value):
+    if not value:
+        return []
+    normalized = [to_kebab_case(tag) for tag in value]
+    return list(dict.fromkeys(normalized))
 
 
 def utc_now() -> int:
@@ -1108,7 +777,7 @@ def update_post_tag(post_tag: PostTag, update_post_tag_dto: UpdatePostTagDTO, cu
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
-    changes = update_post_tag_dto.model_dump(exclude_unset=True)
+    changes = update_post_tag_dto.changes()
     if not changes:
         return
 
@@ -1152,7 +821,7 @@ def update_post_tag(post_tag: PostTag, update_post_tag_dto: UpdatePostTagDTO, cu
         add_dynamodb_delete_transact(transacts, (f"POST_TAG#{old_slug}", "META"))
 
         from itertools import combinations
-        for post in get_latest_posts_by_tags(PostQueryDTO.model_construct(tags=[old_slug], limit=1000)):
+        for post in get_latest_posts_by_tags(PostQueryDTO(tags=[old_slug], limit=1000)):
             old_tags = list(post.tags)
             new_tags = list(dict.fromkeys(new_slug if tag == old_slug else tag for tag in old_tags))
             add_dynamodb_post_update_transact(transacts, post, {"tags": new_tags})
@@ -1994,7 +1663,7 @@ def update_post(post: Post, update_post_dto: UpdatePostDTO, cur_user: User, req)
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
-    changes = update_post_dto.model_dump(exclude_unset=True)
+    changes = update_post_dto.changes()
     if not changes:
         return
 
@@ -2268,7 +1937,7 @@ def update_post_comment(post: Post, post_comment: PostComment, update_post_comme
     if post_comment.likes_count != 0 or post_comment.dislikes_count != 0:
         raise PostCommentNonEditableError()
 
-    changes = update_post_comment_dto.model_dump(exclude_unset=True)
+    changes = update_post_comment_dto.changes()
     if not changes:
         return
 
@@ -2565,7 +2234,7 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
-    changes = update_user_dto.model_dump(exclude_unset=True)
+    changes = update_user_dto.changes()
     now = utc_now()
 
     if not changes:
@@ -2650,7 +2319,7 @@ def update_user_status(user: User, update_user_status_dto: UpdateUserStatusDTO, 
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
-    changes = update_user_status_dto.model_dump(exclude_unset=True)
+    changes = update_user_status_dto.changes()
     if not changes:
         return
     for k, v in changes.items():
@@ -3007,7 +2676,7 @@ def update_post_status(post: Post, update_post_status_dto: UpdatePostStatusDTO, 
     if post.status == PostStatus.PUBLISHED:
         raise PostAlreadyPublishedError()
 
-    changes = update_post_status_dto.model_dump(exclude_unset=True)
+    changes = update_post_status_dto.changes()
     if not changes:
         return
     for k, v in changes.items():
@@ -3136,7 +2805,7 @@ def _get_posts_urls(req) -> set[str]:
     urls = set()
     for _type in PostQueryType:
         urls.add(get_posts_url(req, type=_type))
-        for tag in get_post_tags(PostTagQueryDTO.model_construct(limit=1000)):
+        for tag in get_post_tags(PostTagQueryDTO(limit=1000)):
             urls.add(get_posts_url(req, type=_type, tags=[tag.slug]))
     return urls
 
@@ -3150,7 +2819,7 @@ def _get_post_tag_urls(post_tag: PostTag, req) -> set[str]:
 
 def _get_user_post_urls(user: User, req) -> set[str]:
     urls = set()
-    for post in get_latest_posts_by_user(user, PostQueryDTO.model_construct(limit=1000)):
+    for post in get_latest_posts_by_user(user, PostQueryDTO(limit=1000)):
         urls.add(get_post_url(req, post))
         urls.add(get_static_post_url(req, post))
     return urls
@@ -3739,7 +3408,7 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
 
     for type_ in PostQueryType:
         urls.append((posts_url(type_), today))
-        for tag in get_post_tags(PostTagQueryDTO.model_construct(limit=1000)):
+        for tag in get_post_tags(PostTagQueryDTO(limit=1000)):
             if tag.posts_count > 0:
                 urls.append((posts_url(type_, tag), today))
 
@@ -3749,7 +3418,7 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
 
     offset = None
     while posts := get_latest_posts(
-            PostQueryDTO.model_construct(status=PostStatus.PUBLISHED, limit=1000, offset=offset)):
+            PostQueryDTO(status=PostStatus.PUBLISHED, limit=1000, offset=offset)):
         urls.extend([(post_url(post), lastmod(post.updated_at, post.created_at)) for post in posts])
         offset = posts[-1].offset
         if not offset:
@@ -3768,7 +3437,7 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
 
     offset = None
     while users := get_latest_users(
-            UserQueryDTO.model_construct(status=UserStatus.ACTIVE, limit=1000, offset=offset)):
+            UserQueryDTO(status=UserStatus.ACTIVE, limit=1000, offset=offset)):
         urls.extend([(user_url(user), lastmod(user.updated_at, user.created_at)) for user in users])
         offset = users[-1].offset
         if not offset:
@@ -3778,7 +3447,7 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
     sitemap_xml = f"""<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{''.join([f"""<url><loc>{loc}</loc><lastmod>{lastmod}</lastmod></url>""" for (loc, lastmod) in urls])}</urlset>"""
 
     sitemap_filename = save_public_file(
-        FileDTO.model_construct(content=sitemap_xml.encode("utf-8")),
+        FileDTO(content=sitemap_xml.encode("utf-8"), filename="sitemap.xml"),
         filename="sitemap.xml",
     )
     sitemap_url = get_static_url(req, sitemap_filename, full=True)

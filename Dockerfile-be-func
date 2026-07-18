@@ -4,9 +4,8 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-COPY be-function-src/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir uvicorn
+COPY be-function-src/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt uvicorn
 
 COPY be-function-src .
 

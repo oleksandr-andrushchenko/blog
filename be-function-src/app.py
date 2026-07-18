@@ -1,9 +1,7 @@
-from fastapi import FastAPI, Request, Response, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
+from web import Application, Request, Response, HTTPException, HTMLResponse, JSONResponse, RedirectResponse, \
+    RequestValidationError, CORSMiddleware, FileResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from mangum import Mangum
+from lambda_adapter import make_handler
 from utils import (
     to_thread,
     ContactMessageDTO,
@@ -101,11 +99,7 @@ from deps import (
 )
 import asyncio
 
-app = FastAPI(
-    docs_url=None if is_prod() else "/docs",
-    redoc_url=None if is_prod() else "/redoc",
-    openapi_url=None if is_prod() else "/openapi.json",
-)
+app = Application()
 
 if not is_prod():
     import os
@@ -118,8 +112,6 @@ if not is_prod():
             static_dir = get_static_files_dir()
             file_path = os.path.join(static_dir, path)
             if os.path.isfile(file_path):
-                from fastapi.responses import FileResponse
-
                 return FileResponse(file_path)
         return await call_next(request)
 
@@ -722,4 +714,4 @@ async def post_tag_redirect_exception_handler(request: Request, exc: PostTagByOl
     return RedirectResponse(url=url, status_code=301)
 
 
-handler = Mangum(app)
+handler = make_handler(app)

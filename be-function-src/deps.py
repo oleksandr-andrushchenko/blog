@@ -1,9 +1,5 @@
-from fastapi import Request, Depends, HTTPException, Query, Body
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.exceptions import RequestValidationError
-from pydantic import ValidationError
-from typing_extensions import Annotated
-from typing import Optional
+from web import Body, Depends, HTMLResponse, HTTPException, JSONResponse, Query, Request, RequestValidationError
+from typing import Annotated, Optional
 from utils import (
     User,
     PostQueryDTO,
@@ -102,8 +98,8 @@ def get_user_query_by_slugs(request: Request, type: str) -> UserQueryDTO:
     data.update({"type": type})
     try:
         return UserQueryDTO(**data)
-    except ValidationError as e:
-        raise RequestValidationError(e.errors())
+    except ValueError as e:
+        raise RequestValidationError({"query": str(e)})
 
 
 def get_post_query(request: Request, tags: list[str] = Query([])) -> PostQueryDTO:
@@ -111,8 +107,8 @@ def get_post_query(request: Request, tags: list[str] = Query([])) -> PostQueryDT
     data.update({"tags": tags})
     try:
         return PostQueryDTO(**data)
-    except ValidationError as e:
-        raise RequestValidationError(e.errors())
+    except ValueError as e:
+        raise RequestValidationError({"query": str(e)})
 
 
 def get_post_query_by_slugs(request: Request, slugs_path: str) -> PostQueryDTO:
@@ -120,8 +116,8 @@ def get_post_query_by_slugs(request: Request, slugs_path: str) -> PostQueryDTO:
     data.update(parse_posts_url_slugs_path(slugs_path))
     try:
         return PostQueryDTO(**data)
-    except ValidationError as e:
-        raise RequestValidationError(e.errors())
+    except ValueError as e:
+        raise RequestValidationError({"query": str(e)})
 
 
 async def get_image_file(request: Request):

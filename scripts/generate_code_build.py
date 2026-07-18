@@ -31,7 +31,7 @@ else:
 
 # Copy source files (excluding __pycache__)
 for item in be_function_dir.iterdir():
-    if item.name in {"__pycache__", ".pytest_cache", ".mypy_cache"}:
+    if item.name in {"__pycache__", ".pytest_cache", ".mypy_cache", "requirements.txt"}:
         continue
     dest = tmp_dir / item.name
     if item.is_dir():
