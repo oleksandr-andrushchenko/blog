@@ -154,15 +154,15 @@
                                 </div>
                             {% endif %}
                         </div>
-                        <form method="get" class="d-flex align-items-center gap-1">
+                        <div class="d-flex align-items-center gap-1">
                             <label for="activity-year" class="small text-secondary">Year</label>
-                            <select id="activity-year" name="activity_year" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <select id="activity-year" class="form-select form-select-sm" onchange="window.location.href = this.value ? '?activity_year=' + this.value : window.location.pathname">
                                 <option value="">Past year</option>
                                 {% for year in range(activity.current_year, 2019, -1) %}
                                     <option value="{{ year }}" {% if activity_year == year %}selected{% endif %}>{{ year }}</option>
                                 {% endfor %}
                             </select>
-                        </form>
+                        </div>
                     </div>
                     {% set calendar_width = 720 %}
                     {% if activity.months %}
