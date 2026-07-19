@@ -23,7 +23,7 @@ class ArticleDTO:
     def __post_init__(self):
         if not 10 <= len(self.title) <= 500:
             raise ValueError("title must contain between 10 and 500 characters")
-        if not 5_000 <= len(self.content) <= 50_000:
+        if not 5_000 <= len(self.content) <= 100_000:
             raise ValueError("content must contain between 5000 and 50000 characters")
         self.tags = _tags(self.tags)
 
