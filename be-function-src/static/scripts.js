@@ -83,6 +83,8 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
       // handle radio buttons separately
       if (input.type === "radio") {
         if (input.checked) data[input.name] = input.value
+      } else if (input.type === "checkbox") {
+        data[input.name] = input.checked
       } else {
         const value = input.value.trim()
         data[input.name] = value === "" ? null : value

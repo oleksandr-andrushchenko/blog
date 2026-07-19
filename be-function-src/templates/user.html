@@ -20,6 +20,7 @@
         user.about,
         meta_desc
     ] | select | join('. ') | truncate(155, True, '...') -}}
+
 {% endblock %}
 {% block meta_schema %}
     {{- {
@@ -141,6 +142,52 @@
                 </div>
             </section>
 
+            {% if activity %}
+                <section id="activity-calendar" class="d-flex flex-column gap-3">
+                    <div class="d-flex align-items-center justify-content-between gap-2">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="h5 mb-0">{{ activity.total }} activities {% if activity.year %}in {{ activity.year }}{% else %}in the past year{% endif %}</div>
+                            {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
+                                <div class="form-check form-switch small mb-0">
+                                    <input class="form-check-input" type="checkbox" id="profile-show-activity-calendar" {% if user.show_activity_calendar %}checked{% endif %}>
+                                    <label class="form-check-label" for="profile-show-activity-calendar">Show on profile</label>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <form method="get" class="d-flex align-items-center gap-1">
+                            <label for="activity-year" class="small text-secondary">Year</label>
+                            <select id="activity-year" name="activity_year" class="form-select form-select-sm" onchange="this.form.submit()">
+                                <option value="">Past year</option>
+                                {% for year in range(activity.current_year, 2019, -1) %}
+                                    <option value="{{ year }}" {% if activity_year == year %}selected{% endif %}>{{ year }}</option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                    </div>
+                    {% set calendar_width = 720 %}
+                    {% if activity.months %}
+                        {% set calendar_width = ((activity.months|length - 1) * 60) + (activity.months[-1].week_count * 10) %}
+                    {% endif %}
+                    <svg id="activity-calendar-svg" {% if not user.show_activity_calendar %}style="display: none"{% endif %} class="activity-calendar-svg w-100" viewBox="0 0 {{ calendar_width }} 92" role="img" aria-label="Activity calendar" preserveAspectRatio="xMidYMid meet">
+                        {% for month in activity.months %}
+                            {% set month_index = loop.index0 %}
+                            {% for week in month.weeks[:month.week_count] %}
+                                {% set week_index = loop.index0 %}
+                                {% for day in week %}
+                                    {% if day.date %}
+                                        <rect x="{{ month_index * 60 + week_index * 10 }}" y="{{ loop.index0 * 10 }}" width="8" height="8" rx="1" class="{% if day.count == 0 %}activity-cell-empty{% elif day.count == 1 %}activity-cell-low{% elif day.count < 4 %}activity-cell-medium{% else %}activity-cell-high{% endif %}" style="fill: {% if day.count == 0 %}#e9ecef{% elif day.count == 1 %}#b7e4c7{% elif day.count < 4 %}#52b788{% else %}#1b4332{% endif %}" aria-label="{{ day.count }} activities on {{ day.date }}">
+                                            <title>{{ day.count }} activit{{ 'y' if day.count == 1 else 'ies' }} on {{ day.date }}</title>
+                                        </rect>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endfor %}
+                            <text x="{{ month_index * 60 + (month.week_count * 10 / 2) }}" y="88" text-anchor="middle" class="activity-month-label">{{ month.label }}</text>
+                        {% endfor %}
+                    </svg>
+                </section>
+            {% endif %}
+
+
             {% if user.about %}
                 <section class="d-flex flex-column gap-3">
                     <h2 class="mb-0 text-decoration-underline">About</h2>
@@ -231,4 +278,34 @@
             </section>
         </div>
     </div>
+{% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const checkbox = document.getElementById("profile-show-activity-calendar")
+    if (!checkbox) return
+    checkbox.addEventListener("change", async () => {
+      const previous = checkbox.checked
+      checkbox.disabled = true
+      const calendar = document.getElementById("activity-calendar-svg")
+      if (calendar) calendar.style.display = checkbox.checked ? "" : "none"
+      try {
+        const response = await fetch("{{ url('update-user-activity-settings', user_id=user.id) }}", {
+          method: "PATCH",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            show_activity_calendar: checkbox.checked,
+            show_recent_activity: {{ 'true' if user.show_recent_activity else 'false' }}
+          })
+        })
+        if (!response.ok) throw new Error()
+      } catch (_) {
+        checkbox.checked = previous
+        if (calendar) calendar.style.display = previous ? "" : "none"
+      } finally {
+        checkbox.disabled = false
+      }
+    })
+  })
+</script>
+{% endif %}
 {% endblock %}

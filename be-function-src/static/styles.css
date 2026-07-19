@@ -39,3 +39,17 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .navbar-brand {
     content: " *";
     color: red;
 }
+
+.activity-calendar-svg {
+    display: block;
+    height: auto;
+}
+
+.activity-calendar-svg .activity-cell-empty { fill: #e9ecef; }
+.activity-calendar-svg .activity-cell-low { fill: #b7e4c7; }
+.activity-calendar-svg .activity-cell-medium { fill: #52b788; }
+.activity-calendar-svg .activity-cell-high { fill: #1b4332; }
+.activity-calendar-svg .activity-month-label {
+    fill: currentColor;
+    font-size: 10px;
+}

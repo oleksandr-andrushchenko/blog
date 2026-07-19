@@ -37,8 +37,10 @@ from utils import (
     jinja2_env,
     get_popular_active_users,
     Permission,
+    check_authorization,
     verify_authorization,
     update_user,
+    update_user_activity_settings,
     update_article,
     find_article_impression,
     update_article_impression,
@@ -66,6 +68,7 @@ from utils import (
     get_article_tag_url,
     update_article_tag,
     find_article_tag,
+    get_user_activity,
 )
 from deps import (
     OptCurUserDep,
@@ -77,6 +80,7 @@ from deps import (
     UserQueryDep,
     UserDep,
     UpdateUserDTODep,
+    UpdateUserActivitySettingsDTODep,
     get_error_response,
     UpdateArticleDTODep,
     UpdateArticleStatusDTODep,
@@ -486,18 +490,33 @@ async def users_fragment(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> st
     })
 
 
-async def _user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
-    if cur_user:
-        (
-            articles,
-            user_impression,
-        ) = await asyncio.gather(
-            to_thread(get_latest_articles_by_user, user, articles_query_dto, cur_user),
-            to_thread(find_user_impression, user, cur_user),
-        )
-    else:
-        articles = get_latest_articles_by_user(user, articles_query_dto, cur_user)
-        user_impression = None
+async def _user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_user: OptCurUserDep, request: Request) -> HTMLResponse:
+    activity_year = request.query_params.get("activity_year")
+    try:
+        activity_year = int(activity_year) if activity_year else None
+    except ValueError:
+        activity_year = None
+
+    can_manage_activity = bool(cur_user and check_authorization(cur_user, Permission.UPDATE_USER, user))
+    should_load_activity = user.show_activity_calendar or can_manage_activity
+
+    async def load_activity():
+        if not should_load_activity:
+            return None
+        try:
+            return await to_thread(get_user_activity, user, activity_year)
+        except ValueError:
+            return await to_thread(get_user_activity, user, None)
+
+    (
+        articles,
+        user_impression,
+        activity,
+    ) = await asyncio.gather(
+        to_thread(get_latest_articles_by_user, user, articles_query_dto, cur_user),
+        to_thread(find_user_impression, user, cur_user) if cur_user else asyncio.sleep(0, result=None),
+        load_activity(),
+    )
 
     html_content = get_html_content("user.html", {
         "cur_user": cur_user,
@@ -505,13 +524,15 @@ async def _user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_use
         "article_query": articles_query_dto,
         "articles": articles,
         "user_impression": user_impression,
+        "activity": activity,
+        "activity_year": activity_year,
     })
     return HTMLResponse(html_content)
 
 
 @app.get("/users/{user_id}", name="user")
-async def user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_user: OptCurUserDep):
-    return await _user_page(user, articles_query_dto, cur_user)
+async def user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_user: OptCurUserDep, request: Request):
+    return await _user_page(user, articles_query_dto, cur_user, request)
 
 
 @app.post("/api/users/{user_id}/status", name="update-user-status", response_class=JSONResponse)
@@ -548,6 +569,12 @@ async def edit_user(user: UserDep, cur_user: CurUserDep) -> str:
         "cur_user": cur_user,
         "user": user
     })
+
+
+@app.patch("/api/users/{user_id}/activity-settings", name="update-user-activity-settings", response_class=JSONResponse)
+async def _update_user_activity_settings(dto: UpdateUserActivitySettingsDTODep, user: UserDep, cur_user: CurUserDep, request: Request) -> str:
+    update_user_activity_settings(user, dto, cur_user)
+    return get_user_url(request, user)
 
 
 @app.patch("/api/users/{user_id}", name="update-user", response_class=JSONResponse)
@@ -690,8 +717,8 @@ async def _drop_cdn_cache(cur_user: CurUserDep) -> dict:
 
 @app.get("/{slug}", name="user-by-slug", response_class=HTMLResponse)
 async def user_page_by_slug(user: UserBySlugDep, articles_query_dto: ArticleQueryDep,
-                            cur_user: OptCurUserDep) -> HTMLResponse:
-    return await _user_page(user, articles_query_dto, cur_user)
+                            cur_user: OptCurUserDep, request: Request) -> HTMLResponse:
+    return await _user_page(user, articles_query_dto, cur_user, request)
 
 
 @app.get("/{user_slug}/{article_slug}", name="article-by-slugs", response_class=HTMLResponse)

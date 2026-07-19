@@ -20,6 +20,7 @@ from utils import (
     UpdateArticleStatusDTO,
     UpdateArticleImpressionDTO,
     UpdateUserImpressionDTO,
+    UpdateUserActivitySettingsDTO,
     get_user_by_slug,
     get_article_by_slugs,
     ArticleComment,
@@ -105,6 +106,7 @@ def get_user_query_by_slugs(request: Request, type: str) -> UserQueryDTO:
 
 def get_article_query(request: Request, tags: list[str] = Query([])) -> ArticleQueryDTO:
     data = dict(request.query_params)
+    data.pop("activity_year", None)
     data.update({"tags": tags})
     try:
         return ArticleQueryDTO(**data)
@@ -114,6 +116,7 @@ def get_article_query(request: Request, tags: list[str] = Query([])) -> ArticleQ
 
 def get_article_query_by_slugs(request: Request, slugs_path: str) -> ArticleQueryDTO:
     data = dict(request.query_params)
+    data.pop("activity_year", None)
     data.update(parse_articles_url_slugs_path(slugs_path))
     try:
         return ArticleQueryDTO(**data)
@@ -138,6 +141,10 @@ async def get_image_file(request: Request):
 def get_update_user_dto(update_user_dto: UpdateUserDTO = Body(...)) -> UpdateUserDTO:
     return update_user_dto
 
+
+
+def get_update_user_activity_settings_dto(dto: UpdateUserActivitySettingsDTO = Body(...)) -> UpdateUserActivitySettingsDTO:
+    return dto
 
 def get_update_user_status_dto(update_user_status_dto: UpdateUserStatusDTO = Body(...)) -> UpdateUserStatusDTO:
     return update_user_status_dto
@@ -268,6 +275,7 @@ def drop_cdn_cache_cookie(response):
 UserDep = Annotated[User, Depends(get_user_by_id)]
 UserBySlugDep = Annotated[User, Depends(_get_user_by_slug)]
 UpdateUserDTODep = Annotated[UpdateUserDTO, Depends(get_update_user_dto)]
+UpdateUserActivitySettingsDTODep = Annotated[UpdateUserActivitySettingsDTO, Depends(get_update_user_activity_settings_dto)]
 UpdateUserStatusDTODep = Annotated[UpdateUserStatusDTO, Depends(get_update_user_status_dto)]
 UserQueryDep = Annotated[UserQueryDTO, Depends()]
 UserQueryBySlugsDep = Annotated[UserQueryDTO, Depends(get_user_query_by_slugs)]

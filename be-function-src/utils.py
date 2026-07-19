@@ -22,7 +22,7 @@ from validation import validate_email_address, validate_http_url
 from query_dtos import (BaseQueryDTO, ArticleCommentQueryDTO, ArticleQueryDTO, ArticleQueryType, ArticleStatus,
                         ArticleTagQueryDTO, UserQueryDTO, UserQueryType, UserStatus)
 from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO, UserTokenDTO
-from user_dtos import UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO, UserImpressionAction
+from user_dtos import UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO, UpdateUserActivitySettingsDTO, UserImpressionAction
 from article_dtos import (ArticleCommentDTO, ArticleCommentImpressionAction, ArticleDTO, ArticleImpressionAction,
                           UpdateArticleCommentDTO, UpdateArticleCommentImpressionDTO, UpdateArticleDTO,
                           UpdateArticleImpressionDTO, UpdateArticleStatusDTO, UpdateArticleTagDTO)
@@ -72,6 +72,98 @@ class User:
     created_at: int
     updated_at: int | None
     offset: str | None
+    show_activity_calendar: bool
+    show_recent_activity: bool
+
+
+@dataclass(slots=True)
+class UserActivity:
+    id: str
+    event_type: str
+    entity_type: str
+    entity_id: str
+    entity_title: str | None
+    entity_url: str | None
+    created_at: int
+
+
+ACTIVITY_YEAR_DAYS = 365
+
+def activity_profile_visible(actor_id: str, entity_owner_id: str | None) -> bool:
+    return bool(entity_owner_id and actor_id == entity_owner_id)
+
+def add_user_activity_transact(transacts: list, actor: User, event_type: str, entity_type: str,
+                               entity_id: str, entity_title: str | None, entity_url: str | None,
+                               entity_owner_id: str | None, now: int | None = None) -> None:
+    now = now or utc_now()
+    activity_id = str(uuid.uuid4())
+    item = {"id": activity_id, "actor_user_id": actor.id, "entity_owner_id": entity_owner_id,
+            "profile_visible": activity_profile_visible(actor.id, entity_owner_id),
+            "event_type": event_type, "entity_type": entity_type, "entity_id": entity_id,
+            "entity_title": entity_title, "entity_url": entity_url, "created_at": now}
+    add_dynamodb_put_transact(transacts, (f"USER_ACTIVITY#{actor.id}", f"ACTIVITY#{now}#{activity_id}"), item)
+
+def user_activity_from_dynamodb(item: dict[str, Any]) -> UserActivity:
+    entity_type = item["entity_type"]
+    entity_id = item["entity_id"]
+    entity_url = item.get("entity_url")
+    if not entity_url:
+        if entity_type == "article":
+            entity_url = f"/articles/{entity_id}"
+        elif entity_type == "article_tag":
+            entity_url = f"/article-tags/{entity_id}"
+        elif entity_type == "user":
+            entity_url = f"/users/{entity_id}"
+    return UserActivity(id=item["id"], event_type=item["event_type"], entity_type=entity_type,
+                        entity_id=entity_id, entity_title=item.get("entity_title"),
+                        entity_url=entity_url, created_at=int(item["created_at"]))
+
+def get_user_activity(user: User, year: int | None = None, recent_limit: int = 10) -> dict[str, Any]:
+    now = datetime.now(timezone.utc)
+    if year is None:
+        # Show the current calendar month plus the preceding 11 months.
+        month_index = now.year * 12 + (now.month - 1) - 11
+        start_year, start_month = divmod(month_index, 12)
+        start = datetime(start_year, start_month + 1, 1, tzinfo=timezone.utc)
+        end, calendar_year = now, None
+    else:
+        if year < 1970 or year > now.year:
+            raise ValueError("invalid activity year")
+        start, end, calendar_year = datetime(year, 1, 1, tzinfo=timezone.utc), datetime(year + 1, 1, 1, tzinfo=timezone.utc), year
+    start_ms, end_ms = int(start.timestamp() * 1000), int(end.timestamp() * 1000)
+    resp = query_dynamodb_table(key_condition_expr=Key("pk").eq(f"USER_ACTIVITY#{user.id}") & Key("sk").between(f"ACTIVITY#{start_ms}", f"ACTIVITY#{end_ms}#~"), scan_index_forward=False, limit=1000)
+    activities = [user_activity_from_dynamodb(item) for item in resp.get("Items", []) if item.get("profile_visible")]
+    counts = {}
+    for activity in activities:
+        day = datetime.fromtimestamp(float(activity.created_at) / 1000, tz=timezone.utc).date().isoformat()
+        counts[day] = counts.get(day, 0) + 1
+    first_day = start.date()
+    last_day = (end - timedelta(milliseconds=1)).date()
+    calendar_days = []
+    cursor = first_day
+    while cursor <= last_day:
+        key = cursor.isoformat()
+        calendar_days.append({"date": key, "count": counts.get(key, 0)})
+        cursor += timedelta(days=1)
+    months = []
+    for day in calendar_days:
+        month_key = day["date"][:7]
+        if not months or months[-1]["key"] != month_key:
+            month_date = datetime.strptime(month_key, "%Y-%m")
+            months.append({"key": month_key, "label": month_date.strftime("%b"), "days": []})
+        months[-1]["days"].append(day)
+    for month in months:
+        first = datetime.strptime(month["key"], "%Y-%m").date()
+        leading = (first.weekday() + 1) % 7
+        cells = [{"date": None, "count": 0}] * leading + month["days"]
+        while len(cells) % 7:
+            cells.append({"date": None, "count": 0})
+        month["weeks"] = [cells[index:index + 7] for index in range(0, len(cells), 7)]
+        month["week_count"] = len(month["weeks"])
+        while len(month["weeks"]) < 6:
+            month["weeks"].append([{"date": None, "count": 0} for _ in range(7)])
+    return {"year": calendar_year, "current_year": now.year, "total": len(activities),
+            "days": counts, "calendar_days": calendar_days, "months": months, "recent": activities[:recent_limit]}
 
 
 @dataclass(slots=True)
@@ -834,6 +926,8 @@ def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateAr
     else:
         add_dynamodb_article_tag_update_transact(transacts, article_tag, changes)
 
+    add_user_activity_transact(transacts, cur_user, "article_tag.updated", "article_tag",
+                               new_slug, changes.get("name", article_tag.name), f"/article-tags/{new_slug}", cur_user.id, now)
     try:
         dynamodb_transact_write(transacts)
     except DynamoDBTransactionError as e:
@@ -1613,6 +1707,8 @@ def create_article(article_dto: ArticleDTO, cur_user: User) -> Article:
         article_item["user_slug"] = cur_user.username
     add_dynamodb_put_transact(transacts, (f"POST#{article_id}", "META"), article_item, new_pk_only=True)
 
+    add_user_activity_transact(transacts, cur_user, "article.created", "article", article_id, title,
+                               f"/articles/{article_id}", cur_user.id, now)
     add_dynamodb_user_update_transact(transacts, cur_user, deltas={
         "unpublished_posts_count": 1,
         # Invalidate CDN cache for current user
@@ -1760,6 +1856,8 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
             "cdn_cache_version": 1
         })
 
+    add_user_activity_transact(transacts, cur_user, "article.updated", "article", article.id, article.title, f"/articles/{article.id}",
+                               article_owner.id, now)
     try:
         dynamodb_transact_write(transacts)
     except DynamoDBTransactionError as e:
@@ -1875,6 +1973,7 @@ def create_article_comment(article: Article, article_comment_dto: ArticleComment
 
     add_dynamodb_put_transact(transacts, (f"POST#{article.id}", f"COMMENT#{comment_id}"), article_comment_item)
     add_dynamodb_article_update_transact(transacts, article, deltas={"comments_count": 1})
+    add_user_activity_transact(transacts, cur_user, "comment.created", "comment", comment_id, article.title, f"/articles/{article.id}#comment-{comment_id}", cur_user.id, now)
     add_dynamodb_user_update_transact(transacts, cur_user, deltas={
         "post_comments_count": 1,
         # Invalidate CDN cache for current user
@@ -1920,6 +2019,8 @@ def update_article_comment(article: Article, article_comment: ArticleComment,
     transacts = []
 
     add_dynamodb_update_transact(transacts, (f"POST#{article.id}", f"COMMENT#{article_comment.id}"), changes)
+    add_user_activity_transact(transacts, cur_user, "comment.updated", "comment", article_comment.id, article.title, f"/articles/{article.id}#comment-{article_comment.id}",
+                               article_comment.owner_id, utc_now())
 
     add_dynamodb_user_update_transact(transacts, cur_user, deltas={
         # Invalidate CDN cache for current user
@@ -1983,6 +2084,8 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         created_at=d_item["created_at"],
         updated_at=d_item.get("updated_at"),
         offset=None,
+        show_activity_calendar=d_item.get("show_activity_calendar", False),
+        show_recent_activity=d_item.get("show_recent_activity", False),
     )
 
 
@@ -2254,6 +2357,7 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
         # Invalidate CDN cache for user
         "cdn_cache_version": 1,
     })
+    add_user_activity_transact(transacts, cur_user, "user.updated", "user", user.id, user.name, f"/users/{user.id}", user.id, now)
 
     if user.id != cur_user.id:
         add_dynamodb_user_update_transact(transacts, cur_user, deltas={
@@ -2271,6 +2375,15 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
     if old_avatar and avatar_action in {"delete", "replace"}:
         drop_public_file(old_avatar)
 
+
+
+def update_user_activity_settings(user: User, dto: UpdateUserActivitySettingsDTO, cur_user: User) -> None:
+    verify_authorization(cur_user, Permission.UPDATE_USER, user)
+    if cur_user.status == UserStatus.BANNED:
+        raise UserBannedError()
+    update_dynamodb_item((f"USER#{user.id}", "META"), changes=dto.changes(), deltas={"cdn_cache_version": 1})
+    user.show_activity_calendar = dto.show_activity_calendar
+    user.show_recent_activity = dto.show_recent_activity
 
 def update_user_status(user: User, update_user_status_dto: UpdateUserStatusDTO, cur_user: User, req) -> None:
     # logger.debug(f"update_user_status: user: {user}, cur_user: {cur_user}")
@@ -2717,6 +2830,8 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
         })
 
     # logger.debug(transacts)
+    add_user_activity_transact(transacts, cur_user, "article.updated", "article", article.id, article.title, f"/articles/{article.id}",
+                               article_owner.id, now)
 
     dynamodb_transact_write(transacts)
 

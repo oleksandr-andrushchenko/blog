@@ -18,6 +18,8 @@ class UpdateUserDTO:
     address: str | None = None
     github_username: str | None = None
     bmc_username: str | None = None
+    show_activity_calendar: bool = False
+    show_recent_activity: bool = False
 
     def __post_init__(self):
         if not 1 <= len(self.name) <= 100:
@@ -44,6 +46,15 @@ class UpdateUserDTO:
             if not re.fullmatch(r"[a-z0-9.]+", value) or value.startswith(".") or value.endswith(".") or ".." in value:
                 raise ValueError("invalid BMC username")
             self.bmc_username = value
+
+    def changes(self):
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class UpdateUserActivitySettingsDTO:
+    show_activity_calendar: bool = False
+    show_recent_activity: bool = False
 
     def changes(self):
         return asdict(self)
