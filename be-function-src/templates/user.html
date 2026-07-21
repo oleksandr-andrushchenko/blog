@@ -76,7 +76,7 @@
                             <a class="text-decoration-none link-body-emphasis d-inline-block me-2"
                                href="{{ user.website }}"
                                target="_blank" rel="noopener noreferrer">
-                                {{ user.website }}
+                                {{ user.website | replace("https://", "", 1) | replace("http://", "", 1) }}
                                 <i class="bi bi-box-arrow-up-right"></i>
                             </a>
                         </div>
