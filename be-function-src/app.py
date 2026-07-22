@@ -517,7 +517,10 @@ async def _user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_use
     can_manage_profile = bool(cur_user and check_authorization(cur_user, Permission.UPDATE_USER, user))
     should_load_activity = user.show_activity_calendar or can_manage_profile
     can_manage_interests = can_manage_profile
-    should_load_interests = user.show_interests or can_manage_interests
+    should_load_interests = (
+        user.article_tag_subscriptions_count != 0
+        and (user.show_interests or can_manage_interests)
+    )
     should_render_interests = user.show_interests or can_manage_interests
 
     async def load_activity():

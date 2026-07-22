@@ -70,6 +70,7 @@ class User:
     following_count: int
     comment: str | None
     article_comments_count: int
+    article_tag_subscriptions_count: int
     bmc_username: str | None
     redirect_to: str | None
     created_at: int
@@ -608,6 +609,8 @@ def article_tag_subscription_from_dynamodb(item: dict[str, Any]) -> ArticleTagSu
 
 
 def get_user_article_tag_subscriptions(user: User) -> list[ArticleTagSubscription]:
+    if user.article_tag_subscriptions_count == 0:
+        return []
     response = query_dynamodb_table(
         key_condition_expr=Key("pk").eq(f"USER#{user.id}") & Key("sk").begins_with("ARTICLE_TAG_SUBSCRIPTION#"))
     return [article_tag_subscription_from_dynamodb(item) for item in response.get("Items", [])]
@@ -627,6 +630,7 @@ def create_article_tag_subscription(dto: ArticleTagSubscriptionDTO, user: User) 
     add_dynamodb_put_transact(transacts, (f"ARTICLE_TAG_SUBSCRIBERS#{key}", f"USER#{user.id}"),
                               {"user_id": user.id, "article_tag_subscription_id": article_tag_subscription_id,
                                "article_tag_subscription_key": key, "created_at": now}, new_pk_only=True)
+    add_dynamodb_user_update_transact(transacts, user, deltas={"article_tag_subscriptions_count": 1})
     try:
         dynamodb_transact_write(transacts)
     except DynamoDBTransactionError as exc:
@@ -642,10 +646,17 @@ def delete_article_tag_subscription(article_tag_subscription_id: str, user: User
         raise UserNotFoundError("Article tag subscription not found")
     subscription = article_tag_subscription_from_dynamodb(item)
     key = item["article_tag_subscription_key"]
-    dynamodb_transact_write([{"Delete": {"TableName": get_dynamodb_table_name(), "Key": {"pk": f"USER#{user.id}",
-                                                                                         "sk": f"ARTICLE_TAG_SUBSCRIPTION#{article_tag_subscription_id}"}}},
-                             {"Delete": {"TableName": get_dynamodb_table_name(),
-                                         "Key": {"pk": f"ARTICLE_TAG_SUBSCRIBERS#{key}", "sk": f"USER#{user.id}"}}}])
+    transacts = []
+    add_dynamodb_delete_transact(
+        transacts, (f"USER#{user.id}", f"ARTICLE_TAG_SUBSCRIPTION#{article_tag_subscription_id}")
+    )
+    add_dynamodb_delete_transact(
+        transacts, (f"ARTICLE_TAG_SUBSCRIBERS#{key}", f"USER#{user.id}")
+    )
+    add_dynamodb_user_update_transact(
+        transacts, user, deltas={"article_tag_subscriptions_count": -1}
+    )
+    dynamodb_transact_write(transacts)
     return subscription
 
 
@@ -2259,6 +2270,7 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         following_count=d_item.get("following_count", 0),
         comment=d_item.get("comment"),
         article_comments_count=d_item.get("post_comments_count", 0),
+        article_tag_subscriptions_count=d_item.get("article_tag_subscriptions_count", 0),
         bmc_username=d_item.get("bmc_username"),
         redirect_to=d_item.get("redirect_to"),
         created_at=d_item["created_at"],
