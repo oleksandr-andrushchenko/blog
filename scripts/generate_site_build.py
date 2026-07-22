@@ -1,7 +1,7 @@
-import shutil
-from pathlib import Path
 import os
 import re
+import shutil
+from pathlib import Path
 
 static_files_dir = os.getenv("STATIC_FILES_DIR", "static")
 assets_dir = Path(__file__).parent.parent / "be-function-src" / static_files_dir

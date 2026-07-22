@@ -19,8 +19,10 @@ services:
       GOOGLE_ANALYTICS_ID: ""
       TINYMCE_API_KEY: ""
       CONTACT_TOPIC_ARN: ""
+      EMAIL_SINK_DIR: "/email-sink"
     volumes:
       - ./be-function-src:/app
+      - ./.emails:/email-sink
 
   be-function-test:
     build:
@@ -39,8 +41,10 @@ services:
       AWS_SECRET_ACCESS_KEY: dummy
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"
       DYNAMODB_TABLE: app_test
+      EMAIL_SINK_DIR: "/email-sink"
     volumes:
       - ./be-function-src:/app
+      - ./.emails:/email-sink
 
   dynamodb:
     image: amazon/dynamodb-local

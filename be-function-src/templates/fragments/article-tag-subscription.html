@@ -1,0 +1,26 @@
+{% if article_query.tags %}
+    <section class="card article-tag-subscription-block"
+             data-article-tag-subscription-id="{{ article_tag_subscription.id if article_tag_subscription else '' }}">
+        <div class="card-body">
+            <h2 class="h4 bi bi-bell"> Interested in {{ article_query.tags | join(' and ') }} articles?</h2>
+            <p class="text-muted small">Subscribe and don’t miss new content.</p>
+            {% if cur_user %}
+                {% if article_tag_subscription %}
+                    <button class="btn btn-light fw-semibold btn-article-tag-subscription bi bi-bell-slash" type="button"
+                            data-article-tag-subscription-id="{{ article_tag_subscription.id }}"> Unsubscribe
+                    </button>
+                {% else %}
+                    <button class="btn btn-primary fw-semibold btn-article-tag-subscription bi bi-bell" type="button"
+                            data-tags='{{ article_query.tags | tojson }}'> Subscribe
+                    </button>
+                {% endif %}
+                <small class="article-tag-subscription-message text-secondary"></small>
+            {% else %}
+                <a class="btn btn-primary"
+                   href="{{ url('login', redirect_url=request.url.path ~ ("?" ~ request.url.query if request.url.query else "")) }}">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    Sign in to subscribe</a>
+            {% endif %}
+        </div>
+    </section>
+{% endif %}

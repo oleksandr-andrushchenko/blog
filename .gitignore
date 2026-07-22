@@ -38,3 +38,5 @@ be-function-src/static/*
 !be-function-src/static/license.xml
 
 dynamodb-data/
+# Development email sink
+.emails/

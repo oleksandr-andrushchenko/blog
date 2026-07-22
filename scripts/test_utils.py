@@ -1,9 +1,11 @@
+import os
 import uuid
 from urllib.parse import quote
-import os
-from requests import Session, Response
+
 import boto3
 from botocore.config import Config
+from requests import Session, Response
+
 from utils import (
     logger,
     get_dynamodb_schema,
@@ -14,6 +16,7 @@ TEST_BASE_URL = os.getenv("TEST_BASE_URL")
 AWS_REGION = os.getenv("AWS_REGION", "us-west-2")
 DYNAMODB_ENDPOINT = os.getenv("DYNAMODB_ENDPOINT")
 TEST_DYNAMODB_TABLE = os.getenv("TEST_DYNAMODB_TABLE")
+REQUEST_TIMEOUT = 10
 
 aws_params = {
     "aws_access_key_id": "dummy",
@@ -97,17 +100,22 @@ def recreate_dynamodb_table():
 
 
 def get(client: Session, url: str, **kwargs) -> Response:
+    kwargs.setdefault("timeout", REQUEST_TIMEOUT)
     return client.get(f"{TEST_BASE_URL}{url}", **kwargs)
 
 
 def post(client: Session, url: str, json: dict = None, **kwargs) -> Response:
+    kwargs.setdefault("timeout", REQUEST_TIMEOUT)
     return client.post(f"{TEST_BASE_URL}{url}", json=json, **kwargs)
-
-
 
 
 def patch(client: Session, url: str, json: dict = None, **kwargs) -> Response:
     return client.patch(f"{TEST_BASE_URL}{url}", json=json, **kwargs)
+
+
+def delete(client: Session, url: str, **kwargs) -> Response:
+    return client.delete(f"{TEST_BASE_URL}{url}", **kwargs)
+
 
 def get_guest_client() -> Session:
     return Session()

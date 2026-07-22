@@ -1,6 +1,6 @@
+import re
 from dataclasses import asdict, dataclass
 from enum import StrEnum
-import re
 
 from query_dtos import UserStatus
 from validation import validate_http_url
@@ -20,6 +20,7 @@ class UpdateUserDTO:
     bmc_username: str | None = None
     show_activity_calendar: bool = False
     show_recent_activity: bool = False
+    show_interests: bool = True
 
     def __post_init__(self):
         if not 1 <= len(self.name) <= 100:
@@ -32,7 +33,8 @@ class UpdateUserDTO:
                 raise ValueError("invalid username")
         if self.avatar_action not in (None, "delete", "replace", "keep"):
             raise ValueError("invalid avatar action")
-        for value, maximum in ((self.headline, 150), (self.about, 2000), (self.website, 255), (self.address, 255), (self.github_username, 39), (self.bmc_username, 50)):
+        for value, maximum in ((self.headline, 150), (self.about, 2000), (self.website, 255), (self.address, 255),
+                               (self.github_username, 39), (self.bmc_username, 50)):
             if value is not None and len(value) > maximum:
                 raise ValueError("value is too long")
         self.website = validate_http_url(self.website)
@@ -63,6 +65,14 @@ class UpdateUserActivitySettingsDTO:
 class UserImpressionAction(StrEnum):
     FOLLOW = "follow"
     BLOCK = "block"
+
+
+@dataclass(slots=True)
+class UpdateUserInterestsSettingsDTO:
+    show_interests: bool = True
+
+    def changes(self):
+        return asdict(self)
 
 
 @dataclass(slots=True)

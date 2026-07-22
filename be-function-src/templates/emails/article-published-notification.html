@@ -1,0 +1,22 @@
+{% extends "emails/layout.html" %}
+
+{% block title %}New article matching your interests{% endblock %}
+
+{% block content %}
+    <p>Hello {{ recipient_name|e }},</p>
+    <p>A new article matching your interests was published:</p>
+    <h1 style="font-size:24px; margin:16px 0;">
+        <a href="{{ article_url|e }}" style="color:#212529;">{{ article_title|e }}</a>
+    </h1>
+    <p>Tags:</p>
+    <p>
+        {% for tag in article_tag_links %}
+            <a href="{{ tag.url|e }}" style="display:inline-block; margin:0 6px 6px 0; padding:4px 8px; background:#e9ecef; color:#212529; text-decoration:none; border-radius:4px;">{{ tag.name|e }}</a>
+        {% endfor %}
+    </p>
+    <p>
+        <a href="{{ article_url|e }}" style="display:inline-block; padding:10px 16px; background:#212529; color:#ffffff; text-decoration:none; border-radius:4px;">
+            Read article
+        </a>
+    </p>
+{% endblock %}

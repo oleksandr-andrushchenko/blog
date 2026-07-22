@@ -136,7 +136,7 @@
                     {% else %}
                         <li class="nav-item">
                             <a class="nav-link bi bi-pencil-fill"
-                               href="{{ url("login", redirect_url=url("new-article")|urlencode) }}">
+                               href="{{ url("login", redirect_url=url("new-article")) }}">
                                 New article
                             </a>
                         </li>
@@ -236,6 +236,8 @@
     update_article_impression_url: "{{ url("update-article-impression", article_id="{article_id}") }}",
     update_user_status_url: "{{ url("update-user-status", user_id="{user_id}") }}",
     update_user_impression_url: "{{ url("update-user-impression", user_id="{user_id}") }}",
+    create_article_tag_subscription_url: "{{ url("create-article-tag-subscription") }}",
+    delete_article_tag_subscription_url: "{{ url("delete-article-tag-subscription", article_tag_subscription_id="{article_tag_subscription_id}") }}",
     init_tinymce: {% if tinymce_api_key %}true{% else %}false{% endif %},
     css_filenames: {{ css_filenames | tojson | safe }},
     static_relative_url: "{{ static_url("{filename}") }}",

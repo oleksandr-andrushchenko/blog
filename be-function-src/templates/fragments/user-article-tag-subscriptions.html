@@ -1,0 +1,41 @@
+<section class="d-flex flex-column gap-3">
+    <div class="d-flex align-items-center justify-content-between gap-2">
+        <h2 class="mb-0 text-decoration-underline">Interests</h2>
+        {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
+            <div class="form-check form-switch small mb-0">
+                <input class="form-check-input" type="checkbox" id="profile-show-interests" {% if user.show_interests %}checked{% endif %}>
+                <label class="form-check-label" for="profile-show-interests">Show on profile</label>
+            </div>
+        {% endif %}
+    </div>
+
+    <div id="profile-interests-content" {% if not user.show_interests %}style="display: none"{% endif %}>
+        {% if article_tag_subscriptions %}
+        <div class="d-flex flex-wrap gap-2">
+            {% for subscription in article_tag_subscriptions %}
+                {% if cur_user and cur_user.id == user.id %}
+                    <div class="article-tag-subscription-item"
+                         data-article-tag-subscription-id="{{ subscription.id }}">
+                        <button class="btn btn-light btn-sm fw-semibold btn-article-tag-subscription bi bi-bell-slash"
+                                type="button"
+                                data-article-tag-subscription-id="{{ subscription.id }}"
+                                title="Unsubscribe from {{ subscription.tags | join(' + ') }}">
+                            {{ subscription.tags | join(' + ') }}
+                        </button>
+                        <small class="article-tag-subscription-message text-secondary"></small>
+                    </div>
+                {% else %}
+                    <a href="{{ articles_url(tags=subscription.tags) }}"
+                       class="badge text-bg-light text-decoration-none">
+                        {{ subscription.tags | join(' + ') }}
+                    </a>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% elif cur_user and cur_user.id == user.id %}
+            <div class="text-muted small article-tag-subscription-empty">You have no interests.</div>
+        {% else %}
+            <div class="text-muted small">No interests.</div>
+        {% endif %}
+    </div>
+</section>

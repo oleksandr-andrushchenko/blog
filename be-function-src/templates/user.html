@@ -276,13 +276,40 @@
                     {% endwith %}
                 </div>
             </section>
+
+            {% if show_article_tag_subscriptions %}
+                {% include "fragments/user-article-tag-subscriptions.html" %}
+            {% endif %}
         </div>
     </div>
 {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
 <script>
   document.addEventListener("DOMContentLoaded", () => {
     const checkbox = document.getElementById("profile-show-activity-calendar")
-    if (!checkbox) return
+    const interestsCheckbox = document.getElementById("profile-show-interests")
+    const interestsContent = document.getElementById("profile-interests-content")
+    if (!checkbox && !interestsCheckbox) return
+    if (!checkbox) {
+      interestsCheckbox.addEventListener("change", async () => {
+        const previous = interestsCheckbox.checked
+        interestsCheckbox.disabled = true
+        try {
+          const response = await fetch("{{ url('update-user-interests-settings', user_id=user.id) }}", {
+            method: "PATCH",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({show_interests: interestsCheckbox.checked})
+          })
+          if (!response.ok) throw new Error()
+          if (interestsContent) interestsContent.style.display = interestsCheckbox.checked ? "" : "none"
+        } catch (_) {
+          interestsCheckbox.checked = previous
+          if (interestsContent) interestsContent.style.display = previous ? "" : "none"
+        } finally {
+          interestsCheckbox.disabled = false
+        }
+      })
+      return
+    }
     checkbox.addEventListener("change", async () => {
       const previous = checkbox.checked
       checkbox.disabled = true
@@ -305,6 +332,27 @@
         checkbox.disabled = false
       }
     })
+
+    if (interestsCheckbox) {
+      interestsCheckbox.addEventListener("change", async () => {
+        const previous = interestsCheckbox.checked
+        interestsCheckbox.disabled = true
+        try {
+          const response = await fetch("{{ url('update-user-interests-settings', user_id=user.id) }}", {
+            method: "PATCH",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({show_interests: interestsCheckbox.checked})
+          })
+          if (!response.ok) throw new Error()
+          if (interestsContent) interestsContent.style.display = interestsCheckbox.checked ? "" : "none"
+        } catch (_) {
+          interestsCheckbox.checked = previous
+          if (interestsContent) interestsContent.style.display = previous ? "" : "none"
+        } finally {
+          interestsCheckbox.disabled = false
+        }
+      })
+    }
   })
 </script>
 {% endif %}

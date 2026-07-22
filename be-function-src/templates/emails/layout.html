@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{{ site_name }}{% endblock %}</title>
+</head>
+<body style="margin:0; padding:24px; background:#f8f9fa; color:#212529; font-family:Arial, sans-serif; line-height:1.5;">
+    <main style="max-width:600px; margin:0 auto; padding:24px; background:#ffffff; border:1px solid #dee2e6; border-radius:8px;">
+        <header style="padding-bottom:16px; border-bottom:1px solid #dee2e6;">
+            <a href="{{ base_url|e }}" style="color:#212529; font-size:20px; font-weight:bold; text-decoration:none;">{{ site_name|e }}</a>
+        </header>
+        {% block content %}{% endblock %}
+        <footer style="margin-top:24px; padding-top:16px; border-top:1px solid #dee2e6; color:#6c757d; font-size:14px;">
+            Best regards,<br>
+            {{ site_name|e }}
+        </footer>
+    </main>
+</body>
+</html>

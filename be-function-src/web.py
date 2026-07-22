@@ -1,16 +1,16 @@
+import inspect
 from dataclasses import asdict, fields, is_dataclass
 from decimal import Decimal
 from enum import Enum
-import inspect
 from typing import Annotated, get_args, get_origin, get_type_hints
 
 from starlette.applications import Starlette
-from starlette.routing import Route
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.exceptions import HTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
+from starlette.routing import Route
 
 
 class RequestValidationError(ValueError):
@@ -133,3 +133,6 @@ class Application(Starlette):
 
     def patch(self, path, *, name=None, response_class=None, status_code=200):
         return self._route(path, ["PATCH"], name, response_class, status_code)
+
+    def delete(self, path, *, name=None, response_class=None, status_code=200):
+        return self._route(path, ["DELETE"], name, response_class, status_code)

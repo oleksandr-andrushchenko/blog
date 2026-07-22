@@ -301,6 +301,14 @@ Resources:
                 Action:
                   - cloudfront:CreateInvalidation
                 Resource: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
+        - PolicyName: SesSendingPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                Resource: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${DomainName}"
       Tags:
         - Key: Stage
           Value: !Ref Stage
@@ -332,6 +340,7 @@ Resources:
           GOOGLE_ANALYTICS_ID: !Ref GoogleAnalyticsId
           TINYMCE_API_KEY: !Ref TinyMceApiKey
           CONTACT_TOPIC_ARN: !Ref ContactFormTopic
+          SES_FROM_EMAIL: !Sub "no-reply@${DomainName}"
           ALLOWED_ORIGIN: !Sub "https://${DomainName}"
           COGNITO_DOMAIN: !Sub "${CognitoUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
           COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient
@@ -565,6 +574,75 @@ Resources:
         DNSName: !GetAtt CloudFrontDistribution.DomainName
         HostedZoneId: Z2FDTNDATAQYW2
 
+  SesEmailIdentity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref DomainName
+      DkimAttributes:
+        SigningEnabled: true
+      MailFromAttributes:
+        MailFromDomain: !Sub "bounce.${DomainName}"
+        BehaviorOnMxFailure: USE_DEFAULT_VALUE
+      Tags:
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Region
+          Value: !Ref AWS::Region
+
+  SesDkimRecord1:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !GetAtt SesEmailIdentity.DkimDNSTokenName1
+      Type: CNAME
+      TTL: 300
+      ResourceRecords:
+        - !GetAtt SesEmailIdentity.DkimDNSTokenValue1
+
+  SesDkimRecord2:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !GetAtt SesEmailIdentity.DkimDNSTokenName2
+      Type: CNAME
+      TTL: 300
+      ResourceRecords:
+        - !GetAtt SesEmailIdentity.DkimDNSTokenValue2
+
+  SesDkimRecord3:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !GetAtt SesEmailIdentity.DkimDNSTokenName3
+      Type: CNAME
+      TTL: 300
+      ResourceRecords:
+        - !GetAtt SesEmailIdentity.DkimDNSTokenValue3
+
+  SesMailFromMxRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub "bounce.${DomainName}"
+      Type: MX
+      TTL: 300
+      ResourceRecords:
+        - !Sub "10 feedback-smtp.${AWS::Region}.amazonses.com"
+
+  SesMailFromSpfRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub "bounce.${DomainName}"
+      Type: TXT
+      TTL: 300
+      ResourceRecords:
+        - '"v=spf1 include:amazonses.com ~all"'
+
   ContactFormTopic:
     Type: AWS::SNS::Topic
     Properties:
@@ -600,6 +678,12 @@ Resources:
           Value: !Ref AWS::Region
 
 Outputs:
+  SesIdentityArn:
+    Value: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${DomainName}"
+    Description: ARN of the verified SES sending identity
+  SesMailFromDomain:
+    Value: !Sub "bounce.${DomainName}"
+    Description: Custom SES MAIL FROM domain
   WebsiteURL:
     Value: !Sub "https://${DomainName}"
     Description: URL of the deployed website

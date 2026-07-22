@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
 
-import time
 import os
+import time
 import uuid
-
+from email import policy
+from email.parser import BytesParser
+from pathlib import Path
 from urllib.parse import quote
+
 import pytest
 from pyquery import PyQuery as pq
+
 from test_utils import (
     recreate_dynamodb_table,
     get_guest_client,
     get_logged_in_client,
     get,
-     post,
+    post,
     patch,
+    delete,
     regular_user,
     regular_2_user,
     root_user,
@@ -185,7 +190,7 @@ def check_user(doc, followers_count: int, following_count: int, follow_control: 
 
 
 def check_articles(doc, articles_count: int, unpublished_control: bool, rejected_control: bool, tags_control: bool,
-                popular_control: bool, article_aliases: list[str], css_id="articles"):
+                   popular_control: bool, article_aliases: list[str], css_id="articles"):
     main_el = doc("main")
     articles_el = main_el("#" + css_id)
     if articles_count:
@@ -262,9 +267,9 @@ def check_latest_article_comments(doc, comments_count: int, comment_texts: list[
 
 def check_index(doc):
     check_articles(doc, articles_count=0, unpublished_control=False, rejected_control=False, tags_control=False,
-                popular_control=False, article_aliases=list(article_ids.keys()), css_id="articles")
+                   popular_control=False, article_aliases=list(article_ids.keys()), css_id="articles")
     check_articles(doc, articles_count=0, unpublished_control=False, rejected_control=False, tags_control=False,
-                popular_control=False, article_aliases=list(article_ids.keys()), css_id="popular-articles")
+                   popular_control=False, article_aliases=list(article_ids.keys()), css_id="popular-articles")
     check_latest_article_comments(doc, comments_count=0, comment_texts=[])
     check_users(doc, users_count=0, banned_control=False, popular_control=False, user_aliases=[], css_id="users")
     check_users(doc, users_count=3, banned_control=False, popular_control=False, user_aliases=list(user_ids.keys()),
@@ -333,7 +338,7 @@ def test_guest_user_get_user(guest_client, user_alias):
     check_user(doc, followers_count=0, following_count=0, follow_control=False, block_control=False, user_alias=None,
                activate_control=False, ban_control=False)
     check_articles(doc, articles_count=0, unpublished_control=False, rejected_control=False, tags_control=False,
-                popular_control=False, article_aliases=list(article_ids.keys()), css_id="articles")
+                   popular_control=False, article_aliases=list(article_ids.keys()), css_id="articles")
 
 
 @pytest.mark.parametrize("user_alias", ["regular_2", "root"])
@@ -343,7 +348,7 @@ def test_regular_user_get_other_user(regular_user_client, user_alias):
     check_user(doc, followers_count=0, following_count=0, follow_control=True, block_control=True, user_alias=None,
                activate_control=False, ban_control=False)
     check_articles(doc, articles_count=0, unpublished_control=False, rejected_control=False, tags_control=False,
-                popular_control=False, article_aliases=list(article_ids.keys()), css_id="articles")
+                   popular_control=False, article_aliases=list(article_ids.keys()), css_id="articles")
 
 
 def test_regular_user_get_self_user(regular_user_client):
@@ -353,7 +358,7 @@ def test_regular_user_get_self_user(regular_user_client):
     check_user(doc, followers_count=0, following_count=0, follow_control=False, block_control=False,
                user_alias=user_alias, activate_control=False, ban_control=False)
     check_articles(doc, articles_count=0, unpublished_control=True, rejected_control=True, popular_control=False,
-                tags_control=False, article_aliases=list(article_ids.keys()), css_id="articles")
+                   tags_control=False, article_aliases=list(article_ids.keys()), css_id="articles")
 
 
 def test_root_user_get_user(root_user_client):
@@ -363,7 +368,7 @@ def test_root_user_get_user(root_user_client):
     check_user(doc, followers_count=0, following_count=0, follow_control=True, block_control=True,
                user_alias=user_alias, activate_control=False, ban_control=True)
     check_articles(doc, articles_count=0, unpublished_control=True, rejected_control=True, popular_control=False,
-                tags_control=False, article_aliases=list(article_ids.keys()), css_id="articles")
+                   tags_control=False, article_aliases=list(article_ids.keys()), css_id="articles")
 
 
 def test_guest_user_get_users(guest_client):
@@ -387,19 +392,19 @@ def test_root_user_get_users(root_user_client):
 def test_guest_user_get_articles(guest_client):
     doc = get_articles(guest_client)
     check_articles(doc, articles_count=0, unpublished_control=False, rejected_control=False, tags_control=True,
-                popular_control=True, article_aliases=list(article_ids.keys()), css_id="articles")
+                   popular_control=True, article_aliases=list(article_ids.keys()), css_id="articles")
 
 
 def test_regular_user_get_articles(regular_user_client):
     doc = get_articles(regular_user_client)
     check_articles(doc, articles_count=0, unpublished_control=False, rejected_control=False, tags_control=True,
-                popular_control=True, article_aliases=list(article_ids.keys()), css_id="articles")
+                   popular_control=True, article_aliases=list(article_ids.keys()), css_id="articles")
 
 
 def test_root_user_get_articles(root_user_client):
     doc = get_articles(root_user_client)
     check_articles(doc, articles_count=0, unpublished_control=True, rejected_control=True, tags_control=True,
-                popular_control=True, article_aliases=list(article_ids.keys()), css_id="articles")
+                   popular_control=True, article_aliases=list(article_ids.keys()), css_id="articles")
 
 
 @pytest.mark.parametrize("user_alias", ["regular", "root"])
@@ -513,7 +518,6 @@ def test_index_shows_latest_article_comments(guest_client):
     assert article_title in doc("#latest-article-comments").text()
 
 
-
 @pytest.mark.parametrize(("legacy_path", "article_path"), [
     ("/posts", "/articles"),
     ("/post", "/articles"),
@@ -620,7 +624,6 @@ def test_logout_callback_success_and_wrong_method_failure(guest_client):
     assert failure.status_code == 405
 
 
-
 functional_state = {}
 
 
@@ -675,7 +678,6 @@ def test_user_status_endpoint_success_and_validation_failure(root_user_client):
     assert success.status_code == 200, success.text
     failure = post(root_user_client, f"/api/users/{target["id"]}/status", json={"status": "invalid"})
     assert failure.status_code == 422
-
 
 
 ARTICLE_CONTENT = "Functional endpoint coverage content. " * 160
@@ -787,8 +789,6 @@ def test_article_impression_comment_and_comment_update_endpoints_success_and_fai
     assert update_failure.status_code == 404
 
 
-
-
 def test_public_file_upload_endpoint_success_and_failure(guest_client):
     png_content = b"\x89PNG\r\n\x1a\n" + (b"\x00" * 1100)
     success = post(guest_client, "/api/public-file", files={
@@ -877,7 +877,89 @@ def test_dummy_fixtures_endpoint_success_and_wrong_method_failure(guest_client):
     assert failure.status_code in (404, 405)
 
 
+def test_article_tag_subscription_create_and_delete():
+    root_user_client = get_logged_in_client(root_user)
+    tags = ["lifecycle-tag", "lifecycle-combination"]
+    response = post(root_user_client, "/api/article-tag-subscriptions", json={"tags": tags})
+    assert response.status_code == 200, response.text
+
+    fragment = pq(response.text)
+    subscription_id = fragment(".article-tag-subscription-block").attr("data-article-tag-subscription-id")
+    assert subscription_id
+    assert "Unsubscribe" in response.text
+
+    subscriptions = get(root_user_client, "/api/article-tag-subscriptions")
+    assert subscriptions.status_code == 200
+    assert any(item["id"] == subscription_id and item["tags"] == sorted(tags)
+               for item in subscriptions.json())
+
+    delete_response = delete(root_user_client, f"/api/article-tag-subscriptions/{subscription_id}")
+    assert delete_response.status_code == 200, delete_response.text
+    assert pq(delete_response.text)(".article-tag-subscription-block").attr("data-article-tag-subscription-id") == ""
+    assert "Unsubscribe" not in delete_response.text
+
+    subscriptions = get(root_user_client, "/api/article-tag-subscriptions")
+    assert all(item["id"] != subscription_id for item in subscriptions.json())
+
+
+def test_article_published_dispatch_matches_combinations_excludes_author_and_renders_eml():
+    root_client = get_logged_in_client(root_user)
+    set_dynamodb_user_permissions(get_logged_in_user_id(root_user), ["root"])
+    author_client = get_logged_in_client(regular_user)
+    combination_client = get_logged_in_client(regular_2_user)
+    email_dir = Path("/app/.emails")
+    existing_emails = set(email_dir.glob("*.eml"))
+
+    root_subscription = post(root_client, "/api/article-tag-subscriptions", json={
+        "tags": ["notification-tag3"],
+    })
+    assert root_subscription.status_code == 200, root_subscription.text
+    author_subscription = post(author_client, "/api/article-tag-subscriptions", json={
+        "tags": ["notification-tag1"],
+    })
+    assert author_subscription.status_code == 200, author_subscription.text
+    combination_subscription = post(combination_client, "/api/article-tag-subscriptions", json={
+        "tags": ["notification-tag2", "notification-tag3"],
+    })
+    assert combination_subscription.status_code == 200, combination_subscription.text
+
+    create_response = post(author_client, "/api/articles", json={
+        "title": "Combination notification integration article",
+        "content": ARTICLE_CONTENT,
+        "tags": ["notification-tag1", "notification-tag2", "notification-tag3"],
+    })
+    assert create_response.status_code == 200, create_response.text
+    article_id = create_response.json().rstrip("/").split("/")[-1]
+
+    publish_response = post(root_client, f"/api/articles/{article_id}/status", json={
+        "status": "published",
+    })
+    assert publish_response.status_code == 200, publish_response.text
+
+    new_emails = sorted(set(email_dir.glob("*.eml")) - existing_emails)
+    assert len(new_emails) == 2
+    messages = {}
+    for email_file in new_emails:
+        with email_file.open("rb") as stream:
+            message = BytesParser(policy=policy.default).parse(stream)
+        messages[message["To"]] = message
+
+    assert set(messages) == {"root@example.com", "regular2@example.com"}
+    assert "regular@example.com" not in messages
+
+    root_html = messages["root@example.com"].get_body("html").get_content()
+    assert f"Hello {get_dynamodb_user_by_email('root@example.com')['name']}" in root_html
+    assert "notification-tag3" in root_html
+    assert "tags=notification-tag3" in root_html
+    assert "notification-tag2 + notification-tag3" not in root_html
+    assert "Best regards" in root_html
+
+    combination_html = messages["regular2@example.com"].get_body("html").get_content()
+    assert "notification-tag2 + notification-tag3" in combination_html
+    assert "tags=notification-tag2&amp;tags=notification-tag3" in combination_html
+    assert "Read article" in combination_html
+
+
 def test_logout_endpoint_wrong_method_failure(guest_client):
     failure = post(guest_client, "/logout", json={})
     assert failure.status_code == 405
-

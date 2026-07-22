@@ -1,6 +1,40 @@
-from web import Application, Request, Response, HTTPException, HTMLResponse, JSONResponse, RedirectResponse,\
-    RequestValidationError, CORSMiddleware, FileResponse
+import asyncio
+
 from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from deps import (
+    OptCurUserDep,
+    ImageFileDTODep,
+    CurUserDep,
+    ArticleQueryDep,
+    ArticleDep,
+    ArticleTagQueryDep,
+    UserQueryDep,
+    UserDep,
+    UpdateUserDTODep,
+    UpdateUserActivitySettingsDTODep,
+    UpdateUserInterestsSettingsDTODep,
+    get_error_response,
+    UpdateArticleDTODep,
+    UpdateArticleStatusDTODep,
+    UpdateArticleImpressionDTODep,
+    UpdateUserImpressionDTODep,
+    UserBySlugDep,
+    ArticleBySlugsDep,
+    UpdateUserStatusDTODep,
+    ArticleCommentDep,
+    UpdateArticleCommentDTODep,
+    ArticleQueryBySlugsDep,
+    UserQueryBySlugsDep,
+    set_token_cookie,
+    drop_token_cookie,
+    set_cdn_cache_cookie,
+    drop_cdn_cache_cookie,
+    get_cdn_cache_cookie,
+    ArticleTagDep,
+    UpdateArticleTagDTODep,
+    ArticleTagSubscriptionDTODep,
+)
 from lambda_adapter import make_handler
 from utils import (
     to_thread,
@@ -19,6 +53,7 @@ from utils import (
     ArticleByOldSlugRequestedError,
     ArticleTagByOldSlugRequestedError,
     UserByOldSlugRequestedError,
+    UserNotFoundError,
     logger,
     get_html_content,
     get_url,
@@ -41,6 +76,7 @@ from utils import (
     verify_authorization,
     update_user,
     update_user_activity_settings,
+    update_user_interests_settings,
     update_article,
     find_article_impression,
     update_article_impression,
@@ -69,39 +105,13 @@ from utils import (
     update_article_tag,
     find_article_tag,
     get_user_activity,
+    get_user_article_tag_subscription_for_tags,
+    get_user_article_tag_subscriptions,
+    create_article_tag_subscription,
+    delete_article_tag_subscription,
 )
-from deps import (
-    OptCurUserDep,
-    ImageFileDTODep,
-    CurUserDep,
-    ArticleQueryDep,
-    ArticleDep,
-    ArticleTagQueryDep,
-    UserQueryDep,
-    UserDep,
-    UpdateUserDTODep,
-    UpdateUserActivitySettingsDTODep,
-    get_error_response,
-    UpdateArticleDTODep,
-    UpdateArticleStatusDTODep,
-    UpdateArticleImpressionDTODep,
-    UpdateUserImpressionDTODep,
-    UserBySlugDep,
-    ArticleBySlugsDep,
-    UpdateUserStatusDTODep,
-    ArticleCommentDep,
-    UpdateArticleCommentDTODep,
-    ArticleQueryBySlugsDep,
-    UserQueryBySlugsDep,
-    set_token_cookie,
-    drop_token_cookie,
-    set_cdn_cache_cookie,
-    drop_cdn_cache_cookie,
-    get_cdn_cache_cookie,
-    ArticleTagDep,
-    UpdateArticleTagDTODep,
-)
-import asyncio
+from web import Application, Request, Response, HTTPException, HTMLResponse, JSONResponse, RedirectResponse, \
+    RequestValidationError, CORSMiddleware, FileResponse
 
 app = Application()
 
@@ -302,6 +312,8 @@ async def _articles_page(query_dto: ArticleQueryDep, cur_user: OptCurUserDep) ->
         "article_query_tag_items": article_query_tag_items,
         "articles": articles,
         "article_tag": article_tag,
+        "article_tag_subscription": get_user_article_tag_subscription_for_tags(cur_user,
+                                                                               query_dto.tags) if cur_user and query_dto.tags else None,
     })
 
 
@@ -353,7 +365,8 @@ async def edit_article(article: ArticleDep, cur_user: CurUserDep) -> str:
 
 
 @app.patch("/api/articles/{article_id}", name="update-article", response_class=JSONResponse)
-async def _update_article(article: ArticleDep, update_article_dto: UpdateArticleDTODep, cur_user: CurUserDep, request: Request) -> str:
+async def _update_article(article: ArticleDep, update_article_dto: UpdateArticleDTODep, cur_user: CurUserDep,
+                          request: Request) -> str:
     try:
         update_article(article, update_article_dto, cur_user, request)
         return get_article_url(request, article)
@@ -363,14 +376,14 @@ async def _update_article(article: ArticleDep, update_article_dto: UpdateArticle
 
 @app.post("/api/articles/{article_id}/status", name="update-article-status", response_class=JSONResponse)
 async def _update_article_status(article: ArticleDep, update_article_status_dto: UpdateArticleStatusDTODep,
-                              cur_user: CurUserDep, request: Request) -> str:
+                                 cur_user: CurUserDep, request: Request) -> str:
     update_article_status(article, update_article_status_dto, cur_user, request)
     return get_article_url(request, article)
 
 
 @app.post("/api/articles/{article_id}/impression", name="update-article-impression", response_class=HTMLResponse)
 async def _update_article_impression(article: ArticleDep, update_article_impression_dto: UpdateArticleImpressionDTODep,
-                                  cur_user: CurUserDep, request: Request) -> str:
+                                     cur_user: CurUserDep, request: Request) -> str:
     update_article_impression(article, update_article_impression_dto, cur_user, request)
     (
         article,
@@ -388,15 +401,16 @@ async def _update_article_impression(article: ArticleDep, update_article_impress
 
 @app.post("/api/articles/{article_id}/comment", name="create-article-comment", response_class=JSONResponse)
 async def _create_article_comment(article: ArticleDep, article_comment_dto: ArticleCommentDTO, cur_user: CurUserDep,
-                               request: Request) -> str:
+                                  request: Request) -> str:
     article_comment = create_article_comment(article, article_comment_dto, cur_user, request)
     return get_article_comment_url(request, article, article_comment)
 
 
-@app.patch("/api/articles/{article_id}/comments/{comment_id}", name="update-article-comment", response_class=JSONResponse)
+@app.patch("/api/articles/{article_id}/comments/{comment_id}", name="update-article-comment",
+           response_class=JSONResponse)
 async def _update_article_comment(article: ArticleDep, article_comment: ArticleCommentDep,
-                               update_article_comment_dto: UpdateArticleCommentDTODep, cur_user: CurUserDep,
-                               request: Request) -> str:
+                                  update_article_comment_dto: UpdateArticleCommentDTODep, cur_user: CurUserDep,
+                                  request: Request) -> str:
     update_article_comment(article, article_comment, update_article_comment_dto, cur_user, request)
     return get_article_comment_url(request, article, article_comment)
 
@@ -443,6 +457,38 @@ async def _create_contact_message(message_dto: ContactMessageDTO, cur_user: OptC
     create_contact_message(message_dto, cur_user)
 
 
+@app.get("/api/article-tag-subscriptions", name="get-article-tag-subscriptions", response_class=JSONResponse)
+async def _get_article_tag_subscriptions(cur_user: CurUserDep):
+    return get_user_article_tag_subscriptions(cur_user)
+
+
+@app.post("/api/article-tag-subscriptions", name="create-article-tag-subscription", response_class=HTMLResponse)
+async def _create_article_tag_subscription(dto: ArticleTagSubscriptionDTODep, cur_user: CurUserDep):
+    try:
+        article_tag_subscription = create_article_tag_subscription(dto, cur_user)
+        return get_html_content("fragments/article-tag-subscription.html", {
+            "cur_user": cur_user,
+            "article_query": ArticleQueryDTO(tags=article_tag_subscription.tags),
+            "article_tag_subscription": article_tag_subscription,
+        })
+    except SlugDuplicationError as exc:
+        raise HTTPException(status_code=409, detail=exc.to_dict())
+
+
+@app.delete("/api/article-tag-subscriptions/{article_tag_subscription_id}", name="delete-article-tag-subscription",
+            response_class=HTMLResponse)
+async def _delete_article_tag_subscription(article_tag_subscription_id: str, cur_user: CurUserDep):
+    try:
+        article_tag_subscription = delete_article_tag_subscription(article_tag_subscription_id, cur_user)
+        return get_html_content("fragments/article-tag-subscription.html", {
+            "cur_user": cur_user,
+            "article_query": ArticleQueryDTO(tags=article_tag_subscription.tags),
+            "article_tag_subscription": None,
+        })
+    except UserNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
 @app.get("/article-tags/{slug}/edit", name="edit-article-tag", response_class=HTMLResponse)
 async def edit_article_tag(article_tag: ArticleTagDep, cur_user: CurUserDep) -> str:
     verify_authorization(cur_user, Permission.UPDATE_ARTICLE_TAG, article_tag)
@@ -453,8 +499,9 @@ async def edit_article_tag(article_tag: ArticleTagDep, cur_user: CurUserDep) -> 
 
 
 @app.patch("/api/article-tags/{slug}", name="update-article-tag", response_class=JSONResponse)
-async def _update_article_tag(update_article_tag_dto: UpdateArticleTagDTODep, article_tag: ArticleTagDep, cur_user: CurUserDep,
-                           request: Request) -> str:
+async def _update_article_tag(update_article_tag_dto: UpdateArticleTagDTODep, article_tag: ArticleTagDep,
+                              cur_user: CurUserDep,
+                              request: Request) -> str:
     update_article_tag(article_tag, update_article_tag_dto, cur_user, request)
     return get_article_tag_url(request, article_tag)
 
@@ -490,15 +537,19 @@ async def users_fragment(query_dto: UserQueryDep, cur_user: OptCurUserDep) -> st
     })
 
 
-async def _user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_user: OptCurUserDep, request: Request) -> HTMLResponse:
+async def _user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_user: OptCurUserDep,
+                     request: Request) -> HTMLResponse:
     activity_year = request.query_params.get("activity_year")
     try:
         activity_year = int(activity_year) if activity_year else None
     except ValueError:
         activity_year = None
 
-    can_manage_activity = bool(cur_user and check_authorization(cur_user, Permission.UPDATE_USER, user))
-    should_load_activity = user.show_activity_calendar or can_manage_activity
+    can_manage_profile = bool(cur_user and check_authorization(cur_user, Permission.UPDATE_USER, user))
+    should_load_activity = user.show_activity_calendar or can_manage_profile
+    can_manage_interests = can_manage_profile
+    should_load_interests = user.show_interests or can_manage_interests
+    should_render_interests = user.show_interests or can_manage_interests
 
     async def load_activity():
         if not should_load_activity:
@@ -508,14 +559,21 @@ async def _user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_use
         except ValueError:
             return await to_thread(get_user_activity, user, None)
 
+    async def load_interests():
+        if not should_load_interests:
+            return []
+        return await to_thread(get_user_article_tag_subscriptions, user)
+
     (
         articles,
         user_impression,
         activity,
+        article_tag_subscriptions,
     ) = await asyncio.gather(
         to_thread(get_latest_articles_by_user, user, articles_query_dto, cur_user),
         to_thread(find_user_impression, user, cur_user) if cur_user else asyncio.sleep(0, result=None),
         load_activity(),
+        load_interests(),
     )
 
     html_content = get_html_content("user.html", {
@@ -526,6 +584,8 @@ async def _user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_use
         "user_impression": user_impression,
         "activity": activity,
         "activity_year": activity_year,
+        "article_tag_subscriptions": article_tag_subscriptions,
+        "show_article_tag_subscriptions": should_render_interests,
     })
     return HTMLResponse(html_content)
 
@@ -572,8 +632,17 @@ async def edit_user(user: UserDep, cur_user: CurUserDep) -> str:
 
 
 @app.patch("/api/users/{user_id}/activity-settings", name="update-user-activity-settings", response_class=JSONResponse)
-async def _update_user_activity_settings(dto: UpdateUserActivitySettingsDTODep, user: UserDep, cur_user: CurUserDep, request: Request) -> str:
+async def _update_user_activity_settings(dto: UpdateUserActivitySettingsDTODep, user: UserDep, cur_user: CurUserDep,
+                                         request: Request) -> str:
     update_user_activity_settings(user, dto, cur_user)
+    return get_user_url(request, user)
+
+
+@app.patch("/api/users/{user_id}/interests-settings", name="update-user-interests-settings",
+           response_class=JSONResponse)
+async def _update_user_interests_settings(dto: UpdateUserInterestsSettingsDTODep, user: UserDep, cur_user: CurUserDep,
+                                          request: Request) -> str:
+    update_user_interests_settings(user, dto, cur_user)
     return get_user_url(request, user)
 
 

@@ -1,5 +1,5 @@
-from web import Body, Depends, HTMLResponse, HTTPException, JSONResponse, Query, Request, RequestValidationError
 from typing import Annotated, Optional
+
 from utils import (
     User,
     ArticleQueryDTO,
@@ -21,6 +21,7 @@ from utils import (
     UpdateArticleImpressionDTO,
     UpdateUserImpressionDTO,
     UpdateUserActivitySettingsDTO,
+    UpdateUserInterestsSettingsDTO,
     get_user_by_slug,
     get_article_by_slugs,
     ArticleComment,
@@ -36,7 +37,9 @@ from utils import (
     ArticleTagNotFoundError,
     get_article_tag,
     UpdateArticleTagDTO,
+    ArticleTagSubscriptionDTO,
 )
+from web import Body, Depends, HTMLResponse, HTTPException, JSONResponse, Query, Request, RequestValidationError
 
 
 def _resolve_user(request: Request) -> User | None:
@@ -142,9 +145,19 @@ def get_update_user_dto(update_user_dto: UpdateUserDTO = Body(...)) -> UpdateUse
     return update_user_dto
 
 
-
-def get_update_user_activity_settings_dto(dto: UpdateUserActivitySettingsDTO = Body(...)) -> UpdateUserActivitySettingsDTO:
+def get_article_tag_subscription_dto(dto: ArticleTagSubscriptionDTO = Body(...)) -> ArticleTagSubscriptionDTO:
     return dto
+
+
+def get_update_user_activity_settings_dto(
+        dto: UpdateUserActivitySettingsDTO = Body(...)) -> UpdateUserActivitySettingsDTO:
+    return dto
+
+
+def get_update_user_interests_settings_dto(
+        dto: UpdateUserInterestsSettingsDTO = Body(...)) -> UpdateUserInterestsSettingsDTO:
+    return dto
+
 
 def get_update_user_status_dto(update_user_status_dto: UpdateUserStatusDTO = Body(...)) -> UpdateUserStatusDTO:
     return update_user_status_dto
@@ -154,7 +167,8 @@ def get_update_article_dto(update_article_dto: UpdateArticleDTO = Body(...)) -> 
     return update_article_dto
 
 
-def get_update_article_status_dto(update_article_status_dto: UpdateArticleStatusDTO = Body(...)) -> UpdateArticleStatusDTO:
+def get_update_article_status_dto(
+        update_article_status_dto: UpdateArticleStatusDTO = Body(...)) -> UpdateArticleStatusDTO:
     return update_article_status_dto
 
 
@@ -170,12 +184,14 @@ def get_article_comment_by_id(article_id: str, comment_id: str) -> ArticleCommen
         raise HTTPException(status_code=404, detail=str(e))
 
 
-def get_update_article_comment_dto(update_article_comment_dto: UpdateArticleCommentDTO = Body(...)) -> UpdateArticleCommentDTO:
+def get_update_article_comment_dto(
+        update_article_comment_dto: UpdateArticleCommentDTO = Body(...)) -> UpdateArticleCommentDTO:
     return update_article_comment_dto
 
 
-def get_update_article_comment_impression_dto(update_article_comment_impression_dto: UpdateArticleCommentImpressionDTO = Body(
-    ...)) -> UpdateArticleCommentImpressionDTO:
+def get_update_article_comment_impression_dto(
+        update_article_comment_impression_dto: UpdateArticleCommentImpressionDTO = Body(
+            ...)) -> UpdateArticleCommentImpressionDTO:
     return update_article_comment_impression_dto
 
 
@@ -275,7 +291,10 @@ def drop_cdn_cache_cookie(response):
 UserDep = Annotated[User, Depends(get_user_by_id)]
 UserBySlugDep = Annotated[User, Depends(_get_user_by_slug)]
 UpdateUserDTODep = Annotated[UpdateUserDTO, Depends(get_update_user_dto)]
-UpdateUserActivitySettingsDTODep = Annotated[UpdateUserActivitySettingsDTO, Depends(get_update_user_activity_settings_dto)]
+UpdateUserActivitySettingsDTODep = Annotated[
+    UpdateUserActivitySettingsDTO, Depends(get_update_user_activity_settings_dto)]
+UpdateUserInterestsSettingsDTODep = Annotated[
+    UpdateUserInterestsSettingsDTO, Depends(get_update_user_interests_settings_dto)]
 UpdateUserStatusDTODep = Annotated[UpdateUserStatusDTO, Depends(get_update_user_status_dto)]
 UserQueryDep = Annotated[UserQueryDTO, Depends()]
 UserQueryBySlugsDep = Annotated[UserQueryDTO, Depends(get_user_query_by_slugs)]
@@ -293,5 +312,6 @@ UpdateArticleCommentImpressionDTODep = Annotated[
 ArticleTagQueryDep = Annotated[ArticleTagQueryDTO, Depends()]
 ArticleTagDep = Annotated[ArticleTag, Depends(get_article_tag_by_slug)]
 UpdateArticleTagDTODep = Annotated[UpdateArticleTagDTO, Depends(get_update_article_tag_dto)]
+ArticleTagSubscriptionDTODep = Annotated[ArticleTagSubscriptionDTO, Depends(get_article_tag_subscription_dto)]
 ImageFileDTODep = Annotated[ImageFileDTO, Depends(get_image_file)]
 UpdateUserImpressionDTODep = Annotated[UpdateUserImpressionDTO, Depends(get_update_user_impression_dto)]

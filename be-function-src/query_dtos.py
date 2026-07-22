@@ -98,7 +98,8 @@ class ArticleQueryDTO(BaseQueryDTO):
         self.status = ArticleStatus(self.status)
 
     def has_params(self):
-        return BaseQueryDTO.has_params(self) or bool(self.tags) or self.type != self.DEFAULT_TYPE or self.status != self.DEFAULT_STATUS
+        return BaseQueryDTO.has_params(self) or bool(
+            self.tags) or self.type != self.DEFAULT_TYPE or self.status != self.DEFAULT_STATUS
 
 
 @dataclass(slots=True)

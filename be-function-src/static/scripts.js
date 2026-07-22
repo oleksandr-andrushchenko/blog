@@ -815,3 +815,27 @@ $(function () {
   $(".share-btn.linkedin").attr("href", `https://www.linkedin.com/shareArticle?mini=true&url=${pageUrl}&title=${pageTitle}`)
   $(".share-btn.email").attr("href", `mailto:?subject=${pageTitle}&body=Check out this article: ${pageUrl}`)
 })
+
+// Article tag subscriptions
+$(document).on("click", ".btn-article-tag-subscription", function () {
+  const button = $(this)
+  const block = button.closest(".article-tag-subscription-block, .article-tag-subscription-item")
+  const message = block.find(".article-tag-subscription-message")
+  button.prop("disabled", true)
+  const subscriptionId = button.attr("data-article-tag-subscription-id")
+  const request = subscriptionId
+    ? $.ajax({ url: window.CONFIG.delete_article_tag_subscription_url.replace("{article_tag_subscription_id}", subscriptionId), method: "DELETE" })
+    : $.ajax({ url: window.CONFIG.create_article_tag_subscription_url, method: "POST", contentType: "application/json", data: JSON.stringify({ tags: JSON.parse(button.attr("data-tags")) }) })
+  request.done((html) => {
+    if (block.hasClass("article-tag-subscription-item")) {
+      block.remove()
+      const interestsContent = $("#profile-interests-content")
+      if (interestsContent.length && !interestsContent.find(".article-tag-subscription-item").length) {
+        interestsContent.html('<div class="text-muted small article-tag-subscription-empty">You have no interests.</div>')
+      }
+    } else {
+      block.replaceWith(html)
+    }
+  })
+    .fail((xhr) => { message.text(xhr.responseJSON?.detail?.message || "Unable to update article tag subscription."); button.prop("disabled", false) })
+})

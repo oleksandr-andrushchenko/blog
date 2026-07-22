@@ -1,31 +1,35 @@
-import time
-import re
-import os
-import uuid
-import datetime
-import logging
-import sys
-from enum import StrEnum
-from urllib.parse import quote, urlencode, urlparse
-import base64
-from typing import Callable, ClassVar, Literal, TypeVar, Any, Optional
-from jinja2 import Environment, FileSystemLoader, pass_context
-import json
-from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
-import copy
-from functools import lru_cache, partial
 import asyncio
+import base64
+import copy
+import datetime
+import json
+import logging
+import os
+import re
+import sys
+import time
+import uuid
 from dataclasses import dataclass, asdict
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from validation import validate_email_address, validate_http_url
-from query_dtos import (BaseQueryDTO, ArticleCommentQueryDTO, ArticleQueryDTO, ArticleQueryType, ArticleStatus,
-                        ArticleTagQueryDTO, UserQueryDTO, UserQueryType, UserStatus)
-from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO, UserTokenDTO
-from user_dtos import UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO, UpdateUserActivitySettingsDTO, UserImpressionAction
+from enum import StrEnum
+from functools import lru_cache, partial
+from typing import Callable, TypeVar, Any
+from urllib.parse import quote, urlencode, urlparse
+from zoneinfo import ZoneInfo
+
+from jinja2 import Environment, FileSystemLoader, pass_context
+
 from article_dtos import (ArticleCommentDTO, ArticleCommentImpressionAction, ArticleDTO, ArticleImpressionAction,
                           UpdateArticleCommentDTO, UpdateArticleCommentImpressionDTO, UpdateArticleDTO,
-                          UpdateArticleImpressionDTO, UpdateArticleStatusDTO, UpdateArticleTagDTO)
+                          UpdateArticleImpressionDTO, UpdateArticleStatusDTO,
+                          UpdateArticleTagDTO)
+from article_tag_subscription_dtos import ArticleTagSubscription, ArticleTagSubscriptionDTO
+from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO, UserTokenDTO
+from query_dtos import (BaseQueryDTO, ArticleCommentQueryDTO, ArticleQueryDTO, ArticleQueryType, ArticleStatus,
+                        ArticleTagQueryDTO, UserQueryDTO, UserQueryType, UserStatus)
+from user_dtos import UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO, UpdateUserActivitySettingsDTO, \
+    UpdateUserInterestsSettingsDTO, UserImpressionAction
 
 
 def Key(*args, **kwargs):
@@ -74,6 +78,7 @@ class User:
     offset: str | None
     show_activity_calendar: bool
     show_recent_activity: bool
+    show_interests: bool
 
 
 @dataclass(slots=True)
@@ -89,8 +94,10 @@ class UserActivity:
 
 ACTIVITY_YEAR_DAYS = 365
 
+
 def activity_profile_visible(actor_id: str, entity_owner_id: str | None) -> bool:
     return bool(entity_owner_id and actor_id == entity_owner_id)
+
 
 def add_user_activity_transact(transacts: list, actor: User, event_type: str, entity_type: str,
                                entity_id: str, entity_title: str | None, entity_url: str | None,
@@ -102,6 +109,7 @@ def add_user_activity_transact(transacts: list, actor: User, event_type: str, en
             "event_type": event_type, "entity_type": entity_type, "entity_id": entity_id,
             "entity_title": entity_title, "entity_url": entity_url, "created_at": now}
     add_dynamodb_put_transact(transacts, (f"USER_ACTIVITY#{actor.id}", f"ACTIVITY#{now}#{activity_id}"), item)
+
 
 def user_activity_from_dynamodb(item: dict[str, Any]) -> UserActivity:
     entity_type = item["entity_type"]
@@ -118,6 +126,7 @@ def user_activity_from_dynamodb(item: dict[str, Any]) -> UserActivity:
                         entity_id=entity_id, entity_title=item.get("entity_title"),
                         entity_url=entity_url, created_at=int(item["created_at"]))
 
+
 def get_user_activity(user: User, year: int | None = None, recent_limit: int = 10) -> dict[str, Any]:
     now = datetime.now(timezone.utc)
     if year is None:
@@ -129,9 +138,13 @@ def get_user_activity(user: User, year: int | None = None, recent_limit: int = 1
     else:
         if year < 1970 or year > now.year:
             raise ValueError("invalid activity year")
-        start, end, calendar_year = datetime(year, 1, 1, tzinfo=timezone.utc), datetime(year + 1, 1, 1, tzinfo=timezone.utc), year
+        start, end, calendar_year = datetime(year, 1, 1, tzinfo=timezone.utc), datetime(year + 1, 1, 1,
+                                                                                        tzinfo=timezone.utc), year
     start_ms, end_ms = int(start.timestamp() * 1000), int(end.timestamp() * 1000)
-    resp = query_dynamodb_table(key_condition_expr=Key("pk").eq(f"USER_ACTIVITY#{user.id}") & Key("sk").between(f"ACTIVITY#{start_ms}", f"ACTIVITY#{end_ms}#~"), scan_index_forward=False, limit=1000)
+    resp = query_dynamodb_table(
+        key_condition_expr=Key("pk").eq(f"USER_ACTIVITY#{user.id}") & Key("sk").between(f"ACTIVITY#{start_ms}",
+                                                                                        f"ACTIVITY#{end_ms}#~"),
+        scan_index_forward=False, limit=1000)
     activities = [user_activity_from_dynamodb(item) for item in resp.get("Items", []) if item.get("profile_visible")]
     counts = {}
     for activity in activities:
@@ -289,6 +302,11 @@ class Article:
     published_at: int | None
     is_premium: bool | None
     offset: str | None
+
+
+@dataclass(slots=True)
+class ArticlePublishedEvent:
+    article: Article
 
 
 @dataclass(slots=True)
@@ -480,6 +498,7 @@ def get_live_config():
         "google_analytics_id": os.getenv("GOOGLE_ANALYTICS_ID"),
         "tinymce_api_key": os.getenv("TINYMCE_API_KEY"),
         "contact_topic_arn": os.getenv("CONTACT_TOPIC_ARN"),
+        "ses_from_email": os.getenv("SES_FROM_EMAIL"),
         "allowed_origin": os.getenv("ALLOWED_ORIGIN"),
         "cognito_domain": os.getenv("COGNITO_DOMAIN"),
         "cognito_client_id": os.getenv("COGNITO_CLIENT_ID"),
@@ -574,6 +593,172 @@ def get_dynamodb_table_name():
 
 def get_contact_topic_arn():
     return get_config().get("contact_topic_arn")
+
+
+def get_ses_from_email():
+    return get_config().get("ses_from_email")
+
+
+def article_tag_subscription_key(tags: list[str]) -> str:
+    return "#".join(sorted(set(sanitize_tags(tags))))
+
+
+def article_tag_subscription_from_dynamodb(item: dict[str, Any]) -> ArticleTagSubscription:
+    return ArticleTagSubscription(item["article_tag_subscription_id"], item["user_id"], item["tags"],
+                                  item["created_at"])
+
+
+def get_user_article_tag_subscriptions(user: User) -> list[ArticleTagSubscription]:
+    response = query_dynamodb_table(
+        key_condition_expr=Key("pk").eq(f"USER#{user.id}") & Key("sk").begins_with("ARTICLE_TAG_SUBSCRIPTION#"))
+    return [article_tag_subscription_from_dynamodb(item) for item in response.get("Items", [])]
+
+
+def get_user_article_tag_subscription_for_tags(user: User, tags: list[str]) -> ArticleTagSubscription | None:
+    wanted = article_tag_subscription_key(tags)
+    return next((item for item in get_user_article_tag_subscriptions(user) if item.key == wanted), None)
+
+
+def create_article_tag_subscription(dto: ArticleTagSubscriptionDTO, user: User) -> ArticleTagSubscription:
+    article_tag_subscription_id, now, key = str(uuid.uuid4()), utc_now(), article_tag_subscription_key(dto.tags)
+    transacts = []
+    add_dynamodb_put_transact(transacts, (f"USER#{user.id}", f"ARTICLE_TAG_SUBSCRIPTION#{article_tag_subscription_id}"),
+                              {"article_tag_subscription_id": article_tag_subscription_id, "user_id": user.id,
+                               "tags": dto.tags, "article_tag_subscription_key": key, "created_at": now})
+    add_dynamodb_put_transact(transacts, (f"ARTICLE_TAG_SUBSCRIBERS#{key}", f"USER#{user.id}"),
+                              {"user_id": user.id, "article_tag_subscription_id": article_tag_subscription_id,
+                               "article_tag_subscription_key": key, "created_at": now}, new_pk_only=True)
+    try:
+        dynamodb_transact_write(transacts)
+    except DynamoDBTransactionError as exc:
+        if exc.is_conditional():
+            raise SlugDuplicationError("Article tag subscription already exists", "tags")
+        raise
+    return ArticleTagSubscription(article_tag_subscription_id, user.id, dto.tags, now)
+
+
+def delete_article_tag_subscription(article_tag_subscription_id: str, user: User) -> ArticleTagSubscription:
+    item = get_dynamodb_item(f"USER#{user.id}", f"ARTICLE_TAG_SUBSCRIPTION#{article_tag_subscription_id}")
+    if not item:
+        raise UserNotFoundError("Article tag subscription not found")
+    subscription = article_tag_subscription_from_dynamodb(item)
+    key = item["article_tag_subscription_key"]
+    dynamodb_transact_write([{"Delete": {"TableName": get_dynamodb_table_name(), "Key": {"pk": f"USER#{user.id}",
+                                                                                         "sk": f"ARTICLE_TAG_SUBSCRIPTION#{article_tag_subscription_id}"}}},
+                             {"Delete": {"TableName": get_dynamodb_table_name(),
+                                         "Key": {"pk": f"ARTICLE_TAG_SUBSCRIBERS#{key}", "sk": f"USER#{user.id}"}}}])
+    return subscription
+
+
+def dispatch_article_published_event(article: Article) -> None:
+    handle_article_published_event(ArticlePublishedEvent(article))
+
+
+def save_email_to_disk(sender: str, recipient: str, subject: str, text_body: str, html_body: str) -> None:
+    from email.message import EmailMessage
+
+    message = EmailMessage()
+    message["From"] = sender
+    message["To"] = recipient
+    message["Subject"] = subject
+    message.set_content(text_body)
+    message.add_alternative(html_body, subtype="html")
+
+    email_dir = os.getenv("EMAIL_SINK_DIR") or os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", ".emails")
+    )
+    os.makedirs(email_dir, exist_ok=True)
+    email_path = os.path.join(email_dir, f"{utc_now()}-{uuid.uuid4()}.eml")
+    with open(email_path, "wb") as email_file:
+        email_file.write(message.as_bytes())
+    logger.info("Saved development email to %s", email_path)
+
+
+def handle_article_published_event(event: ArticlePublishedEvent) -> None:
+    from itertools import combinations
+
+    article = event.article
+    matching_subscription_tags = {}
+
+    for size in range(1, len(article.tags) + 1):
+        for combo in combinations(sorted(article.tags), size):
+            subscription_key = "ARTICLE_TAG_SUBSCRIBERS#" + "#".join(combo)
+            exclusive_start_key = None
+            while True:
+                response = query_dynamodb_table(
+                    key_condition_expr=Key("pk").eq(subscription_key),
+                    exclusive_start_key=exclusive_start_key,
+                )
+                for item in response.get("Items", []):
+                    matching_subscription_tags.setdefault(item["user_id"], set()).add(combo)
+                exclusive_start_key = response.get("LastEvaluatedKey")
+                if not exclusive_start_key:
+                    break
+
+    if not matching_subscription_tags:
+        return
+
+    sender = get_ses_from_email()
+    if is_prod() and not sender:
+        logger.warning("Article publication notification skipped: SES_FROM_EMAIL is not configured")
+        return
+    sender = sender or "no-reply@localhost"
+
+    base_url = get_base_url().rstrip('/')
+    article_url = f"{base_url}/articles/{article.id}"
+    subject = f"New article matching your interests: {article.title}"
+
+    for user_id, subscriptions in matching_subscription_tags.items():
+
+        if user_id == article.user_id:
+            continue
+        user = find_user(user_id)
+        if not user or not user.email:
+            continue
+
+        article_tag_links = [
+            {
+                "name": " + ".join(subscription_tags),
+                "url": f"{base_url}/articles?{urlencode([('type', 'latest'), ('status', 'published')] + [('tags', tag) for tag in subscription_tags])}",
+            }
+            for subscription_tags in sorted(subscriptions)
+        ]
+        subscribed_tags_text = ", ".join(link["name"] for link in article_tag_links)
+        text_body = (
+                f"Hello {user.name or 'there'},\n\n"
+                "A new article matching your interests was published:\n\n"
+                f"{article.title}\n"
+                f"Subscribed interests: {subscribed_tags_text}\n"
+                + "\n".join(f"{tag['name']}: {tag['url']}" for tag in article_tag_links)
+                + f"\n\nRead it here: {article_url}\n\n"
+                  f"Best regards,\n{get_config().get('site_name', 'The team')}\n"
+        )
+        html_body = get_html_content("emails/article-published-notification.html", {
+            "recipient_name": user.name or "there",
+            "article_title": article.title,
+            "article_url": article_url,
+            "article_tag_links": article_tag_links,
+        })
+        try:
+            if not is_prod():
+                save_email_to_disk(sender, user.email, subject, text_body, html_body)
+                continue
+            get_ses_client().send_email(
+                Source=sender,
+                Destination={"ToAddresses": [user.email]},
+                Message={
+                    "Subject": {"Data": subject, "Charset": "UTF-8"},
+                    "Body": {
+                        "Text": {"Data": text_body, "Charset": "UTF-8"},
+                        "Html": {"Data": html_body, "Charset": "UTF-8"},
+                    },
+                },
+            )
+        except Exception:
+            logger.exception(
+                "Unable to send article publication notification",
+                extra={"user_id": user_id, "article_id": article.id},
+            )
 
 
 def get_allowed_origins() -> list[str]:
@@ -927,7 +1112,8 @@ def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateAr
         add_dynamodb_article_tag_update_transact(transacts, article_tag, changes)
 
     add_user_activity_transact(transacts, cur_user, "article_tag.updated", "article_tag",
-                               new_slug, changes.get("name", article_tag.name), f"/article-tags/{new_slug}", cur_user.id, now)
+                               new_slug, changes.get("name", article_tag.name), f"/article-tags/{new_slug}",
+                               cur_user.id, now)
     try:
         dynamodb_transact_write(transacts)
     except DynamoDBTransactionError as e:
@@ -1187,6 +1373,12 @@ def _get_cf_client():
 def get_sns_client():
     import boto3
     return boto3.client("sns")
+
+
+@lru_cache
+def get_ses_client():
+    import boto3
+    return boto3.client("ses", region_name=get_aws_region())
 
 
 def drop_cdn_cache(user: User) -> tuple[bool, int]:
@@ -1856,7 +2048,8 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
             "cdn_cache_version": 1
         })
 
-    add_user_activity_transact(transacts, cur_user, "article.updated", "article", article.id, article.title, f"/articles/{article.id}",
+    add_user_activity_transact(transacts, cur_user, "article.updated", "article", article.id, article.title,
+                               f"/articles/{article.id}",
                                article_owner.id, now)
     try:
         dynamodb_transact_write(transacts)
@@ -1973,7 +2166,8 @@ def create_article_comment(article: Article, article_comment_dto: ArticleComment
 
     add_dynamodb_put_transact(transacts, (f"POST#{article.id}", f"COMMENT#{comment_id}"), article_comment_item)
     add_dynamodb_article_update_transact(transacts, article, deltas={"comments_count": 1})
-    add_user_activity_transact(transacts, cur_user, "comment.created", "comment", comment_id, article.title, f"/articles/{article.id}#comment-{comment_id}", cur_user.id, now)
+    add_user_activity_transact(transacts, cur_user, "comment.created", "comment", comment_id, article.title,
+                               f"/articles/{article.id}#comment-{comment_id}", cur_user.id, now)
     add_dynamodb_user_update_transact(transacts, cur_user, deltas={
         "post_comments_count": 1,
         # Invalidate CDN cache for current user
@@ -2019,7 +2213,8 @@ def update_article_comment(article: Article, article_comment: ArticleComment,
     transacts = []
 
     add_dynamodb_update_transact(transacts, (f"POST#{article.id}", f"COMMENT#{article_comment.id}"), changes)
-    add_user_activity_transact(transacts, cur_user, "comment.updated", "comment", article_comment.id, article.title, f"/articles/{article.id}#comment-{article_comment.id}",
+    add_user_activity_transact(transacts, cur_user, "comment.updated", "comment", article_comment.id, article.title,
+                               f"/articles/{article.id}#comment-{article_comment.id}",
                                article_comment.owner_id, utc_now())
 
     add_dynamodb_user_update_transact(transacts, cur_user, deltas={
@@ -2086,6 +2281,7 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         offset=None,
         show_activity_calendar=d_item.get("show_activity_calendar", False),
         show_recent_activity=d_item.get("show_recent_activity", False),
+        show_interests=d_item.get("show_interests", True),
     )
 
 
@@ -2357,7 +2553,8 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
         # Invalidate CDN cache for user
         "cdn_cache_version": 1,
     })
-    add_user_activity_transact(transacts, cur_user, "user.updated", "user", user.id, user.name, f"/users/{user.id}", user.id, now)
+    add_user_activity_transact(transacts, cur_user, "user.updated", "user", user.id, user.name, f"/users/{user.id}",
+                               user.id, now)
 
     if user.id != cur_user.id:
         add_dynamodb_user_update_transact(transacts, cur_user, deltas={
@@ -2376,7 +2573,6 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
         drop_public_file(old_avatar)
 
 
-
 def update_user_activity_settings(user: User, dto: UpdateUserActivitySettingsDTO, cur_user: User) -> None:
     verify_authorization(cur_user, Permission.UPDATE_USER, user)
     if cur_user.status == UserStatus.BANNED:
@@ -2384,6 +2580,15 @@ def update_user_activity_settings(user: User, dto: UpdateUserActivitySettingsDTO
     update_dynamodb_item((f"USER#{user.id}", "META"), changes=dto.changes(), deltas={"cdn_cache_version": 1})
     user.show_activity_calendar = dto.show_activity_calendar
     user.show_recent_activity = dto.show_recent_activity
+
+
+def update_user_interests_settings(user: User, dto: UpdateUserInterestsSettingsDTO, cur_user: User) -> None:
+    verify_authorization(cur_user, Permission.UPDATE_USER, user)
+    if cur_user.status == UserStatus.BANNED:
+        raise UserBannedError()
+    update_dynamodb_item((f"USER#{user.id}", "META"), changes=dto.changes(), deltas={"cdn_cache_version": 1})
+    user.show_interests = dto.show_interests
+
 
 def update_user_status(user: User, update_user_status_dto: UpdateUserStatusDTO, cur_user: User, req) -> None:
     # logger.debug(f"update_user_status: user: {user}, cur_user: {cur_user}")
@@ -2830,10 +3035,17 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
         })
 
     # logger.debug(transacts)
-    add_user_activity_transact(transacts, cur_user, "article.updated", "article", article.id, article.title, f"/articles/{article.id}",
+    add_user_activity_transact(transacts, cur_user, "article.updated", "article", article.id, article.title,
+                               f"/articles/{article.id}",
                                article_owner.id, now)
 
     dynamodb_transact_write(transacts)
+
+    if status == ArticleStatus.PUBLISHED:
+        try:
+            dispatch_article_published_event(article)
+        except Exception:
+            logger.exception("Unable to dispatch article published event")
 
 
 def article_tag_from_dynamodb(d_item: dict[str, Any]) -> ArticleTag:
@@ -3512,6 +3724,16 @@ def create_dummy_fixtures(req) -> None:
         address="1600 Pennsylvania Ave NW, Washington, DC 20500"
     )
     update_user(root_user, update_user_dto, root_user, req)
+    user_token3 = get_dummy_user_token(sub="p3", email="test3@example.com")
+    user3 = upsert_user_by_user_token(user_token3)
+    created_users.append(user3)
+    user_token4 = get_dummy_user_token(sub="p4", email="test4@example.com")
+    user4 = upsert_user_by_user_token(user_token4)
+    created_users.append(user4)
+    create_article_tag_subscription(ArticleTagSubscriptionDTO(tags=["tag3"]), root_user)
+    create_article_tag_subscription(ArticleTagSubscriptionDTO(tags=["tag1"]), user3)
+    create_article_tag_subscription(ArticleTagSubscriptionDTO(tags=["tag2", "tag3"]), user4)
+
     articles = [
         ArticleDTO(
             title="Article title #111111111111111111111111",
@@ -3557,13 +3779,6 @@ def create_dummy_fixtures(req) -> None:
         created_article = create_article(article, user2)
         update_article_status(created_article, UpdateArticleStatusDTO(status=ArticleStatus.PUBLISHED), root_user, req)
         created_articles.append(created_article)
-    user_token3 = get_dummy_user_token(sub="p3", email="test3@example.com")
-    user3 = upsert_user_by_user_token(user_token3)
-    created_users.append(user3)
-    user_token4 = get_dummy_user_token(sub="p4", email="test4@example.com")
-    user4 = upsert_user_by_user_token(user_token4)
-    created_users.append(user4)
-
     comment_texts = [
         "This helped clarify the trade-offs. Thanks for writing it.",
         "Good walkthrough. I would like to see more examples around scaling this design.",

@@ -1,9 +1,10 @@
-import yaml
+import base64
+import decimal
+import json
 import logging
 from pathlib import Path
-import json
-import decimal
-import base64
+
+import yaml
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
