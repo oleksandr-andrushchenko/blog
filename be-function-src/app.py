@@ -28,9 +28,6 @@ from deps import (
     UserQueryBySlugsDep,
     set_token_cookie,
     drop_token_cookie,
-    set_cdn_cache_cookie,
-    drop_cdn_cache_cookie,
-    get_cdn_cache_cookie,
     ArticleTagDep,
     UpdateArticleTagDTODep,
     ArticleTagSubscriptionDTODep,
@@ -100,7 +97,6 @@ from utils import (
     update_article_comment,
     get_article_comment_url,
     get_user_by_auth_token,
-    get_cdn_cache_version,
     get_article_tag_url,
     update_article_tag,
     find_article_tag,
@@ -194,33 +190,6 @@ async def cache_control_middleware(request: Request, call_next):
         return response
 
     response.headers["Cache-Control"] = "no-store"
-    return response
-
-
-@app.middleware("http")
-async def sync_cdn_cache_cookie_middleware(request: Request, call_next):
-    response = await call_next(request)
-
-    set_cookie_headers = response.headers.getlist("set-cookie")
-    token = request.cookies.get("token")
-    token_was_set = None
-    token_was_deleted = None
-
-    for header in set_cookie_headers:
-        if "token=" in header:
-            token_was_set = True
-        if "token=;" in header or "Max-Age=0" in header:
-            token_was_deleted = True
-
-    if token and not token_was_set and not token_was_deleted:
-        cur_user = getattr(request.state, "cur_user", None)
-        if cur_user:
-            req_version = get_cdn_cache_cookie(request)
-            cdn_version = get_cdn_cache_version(cur_user)
-
-            if req_version != cdn_version:
-                set_cdn_cache_cookie(cur_user, response)
-
     return response
 
 
@@ -689,7 +658,6 @@ async def login_callback(request: Request) -> RedirectResponse:
         token = create_auth_jwt_token(cognito_user_token)
         set_token_cookie(token, response)
         user = get_user_by_auth_token(token)
-        set_cdn_cache_cookie(user, response)
         return response
     except (InvalidCodeError, CodeExchangeFailedError, InvalidTokenError) as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -705,7 +673,6 @@ async def logout(request: Request) -> RedirectResponse:
     response = RedirectResponse(provider_redirect_url)
     response.set_cookie("redirect_url", redirect_url, httponly=True, secure=True)
     drop_token_cookie(response)
-    drop_cdn_cache_cookie(response)
     request.state.cur_user = None
     return response
 
@@ -715,7 +682,6 @@ async def logout_callback(request: Request):
     response = RedirectResponse(request.cookies.get("redirect_url") or get_url(request, "index"))
 
     drop_token_cookie(response)
-    drop_cdn_cache_cookie(response)
 
     response.headers["Cache-Control"] = "no-store"
 

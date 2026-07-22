@@ -72,7 +72,6 @@ class User:
     article_comments_count: int
     bmc_username: str | None
     redirect_to: str | None
-    cdn_cache_version: int
     created_at: int
     updated_at: int | None
     offset: str | None
@@ -1903,8 +1902,6 @@ def create_article(article_dto: ArticleDTO, cur_user: User) -> Article:
                                f"/articles/{article_id}", cur_user.id, now)
     add_dynamodb_user_update_transact(transacts, cur_user, deltas={
         "unpublished_posts_count": 1,
-        # Invalidate CDN cache for current user
-        "cdn_cache_version": 1,
     })
     # todo: should be unique in combination with username (cur_user, post)
     add_dynamodb_put_transact(transacts, (f"POST_SLUG#{slug}", "META"), {"post_id": article_id}, new_pk_only=True)
@@ -2025,8 +2022,7 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
         changes["status"] = ArticleStatus.UNPUBLISHED
 
     article_owner = get_user(article.owner_id)
-    # Invalidate CDN cache for post owner
-    article_owner_deltas = {"cdn_cache_version": 1}
+    article_owner_deltas = {}
 
     status = changes.get("status", article.status)
     status_changed = status != old_status
@@ -2044,8 +2040,6 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
 
     if cur_user.id != article_owner.id:
         add_dynamodb_user_update_transact(transacts, cur_user, deltas={
-            # Invalidate CDN cache for current user
-            "cdn_cache_version": 1
         })
 
     add_user_activity_transact(transacts, cur_user, "article.updated", "article", article.id, article.title,
@@ -2170,15 +2164,11 @@ def create_article_comment(article: Article, article_comment_dto: ArticleComment
                                f"/articles/{article.id}#comment-{comment_id}", cur_user.id, now)
     add_dynamodb_user_update_transact(transacts, cur_user, deltas={
         "post_comments_count": 1,
-        # Invalidate CDN cache for current user
-        "cdn_cache_version": 1,
     })
 
     if cur_user.id != article.owner_id:
         article_owner = get_user(article.owner_id)
         add_dynamodb_user_update_transact(transacts, article_owner, deltas={
-            # Invalidate CDN cache for post owner
-            "cdn_cache_version": 1
         })
 
     try:
@@ -2218,15 +2208,11 @@ def update_article_comment(article: Article, article_comment: ArticleComment,
                                article_comment.owner_id, utc_now())
 
     add_dynamodb_user_update_transact(transacts, cur_user, deltas={
-        # Invalidate CDN cache for current user
-        "cdn_cache_version": 1
     })
 
     if cur_user.id != article.owner_id:
         article_owner = get_user(article.owner_id)
         add_dynamodb_user_update_transact(transacts, article_owner, deltas={
-            # Invalidate CDN cache for post owner
-            "cdn_cache_version": 1
         })
 
     dynamodb_transact_write(transacts)
@@ -2275,7 +2261,6 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         article_comments_count=d_item.get("post_comments_count", 0),
         bmc_username=d_item.get("bmc_username"),
         redirect_to=d_item.get("redirect_to"),
-        cdn_cache_version=d_item.get("cdn_cache_version", 0),
         created_at=d_item["created_at"],
         updated_at=d_item.get("updated_at"),
         offset=None,
@@ -2550,16 +2535,12 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
                 add_dynamodb_article_update_transact(transacts, article, {"user_slug": None})
 
     add_dynamodb_user_update_transact(transacts, user, changes, {
-        # Invalidate CDN cache for user
-        "cdn_cache_version": 1,
     })
     add_user_activity_transact(transacts, cur_user, "user.updated", "user", user.id, user.name, f"/users/{user.id}",
                                user.id, now)
 
     if user.id != cur_user.id:
         add_dynamodb_user_update_transact(transacts, cur_user, deltas={
-            # Invalidate CDN cache for current user
-            "cdn_cache_version": 1
         })
 
     try:
@@ -2577,7 +2558,7 @@ def update_user_activity_settings(user: User, dto: UpdateUserActivitySettingsDTO
     verify_authorization(cur_user, Permission.UPDATE_USER, user)
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
-    update_dynamodb_item((f"USER#{user.id}", "META"), changes=dto.changes(), deltas={"cdn_cache_version": 1})
+    update_dynamodb_item((f"USER#{user.id}", "META"), changes=dto.changes())
     user.show_activity_calendar = dto.show_activity_calendar
     user.show_recent_activity = dto.show_recent_activity
 
@@ -2586,7 +2567,7 @@ def update_user_interests_settings(user: User, dto: UpdateUserInterestsSettingsD
     verify_authorization(cur_user, Permission.UPDATE_USER, user)
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
-    update_dynamodb_item((f"USER#{user.id}", "META"), changes=dto.changes(), deltas={"cdn_cache_version": 1})
+    update_dynamodb_item((f"USER#{user.id}", "META"), changes=dto.changes())
     user.show_interests = dto.show_interests
 
 
@@ -2611,14 +2592,10 @@ def update_user_status(user: User, update_user_status_dto: UpdateUserStatusDTO, 
     transacts = []
 
     add_dynamodb_user_update_transact(transacts, cur_user, deltas={
-        # Invalidate CDN cache for current user
-        "cdn_cache_version": 1
     })
 
     if cur_user.id != user.id:
         add_dynamodb_user_update_transact(transacts, user, changes, {
-            # Invalidate CDN cache for user
-            "cnd_cache_version": 1,
         })
 
     # logger.debug(transacts)
@@ -2967,8 +2944,6 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
         # User post counters
         f"{old_status}_posts_count": -1,
         f"{status}_posts_count": 1,
-        # Invalidate CDN cache for post owner
-        f"cdn_cache_version": 1,
     })
 
     if status == ArticleStatus.PUBLISHED:
@@ -3030,8 +3005,6 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
 
     if cur_user.id != article_owner.id:
         add_dynamodb_user_update_transact(transacts, cur_user, deltas={
-            # Invalidate CDN cache for current user
-            "cdn_cache_version": 1
         })
 
     # logger.debug(transacts)
@@ -3484,15 +3457,11 @@ def update_article_impression(article: Article, update_article_impression_dto: U
     add_dynamodb_article_update_transact(transacts, article, deltas=article_deltas)
 
     add_dynamodb_user_update_transact(transacts, cur_user, deltas={
-        # Invalidate CDN cache for current user
-        "cdn_cache_version": 1
     })
 
     if cur_user.id != article.owner_id:
         article_owner = get_user(article.owner_id)
         add_dynamodb_user_update_transact(transacts, article_owner, deltas={
-            # Invalidate CDN cache for post owner
-            "cdn_cache_version": 1
         })
 
     logger.debug(transacts)
@@ -3519,12 +3488,8 @@ def update_user_impression(user: User, update_relation_dto: UpdateUserImpression
     transacts = []
 
     cur_user_deltas = {
-        # Invalidate CDN cache for current user
-        "cdn_cache_version": 1,
     }
     user_deltas = {
-        # Invalidate CDN cache for user
-        "cdn_cache_version": 1,
     }
     relation_key = (f"USER#{cur_user.id}", f"REL#{user.id}")
 
@@ -3681,12 +3646,6 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
             safe_execute("Bing SM notify", client.get, "https://www.bing.com/ping", params={"sitemap": sitemap_url})
 
     return len(urls), sitemap_url
-
-
-def get_cdn_cache_version(user: User) -> str:
-    raw = f"{user.id}:{user.cdn_cache_version}"
-    import hashlib
-    return hashlib.md5(raw.encode()).hexdigest()
 
 
 def extract_image_filename_dimensions(filename: str) -> tuple[int | None, int | None]:

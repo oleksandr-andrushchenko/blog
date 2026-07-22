@@ -30,7 +30,6 @@ from utils import (
     UpdateArticleCommentImpressionDTO,
     get_article_comment,
     parse_articles_url_slugs_path,
-    get_cdn_cache_version,
     is_prod,
     get_auth_token_max_age,
     ArticleTag,
@@ -267,25 +266,6 @@ def set_token_cookie(token, response):
 
 def drop_token_cookie(response):
     response.delete_cookie("token")
-
-
-def get_cdn_cache_cookie(request):
-    return request.cookies.get("cdn_version")
-
-
-def set_cdn_cache_cookie(user: User, response):
-    response.set_cookie(
-        key="cdn_version",
-        value=get_cdn_cache_version(user),
-        httponly=True,
-        secure=is_prod(),
-        samesite="lax",
-        max_age=get_auth_token_max_age(),
-    )
-
-
-def drop_cdn_cache_cookie(response):
-    response.delete_cookie("cdn_version")
 
 
 UserDep = Annotated[User, Depends(get_user_by_id)]
