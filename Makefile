@@ -289,7 +289,7 @@ generate-site-files: ## Run content generator inside Docker container
 	@echo "📦 Generating Site files..."
 	mkdir -p $(SITE_BUILD_DIR)
 	rm -rf $(SITE_BUILD_DIR)/*
-	$(DC) exec $(SCRIPTS_CONTAINER) python3 scripts/generate_site_build.py
+	$(DC) exec $(SCRIPTS_CONTAINER) python3 scripts-src/generate_site_build.py
 	@echo "✅ Site files saved to $(SITE_BUILD_DIR) successfully"
 
 .PHONY: generate-code-files
@@ -312,7 +312,7 @@ generate-code-files: ## Build Lambda zip for be-function
 
 	# Run build script
 	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) \
-		python3 /app/scripts/generate_code_build.py
+		python3 /app/scripts-src/generate_code_build.py
 
 	# Rename zip with timestamp and update .env
 	@TIMESTAMP=$$(date +%Y%m%d%H%M%S); \
@@ -349,7 +349,7 @@ create-local-dynamodb: ## Create local DynamoDB table
 		echo "⚠️ Table app already exists, skipping creation."; \
 	else \
 		echo "🧩 Extracting DynamoDB schema from CloudFormation..."; \
-		$(DC) exec $(SCRIPTS_CONTAINER) python3 scripts/extract_dynamodb_schema.py > /tmp/dynamodb_schema.json; \
+		$(DC) exec $(SCRIPTS_CONTAINER) python3 scripts-src/extract_dynamodb_schema.py > /tmp/dynamodb_schema.json; \
 		if [ ! -s /tmp/dynamodb_schema.json ]; then echo '❌ Failed to generate valid DynamoDB schema JSON'; exit 1; fi; \
 		echo "📄 Generated schema:"; \
 		cat /tmp/dynamodb_schema.json | jq .; \
@@ -405,7 +405,7 @@ recreate-local-dynamodb: drop-local-dynamodb create-local-dynamodb create-local-
 
 .PHONY: tests
 tests:
-	$(DC) exec $(SCRIPTS_CONTAINER) python3 -m pytest -o log_cli_level=INFO -o log_cli=true -v scripts/test_be.py -v -s
+	$(DC) exec $(SCRIPTS_CONTAINER) python3 -m pytest -o log_cli_level=INFO -o log_cli=true -v scripts-src/test_be.py -v -s
 
 .PHONY: tail-test-logs
 tail-test-logs: ## Tail test logs

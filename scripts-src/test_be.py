@@ -795,7 +795,7 @@ def test_public_file_upload_endpoint_success_and_failure(guest_client):
         "file": ("functional.png", png_content, "image/png"),
     })
     assert success.status_code == 200, success.text
-    uploaded_path = os.path.join("/app/be-function-src/static", success.json())
+    uploaded_path = os.path.join("/app/static", success.json())
     os.remove(uploaded_path)
 
     failure = post(guest_client, "/api/public-file", files={
