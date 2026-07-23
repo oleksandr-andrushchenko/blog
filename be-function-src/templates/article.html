@@ -6,6 +6,11 @@
 {% set meta_title = article.title ~ " | by " ~ author.name ~ " ~ " ~ site_name %}
 {% set meta_robots = "index, follow" %}
 {% set meta_keywords = article.tags | join(",") %}
+{% set article_rating = article_sentiment_rating(article.likes_count, article.dislikes_count) %}
+{% if article_rating %}
+    {% set meta_rating_value = article_rating.score %}
+    {% set meta_rating_count = article_rating.total_count %}
+{% endif %}
 {% block meta_schema %}
     {% set author_schema = {
         "@context": "https://schema.org",
@@ -15,10 +20,10 @@
         "name": author.name,
         "url": author_canonical_url
     } %}
-    {{- {
+    {% set article_schema = {
         "@context": "https://schema.org",
         "@id": meta_canonical_url,
-        "@type": "SocialMediaArticleing",
+        "@type": "Article",
         "image": [
             static_url(article.image_filename) if article.image_filename else None
         ],
@@ -45,7 +50,19 @@
         },
         "mainEntityOfPage": meta_canonical_url,
         "isAccessibleForFree": not article.is_premium
-    } | tojson | safe -}}
+    } %}
+    {% if article_rating %}
+        {% set article_schema = article_schema.update({
+            "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": article_rating.score,
+                "ratingCount": article_rating.total_count,
+                "bestRating": 5,
+                "worstRating": 0
+            }
+        }) or article_schema %}
+    {% endif %}
+    {{- article_schema | tojson | safe -}}
 {% endblock %}
 
 {% block breadcrumbs %}

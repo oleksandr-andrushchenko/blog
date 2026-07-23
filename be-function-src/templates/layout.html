@@ -32,6 +32,12 @@
     <meta name="description" content="{{ (meta_desc or site_desc) | truncate(155, True, '...') }}"/>
     <meta name="keywords" content="{{ meta_keywords }}"/>
     <meta name="author" content="{{ meta_author }}"/>
+    {% if meta_rating_value is defined %}
+        <meta name="ratingValue" content="{{ meta_rating_value }}"/>
+        <meta name="ratingCount" content="{{ meta_rating_count }}"/>
+        <meta name="ratingBest" content="5"/>
+        <meta name="ratingWorst" content="0"/>
+    {% endif %}
     {% if meta_robots %}
         <meta name="robots" content="{{ meta_robots }}">
     {% endif %}
