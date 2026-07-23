@@ -1,0 +1,21 @@
+{% set article_rating = article_sentiment_rating(article.likes_count, article.dislikes_count) %}
+
+{% if article_rating %}
+    <span class="article-rating {{ rating_size | default("") }}" title="{{ article_rating.score }} out of 5 from {{ article_rating.total_count }} votes"
+          aria-label="{{ article_rating.score }} out of 5 from {{ article_rating.total_count }} votes">
+        {% for star in range(1, 6) %}
+            {% if star <= article_rating.filled_stars %}
+                <i class="bi bi-star-fill text-warning"></i>
+            {% elif star == article_rating.filled_stars + 1 and article_rating.has_half_star %}
+                <i class="bi bi-star-half text-warning"></i>
+            {% else %}
+                <i class="bi bi-star text-secondary"></i>
+            {% endif %}
+        {% endfor %}
+        {% if rating_extended | default(False) %}
+            <span class="text-secondary fs-6">{{ article_rating.score }} out of 5 from {{ article_rating.total_count }} votes</span>
+        {% else %}
+            <small class="text-secondary">{{ article_rating.score }}/5 ({{ article_rating.total_count }})</small>
+        {% endif %}
+    </span>
+{% endif %}

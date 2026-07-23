@@ -56,6 +56,8 @@
                 </small>
             {% endif %}
 
+            {% include "fragments/article-rating.html" %}
+
             {% if tags | default(True) and article.tags %}
                 <small class="text-secondary">
                     <i class="bi bi-tags"></i>

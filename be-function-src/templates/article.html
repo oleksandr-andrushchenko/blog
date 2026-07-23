@@ -59,7 +59,11 @@
         <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column overflow-auto article-content">
             <article>
                 <header>
-                    <h1>{{ article.title }}</h1>
+                    <h1 class="mb-0">{{ article.title }}</h1>
+
+                    {% with rating_size="fs-3", rating_extended=True %}
+                        {% include "fragments/article-rating.html" %}
+                    {% endwith %}
 
                     <p class="small text-secondary">
                         By <a href="{{ user_url(author) }}" class="link-secondary">{{ author.name }}</a>
@@ -170,7 +174,8 @@
 
                     {% if cur_user and check_auth(cur_user, Permission.UPDATE_ARTICLE, article) %}
                         <div>
-                            <a href="{{ url("edit-article", article_id=article.id) }}" class="btn btn-light bi bi-pencil">
+                            <a href="{{ url("edit-article", article_id=article.id) }}"
+                               class="btn btn-light bi bi-pencil">
                                 Edit article
                             </a>
                         </div>

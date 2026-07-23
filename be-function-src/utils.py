@@ -4,6 +4,7 @@ import copy
 import datetime
 import json
 import logging
+import math
 import os
 import re
 import sys
@@ -1344,6 +1345,7 @@ def get_jinja2_env():
         "UserStatus": UserStatus,
         "ArticleQueryDTO": ArticleQueryDTO,
         "UserQueryDTO": UserQueryDTO,
+        "article_sentiment_rating": article_sentiment_rating,
         "img_dims": extract_image_filename_dimensions,
     })
     return jinja2_env
@@ -1836,6 +1838,25 @@ def article_comment_from_dynamodb(d_item: dict[str, Any]) -> ArticleComment:
 
 def compute_rating_sk(rating: int, created_at: int = 0) -> int:
     return rating * 10_000_000_000_000 + created_at
+
+
+def article_sentiment_rating(likes_count: int, dislikes_count: int) -> dict[str, Any] | None:
+    """Return a five-star visual rating derived from binary article feedback."""
+    likes_count = max(0, int(likes_count or 0))
+    dislikes_count = max(0, int(dislikes_count or 0))
+    total_count = likes_count + dislikes_count
+    if not total_count:
+        return None
+
+    score = likes_count / total_count * 5
+    rounded_half_score = math.floor(score * 2 + 0.5) / 2
+    filled_stars = math.floor(rounded_half_score)
+    return {
+        "score": round(score, 1),
+        "total_count": total_count,
+        "filled_stars": filled_stars,
+        "has_half_star": rounded_half_score - filled_stars == 0.5,
+    }
 
 
 def find_preview(html_content: str) -> str | None:
@@ -3762,12 +3783,26 @@ def create_dummy_fixtures(req) -> None:
             text = comment_texts[(article_index + comment_index) % len(comment_texts)]
             create_article_comment(article, ArticleCommentDTO(text=text), user, req)
 
+    # Seed deterministic article feedback so every rating state is visible in local development.
+    # Each tuple is (likes, dislikes), limited by the number of dummy users.
+    article_feedback_patterns = [
+        (0, 0),  # unrated
+        (1, 0),  # five stars from one positive vote
+        (3, 1),  # mostly positive
+        (1, 3),  # mostly negative
+        (2, 2),  # neutral
+        (4, 0),  # fully positive
+    ]
+    for article, (likes_count, dislikes_count) in zip(created_articles, article_feedback_patterns):
+        for user in created_users[:likes_count]:
+            update_article_impression(article, UpdateArticleImpressionDTO(
+                action=ArticleImpressionAction.LIKE), user, req)
+        for user in created_users[likes_count:likes_count + dislikes_count]:
+            update_article_impression(article, UpdateArticleImpressionDTO(
+                action=ArticleImpressionAction.DISLIKE), user, req)
+
     import random
     for user in created_users:
-        for article in created_articles:
-            update_article_impression(article, UpdateArticleImpressionDTO(
-                action=ArticleImpressionAction.LIKE if random.random() < .5 else ArticleImpressionAction.DISLIKE), user,
-                                      req)
         for user2 in created_users:
             if user.id != user2.id:
                 update_user_impression(user, UpdateUserImpressionDTO(
