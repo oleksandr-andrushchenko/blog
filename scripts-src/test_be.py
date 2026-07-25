@@ -913,6 +913,8 @@ def test_public_file_upload_endpoint_success_and_failure(guest_client):
         "file": ("invalid.txt", b"not an image" * 100, "text/plain"),
     })
     assert failure.status_code == 422
+    assert failure.headers["content-type"].startswith("application/json")
+    assert failure.json()["details"]["file"] == "Invalid image type: None"
 
 
 def test_contact_message_endpoint_success_and_validation_failure(guest_client):

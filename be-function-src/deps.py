@@ -229,7 +229,8 @@ def get_error_response(request: Request, status_code: int, details: dict | str =
     }
 
     content_type = request.headers.get("content-type", "")
-    if "application/json" in content_type:
+    is_api_request = request.url.path.startswith("/api/")
+    if is_api_request or "application/json" in content_type:
         return JSONResponse(
             status_code=status_code,
             content=public_data

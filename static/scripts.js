@@ -256,6 +256,9 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
         return
       }
     } catch (err) {
+      console.error("Form submission failed:", err)
+      msgText = err.message || errorMessage
+      msgClass = "warning"
     } finally {
       submitBtn.disabled = false
       submitBtn.innerHTML = originalBtnContent
@@ -645,6 +648,16 @@ $(".btn-user-ban").on("click", function () {
   })
 })
 
+const getApiErrorMessage = (errorBody, fallbackMessage) => {
+  const details = errorBody?.details
+  if (typeof details === "string" && details) return details
+  if (details && typeof details === "object") {
+    const messages = Object.values(details).filter(Boolean)
+    if (messages.length > 0) return messages.join(" ")
+  }
+  return errorBody?.message || fallbackMessage
+}
+
 const uploadPublicFile = async function (file, progress = undefined) {
   try {
     const formData = new FormData()
@@ -655,7 +668,14 @@ const uploadPublicFile = async function (file, progress = undefined) {
       method: "POST", body: formData
     })
 
-    if (!uploadResponse.ok) throw new Error("File upload failed")
+    if (!uploadResponse.ok) {
+      let errorBody = {}
+      try {
+        errorBody = await uploadResponse.json()
+      } catch (_) {
+      }
+      throw new Error(getApiErrorMessage(errorBody, "File upload failed (" + uploadResponse.status + ")"))
+    }
 
     return await uploadResponse.json()
   } catch (err) {
