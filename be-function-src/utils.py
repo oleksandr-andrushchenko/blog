@@ -3715,6 +3715,8 @@ def create_dummy_fixtures(req) -> None:
     root_user.permissions = [Permission.ROOT]
     update_user_dto = UpdateUserDTO(
         name="John Doe",
+        avatar_action="replace",
+        avatar_filename="5b027ec7-c018-4744-9eda-00abf75cf685_1111x712.png",
         username="j-doe",
         headline="Software Engineer",
         website="https://example.com",
@@ -3730,27 +3732,50 @@ def create_dummy_fixtures(req) -> None:
     user_token3 = get_dummy_user_token(sub="p3", email="test3@example.com")
     user3 = upsert_user_by_user_token(user_token3)
     created_users.append(user3)
+    update_user(user3, UpdateUserDTO(
+        name=user3.name,
+        avatar_action="replace",
+        avatar_filename="6a5118c0-a073-483b-ac5b-79e0a554e703_988x494.png",
+    ), root_user, req)
+    user3.avatar_filename = "6a5118c0-a073-483b-ac5b-79e0a554e703_988x494.png"
     user_token4 = get_dummy_user_token(sub="p4", email="test4@example.com")
     user4 = upsert_user_by_user_token(user_token4)
     created_users.append(user4)
+    update_user(user4, UpdateUserDTO(
+        name=user4.name,
+        avatar_action="replace",
+        avatar_filename="5b027ec7-c018-4744-9eda-00abf75cf685_1111x712.png",
+    ), root_user, req)
+    user4.avatar_filename = "5b027ec7-c018-4744-9eda-00abf75cf685_1111x712.png"
     create_article_tag_subscription(ArticleTagSubscriptionDTO(tags=["tag3"]), root_user)
     create_article_tag_subscription(ArticleTagSubscriptionDTO(tags=["tag1"]), user3)
     create_article_tag_subscription(ArticleTagSubscriptionDTO(tags=["tag2", "tag3"]), user4)
 
+    def article_figure(filename: str, alt: str, width: int, height: int) -> str:
+        return (f"""<figure class="figure"><img src="/{filename}" alt="{alt}" class="img-fluid" width="{width}" height="{height}">
+<figcaption class="figure-caption">{alt}</figcaption>
+</figure>""")
+
     articles = [
         ArticleDTO(
             title="Article title #111111111111111111111111",
-            content="Article content #111111111111111111111111" * 150,
+            content=("Article content #111111111111111111111111" * 150 + "\n\n" + article_figure(
+                "a167891d-7e91-40d6-a5c4-1a3ddb27dcc2_1575x842.png",
+                "Message Queues Explained: Producers, Consumers, and Brokers", 1575, 842)),
             tags=["tag1", "tag2", "tag3"]
         ),
         ArticleDTO(
             title="Article title #22222222222222222222222",
-            content="Article content #222222222222222222222222" * 150,
+            content=("Article content #222222222222222222222222" * 150 + "\n\n" + article_figure(
+                "5b027ec7-c018-4744-9eda-00abf75cf685_1111x712.png",
+                "Event-Driven Architecture: Connecting Services with Events", 1111, 712)),
             tags=["tag2", "tag3"]
         ),
         ArticleDTO(
             title="Article title #3333333333333333333333333",
-            content="Article content #33333333333333333333333" * 150,
+            content=("Article content #33333333333333333333333" * 150 + "\n\n" + article_figure(
+                "45e97e68-a321-4657-9956-e942d9d757a7_1279x518.png",
+                "Designing Reliable Distributed Systems", 1279, 518)),
             tags=["tag1", "tag3"]
         ),
     ]
@@ -3761,10 +3786,18 @@ def create_dummy_fixtures(req) -> None:
     user_token2 = get_dummy_user_token(sub="p2", email="test2@example.com", name="Some test user")
     user2 = upsert_user_by_user_token(user_token2)
     created_users.append(user2)
+    update_user(user2, UpdateUserDTO(
+        name=user2.name,
+        avatar_action="replace",
+        avatar_filename="6a5118c0-a073-483b-ac5b-79e0a554e703_988x494.png",
+    ), root_user, req)
+    user2.avatar_filename = "6a5118c0-a073-483b-ac5b-79e0a554e703_988x494.png"
     articles = [
         ArticleDTO(
             title="Article title #111111111111111111111111 for user 2",
-            content="Article content #111111111111111111111111" * 150,
+            content=("Article content #111111111111111111111111" * 150 + "\n\n" + article_figure(
+                "3d7af01f-819e-4c2f-bc69-eb7245b76a74_1809x1247.png",
+                "Scaling Systems: From a Single Service to a Platform", 1809, 1247)),
             tags=["tag3"]
         ),
         ArticleDTO(
@@ -3782,6 +3815,16 @@ def create_dummy_fixtures(req) -> None:
         created_article = create_article(article, user2)
         update_article_status(created_article, UpdateArticleStatusDTO(status=ArticleStatus.PUBLISHED), root_user, req)
         created_articles.append(created_article)
+    for tag_name, image_filename in [("tag1", "45e97e68-a321-4657-9956-e942d9d757a7_1279x518.png"),
+                                   ("tag2", "a167891d-7e91-40d6-a5c4-1a3ddb27dcc2_1575x842.png")]:
+        article_tag = find_article_tag(tag_name)
+        update_article_tag(article_tag, UpdateArticleTagDTO(
+            name=tag_name,
+            image_action="replace",
+            image_filename=image_filename,
+        ), root_user, req)
+        article_tag.image_filename = image_filename
+
     comment_texts = [
         "This helped clarify the trade-offs. Thanks for writing it.",
         "Good walkthrough. I would like to see more examples around scaling this design.",

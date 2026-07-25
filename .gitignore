@@ -36,6 +36,11 @@ static/*
 !static/scripts.js
 !static/robots.txt
 !static/license.xml
+!static/3d7af01f-819e-4c2f-bc69-eb7245b76a74_1809x1247.png
+!static/45e97e68-a321-4657-9956-e942d9d757a7_1279x518.png
+!static/5b027ec7-c018-4744-9eda-00abf75cf685_1111x712.png
+!static/6a5118c0-a073-483b-ac5b-79e0a554e703_988x494.png
+!static/a167891d-7e91-40d6-a5c4-1a3ddb27dcc2_1575x842.png
 
 dynamodb-data/
 # Development email sink
