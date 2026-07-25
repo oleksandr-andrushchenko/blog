@@ -102,7 +102,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
     validator.onSuccess(() => submitForm())
   } else {
     // Fallback: submit without frontend validation
-    form.addEventListener("submit", (e) => {
+    $(form).on("submit", (e) => {
       e.preventDefault()
       submitForm()
     })
@@ -267,9 +267,9 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
 
 // Load more
 (() => {
-  document.addEventListener("click", async function (e) {
-    const btn = e.target.closest(".btn-load-more")
-    if (!btn || btn.disabled) return
+  $(document).on("click", ".btn-load-more", async function () {
+    const btn = this
+    if (btn.disabled) return
 
     const container = document.querySelector(btn.dataset.container)
     if (!container) return console.error("Container not found:", btn.dataset.container)
@@ -328,8 +328,8 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
   })
 
 // Attach observer only to buttons with data-auto-load
-  document.querySelectorAll(".btn-load-more[data-auto-click]").forEach(btn => {
-    observer.observe(btn)
+  $(".btn-load-more[data-auto-click]").each(function () {
+    observer.observe(this)
   })
 })();
 
