@@ -1,6 +1,46 @@
 // Form validation & submission
 const toKebabCase = str => String(str || "").trim().toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-")
 
+
+$.fn.setButtonLoading = function (loadingText = "Loading...") {
+  return this.each(function () {
+    const $button = $(this)
+
+    if ($button.data("loading-original-content") === undefined) {
+      $button.data("loading-original-content", $button.contents().detach())
+    }
+
+    const $spinner = $("<span>", {
+      class: "spinner-border spinner-border-sm me-2",
+      role: "status",
+      "aria-hidden": "true"
+    })
+
+    $button
+      .prop("disabled", true)
+      .addClass("disabled")
+      .attr("aria-busy", "true")
+      .empty()
+      .append($spinner, document.createTextNode(String(loadingText)))
+  })
+}
+
+$.fn.clearButtonLoading = function () {
+  return this.each(function () {
+    const $button = $(this)
+    const originalContent = $button.data("loading-original-content")
+
+    if (originalContent !== undefined) {
+      $button.empty().append(originalContent).removeData("loading-original-content")
+    }
+
+    $button
+      .prop("disabled", false)
+      .removeClass("disabled")
+      .removeAttr("aria-busy")
+  })
+}
+
 function handleFormSubmit(formSelector, submitUrl, options = {}) {
   const {
     method = "POST",
@@ -229,7 +269,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
 (() => {
   document.addEventListener("click", async function (e) {
     const btn = e.target.closest(".btn-load-more")
-    if (!btn) return
+    if (!btn || btn.disabled) return
 
     const container = document.querySelector(btn.dataset.container)
     if (!container) return console.error("Container not found:", btn.dataset.container)
@@ -238,9 +278,8 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
     const url = btn.dataset.url
     const offset = btn.dataset.offset
 
-    btn.disabled = true
-    const originalText = btn.textContent
-    btn.textContent = "Loading..."
+    const $btn = $(btn)
+    $btn.setButtonLoading()
 
     try {
       const u = new URL(url, window.location.origin)
@@ -273,8 +312,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
     } catch (err) {
       console.error(err)
     } finally {
-      btn.disabled = false
-      btn.textContent = originalText
+      $btn.clearButtonLoading()
     }
   })
 
@@ -464,7 +502,7 @@ $(".btn-article-publish, .btn-article-unpublish").on("click", function () {
   const status = $btn.data("status")
   const url = window.CONFIG.update_article_status_url.replace("{article_id}", articleId)
 
-  $btn.prop("disabled", true).addClass("disabled")
+  $btn.setButtonLoading()
 
   $.ajax({
     url, method: "POST", contentType: "application/json", data: JSON.stringify({status}), success: function () {
@@ -473,7 +511,7 @@ $(".btn-article-publish, .btn-article-unpublish").on("click", function () {
       console.error(`Error on article ${status}:`, xhr.responseText)
       alert(`Failed to ${status} article.`)
     }, complete: function () {
-      $btn.prop("disabled", false).removeClass("disabled")
+      $btn.clearButtonLoading()
     }
   })
 })
@@ -491,7 +529,7 @@ $(".btn-article-reject").on("click", function () {
     return
   }
 
-  $btn.prop("disabled", true).addClass("disabled")
+  $btn.setButtonLoading()
 
   $.ajax({
     url,
@@ -506,7 +544,7 @@ $(".btn-article-reject").on("click", function () {
       alert("Failed to reject article.")
     },
     complete: function () {
-      $btn.prop("disabled", false).removeClass("disabled")
+      $btn.clearButtonLoading()
     }
   })
 })
@@ -518,7 +556,7 @@ $(document).on("click", ".btn-article-like, .btn-article-dislike", function () {
   const action = $btn.data("action")
   const url = window.CONFIG.update_article_impression_url.replace("{article_id}", articleId)
 
-  $btn.prop("disabled", true).addClass("disabled")
+  $btn.setButtonLoading()
 
   $.ajax({
     url, method: "POST", contentType: "application/json", data: JSON.stringify({action}), success: function (res) {
@@ -527,7 +565,7 @@ $(document).on("click", ".btn-article-like, .btn-article-dislike", function () {
       console.error(`Error on article ${action}:`, xhr.responseText)
       alert(`Failed to ${action} article. Please try again.`)
     }, complete: function () {
-      $btn.prop("disabled", false).removeClass("disabled")
+      $btn.clearButtonLoading()
     }
   })
 })
@@ -539,7 +577,7 @@ $(document).on("click", ".btn-user-follow, .btn-user-block", function () {
   const action = $btn.data("action")
   const url = window.CONFIG.update_user_impression_url.replace("{user_id}", userId)
 
-  $btn.prop("disabled", true).addClass("disabled")
+  $btn.setButtonLoading()
 
   $.ajax({
     url, method: "POST", contentType: "application/json", data: JSON.stringify({action}), success: function (res) {
@@ -548,7 +586,7 @@ $(document).on("click", ".btn-user-follow, .btn-user-block", function () {
       console.error(`Error on user ${action}:`, xhr.responseText)
       alert(`Failed to ${action} user. Please try again.`)
     }, complete: function () {
-      $btn.prop("disabled", false).removeClass("disabled")
+      $btn.clearButtonLoading()
     }
   })
 })
@@ -560,7 +598,7 @@ $(".btn-user-activate").on("click", function () {
   const status = $btn.data("status")
   const url = window.CONFIG.update_user_status_url.replace("{user_id}", userId)
 
-  $btn.prop("disabled", true).addClass("disabled")
+  $btn.setButtonLoading()
 
   $.ajax({
     url, method: "POST", contentType: "application/json", data: JSON.stringify({status}), success: function () {
@@ -569,7 +607,7 @@ $(".btn-user-activate").on("click", function () {
       console.error("Error activating user:", xhr.responseText)
       alert("Failed to activate user.")
     }, complete: function () {
-      $btn.prop("disabled", false).removeClass("disabled")
+      $btn.clearButtonLoading()
     }
   })
 })
@@ -587,7 +625,7 @@ $(".btn-user-ban").on("click", function () {
     return
   }
 
-  $btn.prop("disabled", true).addClass("disabled")
+  $btn.setButtonLoading()
 
   $.ajax({
     url,
@@ -602,7 +640,7 @@ $(".btn-user-ban").on("click", function () {
       alert("Failed to ban user.")
     },
     complete: function () {
-      $btn.prop("disabled", false).removeClass("disabled")
+      $btn.clearButtonLoading()
     }
   })
 })
@@ -821,11 +859,19 @@ $(document).on("click", ".btn-article-tag-subscription", function () {
   const button = $(this)
   const block = button.closest(".article-tag-subscription-block, .article-tag-subscription-item")
   const message = block.find(".article-tag-subscription-message")
-  button.prop("disabled", true)
+  button.setButtonLoading()
   const subscriptionId = button.attr("data-article-tag-subscription-id")
   const request = subscriptionId
-    ? $.ajax({ url: window.CONFIG.delete_article_tag_subscription_url.replace("{article_tag_subscription_id}", subscriptionId), method: "DELETE" })
-    : $.ajax({ url: window.CONFIG.create_article_tag_subscription_url, method: "POST", contentType: "application/json", data: JSON.stringify({ tags: JSON.parse(button.attr("data-tags")) }) })
+    ? $.ajax({
+      url: window.CONFIG.delete_article_tag_subscription_url.replace("{article_tag_subscription_id}", subscriptionId),
+      method: "DELETE"
+    })
+    : $.ajax({
+      url: window.CONFIG.create_article_tag_subscription_url,
+      method: "POST",
+      contentType: "application/json",
+      data: JSON.stringify({tags: JSON.parse(button.attr("data-tags"))})
+    })
   request.done((html) => {
     if (block.hasClass("article-tag-subscription-item")) {
       block.remove()
@@ -837,5 +883,8 @@ $(document).on("click", ".btn-article-tag-subscription", function () {
       block.replaceWith(html)
     }
   })
-    .fail((xhr) => { message.text(xhr.responseJSON?.detail?.message || "Unable to update article tag subscription."); button.prop("disabled", false) })
+    .fail((xhr) => {
+      message.text(xhr.responseJSON?.detail?.message || "Unable to update article tag subscription.");
+      button.clearButtonLoading()
+    })
 })

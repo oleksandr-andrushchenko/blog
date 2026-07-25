@@ -293,6 +293,7 @@
       interestsCheckbox.addEventListener("change", async () => {
         const previous = interestsCheckbox.checked
         interestsCheckbox.disabled = true
+        interestsCheckbox.classList.add("opacity-50")
         try {
           const response = await fetch("{{ url('update-user-interests-settings', user_id=user.id) }}", {
             method: "PATCH",
@@ -306,6 +307,7 @@
           if (interestsContent) interestsContent.style.display = previous ? "" : "none"
         } finally {
           interestsCheckbox.disabled = false
+          interestsCheckbox.classList.remove("opacity-50")
         }
       })
       return
@@ -313,6 +315,7 @@
     checkbox.addEventListener("change", async () => {
       const previous = checkbox.checked
       checkbox.disabled = true
+      checkbox.classList.add("opacity-50")
       const calendar = document.getElementById("activity-calendar-svg")
       if (calendar) calendar.style.display = checkbox.checked ? "" : "none"
       try {
@@ -330,6 +333,7 @@
         if (calendar) calendar.style.display = previous ? "" : "none"
       } finally {
         checkbox.disabled = false
+        checkbox.classList.remove("opacity-50")
       }
     })
 
@@ -337,6 +341,7 @@
       interestsCheckbox.addEventListener("change", async () => {
         const previous = interestsCheckbox.checked
         interestsCheckbox.disabled = true
+        interestsCheckbox.classList.add("opacity-50")
         try {
           const response = await fetch("{{ url('update-user-interests-settings', user_id=user.id) }}", {
             method: "PATCH",
@@ -350,6 +355,7 @@
           if (interestsContent) interestsContent.style.display = previous ? "" : "none"
         } finally {
           interestsCheckbox.disabled = false
+          interestsCheckbox.classList.remove("opacity-50")
         }
       })
     }
