@@ -1,40 +1,69 @@
 {% extends "layout.html" %}
-{% set meta_canonical_url = article_url(article, full=True) %}
-{% set author_canonical_url = user_url(author) %}
-{% set author_alternate_canonical_url = url("user", user_id=author.id) %}
+{% set article_canonical_url = article_url(article, full=True) %}
+{% set article_alternate_url = url("article", article_id=article.id, full=True) %}
+{% set author_canonical_url = user_url(author, full=True) %}
+{% set author_alternate_url = url("user", user_id=author.id, full=True) %}
 {% set meta_desc = [article.title, article.preview, meta_desc] | select | join('. ') | truncate(155, True, '...') %}
 {% set meta_title = article.title ~ " | by " ~ author.name ~ " ~ " ~ site_name %}
 {% set meta_robots = "index, follow" %}
-{% set meta_keywords = article.tags | join(",") %}
+{% set og_type = "article" %}
+{% set meta_canonical_url = article_canonical_url %}
+{% set og_url = meta_canonical_url %}
+{% set og_img_filename = article.image_filename %}
+{% set article_og_author = author_canonical_url %}
+{% set article_og_published_time = article.published_at | iso_utc if article.published_at else None %}
+{% set article_og_modified_time = article.updated_at | iso_utc if article.updated_at and article.published_at else None %}
+{% set article_og_tags = article.tags %}
 {% set article_rating = article_sentiment_rating(article.likes_count, article.dislikes_count) %}
 {% if article_rating %}
     {% set meta_rating_value = article_rating.score %}
     {% set meta_rating_count = article_rating.total_count %}
 {% endif %}
 {% block meta_schema %}
+    {% set article_body = html_to_text(article.content) %}
+    {% set article_image_url = static_url(article.image_filename, full=True) if article.image_filename else None %}
+    {% set comment_schemas = namespace(values=[]) %}
+    {% for article_comment in comments %}
+        {% set comment_user = article_comment.get_user() %}
+        {% set comment_anchor = "comment-" ~ (article_comment.id | replace("#", "-")) %}
+        {% set comment_schemas.values = comment_schemas.values + [{
+            "@type": "Comment",
+            "@id": meta_canonical_url ~ "#" ~ comment_anchor,
+            "url": meta_canonical_url ~ "#" ~ comment_anchor,
+            "author": {
+                "@type": "Person",
+                "@id": user_url(comment_user, full=True),
+                "name": comment_user.name,
+                "url": user_url(comment_user, full=True)
+            },
+            "datePublished": article_comment.created_at | iso_utc,
+            "text": article_comment.text
+        }] %}
+    {% endfor %}
     {% set author_schema = {
         "@context": "https://schema.org",
         "@id": author_canonical_url,
         "@type": "Person",
         "identifier": author.username or author.id,
         "name": author.name,
-        "url": author_canonical_url
+        "url": author_canonical_url,
+        "sameAs": [author.website] if author.website else []
     } %}
     {% set article_schema = {
         "@context": "https://schema.org",
         "@id": meta_canonical_url,
         "@type": "Article",
-        "image": [
-            static_url(article.image_filename) if article.image_filename else None
-        ],
         "url": meta_canonical_url,
         "dateCreated": article.created_at | iso_utc,
         "datePublished": (article.published_at | iso_utc) if article.published_at else None,
-        "dateModified": (article.updated_at | iso_utc) if article.updated_at and article.published_at and (article.updated_at - article.published_at > 86_400_000) else None,
         "headline": article.title,
         "name": article.title,
         "description": meta_desc,
+        "articleBody": article_body,
+        "wordCount": article_body.split() | length,
+        "inLanguage": "en",
         "identifier": article.id,
+        "commentCount": article.comments_count | int,
         "author": author_schema,
         "creator": author_schema,
         "publisher": {
@@ -43,14 +72,36 @@
             "@id": author_schema["@id"],
             "name": author_schema["name"],
             "url": author_schema["url"],
-            "sameAs": [
-                author_alternate_canonical_url if author_canonical_url != author_alternate_canonical_url else None,
-                author.website if author.website else None
-            ]
+            "logo": {
+                "@type": "ImageObject",
+                "url": static_url(site_img_filename, full=True)
+            } if site_img_filename else None,
+            "sameAs": ([author_alternate_url] if author_canonical_url != author_alternate_url else [])
+                       + ([author.website] if author.website else [])
         },
         "mainEntityOfPage": meta_canonical_url,
-        "isAccessibleForFree": not article.is_premium
+        "isAccessibleForFree": not article.is_premium,
+        "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+                {"@type": "ListItem", "position": 1, "name": "Home", "item": url("index", full=True)},
+                {"@type": "ListItem", "position": 2, "name": "Articles", "item": articles_url(full=True)},
+                {"@type": "ListItem", "position": 3, "name": article.title, "item": meta_canonical_url}
+            ]
+        }
     } %}
+    {% if article_image_url %}
+        {% set article_schema = article_schema.update({
+            "image": [article_image_url],
+            "thumbnailUrl": article_image_url
+        }) or article_schema %}
+    {% endif %}
+    {% if comment_schemas.values %}
+        {% set article_schema = article_schema.update({"comment": comment_schemas.values}) or article_schema %}
+    {% endif %}
+    {% if article.updated_at and article.published_at and article.updated_at - article.published_at > 86_400_000 %}
+        {% set article_schema = article_schema.update({"dateModified": article.updated_at | iso_utc}) or article_schema %}
+    {% endif %}
     {% if article_rating %}
         {% set article_schema = article_schema.update({
             "aggregateRating": {
@@ -198,7 +249,7 @@
                         </div>
                     {% endif %}
 
-                    {% with url_to_copy=url("article", article_id=article.id, full=True), copy_url_label="Copy persistent article link" %}
+                    {% with url_to_copy=article_alternate_url, copy_url_label="Copy persistent article link" %}
                         {% include "fragments/copy-url.html" %}
                     {% endwith %}
 

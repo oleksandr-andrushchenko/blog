@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 
 {% set title = ("Edit " ~ article.title) | trim %}
+{% set meta_robots = "noindex, nofollow" %}
 {% set meta_title = title ~ " | " ~ site_name %}
 {% set meta_canonical_url = url("edit-article", article_id=article.id, full=True) %}
 

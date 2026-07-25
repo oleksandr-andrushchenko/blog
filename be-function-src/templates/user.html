@@ -1,5 +1,10 @@
 {% extends "layout.html" %}
-{% set meta_canonical_url = user_url(user, full=True) %}
+{% set user_canonical_url = user_url(user, full=True) %}
+{% set user_alternate_url = url("user", user_id=user.id, full=True) %}
+{% set meta_canonical_url = user_canonical_url %}
+{% set og_type = "profile" %}
+{% set og_url = meta_canonical_url %}
+{% set og_img_filename = user.avatar_filename %}
 {% set val_map = {
     (ArticleQueryType.LATEST): {"title": "Latest", "subtitle": "Recently added", "icon": "clock-fill"},
     (ArticleQueryType.POPULAR): {"title": "Popular", "subtitle": "Most rated", "icon": "star-fill"},
@@ -12,27 +17,43 @@
 {% set articles_title = ([val_map[article_query.type]["title"]] + [val_map[article_query.status]["title"]] + ["Articles"]) | select | join(" ") | title %}
 {% set meta_robots = "index, follow" %}
 {% set articles_subtitle = ([val_map[article_query.type]["subtitle"]] + [val_map[article_query.status]["subtitle"]] + ["Articles"]) | select | join(" ") | title %}
-{% set meta_title = user.name ~ " - " ~  site_name %}
-{% block meta_desc %}
-    {{- [
-        user.name ~ (user.username and ' (@' ~ user.username ~ ')') ~ " blog on " ~ site_name,
-        user.headline,
-        user.about,
-        meta_desc
-    ] | select | join('. ') | truncate(155, True, '...') -}}
-
-{% endblock %}
+{% set meta_title = user.name ~ " - " ~ site_name %}
+{% set meta_desc = [
+    user.name ~ (user.username and ' (@' ~ user.username ~ ')') ~ " blog on " ~ site_name,
+    user.headline,
+    html_to_text(user.about),
+    site_desc
+] | select | join('. ') | truncate(155, True, '...') %}
 {% block meta_schema %}
-    {{- {
+    {% set same_as = [] %}
+    {% if user.website %}{% set same_as = same_as + [user.website] %}{% endif %}
+    {% if user.github_username %}{% set same_as = same_as + ["https://github.com/" ~ user.github_username] %}{% endif %}
+    {% set user_schema = {
         "@context": "https://schema.org",
         "@type": "Person",
         "@id": meta_canonical_url,
         "identifier": user.username or user.id,
         "name": user.name,
         "url": meta_canonical_url,
-        "description": [user.headline, user.about] | select | join('. '),
-        "image": static_url(user.avatar_filename) if user.avatar_filename else None
-    } | tojson | safe -}}
+        "description": [user.headline, html_to_text(user.about)] | select | join('. '),
+        "sameAs": same_as,
+        "mainEntityOfPage": meta_canonical_url,
+        "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+                {"@type": "ListItem", "position": 1, "name": "Home", "item": url("index", full=True)},
+                {"@type": "ListItem", "position": 2, "name": "Users", "item": users_url(full=True)},
+                {"@type": "ListItem", "position": 3, "name": user.name, "item": meta_canonical_url}
+            ]
+        }
+    } %}
+    {% if user.headline %}
+        {% set user_schema = user_schema.update({"jobTitle": user.headline}) or user_schema %}
+    {% endif %}
+    {% if user.avatar_filename %}
+        {% set user_schema = user_schema.update({"image": static_url(user.avatar_filename, full=True)}) or user_schema %}
+    {% endif %}
+    {{- user_schema | tojson | safe -}}
 {% endblock %}
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), "Users": users_url(), (user.name): None} %}
@@ -146,20 +167,25 @@
                 <section id="activity-calendar" class="d-flex flex-column gap-3">
                     <div class="d-flex align-items-center justify-content-between gap-2">
                         <div class="d-flex align-items-center gap-3">
-                            <div class="h5 mb-0">{{ activity.total }} activities {% if activity.year %}in {{ activity.year }}{% else %}in the past year{% endif %}</div>
+                            <div class="h5 mb-0">{{ activity.total }} activities {% if activity.year %}in
+                                {{ activity.year }}{% else %}in the past year{% endif %}</div>
                             {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
                                 <div class="form-check form-switch small mb-0">
-                                    <input class="form-check-input" type="checkbox" id="profile-show-activity-calendar" {% if user.show_activity_calendar %}checked{% endif %}>
-                                    <label class="form-check-label" for="profile-show-activity-calendar">Show on profile</label>
+                                    <input class="form-check-input" type="checkbox" id="profile-show-activity-calendar"
+                                           {% if user.show_activity_calendar %}checked{% endif %}>
+                                    <label class="form-check-label" for="profile-show-activity-calendar">Show on
+                                        profile</label>
                                 </div>
                             {% endif %}
                         </div>
                         <div class="d-flex align-items-center gap-1">
                             <label for="activity-year" class="small text-secondary">Year</label>
-                            <select id="activity-year" class="form-select form-select-sm" onchange="window.location.href = this.value ? '?activity_year=' + this.value : window.location.pathname">
+                            <select id="activity-year" class="form-select form-select-sm"
+                                    onchange="window.location.href = this.value ? '?activity_year=' + this.value : window.location.pathname">
                                 <option value="">Past year</option>
                                 {% for year in range(activity.current_year, 2019, -1) %}
-                                    <option value="{{ year }}" {% if activity_year == year %}selected{% endif %}>{{ year }}</option>
+                                    <option value="{{ year }}"
+                                            {% if activity_year == year %}selected{% endif %}>{{ year }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -168,20 +194,29 @@
                     {% if activity.months %}
                         {% set calendar_width = ((activity.months|length - 1) * 60) + (activity.months[-1].week_count * 10) %}
                     {% endif %}
-                    <svg id="activity-calendar-svg" {% if not user.show_activity_calendar %}style="display: none"{% endif %} class="activity-calendar-svg w-100" viewBox="0 0 {{ calendar_width }} 92" role="img" aria-label="Activity calendar" preserveAspectRatio="xMidYMid meet">
+                    <svg id="activity-calendar-svg"
+                         {% if not user.show_activity_calendar %}style="display: none"{% endif %}
+                         class="activity-calendar-svg w-100" viewBox="0 0 {{ calendar_width }} 92" role="img"
+                         aria-label="Activity calendar" preserveAspectRatio="xMidYMid meet">
                         {% for month in activity.months %}
                             {% set month_index = loop.index0 %}
                             {% for week in month.weeks[:month.week_count] %}
                                 {% set week_index = loop.index0 %}
                                 {% for day in week %}
                                     {% if day.date %}
-                                        <rect x="{{ month_index * 60 + week_index * 10 }}" y="{{ loop.index0 * 10 }}" width="8" height="8" rx="1" class="{% if day.count == 0 %}activity-cell-empty{% elif day.count == 1 %}activity-cell-low{% elif day.count < 4 %}activity-cell-medium{% else %}activity-cell-high{% endif %}" style="fill: {% if day.count == 0 %}#e9ecef{% elif day.count == 1 %}#b7e4c7{% elif day.count < 4 %}#52b788{% else %}#1b4332{% endif %}" aria-label="{{ day.count }} activities on {{ day.date }}">
-                                            <title>{{ day.count }} activit{{ 'y' if day.count == 1 else 'ies' }} on {{ day.date }}</title>
+                                        <rect x="{{ month_index * 60 + week_index * 10 }}" y="{{ loop.index0 * 10 }}"
+                                              width="8" height="8" rx="1"
+                                              class="{% if day.count == 0 %}activity-cell-empty{% elif day.count == 1 %}activity-cell-low{% elif day.count < 4 %}activity-cell-medium{% else %}activity-cell-high{% endif %}"
+                                              style="fill: {% if day.count == 0 %}#e9ecef{% elif day.count == 1 %}#b7e4c7{% elif day.count < 4 %}#52b788{% else %}#1b4332{% endif %}"
+                                              aria-label="{{ day.count }} activities on {{ day.date }}">
+                                            <title>{{ day.count }} activit{{ 'y' if day.count == 1 else 'ies' }}
+                                                on {{ day.date }}</title>
                                         </rect>
                                     {% endif %}
                                 {% endfor %}
                             {% endfor %}
-                            <text x="{{ month_index * 60 + (month.week_count * 10 / 2) }}" y="88" text-anchor="middle" class="activity-month-label">{{ month.label }}</text>
+                            <text x="{{ month_index * 60 + (month.week_count * 10 / 2) }}" y="88" text-anchor="middle"
+                                  class="activity-month-label">{{ month.label }}</text>
                         {% endfor %}
                     </svg>
                 </section>
@@ -271,7 +306,7 @@
                         </div>
                     {% endif %}
 
-                    {% with url_to_copy=url("user", user_id=user.id, full=True), copy_url_label="Copy persistent user profile link" %}
+                    {% with url_to_copy=user_alternate_url, copy_url_label="Copy persistent user profile link" %}
                         {% include "fragments/copy-url.html" %}
                     {% endwith %}
                 </div>
@@ -282,84 +317,84 @@
             {% endif %}
         </div>
     </div>
-{% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const checkbox = document.getElementById("profile-show-activity-calendar")
-    const interestsCheckbox = document.getElementById("profile-show-interests")
-    const interestsContent = document.getElementById("profile-interests-content")
-    if (!checkbox && !interestsCheckbox) return
-    if (!checkbox) {
-      interestsCheckbox.addEventListener("change", async () => {
-        const previous = interestsCheckbox.checked
-        interestsCheckbox.disabled = true
-        interestsCheckbox.classList.add("opacity-50")
-        try {
-          const response = await fetch("{{ url('update-user-interests-settings', user_id=user.id) }}", {
-            method: "PATCH",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({show_interests: interestsCheckbox.checked})
-          })
-          if (!response.ok) throw new Error()
-          if (interestsContent) interestsContent.style.display = interestsCheckbox.checked ? "" : "none"
-        } catch (_) {
-          interestsCheckbox.checked = previous
-          if (interestsContent) interestsContent.style.display = previous ? "" : "none"
-        } finally {
-          interestsCheckbox.disabled = false
-          interestsCheckbox.classList.remove("opacity-50")
-        }
-      })
-      return
-    }
-    checkbox.addEventListener("change", async () => {
-      const previous = checkbox.checked
-      checkbox.disabled = true
-      checkbox.classList.add("opacity-50")
-      const calendar = document.getElementById("activity-calendar-svg")
-      if (calendar) calendar.style.display = checkbox.checked ? "" : "none"
-      try {
-        const response = await fetch("{{ url('update-user-activity-settings', user_id=user.id) }}", {
-          method: "PATCH",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({
-            show_activity_calendar: checkbox.checked,
-            show_recent_activity: {{ 'true' if user.show_recent_activity else 'false' }}
-          })
-        })
-        if (!response.ok) throw new Error()
-      } catch (_) {
-        checkbox.checked = previous
-        if (calendar) calendar.style.display = previous ? "" : "none"
-      } finally {
-        checkbox.disabled = false
-        checkbox.classList.remove("opacity-50")
-      }
-    })
+    {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
+        <script>
+          document.addEventListener("DOMContentLoaded", () => {
+            const checkbox = document.getElementById("profile-show-activity-calendar")
+            const interestsCheckbox = document.getElementById("profile-show-interests")
+            const interestsContent = document.getElementById("profile-interests-content")
+            if (!checkbox && !interestsCheckbox) return
+            if (!checkbox) {
+              interestsCheckbox.addEventListener("change", async () => {
+                const previous = interestsCheckbox.checked
+                interestsCheckbox.disabled = true
+                interestsCheckbox.classList.add("opacity-50")
+                try {
+                  const response = await fetch("{{ url('update-user-interests-settings', user_id=user.id) }}", {
+                    method: "PATCH",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({show_interests: interestsCheckbox.checked})
+                  })
+                  if (!response.ok) throw new Error()
+                  if (interestsContent) interestsContent.style.display = interestsCheckbox.checked ? "" : "none"
+                } catch (_) {
+                  interestsCheckbox.checked = previous
+                  if (interestsContent) interestsContent.style.display = previous ? "" : "none"
+                } finally {
+                  interestsCheckbox.disabled = false
+                  interestsCheckbox.classList.remove("opacity-50")
+                }
+              })
+              return
+            }
+            checkbox.addEventListener("change", async () => {
+              const previous = checkbox.checked
+              checkbox.disabled = true
+              checkbox.classList.add("opacity-50")
+              const calendar = document.getElementById("activity-calendar-svg")
+              if (calendar) calendar.style.display = checkbox.checked ? "" : "none"
+              try {
+                const response = await fetch("{{ url('update-user-activity-settings', user_id=user.id) }}", {
+                  method: "PATCH",
+                  headers: {"Content-Type": "application/json"},
+                  body: JSON.stringify({
+                    show_activity_calendar: checkbox.checked,
+                    show_recent_activity: {{ 'true' if user.show_recent_activity else 'false' }}
+                  })
+                })
+                if (!response.ok) throw new Error()
+              } catch (_) {
+                checkbox.checked = previous
+                if (calendar) calendar.style.display = previous ? "" : "none"
+              } finally {
+                checkbox.disabled = false
+                checkbox.classList.remove("opacity-50")
+              }
+            })
 
-    if (interestsCheckbox) {
-      interestsCheckbox.addEventListener("change", async () => {
-        const previous = interestsCheckbox.checked
-        interestsCheckbox.disabled = true
-        interestsCheckbox.classList.add("opacity-50")
-        try {
-          const response = await fetch("{{ url('update-user-interests-settings', user_id=user.id) }}", {
-            method: "PATCH",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({show_interests: interestsCheckbox.checked})
+            if (interestsCheckbox) {
+              interestsCheckbox.addEventListener("change", async () => {
+                const previous = interestsCheckbox.checked
+                interestsCheckbox.disabled = true
+                interestsCheckbox.classList.add("opacity-50")
+                try {
+                  const response = await fetch("{{ url('update-user-interests-settings', user_id=user.id) }}", {
+                    method: "PATCH",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({show_interests: interestsCheckbox.checked})
+                  })
+                  if (!response.ok) throw new Error()
+                  if (interestsContent) interestsContent.style.display = interestsCheckbox.checked ? "" : "none"
+                } catch (_) {
+                  interestsCheckbox.checked = previous
+                  if (interestsContent) interestsContent.style.display = previous ? "" : "none"
+                } finally {
+                  interestsCheckbox.disabled = false
+                  interestsCheckbox.classList.remove("opacity-50")
+                }
+              })
+            }
           })
-          if (!response.ok) throw new Error()
-          if (interestsContent) interestsContent.style.display = interestsCheckbox.checked ? "" : "none"
-        } catch (_) {
-          interestsCheckbox.checked = previous
-          if (interestsContent) interestsContent.style.display = previous ? "" : "none"
-        } finally {
-          interestsCheckbox.disabled = false
-          interestsCheckbox.classList.remove("opacity-50")
-        }
-      })
-    }
-  })
-</script>
-{% endif %}
+        </script>
+    {% endif %}
 {% endblock %}

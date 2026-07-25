@@ -4,7 +4,27 @@
 {% set meta_robots = "index, follow" %}
 {% set show_details = contact_phone or contact_email or contact_address or contact_socials %}
 {% set meta_title = title ~ " ~ " ~ site_name %}
+{% set meta_desc = "Contact " ~ site_name ~ " with questions, feedback, partnership ideas, or support requests." %}
 {% set meta_canonical_url = url("contacts", full=True) %}
+
+{% block meta_schema %}
+    {{- {
+        "@context": "https://schema.org",
+        "@type": "ContactPage",
+        "@id": meta_canonical_url,
+        "url": meta_canonical_url,
+        "name": title,
+        "description": meta_desc,
+        "inLanguage": "en",
+        "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+                {"@type": "ListItem", "position": 1, "name": "Home", "item": url("index", full=True)},
+                {"@type": "ListItem", "position": 2, "name": title, "item": meta_canonical_url}
+            ]
+        }
+    } | tojson | safe -}}
+{% endblock %}
 
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), "Contacts": None} %}

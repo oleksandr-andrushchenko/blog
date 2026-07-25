@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import json
 import os
 import time
 import uuid
@@ -42,6 +43,13 @@ def get_user(client, user_alias) -> pq:
     assert resp.status_code == 200
     doc = pq(resp.text)
     assert user["name"] in doc("head title").text()
+    schema = json.loads(doc('script[type="application/ld+json"]').text())
+    assert schema["@type"] == "Person"
+    assert schema["url"].startswith("http")
+    assert schema["breadcrumb"]["itemListElement"][-1]["name"] == user["name"]
+    assert all(value is not None for value in schema.values())
+    assert doc('meta[property="og:type"]').attr("content") == "profile"
+    assert doc('meta[name="description"]').attr("content").startswith(user["name"])
     main_el = doc("main")
     assert user["name"] in main_el("h1").text()
     return doc
@@ -54,7 +62,13 @@ def get_logged_in_user_id(user_data: dict) -> str:
 def get_index(client):
     resp = get(client, "/")
     assert resp.status_code == 200
-    return pq(resp.text)
+    doc = pq(resp.text)
+    schema = json.loads(doc('script[type="application/ld+json"]').text())
+    assert schema["@type"] == "WebSite"
+    assert schema["url"].startswith("http")
+    assert doc('meta[name="robots"]').attr("content") == "index, follow"
+    assert doc('link[rel="canonical"]').attr("href").startswith("http")
+    return doc
 
 
 def get_users(client):
@@ -62,6 +76,11 @@ def get_users(client):
     assert resp.status_code == 200
     doc = pq(resp.text)
     assert "users" in doc("head title").text().lower()
+    schema = json.loads(doc('script[type="application/ld+json"]').text())
+    assert schema["@type"] == "CollectionPage"
+    assert schema["mainEntity"]["@type"] == "ItemList"
+    assert schema["breadcrumb"]["itemListElement"][-1]["name"] == "Users"
+    assert doc('link[rel="canonical"]').attr("href").endswith("/users")
     main_el = doc("main")
     assert "users" in main_el("h1").text().lower()
     return doc
@@ -84,6 +103,11 @@ def get_articles(client):
     assert resp.status_code == 200
     doc = pq(resp.text)
     assert "articles" in doc("head title").text().lower()
+    schema = json.loads(doc('script[type="application/ld+json"]').text())
+    assert schema["@type"] == "CollectionPage"
+    assert schema["mainEntity"]["@type"] == "ItemList"
+    assert schema["breadcrumb"]["itemListElement"][-1]["name"] == "Articles"
+    assert doc('link[rel="canonical"]').attr("href").endswith("/articles")
     main_el = doc("main")
     assert "articles" in main_el("h1").text().lower()
     return doc
@@ -104,7 +128,12 @@ def get_article_by_slug(client, article):
 def get_contacts(client):
     resp = get(client, "/contacts")
     assert resp.status_code == 200
-    return pq(resp.text)
+    doc = pq(resp.text)
+    schema = json.loads(doc('script[type="application/ld+json"]').text())
+    assert schema["@type"] == "ContactPage"
+    assert schema["breadcrumb"]["itemListElement"][-1]["name"] == "Contacts"
+    assert doc('meta[name="description"]').attr("content").startswith("Contact SysDesPro")
+    return doc
 
 
 def get_user_href(user: dict) -> str:
@@ -410,8 +439,8 @@ def test_root_user_get_articles(root_user_client):
 @pytest.mark.parametrize("user_alias", ["regular", "root"])
 def test_get_contacts(request, user_alias):
     client = get_client(request, user_alias)
-    resp = get(client, "/contacts")
-    assert resp.status_code == 200
+    doc = get_contacts(client)
+    check_header(doc, user_alias=user_alias)
 
 
 @pytest.mark.parametrize("path", ["/any", "/any/any", "/missing", "/foo/bar"])
@@ -582,6 +611,32 @@ def test_public_read_endpoints_success_and_wrong_method_failure(guest_client, pa
     assert failure.status_code == 405, (path, failure.status_code, failure.text)
 
 
+@pytest.mark.parametrize("path, schema_type", [
+    ("/", "WebSite"),
+    ("/articles", "CollectionPage"),
+    ("/users", "CollectionPage"),
+    ("/latest/users", "CollectionPage"),
+    ("/contacts", "ContactPage"),
+    ("/privacy-policy", "WebPage"),
+    ("/rules", "WebPage"),
+    ("/terms-of-service", "WebPage"),
+    ("/earn-with-us", "WebPage"),
+])
+def test_public_page_seo_schema_and_metadata(guest_client, path, schema_type):
+    response = get(guest_client, path)
+    assert response.status_code == 200, (path, response.status_code, response.text)
+    doc = pq(response.text)
+    schema = json.loads(doc('script[type="application/ld+json"]').text())
+    assert schema["@type"] == schema_type
+    assert schema.get("url", "").startswith("http")
+    assert doc('link[rel="canonical"]').attr("href").startswith("http")
+    assert doc('meta[name="description"]').attr("content")
+    assert doc('meta[name="robots"]').attr("content") in {"index, follow", "noindex, follow", "noindex, nofollow"}
+    assert all(value is not None for value in schema.values())
+    if schema_type in {"CollectionPage", "ContactPage", "WebPage"}:
+        assert schema.get("breadcrumb", {}).get("itemListElement")
+
+
 @pytest.mark.parametrize("path", [
     "/articles?limit=invalid",
     "/api/articles-fragment?limit=0",
@@ -712,6 +767,17 @@ def test_article_create_and_new_page_endpoints_success_and_failure(guest_client)
     assert create_failure.status_code == 422
 
 
+def test_earn_page_seo(guest_client):
+    response = get(guest_client, "/earn-with-us")
+    assert response.status_code == 200
+    doc = pq(response.text)
+    schema = json.loads(doc('script[type="application/ld+json"]').text())
+    assert schema["@type"] == "WebPage"
+    assert schema["breadcrumb"]["itemListElement"][-1]["name"] == "Earn with us"
+    assert doc('meta[name="description"]').attr("content").startswith("Learn how to publish")
+    assert doc('link[rel="canonical"]').attr("href").endswith("/earn-with-us")
+
+
 def test_article_read_edit_update_status_endpoints_success_and_failure(guest_client):
     root_client = get_logged_in_client(root_user)
     regular_client = get_logged_in_client(regular_user)
@@ -719,6 +785,36 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
 
     read_success = get(root_client, f"/articles/{article_id}")
     assert read_success.status_code == 200, read_success.text
+    read_doc = pq(read_success.text)
+    article_schema = json.loads(read_doc('script[type="application/ld+json"]').text())
+    assert article_schema["@type"] == "Article"
+    assert article_schema["inLanguage"] == "en"
+    assert article_schema["author"]["url"].endswith("/root-functional")
+    assert read_doc('meta[property="og:type"]').attr("content") == "article"
+    assert read_doc('meta[property="og:url"]').attr("content").endswith(
+        f"/root-functional/{functional_state['article_slug']}")
+    assert not read_doc('meta[name="keywords"]')
+    assert "aggregateRating" not in article_schema
+    assert article_schema["commentCount"] == 0
+    assert "image" not in article_schema
+    assert "thumbnailUrl" not in article_schema
+    assert read_doc('meta[name="robots"]').attr("content") == "index, follow"
+
+    dynamodb_table.update_item(
+        Key={"pk": f"POST#{article_id}", "sk": "META"},
+        UpdateExpression="SET image_filename = :filename",
+        ExpressionAttributeValues={":filename": "sysdespro_1161x515.png"},
+    )
+    image_doc = pq(get(root_client, f"/articles/{article_id}").text)
+    image_schema = json.loads(image_doc('script[type="application/ld+json"]').text())
+    assert image_schema["image"][0].endswith("/sysdespro_1161x515.png")
+    assert image_schema["thumbnailUrl"].endswith("/sysdespro_1161x515.png")
+    assert image_doc('meta[property="og:image"]').attr("content").endswith("/sysdespro_1161x515.png")
+    dynamodb_table.update_item(
+        Key={"pk": f"POST#{article_id}", "sk": "META"},
+        UpdateExpression="REMOVE image_filename",
+    )
+
     read_failure = get(guest_client, "/articles/missing-article")
     assert read_failure.status_code == 404
 
@@ -763,6 +859,12 @@ def test_article_impression_comment_and_comment_update_endpoints_success_and_fai
 
     impression_success = post(regular_client, f"/api/articles/{article_id}/impression", json={"action": "like"})
     assert impression_success.status_code == 200, impression_success.text
+    rated_doc = pq(get(regular_client, f"/articles/{article_id}").text)
+    rated_schema = json.loads(rated_doc('script[type="application/ld+json"]').text())
+    assert rated_schema["aggregateRating"]["ratingValue"] == 5.0
+    assert rated_schema["aggregateRating"]["ratingCount"] == 1
+    assert rated_doc('meta[name="ratingValue"]').attr("content") == "5.0"
+    assert rated_doc('meta[name="ratingCount"]').attr("content") == "1"
     impression_failure = post(guest_client, f"/api/articles/{article_id}/impression", json={"action": "like"})
     assert impression_failure.status_code == 401
 
@@ -787,6 +889,15 @@ def test_article_impression_comment_and_comment_update_endpoints_success_and_fai
         "text": "Still valid text",
     })
     assert update_failure.status_code == 404
+
+    comments_doc = pq(get(regular_client, f"/articles/{article_id}").text)
+    comments_schema = json.loads(comments_doc('script[type="application/ld+json"]').text())
+    assert comments_schema["commentCount"] == 1
+    assert len(comments_schema["comment"]) == 1
+    assert comments_schema["comment"][0]["text"] == "Updated functional endpoint comment"
+    comment_id_fragment = comments_schema["comment"][0]["@id"].rsplit("#", 1)[-1]
+    assert comments_doc(f"article#{comment_id_fragment}")
+    assert comments_doc(f'time[datetime="{comments_schema["comment"][0]["datePublished"]}"]')
 
 
 def test_public_file_upload_endpoint_success_and_failure(guest_client):

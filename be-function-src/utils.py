@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from enum import StrEnum
 from functools import lru_cache, partial
+from html import unescape
 from typing import Callable, TypeVar, Any
 from urllib.parse import quote, urlencode, urlparse
 from zoneinfo import ZoneInfo
@@ -1346,6 +1347,7 @@ def get_jinja2_env():
         "ArticleQueryDTO": ArticleQueryDTO,
         "UserQueryDTO": UserQueryDTO,
         "article_sentiment_rating": article_sentiment_rating,
+        "html_to_text": html_to_text,
         "img_dims": extract_image_filename_dimensions,
     })
     return jinja2_env
@@ -1857,6 +1859,15 @@ def article_sentiment_rating(likes_count: int, dislikes_count: int) -> dict[str,
         "filled_stars": filled_stars,
         "has_half_star": rounded_half_score - filled_stars == 0.5,
     }
+
+
+def html_to_text(value: str | None) -> str:
+    if not value:
+        return ""
+    value = re.sub(r"<script\b[^>]*>.*?</script>|<style\b[^>]*>.*?</style>", " ", value,
+                   flags=re.IGNORECASE | re.DOTALL)
+    value = re.sub(r"<[^>]+>", " ", value)
+    return re.sub(r"\s+", " ", unescape(value)).strip()
 
 
 def find_preview(html_content: str) -> str | None:

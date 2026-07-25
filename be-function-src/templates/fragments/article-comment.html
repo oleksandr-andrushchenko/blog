@@ -1,6 +1,7 @@
 {% set user = article_comment.get_user() %}
 
-<div class="article-comment" {% if article_comment.offset %}data-offset="{{ article_comment.offset }}"{% endif %}>
+<article id="comment-{{ article_comment.id | replace("#", "-") }}" class="article-comment"
+         {% if article_comment.offset %}data-offset="{{ article_comment.offset }}"{% endif %}>
     <div class="row g-2">
         <div class="col col-1">
             <a href="{{ user_url(user) }}">
@@ -13,9 +14,10 @@
                 {{ user.name }}
             </a>
 
-            <small class="article-comment-created-at text-secondary bi bi-calendar2">
+            <time class="article-comment-created-at text-secondary bi bi-calendar2"
+                  datetime="{{ article_comment.created_at | iso_utc }}">
                 {{ (article_comment.created_at / 1000) | unix_to_full_date }}
-            </small>
+            </time>
 
             {% if article_comment.updated_at and article_comment.updated_at - article_comment.created_at > 86_400_000 %}
                 <small class="article-comment-updated-at text-secondary">
@@ -26,9 +28,9 @@
         </div>
     </div>
 
-    <div class="article-comment-text">
+    <p class="article-comment-text mb-0">
         {{ article_comment.text }}
-    </div>
+    </p>
 
     {#    {% include "fragments/article-impressions.html" %}#}
-</div>
+</article>

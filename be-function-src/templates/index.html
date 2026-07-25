@@ -3,6 +3,17 @@
 {% set meta_title = site_name ~ " - " ~ site_short_desc %}
 {% set meta_robots = "index, follow" %}
 {% set meta_canonical_url = url("index", full=True) %}
+{% block meta_schema %}
+    {{- {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "@id": meta_canonical_url,
+        "url": meta_canonical_url,
+        "name": site_name,
+        "description": site_desc,
+        "inLanguage": "en"
+    } | tojson | safe -}}
+{% endblock %}
 
 {% block content %}
     <div class="row g-5 pt-4">
@@ -71,10 +82,12 @@
                     {% endwith %}
 
                     <div>
-                        <a href="{{ articles_url(type=ArticleQueryType.LATEST) }}" class="btn btn-light btn-sm bi bi-clock">
+                        <a href="{{ articles_url(type=ArticleQueryType.LATEST) }}"
+                           class="btn btn-light btn-sm bi bi-clock">
                             See all latest articles
                         </a>
-                        <a href="{{ articles_url(type=ArticleQueryType.LATEST) }}" class="btn btn-light btn-sm bi bi-tags">
+                        <a href="{{ articles_url(type=ArticleQueryType.LATEST) }}"
+                           class="btn btn-light btn-sm bi bi-tags">
                             Search latest articles by tags
                         </a>
                     </div>

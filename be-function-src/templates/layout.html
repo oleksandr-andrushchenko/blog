@@ -30,7 +30,6 @@
 
     <title>{{ meta_title or site_title }}</title>
     <meta name="description" content="{{ (meta_desc or site_desc) | truncate(155, True, '...') }}"/>
-    <meta name="keywords" content="{{ meta_keywords }}"/>
     <meta name="author" content="{{ meta_author }}"/>
     {% if meta_rating_value is defined %}
         <meta name="ratingValue" content="{{ meta_rating_value }}"/>
@@ -41,29 +40,62 @@
     {% if meta_robots %}
         <meta name="robots" content="{{ meta_robots }}">
     {% endif %}
-    <link rel="canonical" href="{{ meta_canonical_url }}">
+    {% if meta_canonical_url %}
+        <link rel="canonical" href="{{ meta_canonical_url }}">
+    {% endif %}
 
     <meta name="application-name" content="{{ site_name }}"/>
     <meta name="mobile-web-app-capable" content="yes"/>
     <meta name="apple-mobile-web-app-title" content="{{ site_name }}"/>
 
+    {% set social_url = og_url or meta_canonical_url or url("index", full=True) %}
+    {% set image_filename = og_img_filename or meta_img_filename or site_img_filename %}
+    {% set social_image_url = static_url(image_filename, full=True) if image_filename else None %}
     <meta property="og:title" content="{{ og_title or meta_title or site_title }}"/>
     <meta property="og:description" content="{{ og_desc or meta_desc or site_desc }}"/>
-    <meta property="og:type" content="website"/>
-    <meta property="og:url" content="{{ og_url or meta_canonical_url or index_url }}"/>
-    {% set image_filename = og_img_filename or meta_img_filename or site_img_filename %}
-    <meta property="og:image" content="{{ static_url(image_filename) }}"/>
-    <meta property="og:image:alt"
-          content="{{ og_img_alt or meta_img_alt or meta_title or site_img_title or site_title }}"/>
+    <meta property="og:type" content="{{ og_type or "website" }}"/>
+    <meta property="og:url" content="{{ social_url }}"/>
+    <meta property="og:site_name" content="{{ site_name }}"/>
+    {% if social_image_url %}
+        <meta property="og:image" content="{{ social_image_url }}"/>
+        <meta property="og:image:alt"
+              content="{{ og_img_alt or meta_img_alt or meta_title or site_img_title or site_title }}"/>
+    {% endif %}
     {% set img_width, img_height = img_dims(image_filename) %}
     {% if img_width and img_height %}
         <meta property="og:image:width" content="{{ img_width }}"/>
         <meta property="og:image:height" content="{{ img_height }}"/>
     {% endif %}
 
-    <meta property="article:author" content="{{ site_name }}"/>
+    <meta name="twitter:card" content="{{ twitter_card or "summary_large_image" }}"/>
+    <meta name="twitter:title" content="{{ og_title or meta_title or site_title }}"/>
+    <meta name="twitter:description" content="{{ og_desc or meta_desc or site_desc }}"/>
+    {% if social_image_url %}
+        <meta name="twitter:image" content="{{ social_image_url }}"/>
+    {% endif %}
 
-    <script type="application/ld+json">{% block meta_schema %}{{ meta_schema | tojson | safe }}{% endblock %}</script>
+    {% if og_type == "article" %}
+        {% if article_og_author %}
+            <meta property="article:author" content="{{ article_og_author }}"/>{% endif %}
+        {% if article_og_published_time %}
+            <meta property="article:published_time" content="{{ article_og_published_time }}"/>{% endif %}
+        {% if article_og_modified_time %}
+            <meta property="article:modified_time" content="{{ article_og_modified_time }}"/>{% endif %}
+        {% for tag in article_og_tags %}
+            <meta property="article:tag" content="{{ tag }}"/>{% endfor %}
+    {% endif %}
+
+    <script type="application/ld+json">{% block meta_schema %}
+    {{- {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "@id": meta_canonical_url or url("index", full=True),
+        "url": meta_canonical_url or url("index", full=True),
+        "name": meta_title or site_title,
+        "description": meta_desc or site_desc,
+        "inLanguage": "en"
+    } | tojson | safe -}}
+{% endblock %}</script>
 
     {% if show_favicon %}
         <!-- Favicon -->

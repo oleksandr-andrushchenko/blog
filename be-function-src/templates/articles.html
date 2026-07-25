@@ -9,10 +9,74 @@
 } %}
 
 {% set title = ([val_map[article_query.type]["title"]] + (article_query.tags if article_query.tags else [site_about]) + [val_map[article_query.status]["title"]] + ["Articles"]) | select | join(" ") | title %}
-{% set meta_robots = "index, follow" %}
+{% set meta_robots = "noindex, follow" if article_query.status != ArticleStatus.PUBLISHED else "index, follow" %}
 {% set subtitle = ([val_map[article_query.type]["subtitle"]]  + article_query.tags + [val_map[article_query.status]["subtitle"]] + ["Articles"]) | select | join(" ") | title %}
 {% set meta_title = title ~ " | " ~ site_name %}
 {% set meta_canonical_url = articles_url(query=article_query, tags=article_query.tags|sort, full=True) %}
+{% set meta_desc = [title, subtitle, site_desc] | select | join('. ') | truncate(155, True, '...') %}
+{% block meta_schema %}
+    {% set items = namespace(values=[]) %}
+    {% for article in articles %}
+        {% set items.values = items.values + [{
+            "@type": "ListItem",
+            "position": loop.index,
+            "name": article.title,
+            "url": article_url(article, full=True)
+        }] %}
+    {% endfor %}
+    {% set breadcrumb_items = namespace(values=[
+        {"@type": "ListItem", "position": 1, "name": "Home", "item": url("index", full=True)},
+        {"@type": "ListItem", "position": 2, "name": "Articles", "item": articles_url(full=True)}
+    ]) %}
+    {% set breadcrumb_position = 2 %}
+    {% if article_query.type and article_query.type != ArticleQueryDTO.DEFAULT_TYPE %}
+        {% set breadcrumb_position = breadcrumb_position + 1 %}
+        {% set breadcrumb_items.values = breadcrumb_items.values + [{
+            "@type": "ListItem",
+            "position": breadcrumb_position,
+            "name": article_query.type | title,
+            "item": articles_url(type=article_query.type, full=True)
+        }] %}
+    {% endif %}
+    {% set tag_path = namespace(values=[]) %}
+    {% for tag in article_query.tags %}
+        {% set tag_path.values = tag_path.values + [tag] %}
+        {% set breadcrumb_position = breadcrumb_position + 1 %}
+        {% set breadcrumb_items.values = breadcrumb_items.values + [{
+            "@type": "ListItem",
+            "position": breadcrumb_position,
+            "name": tag | title,
+            "item": articles_url(tags=tag_path.values, type=article_query.type, full=True)
+        }] %}
+    {% endfor %}
+    {% if article_query.status and article_query.status != ArticleQueryDTO.DEFAULT_STATUS %}
+        {% set breadcrumb_position = breadcrumb_position + 1 %}
+        {% set breadcrumb_items.values = breadcrumb_items.values + [{
+            "@type": "ListItem",
+            "position": breadcrumb_position,
+            "name": article_query.status | title,
+            "item": articles_url(type=article_query.status, full=True)
+        }] %}
+    {% endif %}
+    {{- {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        "@id": meta_canonical_url,
+        "url": meta_canonical_url,
+        "name": title,
+        "description": meta_desc,
+        "inLanguage": "en",
+        "mainEntity": {
+            "@type": "ItemList",
+            "numberOfItems": items.values | length,
+            "itemListElement": items.values
+        },
+        "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": breadcrumb_items.values
+        }
+    } | tojson | safe -}}
+{% endblock %}
 
 {% block breadcrumbs %}
     {% set breadcrumbs = {"Home": url("index"), "Articles": articles_url()} %}

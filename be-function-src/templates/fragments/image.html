@@ -5,8 +5,8 @@
     {% set img_style = img_style | default(None) %}
     {% set width = width | default(None) %}
     {% set height = height | default(None) %}
-    {% set loading = loading | default(None) %}
-    {% set decoding = decoding | default(None) %}
+    {% set loading = loading | default("lazy") %}
+    {% set decoding = decoding | default("async") %}
 
     {% if (not width or not height) and '_' in filename and 'x' in filename %}
         {% set size_part = filename.rsplit('_', 1)[1].split('.', 1)[0] %}
@@ -20,7 +20,10 @@
     {% endif %}
 
     {% macro image_tag() %}
-        <img src="{{ static_url(filename) }}" alt="{{ alt or '' }}" class="{{ img_class }}"{% if img_style %} style="{{ img_style }}"{% endif %}{% if width %} width="{{ width }}"{% endif %}{% if height %} height="{{ height }}"{% endif %}{% if loading %} loading="{{ loading }}"{% endif %}{% if decoding %} decoding="{{ decoding }}"{% endif %}>
+        <img src="{{ static_url(filename) }}" alt="{{ alt or '' }}" class="{{ img_class }}"{% if img_style %}
+             style="{{ img_style }}"{% endif %}{% if width %} width="{{ width }}"{% endif %}{% if height %}
+             height="{{ height }}"{% endif %}{% if loading %} loading="{{ loading }}"{% endif %}{% if decoding %}
+             decoding="{{ decoding }}"{% endif %}>
     {% endmacro %}
 
     {% if figure %}
