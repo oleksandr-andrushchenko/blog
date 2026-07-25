@@ -53,11 +53,9 @@
 - delete public images func?
 - add users email/sms notifications (post published/liked/disliked, user followed/blocked etc.)
 - add meta info for tags and images (created_by, created_at)
-- add SEO meta tags (image, other property/name metas)
-- implement instant lambda deployments
 - add aria attributes (+allow them in tinymce)
 - add footer tag for post/articles, put related articles (Like "Futher reading", based on tags)
-- replace env secrets with secrets manager storage
+- replace env secrets with secrets manager storage (CS becomes slower)
 - jpeg images have problems with dimensions determination (on uploads)
 - add image watermarks
 - add author to the footer
@@ -65,14 +63,9 @@
 - posts page: add popular tags to "filter by tags" block
 - improve post comments
 - posts form: submit slugs URL version (instead of queries)
-- check SEO carefully and fix issues (redirect, canonical, robots, index/follow, titles, etc.)
 - generate tag combos for post pages (article's tag combos for crawlers)
-- implement & show images for each tag
 - remove personal contact details
-- optimize page speed loading: first bite for cold starts
-- cache, preload (CDN)
-- separate lambda into several lambdas (can start with for reads and for writes)
-- utils: add drop_cdn_cache (for specific user)
+- split into web and api lambdas
 
 ## Links
 
