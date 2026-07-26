@@ -1,5 +1,6 @@
 from typing import Annotated, Optional
 
+from article_dtos import UpdateArticleCommentImpressionDTO
 from utils import (
     User,
     ArticleQueryDTO,
@@ -27,7 +28,6 @@ from utils import (
     ArticleComment,
     UpdateUserStatusDTO,
     UpdateArticleCommentDTO,
-    UpdateArticleCommentImpressionDTO,
     get_article_comment,
     parse_articles_url_slugs_path,
     is_prod,
