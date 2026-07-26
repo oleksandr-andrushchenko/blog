@@ -1545,9 +1545,9 @@ def save_public_file(file_dto: FileDTO, filename: str = None) -> str:
 
 def drop_public_file(filename: str) -> None:
     if not is_prod():
-        filepath = os.path.join(get_static_files_dir(), filename)
-        if os.path.exists(filepath):
-            os.remove(filepath)
+        # filepath = os.path.join(get_static_files_dir(), filename)
+        # if os.path.exists(filepath):
+        #     os.remove(filepath)
         return
 
     get_s3_client().delete_object(Bucket=get_static_s3_bucket(), Key=filename)
