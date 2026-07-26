@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo
 from jinja2 import Environment, FileSystemLoader, pass_context
 
 from article_dtos import (ArticleCommentDTO, ArticleCommentImpressionAction, ArticleDTO, ArticleImpressionAction,
-                          UpdateArticleCommentDTO, UpdateArticleCommentImpressionDTO, UpdateArticleDTO,
+                          UpdateArticleCommentDTO, UpdateArticleDTO,
                           UpdateArticleImpressionDTO, UpdateArticleStatusDTO,
                           UpdateArticleTagDTO)
 from article_tag_subscription_dtos import ArticleTagSubscription, ArticleTagSubscriptionDTO
@@ -319,6 +319,7 @@ class ArticleComment:
     user_id: str
     user_name: str | None
     user_avatar_filename: str | None
+    # todo: rename to user_slug
     user_username: str | None
 
     def get_user(self) -> User:
@@ -2572,20 +2573,19 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
                 articles = get_latest_published_articles_by_user(user)
                 for article in articles:
                     add_dynamodb_article_update_transact(transacts, article, {"user_slug": slug})
+                # todo: update comments
         else:
             add_dynamodb_delete_transact(transacts, (f"USER_SLUG#{old_slug}", "META"))
             articles = get_latest_published_articles_by_user(user)
             for article in articles:
                 add_dynamodb_article_update_transact(transacts, article, {"user_slug": None})
 
-    add_dynamodb_user_update_transact(transacts, user, changes, {
-    })
+    add_dynamodb_user_update_transact(transacts, user, changes, {})
     add_user_activity_transact(transacts, cur_user, "user.updated", "user", user.id, user.name, f"/users/{user.id}",
                                user.id, now)
 
     if user.id != cur_user.id:
-        add_dynamodb_user_update_transact(transacts, cur_user, deltas={
-        })
+        add_dynamodb_user_update_transact(transacts, cur_user, deltas={})
 
     try:
         dynamodb_transact_write(transacts)
@@ -3643,8 +3643,7 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
         return get_article_url(req, article, full=True)
 
     offset = None
-    while articles := get_latest_articles(
-            ArticleQueryDTO(status=ArticleStatus.PUBLISHED, limit=1000, offset=offset)):
+    while articles := get_latest_articles(ArticleQueryDTO(status=ArticleStatus.PUBLISHED, limit=1000, offset=offset)):
         urls.extend([(article_url(article), lastmod(article.updated_at, article.created_at)) for article in articles])
         offset = articles[-1].offset
         if not offset:
@@ -3752,7 +3751,8 @@ def create_dummy_fixtures(req) -> None:
     create_article_tag_subscription(ArticleTagSubscriptionDTO(tags=["tag2", "tag3"]), user4)
 
     def article_figure(filename: str, alt: str, width: int, height: int) -> str:
-        return (f"""<figure class="figure"><img src="/{filename}" alt="{alt}" class="img-fluid" width="{width}" height="{height}">
+        return (
+            f"""<figure class="figure"><img src="/{filename}" alt="{alt}" class="img-fluid" width="{width}" height="{height}">
 <figcaption class="figure-caption">{alt}</figcaption>
 </figure>""")
 
@@ -3816,7 +3816,7 @@ def create_dummy_fixtures(req) -> None:
         update_article_status(created_article, UpdateArticleStatusDTO(status=ArticleStatus.PUBLISHED), root_user, req)
         created_articles.append(created_article)
     for tag_name, image_filename in [("tag1", "45e97e68-a321-4657-9956-e942d9d757a7_1279x518.png"),
-                                   ("tag2", "a167891d-7e91-40d6-a5c4-1a3ddb27dcc2_1575x842.png")]:
+                                     ("tag2", "a167891d-7e91-40d6-a5c4-1a3ddb27dcc2_1575x842.png")]:
         article_tag = find_article_tag(tag_name)
         update_article_tag(article_tag, UpdateArticleTagDTO(
             name=tag_name,

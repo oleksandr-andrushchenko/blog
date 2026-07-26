@@ -66,6 +66,7 @@
 - generate tag combos for post pages (article's tag combos for crawlers)
 - remove personal contact details
 - split into web and api lambdas
+- add user_name and user_slug attributes to articles, render user in article fragments, sync when user changed
 
 ## Links
 
