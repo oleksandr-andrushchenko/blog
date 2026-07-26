@@ -2809,9 +2809,11 @@ def query_dynamodb_items(
     items = resp.get("Items", [])
     results = [map_fn(item) for item in items]
 
-    # Handle pagination
-    if len(results) == query_dto.limit:
-        results[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
+    # DynamoDB can return fewer items than Limit when the response reaches its
+    # 1 MB page-size cap, so paginate based on LastEvaluatedKey rather than the
+    # number of returned items.
+    if results and resp.get("LastEvaluatedKey"):
+        results[-1].offset = encode_offset(resp["LastEvaluatedKey"])
 
     return results
 
