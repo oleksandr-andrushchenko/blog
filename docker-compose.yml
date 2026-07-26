@@ -19,11 +19,12 @@ services:
       GOOGLE_ANALYTICS_ID: ""
       TINYMCE_API_KEY: ""
       CONTACT_TOPIC_ARN: ""
-      EMAIL_SINK_DIR: "/email-sink"
+      EMAIL_FILES_DIR: "/app-emails"
+      STATIC_FILES_DIR: "/app-static"
     volumes:
       - ./be-function-src:/app
-      - ./static:/app/static
-      - ./.emails:/email-sink
+      - ./static:/app-static
+      - ./.emails:/app-emails
 
   be-function-test:
     build:
@@ -42,11 +43,12 @@ services:
       AWS_SECRET_ACCESS_KEY: dummy
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"
       DYNAMODB_TABLE: app_test
-      EMAIL_SINK_DIR: "/email-sink"
+      EMAIL_FILES_DIR: "/app-emails"
+      STATIC_FILES_DIR: "/app-static"
     volumes:
       - ./be-function-src:/app
-      - ./static:/app/static
-      - ./.emails:/email-sink
+      - ./static:/app-static
+      - ./.emails:/app-emails
 
   dynamodb:
     image: amazon/dynamodb-local

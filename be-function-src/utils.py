@@ -508,7 +508,8 @@ def get_live_config():
         "cognito_client_secret": os.getenv("COGNITO_CLIENT_SECRET"),
         "cognito_user_pool_id": os.getenv("COGNITO_USER_POOL_ID"),
         "static_s3_bucket": os.getenv("STATIC_S3_BUCKET"),
-        "static_files_dir": os.getenv("STATIC_FILES_DIR", "static"),
+        "email_files_dir": os.getenv("EMAIL_FILES_DIR", "/app-emails"),
+        "static_files_dir": os.getenv("STATIC_FILES_DIR", "/app-static"),
         "css_cache_counter": os.getenv("CSS_CACHE_COUNTER", 0),
         "js_cache_counter": os.getenv("JS_CACHE_COUNTER", 0),
         "auth_token_max_age": os.getenv("AUTH_TOKEN_MAX_AGE", 86_400 * 7),
@@ -568,6 +569,10 @@ def is_prod():
 
 def get_config():
     return config
+
+
+def get_email_files_dir() -> str:
+    return config.get("email_files_dir")
 
 
 def get_static_files_dir() -> str:
@@ -677,11 +682,9 @@ def save_email_to_disk(sender: str, recipient: str, subject: str, text_body: str
     message.set_content(text_body)
     message.add_alternative(html_body, subtype="html")
 
-    email_dir = os.getenv("EMAIL_SINK_DIR") or os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", ".emails")
-    )
-    os.makedirs(email_dir, exist_ok=True)
-    email_path = os.path.join(email_dir, f"{utc_now()}-{uuid.uuid4()}.eml")
+    emails_dir = get_email_files_dir()
+    os.makedirs(emails_dir, exist_ok=True)
+    email_path = os.path.join(emails_dir, f"{utc_now()}-{uuid.uuid4()}.eml")
     with open(email_path, "wb") as email_file:
         email_file.write(message.as_bytes())
     logger.info("Saved development email to %s", email_path)
@@ -1528,7 +1531,8 @@ def save_public_file(file_dto: FileDTO, filename: str = None) -> str:
         filename += f".{file_ext}"
 
     if not is_prod():
-        with open(f"./{get_static_files_dir()}/{filename}", "wb") as f:
+        filepath = os.path.join(get_static_files_dir(), filename)
+        with open(filepath, "wb") as f:
             f.write(file_dto.content)
         return filename
     from io import BytesIO
@@ -1541,9 +1545,9 @@ def save_public_file(file_dto: FileDTO, filename: str = None) -> str:
 
 def drop_public_file(filename: str) -> None:
     if not is_prod():
-        path = os.path.join(f"./{get_static_files_dir()}", filename)
-        if os.path.exists(path):
-            os.remove(path)
+        filepath = os.path.join(get_static_files_dir(), filename)
+        if os.path.exists(filepath):
+            os.remove(filepath)
         return
 
     get_s3_client().delete_object(Bucket=get_static_s3_bucket(), Key=filename)
