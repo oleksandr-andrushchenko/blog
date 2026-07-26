@@ -3819,6 +3819,27 @@ def create_dummy_fixtures(req) -> None:
         created_article = create_article(article, user2)
         update_article_status(created_article, UpdateArticleStatusDTO(status=ArticleStatus.PUBLISHED), root_user, req)
         created_articles.append(created_article)
+
+    # Add enough published articles to exercise sitemap generation with a larger dataset.
+    # Keep the six deterministic articles above unchanged, then bring the total to 75 articles.
+    for article_index in range(len(created_articles), 75):
+        generated_article = create_article(ArticleDTO(
+            title=f"Generated Fixture Article #{article_index + 1:03d} for Sitemap Testing",
+            content=(
+                    f"Generated fixture article content #{article_index + 1:03d}. "
+                    "This article exists to exercise article creation, publication, pagination, "
+                    "and sitemap generation with a larger local dataset. " * 120
+            ),
+            tags=["tag1", "tag2"] if article_index % 2 else ["tag3"],
+        ), root_user)
+        update_article_status(
+            generated_article,
+            UpdateArticleStatusDTO(status=ArticleStatus.PUBLISHED),
+            root_user,
+            req,
+        )
+        created_articles.append(generated_article)
+
     for tag_name, image_filename in [("tag1", "45e97e68-a321-4657-9956-e942d9d757a7_1279x518.png"),
                                      ("tag2", "a167891d-7e91-40d6-a5c4-1a3ddb27dcc2_1575x842.png")]:
         article_tag = find_article_tag(tag_name)
