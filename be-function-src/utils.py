@@ -279,6 +279,18 @@ class Article:
     slug: str
     user_id: str
     user_slug: str | None
+    user_name: str | None
+
+    def get_user(self) -> User | None:
+        if self.user_name:
+            return user_from_dynamodb({
+                "id": self.user_id,
+                "name": self.user_name,
+                "username": self.user_slug,
+                "created_at": 0,
+            })
+        return None
+
     content: str
     preview: str | None
     tags: list[str]
@@ -1796,6 +1808,8 @@ def article_from_dynamodb(d_item: dict[str, Any]) -> Article:
         title=d_item["title"],
         slug=d_item["post_slug"],
         user_id=owner_id,
+        user_slug=d_item.get("user_slug"),
+        user_name=d_item.get("user_name"),
         content=content,
         preview=d_item.get("preview"),
         tags=d_item.get("tags", []),
@@ -1804,7 +1818,6 @@ def article_from_dynamodb(d_item: dict[str, Any]) -> Article:
         rating=d_item["rating_sk"],
         likes_count=d_item.get("likes_count", 0),
         dislikes_count=d_item.get("dislikes_count", 0),
-        user_slug=d_item.get("user_slug"),
         image_filename=d_item.get("image_filename"),
         redirect_to=d_item.get("redirect_to"),
         comments_count=d_item.get("comments_count", 0),
@@ -1926,6 +1939,7 @@ def create_article(article_dto: ArticleDTO, cur_user: User) -> Article:
         "title": title,
         "post_slug": slug,
         "user_id": cur_user.id,
+        "user_name": cur_user.name,
         "content": content,
         "tags": tags,
         "rating_sk": compute_rating_sk(0, now),
@@ -2064,6 +2078,11 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
         changes["status"] = ArticleStatus.UNPUBLISHED
 
     article_owner = get_user(article.owner_id)
+    if article.user_name != article_owner.name:
+        changes["user_name"] = article_owner.name
+    if article.user_slug != article_owner.username:
+        changes["user_slug"] = article_owner.username
+
     article_owner_deltas = {}
 
     status = changes.get("status", article.status)
@@ -2193,7 +2212,8 @@ def create_article_comment(article: Article, article_comment_dto: ArticleComment
         "post_id": article.id,
         "post_title": article.title,
         "comment_post_slug": article.slug,
-        "post_comment_pk": f"POST_COMMENT",
+        "post_comment_pk": "POST_COMMENT",
+        "post_comment_user_pk": f"USER#{cur_user.id}",
 
         "text": article_comment_dto.text,
         "created_at": now,
@@ -2547,6 +2567,12 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
         return
 
     old_avatar = user.avatar_filename
+    article_user_changes = {}
+    comment_user_changes = {}
+
+    if "name" in changes:
+        article_user_changes["user_name"] = changes["name"]
+        comment_user_changes["user_name"] = changes["name"]
 
     if "username" in changes:
         old_slug = user.username
@@ -2565,11 +2591,23 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
         elif old_slug:
             add_dynamodb_delete_transact(transacts, (f"USER_SLUG#{old_slug}", "META"))
 
-        # Preserve the existing denormalized article slug synchronization.
-        # todo: do it for all articles
-        articles = get_latest_published_articles_by_user(user)
-        for article in articles:
-            add_dynamodb_article_update_transact(transacts, article, {"user_slug": slug})
+        article_user_changes["user_slug"] = slug
+        comment_user_changes["user_username"] = slug
+
+    if "avatar_filename" in changes:
+        comment_user_changes["user_avatar_filename"] = changes["avatar_filename"]
+
+    if article_user_changes:
+        for article in get_all_articles_by_user(user):
+            add_dynamodb_article_update_transact(transacts, article, article_user_changes)
+
+    if comment_user_changes:
+        for comment in get_all_article_comments_by_user(user):
+            add_dynamodb_update_transact(
+                transacts,
+                (f"POST#{comment.article_id}", f"COMMENT#{comment.id}"),
+                comment_user_changes,
+            )
 
     add_dynamodb_user_update_transact(transacts, user, changes, {})
     add_user_activity_transact(transacts, cur_user, "user.updated", "user", user.id, user.name, f"/users/{user.id}",
@@ -3374,6 +3412,41 @@ def jinja2_iso_utc(timestamp_ms: int) -> str:
 
 def get_latest_published_articles_by_user(user: User) -> list[Article]:
     return get_latest_articles_by_user(user)
+
+
+def get_all_articles_by_user(user: User) -> list[Article]:
+    articles = []
+    for status in ArticleStatus:
+        exclusive_start_key = None
+        while True:
+            response = query_dynamodb_table(
+                index_name="POSTS_BY_USER_STATUS_CREATED_AT_2",
+                key_condition_expr=Key("post_user_status_pk").eq(f"POST#{user.id}#{status}"),
+                scan_index_forward=False,
+                exclusive_start_key=exclusive_start_key,
+            )
+            articles.extend(article_from_dynamodb(item) for item in response.get("Items", []))
+            exclusive_start_key = response.get("LastEvaluatedKey")
+            if not exclusive_start_key:
+                break
+    return articles
+
+
+def get_all_article_comments_by_user(user: User) -> list[ArticleComment]:
+    comments = []
+    exclusive_start_key = None
+    while True:
+        response = query_dynamodb_table(
+            index_name="POST_COMMENTS_BY_USER_CREATED_AT",
+            key_condition_expr=Key("post_comment_user_pk").eq(f"USER#{user.id}"),
+            scan_index_forward=False,
+            exclusive_start_key=exclusive_start_key,
+        )
+        comments.extend(article_comment_from_dynamodb(item) for item in response.get("Items", []))
+        exclusive_start_key = response.get("LastEvaluatedKey")
+        if not exclusive_start_key:
+            break
+    return comments
 
 
 def get_latest_articles_by_user(user: User, query_dto: ArticleQueryDTO = None, cur_user: User = None) -> list[Article]:

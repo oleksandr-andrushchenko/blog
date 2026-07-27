@@ -6,6 +6,7 @@
 {% set image_column_size = image_column_size | default({"def":12,"md":3}) if image else 0 %}
 {% set image_order_size = image_order_size | default({"def":12}) if image else 0 %}
 {% set border = border | default(True) %}
+{% set article_user = article.get_user() %}
 
 <div class="article row g-3 {% if border %}pb-3 border-bottom{% endif %}"
      {% if article.offset %}data-offset="{{ article.offset }}"{% endif %}>
@@ -34,6 +35,12 @@
         </a>
 
         <div class="d-flex flex-wrap gap-2">
+            {% if article_user %}
+                <small class="text-secondary bi bi-person" title="Author">
+                    <a href="{{ user_url(article_user) }}" class="link-secondary">{{ article_user.name }}</a>
+                </small>
+            {% endif %}
+
             <small class="text-secondary bi bi-calendar2" title="Created at">
                 {{ (article.created_at / 1000) | unix_to_full_date }}
             </small>

@@ -138,6 +138,8 @@ Resources:
           AttributeType: S
         - AttributeName: post_comment_pk
           AttributeType: S
+        - AttributeName: post_comment_user_pk
+          AttributeType: S
         - AttributeName: created_at
           AttributeType: N
       KeySchema:
@@ -223,6 +225,14 @@ Resources:
         - IndexName: POST_COMMENTS_BY_CREATED_AT # get_latest_post_comments
           KeySchema:
             - AttributeName: post_comment_pk # e.g. "POST_COMMENT"
+              KeyType: HASH
+            - AttributeName: created_at # e.g. 1759086095241
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: POST_COMMENTS_BY_USER_CREATED_AT # get_all_article_comments_by_user
+          KeySchema:
+            - AttributeName: post_comment_user_pk # e.g. "USER#1"
               KeyType: HASH
             - AttributeName: created_at # e.g. 1759086095241
               KeyType: RANGE
