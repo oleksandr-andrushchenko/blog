@@ -146,7 +146,7 @@
                         {% endif %}
                     </p>
                 </header>
-                {{ article.content }}
+                {{ article.content | safe }}
             </article>
 
             <section class="article-comments">

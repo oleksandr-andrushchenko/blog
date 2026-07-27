@@ -28,7 +28,7 @@ class RequestValidationError(ValueError):
 def parse_dto(dto_type, data):
     try:
         allowed = {field.name for field in fields(dto_type) if field.init}
-        return dto_type(**{key: value for key, value in data.items() if key in allowed})
+        return dto_type(**{k: v for k, v in data.items() if k in allowed})
     except (TypeError, ValueError) as exc:
         message = str(exc)
         field = message.split(" ", 1)[0] if message else "request"

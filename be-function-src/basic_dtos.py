@@ -1,11 +1,28 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from datetime import datetime
+
+UNSET = object()
+
+
+@dataclass(slots=True)
+class BaseDTO:
+    def get_changes(self, target=None):
+        changes = {}
+        for field in fields(self):
+            value = getattr(self, field.name)
+            if value is UNSET:
+                continue
+            if target is not None and hasattr(target, field.name) and getattr(target, field.name) == value:
+                continue
+            changes[field.name] = value
+        return changes
+
 
 from validation import validate_email_address
 
 
 @dataclass(slots=True)
-class UserTokenDTO:
+class UserTokenDTO(BaseDTO):
     sub: str
     iss: str
     email: str | None = None
@@ -19,7 +36,7 @@ class UserTokenDTO:
 
 
 @dataclass(slots=True)
-class FileDTO:
+class FileDTO(BaseDTO):
     content: bytes
     filename: str
 
@@ -47,7 +64,7 @@ class ImageFileDTO(FileDTO):
 
 
 @dataclass(slots=True)
-class ContactMessageDTO:
+class ContactMessageDTO(BaseDTO):
     name: str
     email: str
     message: str

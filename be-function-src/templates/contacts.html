@@ -108,7 +108,7 @@
 
     <script>
       document.addEventListener("DOMContentLoaded", () => {
-        handleFormSubmit("#contact-form", "{{ url('create-contact-message') }}", {
+        handleFormSubmit("#contact-form", {{ url('create-contact-message') | tojson }}, {
           rules: {
             name: [
               {rule: "required"},

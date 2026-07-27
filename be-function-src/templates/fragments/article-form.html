@@ -30,7 +30,7 @@
 
 <script>
   document.addEventListener("DOMContentLoaded", () => {
-    handleFormSubmit("#article-form", "{{ url('update-article', article_id=article.id) if article else url('create-article') }}", {
+    handleFormSubmit("#article-form", {{ (url('update-article', article_id=article.id) if article else url('create-article')) | tojson }}, {
       method: "{{ 'PATCH' if article else 'POST' }}",
       rules: {
         title: [

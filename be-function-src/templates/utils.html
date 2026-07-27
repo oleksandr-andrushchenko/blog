@@ -32,7 +32,7 @@
 
                 <script>
                   document.addEventListener("DOMContentLoaded", () => {
-                    handleFormSubmit("#generate-sitemap-form", "{{ url("generate-sitemap") }}", {
+                    handleFormSubmit("#generate-sitemap-form", {{ url("generate-sitemap") | tojson }}, {
                       method: "POST",
                       onSuccess: (res) => `Sitemap generated!<br>URLs count: ${res.urls_count}, Sitemap URL: <a href="${res.sitemap_url}" target="_blank">${res.sitemap_url}</a>`,
                     })
@@ -57,7 +57,7 @@
 
                 <script>
                   document.addEventListener("DOMContentLoaded", () => {
-                    handleFormSubmit("#drop-cdn-cache-form", "{{ url("drop-cdn-cache") }}", {
+                    handleFormSubmit("#drop-cdn-cache-form", {{ url("drop-cdn-cache") | tojson }}, {
                       method: "POST",
                       onSuccess: (res) => `CDN cache dropped!<br>Items count: ${res.items_count}`,
                     })

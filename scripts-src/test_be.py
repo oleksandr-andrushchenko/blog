@@ -7,10 +7,13 @@ import uuid
 from email import policy
 from email.parser import BytesParser
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.parse import quote
 
 import pytest
+from article_dtos import UpdateArticleCommentDTO, UpdateArticleDTO, UpdateArticleTagDTO
 from pyquery import PyQuery as pq
+from user_dtos import UpdateUserActivitySettingsDTO, UpdateUserDTO
 
 from test_utils import (
     recreate_dynamodb_table,
@@ -1076,3 +1079,68 @@ def test_article_published_dispatch_matches_combinations_excludes_author_and_ren
 def test_logout_endpoint_wrong_method_failure(guest_client):
     failure = post(guest_client, "/logout", json={})
     assert failure.status_code == 405
+
+
+def test_user_patch_omitted_fields_are_not_changes():
+    dto = UpdateUserDTO(name="Updated Name")
+
+    assert dto.get_changes() == {"name": "Updated Name"}
+
+
+def test_user_patch_null_clears_optional_field():
+    dto = UpdateUserDTO(username=None)
+
+    assert dto.get_changes() == {"username": None}
+    assert dto.get_changes(SimpleNamespace(username="old-name")) == {"username": None}
+
+
+def test_user_patch_unchanged_values_are_filtered_against_target():
+    user = SimpleNamespace(name="Jane", headline="Engineer")
+    dto = UpdateUserDTO(name="Jane", headline="Updated headline")
+
+    assert dto.get_changes(user) == {"headline": "Updated headline"}
+
+
+def test_user_patch_rejects_null_for_name():
+    with pytest.raises(ValueError):
+        UpdateUserDTO(name=None)
+
+
+def test_user_settings_patch_is_sparse():
+    user = SimpleNamespace(show_activity_calendar=False, show_recent_activity=True)
+    dto = UpdateUserActivitySettingsDTO(show_activity_calendar=False)
+
+    assert dto.get_changes(user) == {}
+
+
+def test_article_patch_can_update_one_field():
+    article = SimpleNamespace(title="Existing article title")
+    dto = UpdateArticleDTO(title="Updated article title")
+
+    assert dto.get_changes(article) == {"title": "Updated article title"}
+
+
+def test_article_patch_omitted_fields_are_not_changes():
+    assert UpdateArticleDTO().get_changes() == {}
+
+
+def test_comment_patch_null_is_rejected():
+    with pytest.raises(ValueError):
+        UpdateArticleCommentDTO(text=None)
+
+
+def test_article_tag_patch_filters_unchanged_name():
+    tag = SimpleNamespace(name="Python")
+    dto = UpdateArticleTagDTO(name="Python")
+
+    assert dto.get_changes(tag) == {}
+
+
+def test_patch_values_are_not_escaped_by_default():
+    content = "content " * 1_000
+    dto = UpdateArticleDTO(title="A sufficiently long title", content=content)
+
+    changes = dto.get_changes()
+
+    assert changes["title"] == "A sufficiently long title"
+    assert changes["content"] == content

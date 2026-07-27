@@ -75,7 +75,7 @@
       })
     })
 
-    handleFormSubmit("#article-tag-form", "{{ url('update-article-tag', slug=article_tag.slug) if article_tag else '' }}", {
+    handleFormSubmit("#article-tag-form", {{ (url('update-article-tag', slug=article_tag.slug) if article_tag else '') | tojson }}, {
       method: "{{ 'PATCH' if article_tag else 'POST' }}",
       rules: {
         image_file: [

@@ -12,7 +12,7 @@
 
     {% if google_analytics_id %}
         <!-- Google tag (gtag.js) -->
-        <script async src="https://www.googletagmanager.com/gtag/js?id={{ google_analytics_id }}"></script>
+        <script async src="https://www.googletagmanager.com/gtag/js?id={{ google_analytics_id | urlencode }}"></script>
         <script>
           window.dataLayer = window.dataLayer || []
 
@@ -21,7 +21,7 @@
           }
 
           gtag("js", new Date())
-          gtag("config", "{{ google_analytics_id }}")
+          gtag("config", {{ google_analytics_id | tojson }})
         </script>
     {% endif %}
 
@@ -270,16 +270,16 @@
 <script>
   window.CONFIG = {
     current_user: {{ ({"id": cur_user.id} | tojson) if cur_user else "null" }},
-    update_article_status_url: "{{ url("update-article-status", article_id="{article_id}") }}",
-    update_article_impression_url: "{{ url("update-article-impression", article_id="{article_id}") }}",
-    update_user_status_url: "{{ url("update-user-status", user_id="{user_id}") }}",
-    update_user_impression_url: "{{ url("update-user-impression", user_id="{user_id}") }}",
-    create_article_tag_subscription_url: "{{ url("create-article-tag-subscription") }}",
-    delete_article_tag_subscription_url: "{{ url("delete-article-tag-subscription", article_tag_subscription_id="{article_tag_subscription_id}") }}",
+    update_article_status_url: {{ url("update-article-status", article_id="{article_id}") | tojson }},
+    update_article_impression_url: {{ url("update-article-impression", article_id="{article_id}") | tojson }},
+    update_user_status_url: {{ url("update-user-status", user_id="{user_id}") | tojson }},
+    update_user_impression_url: {{ url("update-user-impression", user_id="{user_id}") | tojson }},
+    create_article_tag_subscription_url: {{ url("create-article-tag-subscription") | tojson }},
+    delete_article_tag_subscription_url: {{ url("delete-article-tag-subscription", article_tag_subscription_id="{article_tag_subscription_id}") | tojson }},
     init_tinymce: {% if tinymce_api_key %}true{% else %}false{% endif %},
     css_filenames: {{ css_filenames | tojson | safe }},
-    static_relative_url: "{{ static_url("{filename}") }}",
-    upload_public_file_url: "{{ url("upload-public-file") }}"
+    static_relative_url: {{ static_url("{filename}") | tojson }},
+    upload_public_file_url: {{ url("upload-public-file") | tojson }}
   }
 </script>
 <script src="{{ static_url('scripts.js', _=js_cache_counter) }}"></script>

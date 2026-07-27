@@ -20,7 +20,7 @@ from typing import Callable, TypeVar, Any
 from urllib.parse import quote, urlencode, urlparse
 from zoneinfo import ZoneInfo
 
-from jinja2 import Environment, FileSystemLoader, pass_context
+from jinja2 import Environment, FileSystemLoader, pass_context, select_autoescape
 
 from article_dtos import (ArticleCommentDTO, ArticleCommentImpressionAction, ArticleDTO, ArticleImpressionAction,
                           UpdateArticleCommentDTO, UpdateArticleDTO,
@@ -199,15 +199,6 @@ class ContactMessage:
     message: str
     user_id: str | None
     created_at: int
-
-
-def sanitize_html(value):
-    if not value or not isinstance(value, str):
-        return value
-
-    import html
-    escaped = html.escape(value)
-    return escaped.strip()
 
 
 def sanitize_forbidden_html(value):
@@ -1059,7 +1050,7 @@ def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateAr
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
-    changes = update_article_tag_dto.changes()
+    changes = update_article_tag_dto.get_changes(article_tag)
     if not changes:
         return
 
@@ -1067,8 +1058,9 @@ def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateAr
 
     new_name = changes.pop("name", None)
     if new_name is not None:
-        new_name = sanitize_html(new_name).strip()
-        changes["name"] = new_name
+        new_name = new_name.strip()
+        if new_name != article_tag.name:
+            changes["name"] = new_name
 
     image_action = changes.pop("image_action", "keep")
 
@@ -1076,6 +1068,9 @@ def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateAr
         changes["image_filename"] = None
     elif image_action == "keep":
         changes.pop("image_filename", None)
+
+    if not changes:
+        return
 
     old_image = article_tag.image_filename
     old_slug = article_tag.slug
@@ -1278,15 +1273,15 @@ def jinja2_build_responsive_classes(
 
     classes: list[str] = []
 
-    for key, value in sizes.items():
-        if not isinstance(value, int):
+    for k, v in sizes.items():
+        if not isinstance(v, int):
             continue
 
-        prefix = prefixes.get(key)
+        prefix = prefixes.get(k)
         if prefix is None:
             continue
 
-        final_value = transform(value) if transform else value
+        final_value = transform(v) if transform else v
         classes.append(f"{prefix}{final_value}")
 
     return " ".join(classes)
@@ -1322,7 +1317,8 @@ def get_jinja2_env():
         loader=FileSystemLoader(templates_dir),
         trim_blocks=True,
         lstrip_blocks=True,
-        auto_reload=not is_prod()
+        auto_reload=not is_prod(),
+        autoescape=select_autoescape(("html", "htm", "xml"))
     )
     jinja2_env.filters.update({
         "unix_to_month_year": unix_to_month_year,
@@ -1660,7 +1656,7 @@ def upsert_user_by_user_token(token: UserTokenDTO, status: UserStatus = UserStat
     if user:
         add_dynamodb_user_update_transact(transacts, user, {"providers": providers})
     else:
-        name = sanitize_html(build_user_name(token.name, now))
+        name = build_user_name(token.name, now)
         user_item = {
             "id": user_id,
             "user_email_pk": token.email,
@@ -1671,7 +1667,7 @@ def upsert_user_by_user_token(token: UserTokenDTO, status: UserStatus = UserStat
             "created_at": now,
             "user_status_pk": f"USER#{status}",
         }
-        username = sanitize_html(build_user_username(token.name, token.username, now))
+        username = build_user_username(token.name, token.username, now)
         if username:
             user_item["username"] = username
             add_dynamodb_put_transact(transacts, (f"USER_SLUG#{username}", "META"), {"user_id": user_id},
@@ -1916,7 +1912,7 @@ def create_article(article_dto: ArticleDTO, cur_user: User) -> Article:
     now = utc_now()
     status = ArticleStatus.UNPUBLISHED
     article_id = str(uuid.uuid4())
-    title = sanitize_html(article_dto.title)
+    title = article_dto.title
     content = sanitize_forbidden_html(article_dto.content)
     preview = find_preview(content)
     image_filename = find_static_image_filename(content)
@@ -1978,32 +1974,28 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
-    changes = update_article_dto.changes()
+    changes = update_article_dto.get_changes(article)
     if not changes:
         return
 
+    if "content" in changes:
+        changes["content"] = sanitize_forbidden_html(changes["content"])
+    if "tags" in changes:
+        changes["tags"] = sanitize_tags(changes["tags"])
     old_status = article.status
     published_already = old_status == ArticleStatus.PUBLISHED
     should_set_status_to_unpublished = False
     now = utc_now()
 
-    for k, v in changes.items():
-        if k == "title":
-            changes[k] = sanitize_html(v)
-        elif k == "content":
-            changes[k] = sanitize_forbidden_html(v)
-        elif k == "tags":
-            changes[k] = sanitize_tags(v)
-
     transacts = []
 
     old_title = article.title
-    title = changes.get("title", old_title)
-    if title != old_title:
-        if published_already and get_text_diff_percentage(old_title, title) > 10:
+    if "title" in changes:
+        new_title = changes["title"]
+        if published_already and get_text_diff_percentage(old_title, new_title) > 10:
             should_set_status_to_unpublished = True
         old_slug = article.slug
-        slug = to_kebab_case(title)
+        slug = to_kebab_case(new_title)
         if old_slug != slug:
             changes["post_slug"] = slug
             # Create redirect item so old slug resolves
@@ -2018,53 +2010,55 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
                                       new_pk_only=True)
 
     old_content = article.content
-    content = changes.get("content", old_content)
-    if content != old_content:
-        if published_already and get_text_diff_percentage(old_content, content) > 10:
-            should_set_status_to_unpublished = True
-        changes["preview"] = find_preview(content)
-        changes["image_filename"] = find_static_image_filename(content)
+    if "content" in changes:
+        content = changes["content"]
+        if content != old_content:
+            if published_already and get_text_diff_percentage(old_content, content) > 10:
+                should_set_status_to_unpublished = True
+            changes["preview"] = find_preview(content)
+            changes["image_filename"] = find_static_image_filename(content)
 
     old_tags = sorted(article.tags)
-    tags = sorted(changes.get("tags", old_tags))
-    if tags != old_tags:
-        if published_already:
-            should_set_status_to_unpublished = True
+    if "tags" in changes:
+        tags = sorted(changes["tags"])
+        if tags != old_tags:
+            if published_already:
+                should_set_status_to_unpublished = True
 
-            # Decrease rating for old tags
-            removed_tags = set(old_tags) - set(tags)
-            for tag in removed_tags:
-                transacts.append({
-                    "Update": {
-                        "TableName": get_dynamodb_table_name(),
-                        "Key": {
-                            "pk": f"POST_TAG#{tag}",
-                            "sk": "META"
-                        },
-                        "UpdateExpression": (
-                            "SET rating_sk = rating_sk - :rating_sk_dec,"
-                            "    #posts_count = if_not_exists(#posts_count, :zero) - :dec,"
-                            "    updated_at = :now"
-                        ),
-                        "ExpressionAttributeNames": {
-                            "#posts_count": "posts_count",
-                        },
-                        "ExpressionAttributeValues": {
-                            ":rating_sk_dec": compute_rating_sk(1),
-                            ":dec": 1,
-                            ":now": now,
-                            ":zero": 0,
+                # Decrease rating for old tags
+                removed_tags = set(old_tags) - set(tags)
+                for tag in removed_tags:
+                    transacts.append({
+                        "Update": {
+                            "TableName": get_dynamodb_table_name(),
+                            "Key": {
+                                "pk": f"POST_TAG#{tag}",
+                                "sk": "META"
+                            },
+                            "UpdateExpression": (
+                                "SET rating_sk = rating_sk - :rating_sk_dec,"
+                                "    #posts_count = if_not_exists(#posts_count, :zero) - :dec,"
+                                "    updated_at = :now"
+                            ),
+                            "ExpressionAttributeNames": {
+                                "#posts_count": "posts_count",
+                            },
+                            "ExpressionAttributeValues": {
+                                ":rating_sk_dec": compute_rating_sk(1),
+                                ":dec": 1,
+                                ":now": now,
+                                ":zero": 0,
+                            }
                         }
-                    }
-                })
+                    })
 
-            # Remove old tag combos
-            from itertools import combinations
-            for r in range(1, len(old_tags) + 1):
-                for combo in combinations(sorted(old_tags), r):
-                    article_tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo),
-                                             f"POST#{article.created_at}#{article.id}")
-                    add_dynamodb_delete_transact(transacts, article_tag_combo_key)
+                # Remove old tag combos
+                from itertools import combinations
+                for r in range(1, len(old_tags) + 1):
+                    for combo in combinations(sorted(old_tags), r):
+                        article_tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo),
+                                                 f"POST#{article.created_at}#{article.id}")
+                        add_dynamodb_delete_transact(transacts, article_tag_combo_key)
 
     if published_already and should_set_status_to_unpublished:
         changes["status"] = ArticleStatus.UNPUBLISHED
@@ -2087,8 +2081,7 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
     add_dynamodb_article_update_transact(transacts, article, changes)
 
     if cur_user.id != article_owner.id:
-        add_dynamodb_user_update_transact(transacts, cur_user, deltas={
-        })
+        add_dynamodb_user_update_transact(transacts, cur_user)
 
     add_user_activity_transact(transacts, cur_user, "article.updated", "article", article.id, article.title,
                                f"/articles/{article.id}",
@@ -2216,8 +2209,7 @@ def create_article_comment(article: Article, article_comment_dto: ArticleComment
 
     if cur_user.id != article.owner_id:
         article_owner = get_user(article.owner_id)
-        add_dynamodb_user_update_transact(transacts, article_owner, deltas={
-        })
+        add_dynamodb_user_update_transact(transacts, article_owner)
 
     try:
         dynamodb_transact_write(transacts)
@@ -2240,13 +2232,9 @@ def update_article_comment(article: Article, article_comment: ArticleComment,
     if article_comment.likes_count != 0 or article_comment.dislikes_count != 0:
         raise ArticleCommentNonEditableError()
 
-    changes = update_article_comment_dto.changes()
+    changes = update_article_comment_dto.get_changes(article_comment)
     if not changes:
         return
-
-    for k, v in changes.items():
-        if k == "text":
-            changes[k] = sanitize_html(v)
 
     transacts = []
 
@@ -2255,19 +2243,17 @@ def update_article_comment(article: Article, article_comment: ArticleComment,
                                f"/articles/{article.id}#comment-{article_comment.id}",
                                article_comment.owner_id, utc_now())
 
-    add_dynamodb_user_update_transact(transacts, cur_user, deltas={
-    })
+    add_dynamodb_user_update_transact(transacts, cur_user)
 
     if cur_user.id != article.owner_id:
         article_owner = get_user(article.owner_id)
-        add_dynamodb_user_update_transact(transacts, article_owner, deltas={
-        })
+        add_dynamodb_user_update_transact(transacts, article_owner)
 
     dynamodb_transact_write(transacts)
 
-    for key, value in changes.items():
-        if hasattr(article_comment, key):
-            setattr(article_comment, key, value)
+    for k, v in changes.items():
+        if hasattr(article_comment, k):
+            setattr(article_comment, k, v)
 
 
 def find_article_comment(article_id: str, article_comment_id: str) -> ArticleComment | None:
@@ -2536,19 +2522,20 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
-    changes = update_user_dto.changes()
-    now = utc_now()
-
+    changes = update_user_dto.get_changes(user)
     if not changes:
         return
-    for k, v in changes.items():
-        changes[k] = sanitize_html(v)
 
-    if changes.get("website"):
-        changes["website"] = str(changes["website"]).rstrip("/")
+    now = utc_now()
+
+    if "website" in changes and changes["website"]:
+        website = str(changes["website"]).rstrip("/")
+        if website == user.website:
+            changes.pop("website")
+        else:
+            changes["website"] = website
 
     transacts = []
-
     avatar_action = changes.pop("avatar_action", "keep")
 
     if avatar_action == "delete":
@@ -2556,40 +2543,40 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
     elif avatar_action == "keep":
         changes.pop("avatar_filename", None)
 
-    old_avatar = user.avatar_filename
-    old_slug = user.username
+    if not changes:
+        return
 
-    if old_slug:
-        if "username" in changes:
-            slug = changes["username"]
-            if old_slug != slug:
-                # Create redirect item so old slug resolves
-                redirect_item = {
-                    "username": old_slug,
-                    "redirect_to": slug,
-                    "created_at": now
-                }
-                add_dynamodb_put_transact(transacts, (f"USER_REDIRECT#{old_slug}", "META"), redirect_item,
-                                          new_pk_only=True)
-                # Create new slug lock
-                add_dynamodb_put_transact(transacts, (f"USER_SLUG#{slug}", "META"), {"user_id": user.id},
-                                          new_pk_only=True)
-                articles = get_latest_published_articles_by_user(user)
-                for article in articles:
-                    add_dynamodb_article_update_transact(transacts, article, {"user_slug": slug})
-                # todo: update comments
-        else:
+    old_avatar = user.avatar_filename
+
+    if "username" in changes:
+        old_slug = user.username
+        slug = changes["username"]
+
+        if old_slug and slug:
+            redirect_item = {
+                "username": old_slug,
+                "redirect_to": slug,
+                "created_at": now
+            }
+            add_dynamodb_put_transact(transacts, (f"USER_REDIRECT#{old_slug}", "META"), redirect_item, new_pk_only=True)
+
+        if slug:
+            add_dynamodb_put_transact(transacts, (f"USER_SLUG#{slug}", "META"), {"user_id": user.id}, new_pk_only=True)
+        elif old_slug:
             add_dynamodb_delete_transact(transacts, (f"USER_SLUG#{old_slug}", "META"))
-            articles = get_latest_published_articles_by_user(user)
-            for article in articles:
-                add_dynamodb_article_update_transact(transacts, article, {"user_slug": None})
+
+        # Preserve the existing denormalized article slug synchronization.
+        # todo: do it for all articles
+        articles = get_latest_published_articles_by_user(user)
+        for article in articles:
+            add_dynamodb_article_update_transact(transacts, article, {"user_slug": slug})
 
     add_dynamodb_user_update_transact(transacts, user, changes, {})
     add_user_activity_transact(transacts, cur_user, "user.updated", "user", user.id, user.name, f"/users/{user.id}",
                                user.id, now)
 
     if user.id != cur_user.id:
-        add_dynamodb_user_update_transact(transacts, cur_user, deltas={})
+        add_dynamodb_user_update_transact(transacts, cur_user)
 
     try:
         dynamodb_transact_write(transacts)
@@ -2606,17 +2593,23 @@ def update_user_activity_settings(user: User, dto: UpdateUserActivitySettingsDTO
     verify_authorization(cur_user, Permission.UPDATE_USER, user)
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
-    update_dynamodb_item((f"USER#{user.id}", "META"), changes=dto.changes())
-    user.show_activity_calendar = dto.show_activity_calendar
-    user.show_recent_activity = dto.show_recent_activity
+    changes = dto.get_changes(user)
+    if not changes:
+        return
+    update_dynamodb_item((f"USER#{user.id}", "META"), changes=changes)
+    for k, v in changes.items():
+        setattr(user, k, v)
 
 
 def update_user_interests_settings(user: User, dto: UpdateUserInterestsSettingsDTO, cur_user: User) -> None:
     verify_authorization(cur_user, Permission.UPDATE_USER, user)
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
-    update_dynamodb_item((f"USER#{user.id}", "META"), changes=dto.changes())
-    user.show_interests = dto.show_interests
+    changes = dto.get_changes(user)
+    if not changes:
+        return
+    update_dynamodb_item((f"USER#{user.id}", "META"), changes=changes)
+    user.show_interests = changes["show_interests"]
 
 
 def update_user_status(user: User, update_user_status_dto: UpdateUserStatusDTO, cur_user: User, req) -> None:
@@ -2626,11 +2619,9 @@ def update_user_status(user: User, update_user_status_dto: UpdateUserStatusDTO, 
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
-    changes = update_user_status_dto.changes()
+    changes = update_user_status_dto.get_changes()
     if not changes:
         return
-    for k, v in changes.items():
-        changes[k] = sanitize_html(v)
     if not "comment" in changes:
         changes["comment"] = None
 
@@ -2639,12 +2630,10 @@ def update_user_status(user: User, update_user_status_dto: UpdateUserStatusDTO, 
 
     transacts = []
 
-    add_dynamodb_user_update_transact(transacts, cur_user, deltas={
-    })
+    add_dynamodb_user_update_transact(transacts, cur_user)
 
     if cur_user.id != user.id:
-        add_dynamodb_user_update_transact(transacts, user, changes, {
-        })
+        add_dynamodb_user_update_transact(transacts, user, changes, {})
 
     # logger.debug(transacts)
 
@@ -2975,11 +2964,9 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
     if article.status == ArticleStatus.PUBLISHED:
         raise ArticleAlreadyPublishedError()
 
-    changes = update_article_status_dto.changes()
+    changes = update_article_status_dto.get_changes()
     if not changes:
         return
-    for k, v in changes.items():
-        changes[k] = sanitize_html(v)
     if not "comment" in changes:
         changes["comment"] = None
 
@@ -3054,8 +3041,7 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
     add_dynamodb_article_update_transact(transacts, article, changes)
 
     if cur_user.id != article_owner.id:
-        add_dynamodb_user_update_transact(transacts, cur_user, deltas={
-        })
+        add_dynamodb_user_update_transact(transacts, cur_user)
 
     # logger.debug(transacts)
     add_user_activity_transact(transacts, cur_user, "article.updated", "article", article.id, article.title,
@@ -3164,8 +3150,8 @@ def create_contact_message(message_dto: ContactMessageDTO, user: User = None) ->
     now = utc_now()
     message_id = str(uuid.uuid4())
 
-    name = sanitize_html(message_dto.name)
-    message = sanitize_html(message_dto.message)
+    name = message_dto.name
+    message = message_dto.message
 
     if is_prod():
         text = (
@@ -3506,13 +3492,11 @@ def update_article_impression(article: Article, update_article_impression_dto: U
 
     add_dynamodb_article_update_transact(transacts, article, deltas=article_deltas)
 
-    add_dynamodb_user_update_transact(transacts, cur_user, deltas={
-    })
+    add_dynamodb_user_update_transact(transacts, cur_user)
 
     if cur_user.id != article.owner_id:
         article_owner = get_user(article.owner_id)
-        add_dynamodb_user_update_transact(transacts, article_owner, deltas={
-        })
+        add_dynamodb_user_update_transact(transacts, article_owner)
 
     logger.debug(transacts)
     dynamodb_transact_write(transacts)

@@ -330,7 +330,7 @@
                 interestsCheckbox.disabled = true
                 interestsCheckbox.classList.add("opacity-50")
                 try {
-                  const response = await fetch("{{ url('update-user-interests-settings', user_id=user.id) }}", {
+                  const response = await fetch({{ url('update-user-interests-settings', user_id=user.id) | tojson }}, {
                     method: "PATCH",
                     headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({show_interests: interestsCheckbox.checked})
@@ -354,7 +354,7 @@
               const calendar = document.getElementById("activity-calendar-svg")
               if (calendar) calendar.style.display = checkbox.checked ? "" : "none"
               try {
-                const response = await fetch("{{ url('update-user-activity-settings', user_id=user.id) }}", {
+                const response = await fetch({{ url('update-user-activity-settings', user_id=user.id) | tojson }}, {
                   method: "PATCH",
                   headers: {"Content-Type": "application/json"},
                   body: JSON.stringify({
@@ -378,7 +378,7 @@
                 interestsCheckbox.disabled = true
                 interestsCheckbox.classList.add("opacity-50")
                 try {
-                  const response = await fetch("{{ url('update-user-interests-settings', user_id=user.id) }}", {
+                  const response = await fetch({{ url('update-user-interests-settings', user_id=user.id) | tojson }}, {
                     method: "PATCH",
                     headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({show_interests: interestsCheckbox.checked})

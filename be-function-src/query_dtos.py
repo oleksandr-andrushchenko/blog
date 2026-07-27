@@ -26,7 +26,7 @@ class BaseQueryDTO:
     def get_dict(self, rewrite=None):
         result = asdict(self)
         result.update(rewrite or {})
-        return {key: value.value if isinstance(value, StrEnum) else value for key, value in result.items()}
+        return {k: v.value if isinstance(v, StrEnum) else v for k, v in result.items()}
 
     def has_params(self):
         return self.offset is not None or self.limit != self.DEFAULT_LIMIT

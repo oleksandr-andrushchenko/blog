@@ -1,9 +1,11 @@
 import json
 from dataclasses import dataclass
 
+from basic_dtos import BaseDTO
+
 
 @dataclass(slots=True)
-class ArticleTagSubscriptionDTO:
+class ArticleTagSubscriptionDTO(BaseDTO):
     tags: list[str]
 
     def __post_init__(self):

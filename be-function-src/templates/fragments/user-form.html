@@ -183,7 +183,7 @@
       })
     })
 
-    handleFormSubmit("#user-form", "{{ url('update-user', user_id=user.id) if user else '' }}", {
+    handleFormSubmit("#user-form", {{ (url('update-user', user_id=user.id) if user else '') | tojson }}, {
       method: "{{ 'PATCH' if user else 'POST' }}",
       rules: {
         avatar_file: [
