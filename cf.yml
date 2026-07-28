@@ -524,6 +524,18 @@ Resources:
         CookiesConfig:
           CookieBehavior: none
 
+  StaticResponseHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub "${AWS::StackName}-static-cache-headers"
+        Comment: One-month browser caching for static assets
+        CustomHeadersConfig:
+          Items:
+            - Header: Cache-Control
+              Value: public, max-age=2592000, immutable # 1 month
+              Override: true
+
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
     Properties:
@@ -554,6 +566,7 @@ Resources:
             CachedMethods: [ GET, HEAD ]
             CachePolicyId: !Ref S3CachePolicy
             OriginRequestPolicyId: !Ref S3OriginRequestPolicy
+            ResponseHeadersPolicyId: !Ref StaticResponseHeadersPolicy
           - PathPattern: "/api/*"
             TargetOriginId: apiOrigin
             ViewerProtocolPolicy: redirect-to-https
