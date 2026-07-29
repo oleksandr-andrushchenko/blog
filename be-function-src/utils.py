@@ -5,6 +5,7 @@ import datetime
 import json
 import logging
 import math
+import mimetypes
 import os
 import re
 import sys
@@ -1547,7 +1548,16 @@ def save_public_file(file_dto: FileDTO, filename: str = None) -> str:
     stream = BytesIO(file_dto.content)
     stream.seek(0)
 
-    get_s3_client().upload_fileobj(stream, get_static_s3_bucket(), filename)
+    content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    get_s3_client().upload_fileobj(
+        stream,
+        get_static_s3_bucket(),
+        filename,
+        ExtraArgs={
+            "ContentType": content_type,
+            "ContentDisposition": "inline",
+        },
+    )
     return filename
 
 
