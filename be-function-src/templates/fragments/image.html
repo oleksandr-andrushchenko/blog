@@ -7,6 +7,15 @@
     {% set height = height | default(None) %}
     {% set loading = loading | default("lazy") %}
     {% set decoding = decoding | default("async") %}
+    {% set img_sizes = img_sizes | default({"default": "100vw"}) %}
+    {% set img_sizes_value = namespace(parts=[]) %}
+    {% for breakpoint, size in img_sizes.items() if breakpoint != "default" %}
+        {% set img_sizes_value.parts = img_sizes_value.parts + ["(min-width: " ~ breakpoint ~ ") " ~ size] %}
+    {% endfor %}
+    {% if img_sizes.default is defined %}
+        {% set img_sizes_value.parts = img_sizes_value.parts + [img_sizes.default] %}
+    {% endif %}
+    {% set img_sizes = img_sizes_value.parts | join(", ") %}
 
     {% if (not width or not height) and '_' in filename and 'x' in filename %}
         {% set size_part = filename.rsplit('_', 1)[1].split('.', 1)[0] %}
@@ -19,8 +28,33 @@
         {% endif %}
     {% endif %}
 
+    {% set responsive = responsive | default(True) %}
+    {% set source_width = width | int if width else None %}
+    {% set source_height = height | int if height else None %}
+    {% if not source_width or not source_height %}
+        {% set source_size = filename.rsplit('_', 1)[1].split('.', 1)[0] if '_' in filename else '' %}
+        {% if 'x' in source_size %}
+            {% set source_width = source_width or source_size.split('x')[0] | int %}
+            {% set source_height = source_height or source_size.split('x')[1] | int %}
+        {% endif %}
+    {% endif %}
+    {% set srcset = namespace(value=[]) %}
+    {% if responsive and source_width and source_height and '_' in filename and '.' in filename and filename.rsplit('.', 1)[1] in ['png', 'jpg', 'jpeg'] %}
+        {% set source_base = filename.rsplit('_', 1)[0] %}
+        {% set source_extension = filename.rsplit('.', 1)[1] %}
+        {% for candidate_width in [160, 320, 640, 1024] %}
+            {% if candidate_width < source_width %}
+                {% set candidate_height = (candidate_width * source_height / source_width) | round(0) | int %}
+                {% set candidate_filename = source_base ~ '_' ~ candidate_width ~ 'x' ~ candidate_height ~ '.' ~ source_extension %}
+                {% set srcset.value = srcset.value + [static_url(candidate_filename) ~ ' ' ~ candidate_width ~ 'w'] %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
     {% macro image_tag() %}
-        <img src="{{ static_url(filename) }}" alt="{{ alt or '' }}" class="{{ img_class }}"{% if img_style %}
+        <img src="{{ static_url(filename) }}"{% if srcset.value %} srcset="{{ srcset.value | join(', ') }}" sizes="{{ img_sizes }}"{% endif %}
+             alt="{{ alt or '' }}" class="{{ img_class }}"{% if srcset.value %}
+             onerror="this.onerror=null; this.removeAttribute('srcset'); this.removeAttribute('sizes'); this.src='{{ static_url(filename) }}';"{% endif %}{% if img_style %}
              style="{{ img_style }}"{% endif %}{% if width %} width="{{ width }}"{% endif %}{% if height %}
              height="{{ height }}"{% endif %}{% if loading %} loading="{{ loading }}"{% endif %}{% if decoding %}
              decoding="{{ decoding }}"{% endif %}>

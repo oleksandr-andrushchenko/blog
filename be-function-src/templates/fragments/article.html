@@ -7,6 +7,7 @@
 {% set image_order_size = image_order_size | default({"def":12}) if image else 0 %}
 {% set border = border | default(True) %}
 {% set article_user = article.get_user() %}
+{% set article_img_sizes = article_img_sizes | default({"768px": "25vw", "default": "100vw"}) %}
 
 <div class="article row g-3 {% if border %}pb-3 border-bottom{% endif %}"
      {% if article.offset %}data-offset="{{ article.offset }}"{% endif %}>
@@ -15,7 +16,8 @@
             <a href="{{ article_url(article) }}">
                 {% with filename=article.image_filename,
                     alt=article.title,
-                    img_class="img-thumbnail" %}
+                    img_class="img-thumbnail",
+                    img_sizes=article_img_sizes %}
                     {% include "fragments/image.html" %}
                 {% endwith %}
             </a>

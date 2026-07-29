@@ -108,14 +108,18 @@
     <div class="row g-5">
         <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-4">
             {% if article_tag and article_tag.image_filename %}
-                {% with filename=article_tag.image_filename, alt=title, figure=True %}
+                {% with filename=article_tag.image_filename,
+                    alt=title,
+                    figure=True,
+                    img_sizes={"1200px": "760px", "992px": "480px", "default": "100vw"} %}
                     {% include "fragments/image.html" %}
                 {% endwith %}
             {% endif %}
 
             {% if articles %}
                 <section id="articles" class="d-flex flex-column gap-3">
-                    {% with h_tag_size=2 %}
+                    {% with h_tag_size=2,
+                        article_img_sizes={"1400px": "196px", "1200px": "166px", "992px": "96px", "768px": "156px", "default": "100vw"} %}
                         {% include "fragments/articles.html" %}
                     {% endwith %}
                 </section>

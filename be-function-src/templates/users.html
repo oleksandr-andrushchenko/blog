@@ -71,7 +71,8 @@
         <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-4">
             {% if users %}
                 <div class="row g-3" id="users">
-                    {% with image_column_size={"def":3,"md":2} %}
+                    {% with image_column_size={"def":3,"md":2},
+                        user_avatar_img_sizes={"1200px": "127px", "992px": "80px", "768px": "120px", "default": "25vw"} %}
                         {% include "fragments/users.html" %}
                     {% endwith %}
                 </div>

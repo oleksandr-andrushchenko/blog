@@ -4,6 +4,7 @@
 {% set h_display_size = h_display_size | default(3) %}
 {% set image_column_size = image_column_size | default({"def":2,"sm":1}) if image else 0 %}
 {% set border = border | default(True) %}
+{% set user_avatar_img_sizes = user_avatar_img_sizes | default({"default": "120px"}) %}
 
 <div class="user row g-3 {% if border %}pb-3 border-bottom{% endif %}"
      {% if user.offset %}data-offset="{{ user.offset }}"{% endif %}>

@@ -41,6 +41,7 @@
                                         {% with filename=tag.image_filename,
                                             alt=tag.name,
                                             img_class="w-100 h-100 object-fit-cover img-thumbnail",
+                                            img_sizes={"1400px": "196px", "1200px": "166px", "992px": "96px", "768px": "156px", "default": "100vw"},
                                             figure=False %}
                                             {% include "fragments/image.html" %}
                                         {% endwith %}
@@ -67,7 +68,8 @@
                 </h2>
                 {% if latest_articles %}
                     <div id="articles" class="d-flex flex-column gap-3">
-                        {% with articles=latest_articles %}
+                        {% with articles=latest_articles,
+                            article_img_sizes={"1400px": "196px", "1200px": "166px", "992px": "96px", "768px": "156px", "default": "100vw"} %}
                             {% include "fragments/articles.html" %}
                         {% endwith %}
                     </div>
@@ -111,7 +113,8 @@
                                 preview=False,
                                 border=False,
                                 vert_gap=0,
-                                h_display_size=6 %}
+                                h_display_size=6,
+                                article_img_sizes={"1400px": "86px", "1200px": "71px", "992px": "96px", "768px": "156px", "default": "100vw"} %}
                                 {% include "fragments/articles.html" %}
                             {% endwith %}
 
@@ -213,7 +216,8 @@
                             vert_gap=0,
                             h_tag_size=3,
                             h_display_size=6,
-                            image_column_size={"def":3,"md":2} %}
+                            image_column_size={"def":3,"md":2},
+                            user_avatar_img_sizes={"1400px": "49px", "1200px": "40px", "992px": "56px", "768px": "96px", "default": "120px"} %}
                             {% include "fragments/users.html" %}
                         {% endwith %}
 

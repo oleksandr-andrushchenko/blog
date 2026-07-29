@@ -187,7 +187,8 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 			CssCacheCounter="$(CSS_CACHE_COUNTER)" \
 			JsCacheCounter="$(JS_CACHE_COUNTER)" \
 			AuthJwtSecret="$(AUTH_JWT_SECRET)" \
-			BeFuncS3Key="be-function-${LAMBDA_CODE_TIMESTAMP}.zip" \
+			BeFuncS3Key="be-function-$$(sed -n 's/^LAMBDA_CODE_TIMESTAMP=//p' .env).zip" \
+			ImageVariantsFuncS3Key="image-variants-function-$$(sed -n 's/^LAMBDA_CODE_TIMESTAMP=//p' .env).zip" \
 		--tags \
 			Project="$(AWS_PROJECT)" \
 			Owner="$(AWS_OWNER)" \
@@ -314,6 +315,10 @@ generate-code-files: ## Build Lambda zip for be-function
 	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) \
 		python3 /app/scripts-src/generate_code_build.py
 
+	# Build the S3 image-variant Lambda with its own Pillow dependency bundle
+	$(DC) exec $(SCRIPTS_CONTAINER) \
+		python3 /app/scripts-src/generate_image_variants_build.py
+
 	# Rename zip with timestamp and update .env
 	@TIMESTAMP=$$(date +%Y%m%d%H%M%S); \
 	for f in $(CODE_BUILD_DIR)/*.zip; do \
@@ -405,7 +410,7 @@ recreate-local-dynamodb: drop-local-dynamodb create-local-dynamodb create-local-
 
 .PHONY: tests
 tests:
-	$(DC) exec $(SCRIPTS_CONTAINER) python3 -m pytest -o log_cli_level=INFO -o log_cli=true -v scripts-src/test_be.py -v -s
+	$(DC) exec $(SCRIPTS_CONTAINER) python3 -m pytest -o log_cli_level=INFO -o log_cli=true -v scripts-src/test_be.py scripts-src/test_image_variants_lambda.py -v -s
 
 .PHONY: tail-test-logs
 tail-test-logs: ## Tail test logs

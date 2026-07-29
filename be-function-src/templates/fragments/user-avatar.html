@@ -5,7 +5,8 @@
         {% with filename=user.avatar_filename,
             alt=name,
             img_class="rounded-circle img-fluid d-block",
-            img_style="width:100%; height:100%; object-fit:cover;" %}
+            img_style="width:100%; height:100%; object-fit:cover;",
+            img_sizes=user_avatar_img_sizes | default({"default": "120px"}) %}
             {% include "fragments/image.html" %}
         {% endwith %}
     {% else %}

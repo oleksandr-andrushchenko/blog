@@ -269,7 +269,9 @@
 
                 {% if articles %}
                     <div id="articles" class="d-flex flex-column gap-3">
-                        {% include "fragments/articles.html" %}
+                        {% with article_img_sizes={"1400px": "196px", "1200px": "166px", "992px": "96px", "768px": "156px", "default": "100vw"} %}
+                            {% include "fragments/articles.html" %}
+                        {% endwith %}
                     </div>
 
                     {% with limit=article_query.limit,

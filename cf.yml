@@ -67,12 +67,18 @@ Parameters:
   BeFuncS3Key:
     Type: String
     Description: S3 key of the backend function zip file
+  ImageVariantsFuncS3Key:
+    Type: String
+    Description: S3 key of the image variants function zip file
 
 Resources:
   SiteBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub "${AWS::StackName}-site"
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -328,6 +334,104 @@ Resources:
           Value: !Ref Owner
         - Key: Region
           Value: !Ref AWS::Region
+
+  ImageVariantsFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-${Stage}-image-variants"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ImageVariantsS3Policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub "arn:aws:s3:::${SiteBucket}/*"
+        - PolicyName: ImageVariantsLoggingPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+      Tags:
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Region
+          Value: !Ref AWS::Region
+
+  ImageVariantsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-${Stage}-image-variants"
+      Description: Generate responsive image variants after S3 uploads
+      Role: !GetAtt ImageVariantsFunctionRole.Arn
+      Handler: handler.handler
+      Runtime: python3.12
+      Timeout: 60
+      MemorySize: 1024
+      Environment:
+        Variables:
+          STATIC_S3_BUCKET: !Ref SiteBucket
+      Code:
+        S3Bucket: !Sub "${AWS::StackName}-code"
+        S3Key: !Ref ImageVariantsFuncS3Key
+      Tags:
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Region
+          Value: !Ref AWS::Region
+
+  ImageVariantsEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "${AWS::StackName}-${Stage}-image-variants"
+      State: ENABLED
+      EventPattern:
+        source:
+          - aws.s3
+        detail-type:
+          - Object Created
+        detail:
+          bucket:
+            name:
+              - !Ref SiteBucket
+          object:
+            key:
+              - suffix: .png
+              - suffix: .jpg
+              - suffix: .jpeg
+      Targets:
+        - Id: ImageVariantsFunction
+          Arn: !GetAtt ImageVariantsFunction.Arn
+
+  ImageVariantsEventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ImageVariantsFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt ImageVariantsEventRule.Arn
 
   BackendFunction:
     Type: AWS::Lambda::Function
