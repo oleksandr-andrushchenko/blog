@@ -17,6 +17,13 @@ subprocess.run([
     "-t", str(tmp_dir),
 ], check=True)
 shutil.copy2(source_dir / "handler.py", tmp_dir / "handler.py")
+
+for path in tmp_dir.rglob("*"):
+    if path.is_dir() and path.name == "__pycache__":
+        shutil.rmtree(path)
+    elif path.is_file() and path.suffix in {".pyc", ".pyo"}:
+        path.unlink()
+
 subprocess.run(["zip", "-r", "-9", str(zip_file), "."], cwd=tmp_dir, check=True)
 shutil.rmtree(tmp_dir)
 print(f"Created {zip_file}")

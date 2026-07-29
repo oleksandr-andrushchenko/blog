@@ -13,6 +13,25 @@ TARGET_WIDTHS = (160, 320, 640, 1024)
 s3 = boto3.client("s3")
 
 
+def _webp_bytes(image):
+    output = io.BytesIO()
+    if image.mode not in {"RGB", "RGBA", "L"}:
+        image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
+    image.save(output, format="WEBP", quality=82, method=6)
+    return output.getvalue()
+
+
+def _put_object(bucket, key, body, content_type, created):
+    s3.put_object(
+        Bucket=bucket,
+        Key=key,
+        Body=body,
+        ContentType=content_type,
+        Metadata={"responsive-variant": "true"},
+    )
+    created.append(key)
+
+
 def handler(event, context):
     created = []
     records = event.get("Records")
@@ -36,35 +55,21 @@ def handler(event, context):
 
         source_width = int(match.group("width"))
         source_height = int(match.group("height"))
-        extension = match.group("extension")
         source = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
         directory = key.rsplit("/", 1)[0] + "/" if "/" in key else ""
+        base = match.group("base")
 
         with Image.open(io.BytesIO(source)) as image:
             for target_width in TARGET_WIDTHS:
                 if target_width >= source_width:
                     continue
                 target_height = round(target_width * source_height / source_width)
-                variant = (
-                    f"{directory}{match.group('base')}_{target_width}x{target_height}.{extension}"
-                )
                 resized = image.copy()
                 resized.thumbnail((target_width, target_height), Image.Resampling.LANCZOS)
-                output = io.BytesIO()
-                save_format = "JPEG" if extension in {"jpg", "jpeg"} else "PNG"
-                save_kwargs = {"optimize": True}
-                if save_format == "JPEG":
-                    if resized.mode not in {"RGB", "L"}:
-                        resized = resized.convert("RGB")
-                    save_kwargs["quality"] = 82
-                resized.save(output, format=save_format, **save_kwargs)
-                s3.put_object(
-                    Bucket=bucket,
-                    Key=variant,
-                    Body=output.getvalue(),
-                    ContentType="image/jpeg" if save_format == "JPEG" else "image/png",
-                    Metadata={"responsive-variant": "true"},
-                )
-                created.append(variant)
+                webp_key = f"{directory}{base}_{target_width}x{target_height}.webp"
+                _put_object(bucket, webp_key, _webp_bytes(resized), "image/webp", created)
+
+            original_webp_key = f"{directory}{base}_{source_width}x{source_height}.webp"
+            _put_object(bucket, original_webp_key, _webp_bytes(image), "image/webp", created)
 
     return {"created": created}

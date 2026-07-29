@@ -38,26 +38,30 @@
             {% set source_height = source_height or source_size.split('x')[1] | int %}
         {% endif %}
     {% endif %}
-    {% set srcset = namespace(value=[]) %}
+    {% set webp_srcset = namespace(value=[]) %}
     {% if responsive and source_width and source_height and '_' in filename and '.' in filename and filename.rsplit('.', 1)[1] in ['png', 'jpg', 'jpeg'] %}
         {% set source_base = filename.rsplit('_', 1)[0] %}
-        {% set source_extension = filename.rsplit('.', 1)[1] %}
         {% for candidate_width in [160, 320, 640, 1024] %}
             {% if candidate_width < source_width %}
                 {% set candidate_height = (candidate_width * source_height / source_width) | round(0) | int %}
-                {% set candidate_filename = source_base ~ '_' ~ candidate_width ~ 'x' ~ candidate_height ~ '.' ~ source_extension %}
-                {% set srcset.value = srcset.value + [static_url(candidate_filename) ~ ' ' ~ candidate_width ~ 'w'] %}
+                {% set webp_filename = source_base ~ '_' ~ candidate_width ~ 'x' ~ candidate_height ~ '.webp' %}
+                {% set webp_srcset.value = webp_srcset.value + [static_url(webp_filename) ~ ' ' ~ candidate_width ~ 'w'] %}
             {% endif %}
         {% endfor %}
+        {% set original_webp = source_base ~ '_' ~ source_width ~ 'x' ~ source_height ~ '.webp' %}
+        {% set webp_srcset.value = webp_srcset.value + [static_url(original_webp) ~ ' ' ~ source_width ~ 'w'] %}
     {% endif %}
 
     {% macro image_tag() %}
-        <img src="{{ static_url(filename) }}"{% if srcset.value %} srcset="{{ srcset.value | join(', ') }}" sizes="{{ img_sizes }}"{% endif %}
-             alt="{{ alt or '' }}" class="{{ img_class }}"{% if srcset.value %}
-             onerror="this.onerror=null; this.removeAttribute('srcset'); this.removeAttribute('sizes'); this.src='{{ static_url(filename) }}';"{% endif %}{% if img_style %}
+        <picture>
+        {% if webp_srcset.value %}<source type="image/webp" srcset="{{ webp_srcset.value | join(', ') }}" sizes="{{ img_sizes }}">{% endif %}
+        <img src="{{ static_url(filename) }}"
+             alt="{{ alt or '' }}" class="{{ img_class }}"{% if webp_srcset.value %}
+             onerror="this.onerror=null; var source=this.parentElement.querySelector('source[type=\'image/webp\']'); if(source) source.remove(); this.removeAttribute('srcset'); this.removeAttribute('sizes'); this.src='{{ static_url(filename) }}';"{% endif %}{% if img_style %}
              style="{{ img_style }}"{% endif %}{% if width %} width="{{ width }}"{% endif %}{% if height %}
              height="{{ height }}"{% endif %}{% if loading %} loading="{{ loading }}"{% endif %}{% if decoding %}
              decoding="{{ decoding }}"{% endif %}>
+        </picture>
     {% endmacro %}
 
     {% if figure %}

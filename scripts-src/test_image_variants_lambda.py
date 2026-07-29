@@ -81,20 +81,22 @@ def test_creates_responsive_variants_with_preserved_aspect_ratio(fake_s3):
     result = image_variants_handler.handler(event_for(source), None)
 
     assert result["created"] == [
-        "image_160x112.png",
-        "image_320x223.png",
-        "image_640x446.png",
-        "image_1024x714.png",
+        "image_160x112.webp", "image_320x223.webp",
+        "image_640x446.webp", "image_1024x714.webp",
+        "image_1125x784.webp",
     ]
     for filename, expected_size in (
-        ("image_160x112.png", (160, 112)),
-        ("image_320x223.png", (320, 223)),
-        ("image_640x446.png", (640, 446)),
-        ("image_1024x714.png", (1024, 714)),
+        ("image_160x112.webp", (160, 112)),
+        ("image_320x223.webp", (320, 223)),
+        ("image_640x446.webp", (640, 446)),
+        ("image_1024x714.webp", (1024, 714)),
+        ("image_1125x784.webp", (1125, 784)),
     ):
         with Image.open(io.BytesIO(fake_s3.objects[filename]["body"])) as image:
             assert image.size == expected_size
         assert fake_s3.objects[filename]["metadata"] == {"responsive-variant": "true"}
+        if filename.endswith(".webp"):
+            assert fake_s3.objects[filename]["content_type"] == "image/webp"
 
 
 def test_creates_only_a_small_variant_for_small_sources(fake_s3):
@@ -103,8 +105,10 @@ def test_creates_only_a_small_variant_for_small_sources(fake_s3):
 
     result = image_variants_handler.handler(event_for(source), None)
 
-    assert result == {"created": ["small_160x103.png"]}
-    assert fake_s3.put_calls == ["small_160x103.png"]
+    assert result == {"created": [
+        "small_160x103.webp", "small_280x180.webp",
+    ]}
+    assert fake_s3.put_calls == result["created"]
 
 
 def test_retry_regenerates_the_same_deterministic_variants(fake_s3):
@@ -114,12 +118,15 @@ def test_retry_regenerates_the_same_deterministic_variants(fake_s3):
     first = image_variants_handler.handler(event_for(source), None)
     second = image_variants_handler.handler(event_for(source), None)
 
-    assert first["created"] == ["image_160x120.png", "image_320x240.png", "image_640x480.png"]
-    assert second["created"] == ["image_160x120.png", "image_320x240.png", "image_640x480.png"]
-    assert fake_s3.put_calls == [
-        "image_160x120.png", "image_320x240.png", "image_640x480.png",
-        "image_160x120.png", "image_320x240.png", "image_640x480.png",
+    expected = [
+        "image_160x120.webp",
+        "image_320x240.webp",
+        "image_640x480.webp",
+        "image_800x600.webp",
     ]
+    assert first["created"] == expected
+    assert second["created"] == expected
+    assert fake_s3.put_calls == expected + expected
 
 
 def test_ignores_events_for_generated_variants(fake_s3):
