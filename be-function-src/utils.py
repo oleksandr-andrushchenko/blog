@@ -1087,8 +1087,8 @@ def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateAr
 
     old_image = article_tag.image_filename
     old_slug = article_tag.slug
-    new_slug = to_kebab_case(changes["name"]) if "name" in changes else old_slug
-    slug_changed = new_slug != old_slug
+    slug = to_kebab_case(changes["name"]) if "name" in changes else old_slug
+    slug_changed = slug != old_slug
     transacts = []
 
     if slug_changed:
@@ -1098,30 +1098,30 @@ def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateAr
 
         new_item = {k: v for k, v in old_item.items() if k not in {"pk", "sk"}}
         new_item.update(changes)
-        new_item["tag_name_sk"] = new_slug
+        new_item["tag_name_sk"] = slug
         new_item["updated_at"] = now
 
         redirect_item = {
             "tag_name_sk": old_slug,
-            "redirect_to": new_slug,
+            "redirect_to": slug,
             "created_at": now,
         }
         add_dynamodb_put_transact(transacts, (f"POST_TAG_REDIRECT#{old_slug}", "META"), redirect_item, new_pk_only=True)
-        add_dynamodb_put_transact(transacts, (f"POST_TAG#{new_slug}", "META"), new_item, new_pk_only=True)
+        add_dynamodb_put_transact(transacts, (f"POST_TAG#{slug}", "META"), new_item, new_pk_only=True)
         add_dynamodb_delete_transact(transacts, (f"POST_TAG#{old_slug}", "META"))
 
         for article in get_latest_articles_by_tags(ArticleQueryDTO(tags=[old_slug], limit=1000)):
             old_tags = list(article.tags)
-            new_tags = list(dict.fromkeys(new_slug if tag == old_slug else tag for tag in old_tags))
+            tags = list(dict.fromkeys(slug if tag == old_slug else tag for tag in old_tags))
 
             add_delete_article_tag_combos_transact(transacts, article, old_slug)
-            add_dynamodb_article_update_transact(transacts, article, {"tags": new_tags})
-            add_put_article_combos_transact(transacts, article, new_slug)
+            add_dynamodb_article_update_transact(transacts, article, {"tags": tags})
+            add_put_article_tag_combos_transact(transacts, article, slug)
     else:
         add_dynamodb_article_tag_update_transact(transacts, article_tag, changes)
 
     add_user_activity_transact(transacts, cur_user, "article_tag.updated", "article_tag",
-                               new_slug, changes.get("name", article_tag.name), f"/article-tags/{new_slug}",
+                               slug, changes.get("name", article_tag.name), f"/article-tags/{slug}",
                                cur_user.id, now)
     try:
         dynamodb_transact_write(transacts)
@@ -1133,7 +1133,7 @@ def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateAr
     if "name" in changes:
         article_tag.name = changes["name"]
     if slug_changed:
-        article_tag.slug = new_slug
+        article_tag.slug = slug
     if "image_filename" in changes:
         article_tag.image_filename = changes["image_filename"]
 
@@ -1977,7 +1977,7 @@ def get_text_diff_percentage(t1, t2) -> int:
     return int(change_percentage)
 
 
-def add_put_article_combos_transact(transacts: list, article: Article, slug: str | None = None) -> None:
+def add_put_article_tag_combos_transact(transacts: list, article: Article, slug: str | None = None) -> None:
     from itertools import combinations
     for r in range(1, len(article.tags) + 1):
         for combo in combinations(sorted(article.tags), r):
@@ -1997,6 +1997,74 @@ def add_delete_article_tag_combos_transact(transacts: list, article: Article, sl
                 add_dynamodb_delete_transact(transacts, article_tag_combo_key)
 
 
+def add_increase_article_tags_rating_transact(transacts: list, tags: list, now):
+    for tag in tags:
+        transacts.append({
+            "Update": {
+                "TableName": get_dynamodb_table_name(),
+                "Key": {
+                    "pk": f"POST_TAG#{tag}",
+                    "sk": "META"
+                },
+                "UpdateExpression": (
+                    "SET #new_tag_name_sk = if_not_exists(#new_tag_name_sk, :tag_name_sk), "
+                    "    #new_name = if_not_exists(#new_name, :name), "
+                    "    #new_tag_type_pk = if_not_exists(#new_tag_type_pk, :tag_type_pk), "
+                    "    #new_rating_sk = if_not_exists(#new_rating_sk, :def_rating_sk) + :rating_sk_inc, "
+                    "    #posts_count = if_not_exists(#posts_count, :zero) + :inc, "
+                    "    #new_created_at = if_not_exists(#new_created_at, :now), "
+                    "    #new_updated_at = :now "
+                ),
+                "ExpressionAttributeNames": {
+                    "#new_tag_name_sk": "tag_name_sk",
+                    "#new_name": "name",
+                    "#new_tag_type_pk": "tag_type_pk",
+                    "#new_rating_sk": "rating_sk",
+                    "#posts_count": "posts_count",
+                    "#new_created_at": "created_at",
+                    "#new_updated_at": "updated_at",
+                },
+                "ExpressionAttributeValues": {
+                    ":tag_name_sk": tag,
+                    ":name": tag,
+                    ":tag_type_pk": "POST_TAG",
+                    ":now": now,
+                    ":def_rating_sk": compute_rating_sk(0, now),
+                    ":rating_sk_inc": compute_rating_sk(1),
+                    ":zero": 0,
+                    ":inc": 1,
+                }
+            }
+        })
+
+
+def add_decrease_article_tags_rating_transact(transacts: list, tags: list, now):
+    for tag in tags:
+        transacts.append({
+            "Update": {
+                "TableName": get_dynamodb_table_name(),
+                "Key": {
+                    "pk": f"POST_TAG#{tag}",
+                    "sk": "META"
+                },
+                "UpdateExpression": (
+                    "SET rating_sk = rating_sk - :rating_sk_dec,"
+                    "    #posts_count = if_not_exists(#posts_count, :zero) - :dec,"
+                    "    updated_at = :now"
+                ),
+                "ExpressionAttributeNames": {
+                    "#posts_count": "posts_count",
+                },
+                "ExpressionAttributeValues": {
+                    ":rating_sk_dec": compute_rating_sk(1),
+                    ":dec": 1,
+                    ":now": now,
+                    ":zero": 0,
+                }
+            }
+        })
+
+
 def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_user: User, req) -> None:
     verify_authorization(cur_user, Permission.UPDATE_ARTICLE, article)
 
@@ -2013,7 +2081,6 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
         changes["tags"] = sanitize_tags(changes["tags"])
     old_status = article.status
     published_already = old_status == ArticleStatus.PUBLISHED
-    should_set_status_to_unpublished = False
     now = utc_now()
 
     transacts = []
@@ -2022,7 +2089,7 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
     if "title" in changes:
         new_title = changes["title"]
         if published_already and get_text_diff_percentage(old_title, new_title) > 10:
-            should_set_status_to_unpublished = True
+            changes["status"] = ArticleStatus.UNPUBLISHED
         old_slug = article.slug
         slug = to_kebab_case(new_title)
         if old_slug != slug:
@@ -2041,50 +2108,24 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
     old_content = article.content
     if "content" in changes:
         content = changes["content"]
-        if content != old_content:
-            if published_already and get_text_diff_percentage(old_content, content) > 10:
-                should_set_status_to_unpublished = True
-            changes["preview"] = find_preview(content)
-            changes["image_filename"] = find_static_image_filename(content)
+        if published_already and get_text_diff_percentage(old_content, content) > 10:
+            changes["status"] = ArticleStatus.UNPUBLISHED
+        changes["preview"] = find_preview(content)
+        changes["image_filename"] = find_static_image_filename(content)
 
-    old_tags = sorted(article.tags)
+    old_tags = list(article.tags)
+    tags_changed = False
     if "tags" in changes:
-        tags = sorted(changes["tags"])
-        if tags != old_tags:
-            if published_already:
-                should_set_status_to_unpublished = True
+        changes["tags"] = sanitize_tags(changes["tags"])
+        tags_changed = sorted(changes["tags"]) != sorted(old_tags)
+        if published_already and tags_changed:
+            changes["status"] = ArticleStatus.UNPUBLISHED
 
-                # Decrease rating for old tags
-                removed_tags = set(old_tags) - set(tags)
-                for tag in removed_tags:
-                    transacts.append({
-                        "Update": {
-                            "TableName": get_dynamodb_table_name(),
-                            "Key": {
-                                "pk": f"POST_TAG#{tag}",
-                                "sk": "META"
-                            },
-                            "UpdateExpression": (
-                                "SET rating_sk = rating_sk - :rating_sk_dec,"
-                                "    #posts_count = if_not_exists(#posts_count, :zero) - :dec,"
-                                "    updated_at = :now"
-                            ),
-                            "ExpressionAttributeNames": {
-                                "#posts_count": "posts_count",
-                            },
-                            "ExpressionAttributeValues": {
-                                ":rating_sk_dec": compute_rating_sk(1),
-                                ":dec": 1,
-                                ":now": now,
-                                ":zero": 0,
-                            }
-                        }
-                    })
-
-            add_delete_article_tag_combos_transact(transacts, article)
-
-    if published_already and should_set_status_to_unpublished:
-        changes["status"] = ArticleStatus.UNPUBLISHED
+    if published_already and changes.get("status") == ArticleStatus.UNPUBLISHED:
+        add_decrease_article_tags_rating_transact(transacts, old_tags, now)
+        add_delete_article_tag_combos_transact(transacts, article)
+    elif tags_changed:
+        add_delete_article_tag_combos_transact(transacts, article)
 
     article_owner = get_user(article.owner_id)
     if article.user_name != article_owner.name:
@@ -3030,55 +3071,18 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
         f"{status}_posts_count": 1,
     })
 
-    if status != ArticleStatus.PUBLISHED:
-        add_delete_article_tag_combos_transact(transacts, article)
-
-    if status == ArticleStatus.PUBLISHED:
+    crossed_published_boundary = (old_status == ArticleStatus.PUBLISHED) != (status == ArticleStatus.PUBLISHED)
+    if crossed_published_boundary and status == ArticleStatus.PUBLISHED:
         if not article.published_at:
             changes["published_at"] = now
         if article_owner:
             changes["user_slug"] = article_owner.username
-        # Upsert tags
-        for tag in article.tags:
-            transacts.append({
-                "Update": {
-                    "TableName": get_dynamodb_table_name(),
-                    "Key": {
-                        "pk": f"POST_TAG#{tag}",
-                        "sk": "META"
-                    },
-                    "UpdateExpression": (
-                        "SET #new_tag_name_sk = if_not_exists(#new_tag_name_sk, :tag_name_sk), "
-                        "    #new_name = if_not_exists(#new_name, :name), "
-                        "    #new_tag_type_pk = if_not_exists(#new_tag_type_pk, :tag_type_pk), "
-                        "    #new_rating_sk = if_not_exists(#new_rating_sk, :def_rating_sk) + :rating_sk_inc, "
-                        "    #posts_count = if_not_exists(#posts_count, :zero) + :inc, "
-                        "    #new_created_at = if_not_exists(#new_created_at, :now), "
-                        "    #new_updated_at = :now "
-                    ),
-                    "ExpressionAttributeNames": {
-                        "#new_tag_name_sk": "tag_name_sk",
-                        "#new_name": "name",
-                        "#new_tag_type_pk": "tag_type_pk",
-                        "#new_rating_sk": "rating_sk",
-                        "#posts_count": "posts_count",
-                        "#new_created_at": "created_at",
-                        "#new_updated_at": "updated_at",
-                    },
-                    "ExpressionAttributeValues": {
-                        ":tag_name_sk": tag,
-                        ":name": tag,
-                        ":tag_type_pk": "POST_TAG",
-                        ":now": now,
-                        ":def_rating_sk": compute_rating_sk(0, now),
-                        ":rating_sk_inc": compute_rating_sk(1),
-                        ":zero": 0,
-                        ":inc": 1,
-                    }
-                }
-            })
 
-        add_put_article_combos_transact(transacts, article)
+        add_increase_article_tags_rating_transact(transacts, article.tags, now)
+        add_put_article_tag_combos_transact(transacts, article)
+    elif crossed_published_boundary:
+        add_decrease_article_tags_rating_transact(transacts, article.tags, now)
+        add_delete_article_tag_combos_transact(transacts, article)
 
     changes["post_status_pk"] = f"POST#{status}"
     changes["post_user_status_pk"] = f"POST#{article.user_id}#{status}"
