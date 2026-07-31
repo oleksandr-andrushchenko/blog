@@ -1110,28 +1110,13 @@ def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateAr
         add_dynamodb_put_transact(transacts, (f"POST_TAG#{new_slug}", "META"), new_item, new_pk_only=True)
         add_dynamodb_delete_transact(transacts, (f"POST_TAG#{old_slug}", "META"))
 
-        from itertools import combinations
         for article in get_latest_articles_by_tags(ArticleQueryDTO(tags=[old_slug], limit=1000)):
             old_tags = list(article.tags)
             new_tags = list(dict.fromkeys(new_slug if tag == old_slug else tag for tag in old_tags))
+
+            add_delete_article_tag_combos_transact(transacts, article, old_slug)
             add_dynamodb_article_update_transact(transacts, article, {"tags": new_tags})
-
-            for r in range(1, len(old_tags) + 1):
-                for combo in combinations(sorted(old_tags), r):
-                    if old_slug in combo:
-                        add_dynamodb_delete_transact(
-                            transacts,
-                            ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{article.created_at}#{article.id}")
-                        )
-
-            for r in range(1, len(new_tags) + 1):
-                for combo in combinations(sorted(new_tags), r):
-                    if new_slug in combo:
-                        add_dynamodb_put_transact(
-                            transacts,
-                            ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{article.created_at}#{article.id}"),
-                            {"post_id": article.id}
-                        )
+            add_put_article_combos_transact(transacts, article, new_slug)
     else:
         add_dynamodb_article_tag_update_transact(transacts, article_tag, changes)
 
@@ -1992,6 +1977,26 @@ def get_text_diff_percentage(t1, t2) -> int:
     return int(change_percentage)
 
 
+def add_put_article_combos_transact(transacts: list, article: Article, slug: str | None = None) -> None:
+    from itertools import combinations
+    for r in range(1, len(article.tags) + 1):
+        for combo in combinations(sorted(article.tags), r):
+            if slug is None or slug in combo:
+                article_tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo),
+                                         f"POST#{article.created_at}#{article.id}")
+                add_dynamodb_put_transact(transacts, article_tag_combo_key, {"post_id": article.id})
+
+
+def add_delete_article_tag_combos_transact(transacts: list, article: Article, slug: str | None = None) -> None:
+    from itertools import combinations
+    for r in range(1, len(article.tags) + 1):
+        for combo in combinations(sorted(article.tags), r):
+            if slug is None or slug in combo:
+                article_tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo),
+                                         f"POST#{article.created_at}#{article.id}")
+                add_dynamodb_delete_transact(transacts, article_tag_combo_key)
+
+
 def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_user: User, req) -> None:
     verify_authorization(cur_user, Permission.UPDATE_ARTICLE, article)
 
@@ -2076,13 +2081,7 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
                         }
                     })
 
-                # Remove old tag combos
-                from itertools import combinations
-                for r in range(1, len(old_tags) + 1):
-                    for combo in combinations(sorted(old_tags), r):
-                        article_tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo),
-                                                 f"POST#{article.created_at}#{article.id}")
-                        add_dynamodb_delete_transact(transacts, article_tag_combo_key)
+            add_delete_article_tag_combos_transact(transacts, article)
 
     if published_already and should_set_status_to_unpublished:
         changes["status"] = ArticleStatus.UNPUBLISHED
@@ -3031,6 +3030,9 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
         f"{status}_posts_count": 1,
     })
 
+    if status != ArticleStatus.PUBLISHED:
+        add_delete_article_tag_combos_transact(transacts, article)
+
     if status == ArticleStatus.PUBLISHED:
         if not article.published_at:
             changes["published_at"] = now
@@ -3076,12 +3078,7 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
                 }
             })
 
-        # Create post tag combos
-        from itertools import combinations
-        for r in range(1, len(article.tags) + 1):
-            for combo in combinations(sorted(article.tags), r):
-                article_tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo), f"POST#{article.created_at}#{article.id}")
-                add_dynamodb_put_transact(transacts, article_tag_combo_key, {"post_id": article.id})
+        add_put_article_combos_transact(transacts, article)
 
     changes["post_status_pk"] = f"POST#{status}"
     changes["post_user_status_pk"] = f"POST#{article.user_id}#{status}"

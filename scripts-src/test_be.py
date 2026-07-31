@@ -842,6 +842,52 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
 
     status_success = post(root_client, f"/api/articles/{article_id}/status", json={"status": "published"})
     assert status_success.status_code == 200, status_success.text
+
+    published_tag_page = get(guest_client, "/articles?type=latest&status=published&tags=functional-tag")
+    assert published_tag_page.status_code == 200
+    assert "Updated functional endpoint coverage article" in pq(published_tag_page.text)("#articles").text()
+
+    remove_tag_success = patch(root_client, f"/api/articles/{article_id}", json={
+        "tags": ["coverage-tag"],
+    })
+    assert remove_tag_success.status_code == 200, remove_tag_success.text
+    removed_tag_page = get(guest_client, "/articles?type=latest&status=published&tags=functional-tag")
+    assert removed_tag_page.status_code == 200
+    assert "Updated functional endpoint coverage article" not in pq(removed_tag_page.text)("#articles").text()
+
+    republish_success = post(root_client, f"/api/articles/{article_id}/status", json={"status": "published"})
+    assert republish_success.status_code == 200, republish_success.text
+    current_tag_page = get(guest_client, "/articles?type=latest&status=published&tags=coverage-tag")
+    assert current_tag_page.status_code == 200
+    assert "Updated functional endpoint coverage article" in pq(current_tag_page.text)("#articles").text()
+    stale_tag_page = get(guest_client, "/articles?type=latest&status=published&tags=functional-tag")
+    assert stale_tag_page.status_code == 200
+    assert "Updated functional endpoint coverage article" not in pq(stale_tag_page.text)("#articles").text()
+
+    restore_tags_success = patch(root_client, f"/api/articles/{article_id}", json={
+        "tags": ["functional-tag", "coverage-tag"],
+    })
+    assert restore_tags_success.status_code == 200, restore_tags_success.text
+    restore_publish_success = post(root_client, f"/api/articles/{article_id}/status", json={"status": "published"})
+    assert restore_publish_success.status_code == 200, restore_publish_success.text
+
+    rename_tag_success = patch(root_client, "/api/article-tags/coverage-tag", json={
+        "name": "Coverage Tag Updated",
+        "image_action": "keep",
+        "image_file": None,
+    })
+    assert rename_tag_success.status_code == 200, rename_tag_success.text
+    renamed_old_tag_page = get(
+        guest_client,
+        "/articles?type=latest&status=published&tags=coverage-tag",
+        allow_redirects=False,
+    )
+    assert renamed_old_tag_page.status_code == 301
+    assert "coverage-tag-updated" in renamed_old_tag_page.headers["location"]
+    renamed_current_tag_page = get(guest_client, "/articles?type=latest&status=published&tags=coverage-tag-updated")
+    assert renamed_current_tag_page.status_code == 200
+    assert "Updated functional endpoint coverage article" in pq(renamed_current_tag_page.text)("#articles").text()
+
     status_failure = post(root_client, f"/api/articles/{article_id}/status", json={"status": "invalid"})
     assert status_failure.status_code == 422
 
