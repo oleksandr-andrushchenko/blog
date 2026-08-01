@@ -738,7 +738,10 @@ def test_user_status_endpoint_success_and_validation_failure(root_user_client):
     assert failure.status_code == 422
 
 
-ARTICLE_CONTENT = "Functional endpoint coverage content. " * 160
+ARTICLE_IMAGE_FILENAME = "9ba8f5cf-b0a4-430c-99ec-4a78f3c4245f_1080x784.png"
+ARTICLE_IMAGE_ALT = "Functional article image"
+ARTICLE_CONTENT = ("Functional endpoint coverage content. " * 140
+                   + f'<p><img src="/{ARTICLE_IMAGE_FILENAME}" alt="{ARTICLE_IMAGE_ALT}"></p>')
 
 
 def test_article_create_and_new_page_endpoints_success_and_failure(guest_client):
@@ -761,6 +764,10 @@ def test_article_create_and_new_page_endpoints_success_and_failure(guest_client)
     )
     functional_state["article_id"] = article_item["id"]
     functional_state["article_slug"] = article_item["post_slug"]
+    assert article_item["content"].endswith(
+        f'<p><img src="/{ARTICLE_IMAGE_FILENAME}" alt="{ARTICLE_IMAGE_ALT}"></p>')
+    assert "figure" not in article_item["content"]
+    assert "picture" not in article_item["content"]
 
     create_failure = post(root_client, "/api/articles", json={
         "title": "short",
@@ -799,9 +806,20 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     assert not read_doc('meta[name="keywords"]')
     assert "aggregateRating" not in article_schema
     assert article_schema["commentCount"] == 0
-    assert "image" not in article_schema
-    assert "thumbnailUrl" not in article_schema
+    assert article_schema["image"][0].endswith(f"/{ARTICLE_IMAGE_FILENAME}")
+    assert article_schema["thumbnailUrl"].endswith(f"/{ARTICLE_IMAGE_FILENAME}")
     assert read_doc('meta[name="robots"]').attr("content") == "index, follow"
+    rendered_picture = read_doc("article picture")
+    assert len(rendered_picture) == 1
+    rendered_source = rendered_picture("source")
+    assert len(rendered_source) == 1
+    assert rendered_source.attr("type") == "image/webp"
+    assert f"{ARTICLE_IMAGE_FILENAME.rsplit('_', 1)[0]}_320x" in rendered_source.attr("srcset")
+    assert f"{ARTICLE_IMAGE_FILENAME.rsplit('_', 1)[0]}_640x" in rendered_source.attr("srcset")
+    assert f"{ARTICLE_IMAGE_FILENAME.rsplit('_', 1)[0]}_1024x" in rendered_source.attr("srcset")
+    rendered_img = rendered_picture("img")
+    assert rendered_img.attr("alt") == ARTICLE_IMAGE_ALT
+    assert "<figure" not in read_success.text
 
     dynamodb_table.update_item(
         Key={"pk": f"POST#{article_id}", "sk": "META"},
@@ -823,6 +841,10 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
 
     edit_success = get(root_client, f"/articles/{article_id}/edit")
     assert edit_success.status_code == 200
+    edit_doc = pq(edit_success.text)
+    raw_editor_content = edit_doc("textarea.editor").text()
+    assert f'<img src="/{ARTICLE_IMAGE_FILENAME}" alt="{ARTICLE_IMAGE_ALT}">' in raw_editor_content
+    assert "<picture>" not in raw_editor_content
     edit_failure = get(regular_client, f"/articles/{article_id}/edit")
     assert edit_failure.status_code == 403
 

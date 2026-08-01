@@ -2,6 +2,7 @@ import asyncio
 import base64
 import copy
 import datetime
+import html
 import json
 import logging
 import math
@@ -219,7 +220,6 @@ def sanitize_forbidden_html(value):
             "blockquote",
             "table", "thead", "tbody", "tfoot", "tr", "th", "td",
             "div", "pre", "code",
-            "figure", "figcaption",
         },
         attributes={
             "h2": {"id"},
@@ -228,14 +228,12 @@ def sanitize_forbidden_html(value):
             "h5": {"id"},
             "h6": {"id"},
             "a": {"href", "title", "target"},
-            "img": {"src", "alt", "width", "height", "class", "style"},
+            "img": {"src", "alt"},
             "span": {"class"},
             "div": {"class"},
             "table": {"class", "border", "cellpadding", "cellspacing"},
             "th": {"colspan", "rowspan"},
             "td": {"colspan", "rowspan"},
-            "figure": {"class"},
-            "figcaption": {"class"},
             "code": {"class"},
             "pre": {"class"},
         },
@@ -1309,6 +1307,34 @@ def jinja2_order_classes(orders, inverse: bool = False) -> str:
     return jinja2_build_responsive_classes(orders, prefixes, inverse)
 
 
+@pass_context
+def jinja2_render_article_content(ctx, content):
+    import re
+
+    image_template = jinja2_env().get_template("fragments/image.html")
+    context = ctx.get_all()
+    image_pattern = re.compile(r"<img\b(?P<attributes>[^>]*)>", re.IGNORECASE)
+    attribute_pattern = re.compile(r"([A-Za-z_:][A-Za-z0-9_.:-]*)\s*=\s*([\"'])(.*?)\2")
+
+    def replace_image(match):
+        attributes = {
+            name.lower(): html.unescape(value)
+            for name, _, value in attribute_pattern.findall(match.group("attributes"))
+        }
+        src = attributes.get("src")
+        if not src:
+            return ""
+        return image_template.render({
+            **context,
+            "filename": src.rsplit("/", 1)[-1],
+            "alt": attributes.get("alt", ""),
+            "figure": False,
+            "img_sizes": {"1200px": "760px", "992px": "480px", "default": "100vw"},
+        })
+
+    return image_pattern.sub(replace_image, content or "")
+
+
 def get_jinja2_env():
     templates_dir = os.path.join(os.path.dirname(__file__), "templates")
     jinja2_env = Environment(
@@ -1328,6 +1354,7 @@ def get_jinja2_env():
     jinja2_env.globals.update(get_config())
     jinja2_env.globals.update({
         "static_url": jinja2_static_url,
+        "render_article_content": jinja2_render_article_content,
         "url": jinja2_url,
         "user_url": jinja2_user_url,
         "article_url": jinja2_article_url,
