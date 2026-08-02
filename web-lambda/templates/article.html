@@ -165,7 +165,7 @@
                         {% with limit=comments_query.limit,
                             offset=comments[-1].offset,
                             count=comments|length,
-                            url=url("article-comments-fragment", **comments_query.get_dict()),
+                            url=url("article-comments-fragment", article_id=article.id, **comments_query.get_dict()),
                             container="#article-comments" %}
                             {% include "fragments/load-more-button.html" %}
                         {% endwith %}

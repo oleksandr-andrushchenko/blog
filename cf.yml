@@ -64,12 +64,15 @@ Parameters:
     Type: String
     Description: Auth JWT secret
     NoEcho: true
-  BeFuncS3Key:
+  WebFuncS3Key:
     Type: String
-    Description: S3 key of the backend function zip file
-  ImageVariantsFuncS3Key:
+    Description: S3 key of the web function zip file
+  ApiFuncS3Key:
     Type: String
-    Description: S3 key of the image variants function zip file
+    Description: S3 key of the API function zip file
+  ImgFuncS3Key:
+    Type: String
+    Description: S3 key of the image Lambda zip file
 
 Resources:
   SiteBucket:
@@ -391,7 +394,7 @@ Resources:
           STATIC_S3_BUCKET: !Ref SiteBucket
       Code:
         S3Bucket: !Sub "${AWS::StackName}-code"
-        S3Key: !Ref ImageVariantsFuncS3Key
+        S3Key: !Ref ImgFuncS3Key
       Tags:
         - Key: Stage
           Value: !Ref Stage
@@ -433,13 +436,13 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !GetAtt ImageVariantsEventRule.Arn
 
-  BackendFunction:
+  WebFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub "${AWS::StackName}-${Stage}-be"
-      Description: Lambda function to serve backend requests from the API Gateway
+      FunctionName: !Sub "${AWS::StackName}-${Stage}-web"
+      Description: Lambda function to serve website requests
       Role: !GetAtt BackendFunctionRole.Arn
-      Handler: app.handler
+      Handler: handler.handler
       Runtime: python3.12
       Timeout: 60
       MemorySize: 512
@@ -467,7 +470,7 @@ Resources:
           CLOUDFRONT_DISTRIBUTION_ID: !Ref CloudFrontDistribution
       Code:
         S3Bucket: !Sub "${AWS::StackName}-code"
-        S3Key: !Ref BeFuncS3Key
+        S3Key: !Ref WebFuncS3Key
       Tags:
         - Key: Stage
           Value: !Ref Stage
@@ -478,11 +481,46 @@ Resources:
         - Key: Region
           Value: !Ref AWS::Region
 
-  ApiGatewayBackendFunctionPermission:
+  ApiFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-${Stage}-api"
+      Description: Lambda function to serve API requests
+      Role: !GetAtt BackendFunctionRole.Arn
+      Handler: handler.handler
+      Runtime: python3.12
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          APP_STAGE: !Ref Stage
+          APP_ENV: !Ref Env
+          APP_DEBUG: !Ref Debug
+          APP_SECRET: !Ref Secret
+          BASE_URL: !Sub "https://${DomainName}"
+          DYNAMODB_TABLE: !Ref DynamoDBTable
+          ALLOWED_ORIGIN: !Sub "https://${DomainName}"
+          CONTACT_TOPIC_ARN: !Ref ContactFormTopic
+          STATIC_S3_BUCKET: !Ref SiteBucket
+          AUTH_JWT_SECRET: !Ref AuthJwtSecret
+          CLOUDFRONT_DISTRIBUTION_ID: !Ref CloudFrontDistribution
+      Code:
+        S3Bucket: !Sub "${AWS::StackName}-code"
+        S3Key: !Ref ApiFuncS3Key
+
+  ApiGatewayWebFunctionPermission:
     Type: AWS::Lambda::Permission
     Properties:
       Action: lambda:InvokeFunction
-      FunctionName: !Ref BackendFunction
+      FunctionName: !Ref WebFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/*/*"
+
+  ApiGatewayApiFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ApiFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/*/*"
 
@@ -502,7 +540,15 @@ Resources:
     Properties:
       ApiId: !Ref ApiGateway
       IntegrationType: AWS_PROXY
-      IntegrationUri: !GetAtt BackendFunction.Arn
+      IntegrationUri: !GetAtt WebFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  ApiGatewayApiLambdaIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref ApiGateway
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt ApiFunction.Arn
       PayloadFormatVersion: "2.0"
 
   ApiGatewayDefaultRoute:
@@ -511,6 +557,13 @@ Resources:
       ApiId: !Ref ApiGateway
       RouteKey: "ANY /{proxy+}"
       Target: !Sub "integrations/${ApiGatewayLambdaIntegration}"
+
+  ApiGatewayApiRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: "ANY /api/{proxy+}"
+      Target: !Sub "integrations/${ApiGatewayApiLambdaIntegration}"
 
   ApiGatewayDefaultStage:
     Type: AWS::ApiGatewayV2::Stage
@@ -789,10 +842,10 @@ Resources:
         - Key: Region
           Value: !Ref AWS::Region
 
-  BackendFunctionLogGroup:
+  WebFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${BackendFunction}"
+      LogGroupName: !Sub "/aws/lambda/${WebFunction}"
       RetentionInDays: 14
       Tags:
         - Key: Stage
@@ -817,24 +870,24 @@ Outputs:
   CloudFrontDistributionId:
     Value: !GetAtt CloudFrontDistribution.Id
     Description: ID of the CloudFront distribution serving the website and API
-  BackendFunctionName:
-    Value: !Ref BackendFunction
-    Description: Name of the backend Lambda function
+  WebFunctionName:
+    Value: !Ref WebFunction
+    Description: Name of the Web Lambda function
   ContactFormTopicArn:
     Value: !Ref ContactFormTopic
     Description: ARN of the SNS topic used for contact form notifications
   BackendFunctionRoleName:
     Value: !Ref BackendFunctionRole
-    Description: IAM Role name for the Lambda contact form handler
-  BackendFunctionLogGroupName:
-    Value: !Ref BackendFunctionLogGroup
-    Description: CloudWatch log group for the backend Lambda
+    Description: Shared IAM role name for the Web and API Lambdas
+  WebFunctionLogGroupName:
+    Value: !Ref WebFunctionLogGroup
+    Description: CloudWatch log group for the Web Lambda
   ApiGatewayId:
     Value: !Ref ApiGateway
-    Description: ID of the API Gateway for the backend
+    Description: ID of the API Gateway for the Web and API Lambdas
   DynamoDBTableName:
     Value: !Ref DynamoDBTable
-    Description: Name of the DynamoDB table used by the backend
+    Description: Name of the application DynamoDB table
   CognitoUserPoolId:
     Value: !Ref CognitoUserPoolV2
     Description: ID of the Cognito User Pool

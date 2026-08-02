@@ -12,17 +12,17 @@ else
     DC := docker-compose
 endif
 
-BE_FUNCTION_CONTAINER = be-function
-BE_FUNCTION_TEST_CONTAINER = be-function-test
+WEB_LAMBDA_CONTAINER = web-lambda
+TESTS_CONTAINER = tests
 SCRIPTS_CONTAINER = scripts
 CODE_STACK_NAME = $(AWS_STACK)-code
 CERT_STACK_NAME = $(AWS_STACK)-cert
 SITE_BUILD_DIR=.site-build
 CODE_BUILD_DIR=.code-build
-TMP_DIR=.tmp
 
 HOST_UID := $(shell id -u)
 HOST_GID := $(shell id -g)
+API_LAMBDA_PORT ?= 5002
 
 .PHONY: help
 help: ## Show this help
@@ -45,7 +45,7 @@ check-aws:
 
 .PHONY: clean
 clean: ## Remove build artifacts
-	@rm -rf $(SITE_BUILD_DIR) $(CODE_BUILD_DIR)
+	@rm -rf $(SITE_BUILD_DIR) $(CODE_BUILD_DIR) .tmp
 	@echo "🧹 Cleaned build artifacts"
 
 .PHONY: deploy-cert-infra
@@ -187,8 +187,9 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 			CssCacheCounter="$(CSS_CACHE_COUNTER)" \
 			JsCacheCounter="$(JS_CACHE_COUNTER)" \
 			AuthJwtSecret="$(AUTH_JWT_SECRET)" \
-			BeFuncS3Key="be-function-$$(sed -n 's/^LAMBDA_CODE_TIMESTAMP=//p' .env).zip" \
-			ImageVariantsFuncS3Key="image-variants-function-$$(sed -n 's/^LAMBDA_CODE_TIMESTAMP=//p' .env).zip" \
+			WebFuncS3Key="web-function-$$(sed -n 's/^WEB_LAMBDA_CODE_TIMESTAMP=//p' .env).zip" \
+			ApiFuncS3Key="api-function-$$(sed -n 's/^API_LAMBDA_CODE_TIMESTAMP=//p' .env).zip" \
+			ImgFuncS3Key="img-function-$$(sed -n 's/^IMG_LAMBDA_CODE_TIMESTAMP=//p' .env).zip" \
 		--tags \
 			Project="$(AWS_PROJECT)" \
 			Owner="$(AWS_OWNER)" \
@@ -231,6 +232,21 @@ deploy-code-files: check-env check-aws generate-code-files ## Zip and upload Lam
 		--profile $(AWS_PROJECT) \
 		--region $(AWS_REGION)
 	@echo "✅ Lambda code uploaded successfully"
+
+.PHONY: deploy-web-lambda
+deploy-web-lambda: check-env check-aws generate-web-lambda-code-files ## Build, upload, and deploy only the Web Lambda
+	aws s3 cp $(CODE_BUILD_DIR)/web-function-$$(sed -n 's/^WEB_LAMBDA_CODE_TIMESTAMP=//p' .env).zip s3://$(CODE_STACK_NAME)/web-function-$$(sed -n 's/^WEB_LAMBDA_CODE_TIMESTAMP=//p' .env).zip --profile $(AWS_PROJECT) --region $(AWS_REGION)
+	$(MAKE) --no-print-directory deploy-infra
+
+.PHONY: deploy-api-lambda
+deploy-api-lambda: check-env check-aws generate-api-lambda-code-files ## Build, upload, and deploy only the API Lambda
+	aws s3 cp $(CODE_BUILD_DIR)/api-function-$$(sed -n 's/^API_LAMBDA_CODE_TIMESTAMP=//p' .env).zip s3://$(CODE_STACK_NAME)/api-function-$$(sed -n 's/^API_LAMBDA_CODE_TIMESTAMP=//p' .env).zip --profile $(AWS_PROJECT) --region $(AWS_REGION)
+	$(MAKE) --no-print-directory deploy-infra
+
+.PHONY: deploy-img-lambda
+deploy-img-lambda: check-env check-aws generate-img-lambda-code-files ## Build, upload, and deploy only the Image Lambda
+	aws s3 cp $(CODE_BUILD_DIR)/img-function-$$(sed -n 's/^IMG_LAMBDA_CODE_TIMESTAMP=//p' .env).zip s3://$(CODE_STACK_NAME)/img-function-$$(sed -n 's/^IMG_LAMBDA_CODE_TIMESTAMP=//p' .env).zip --profile $(AWS_PROJECT) --region $(AWS_REGION)
+	$(MAKE) --no-print-directory deploy-infra
 
 .PHONY: deploy-site-files
 deploy-site-files: check-env check-aws generate-site-files ## Sync local site files to S3
@@ -276,68 +292,65 @@ rebuild: ## Rebuild and start Docker containers
 
 .PHONY: login
 login: ## Open shell in Docker container
-	$(DC) exec -it $(BE_FUNCTION_CONTAINER) bash
+	$(DC) exec -it $(WEB_LAMBDA_CONTAINER) bash
 
 login-scripts: ## Open shell in scripts Docker container
 	$(DC) exec -it $(SCRIPTS_CONTAINER) bash
 
 .PHONY: logs
 logs: ## Show logs of Docker container
-	$(DC) logs -f $(BE_FUNCTION_CONTAINER)
+	$(DC) logs -f $(WEB_LAMBDA_CONTAINER)
 
 .PHONY: generate-site-files
 generate-site-files: ## Run content generator inside Docker container
 	@echo "📦 Generating Site files..."
 	mkdir -p $(SITE_BUILD_DIR)
 	rm -rf $(SITE_BUILD_DIR)/*
-	$(DC) exec $(SCRIPTS_CONTAINER) python3 scripts-src/generate_site_build.py
+	$(DC) exec $(SCRIPTS_CONTAINER) python3 scripts/generate_site_build.py
 	@echo "✅ Site files saved to $(SITE_BUILD_DIR) successfully"
 
+.PHONY: generate-web-lambda-code-files
+generate-web-lambda-code-files: ## Build the Web Lambda ZIP
+	@echo "📦 Generating Web Lambda code files..."
+	rm -rf .tmp/web
+	rm -f $(CODE_BUILD_DIR)/web-function*.zip
+	mkdir -p .tmp/web $(CODE_BUILD_DIR)
+	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) pip install --no-cache-dir -r /app/web-lambda/requirements.txt -t /app/.tmp/web
+	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) python3 /app/scripts/generate_lambda_build.py web
+	@TIMESTAMP=$$(date +%Y%m%d%H%M%S); mv $(CODE_BUILD_DIR)/web-function.zip $(CODE_BUILD_DIR)/web-function-$$TIMESTAMP.zip; if grep -q "^WEB_LAMBDA_CODE_TIMESTAMP=" .env; then sed -i.bak "s|^WEB_LAMBDA_CODE_TIMESTAMP=.*|WEB_LAMBDA_CODE_TIMESTAMP=$$TIMESTAMP|" .env; rm -f .env.bak; else printf "\nWEB_LAMBDA_CODE_TIMESTAMP=$$TIMESTAMP\n" >> .env; fi
+
+.PHONY: generate-api-lambda-code-files
+generate-api-lambda-code-files: ## Build the API Lambda ZIP
+	@echo "📦 Generating API Lambda code files..."
+	rm -rf .tmp/api
+	rm -f $(CODE_BUILD_DIR)/api-function*.zip
+	mkdir -p .tmp/api $(CODE_BUILD_DIR)
+	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) pip install --no-cache-dir -r /app/api-lambda/requirements.txt -t /app/.tmp/api
+	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) python3 /app/scripts/generate_lambda_build.py api
+	@TIMESTAMP=$$(date +%Y%m%d%H%M%S); mv $(CODE_BUILD_DIR)/api-function.zip $(CODE_BUILD_DIR)/api-function-$$TIMESTAMP.zip; if grep -q "^API_LAMBDA_CODE_TIMESTAMP=" .env; then sed -i.bak "s|^API_LAMBDA_CODE_TIMESTAMP=.*|API_LAMBDA_CODE_TIMESTAMP=$$TIMESTAMP|" .env; rm -f .env.bak; else printf "\nAPI_LAMBDA_CODE_TIMESTAMP=$$TIMESTAMP\n" >> .env; fi
+
+.PHONY: generate-img-lambda-code-files
+generate-img-lambda-code-files: ## Build the Image Lambda ZIP
+	@echo "📦 Generating Image Lambda code files..."
+	rm -rf .tmp/img
+	rm -f $(CODE_BUILD_DIR)/img-function*.zip
+	mkdir -p .tmp/img $(CODE_BUILD_DIR)
+	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) pip install --no-cache-dir -r /app/img-lambda/requirements.txt -t /app/.tmp/img
+	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) python3 /app/scripts/generate_img_lambda_build.py
+	@TIMESTAMP=$$(date +%Y%m%d%H%M%S); mv $(CODE_BUILD_DIR)/img-function.zip $(CODE_BUILD_DIR)/img-function-$$TIMESTAMP.zip; if grep -q "^IMG_LAMBDA_CODE_TIMESTAMP=" .env; then sed -i.bak "s|^IMG_LAMBDA_CODE_TIMESTAMP=.*|IMG_LAMBDA_CODE_TIMESTAMP=$$TIMESTAMP|" .env; rm -f .env.bak; else printf "\nIMG_LAMBDA_CODE_TIMESTAMP=$$TIMESTAMP\n" >> .env; fi
+
 .PHONY: generate-code-files
-generate-code-files: ## Build Lambda zip for be-function
-	@echo "📦 Generating Code files..."
-
-	# Clean build dir completely
-	rm -rf $(CODE_BUILD_DIR)
+generate-code-files: ## Build all Lambda ZIPs
+	@echo "📦 Generating all Lambda code files..."
+	rm -rf $(CODE_BUILD_DIR) .tmp
 	mkdir -p $(CODE_BUILD_DIR)
-	rm -rf $(TMP_DIR)
-	mkdir -p $(TMP_DIR)
-
-	# Install dependencies
-	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) bash -c "\
-		echo '📥 Installing dependencies (fresh)...'; \
-		pip install --no-cache-dir \
-		    -r /app/be-function-src/requirements.txt \
-		    -t /app/$(TMP_DIR); \
-	"
-
-	# Run build script
-	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) \
-		python3 /app/scripts-src/generate_code_build.py
-
-	# Build the S3 image-variant Lambda with its own Pillow dependency bundle
-	$(DC) exec $(SCRIPTS_CONTAINER) \
-		python3 /app/scripts-src/generate_image_variants_build.py
-
-	# Rename zip with timestamp and update .env
-	@TIMESTAMP=$$(date +%Y%m%d%H%M%S); \
-	for f in $(CODE_BUILD_DIR)/*.zip; do \
-		FILENAME=$$(basename $$f .zip); \
-		NEW_ZIP="$(CODE_BUILD_DIR)/$$FILENAME-$$TIMESTAMP.zip"; \
-		mv "$$f" "$$NEW_ZIP"; \
-		echo "✅ Lambda zip renamed to $$NEW_ZIP"; \
-	done; \
-	if grep -q "^LAMBDA_CODE_TIMESTAMP=" .env; then \
-		sed -i.bak "s|^LAMBDA_CODE_TIMESTAMP=.*|LAMBDA_CODE_TIMESTAMP=$$TIMESTAMP|" .env; \
-		rm -f .env.bak; \
-	else \
-		echo "\nLAMBDA_CODE_TIMESTAMP=$$TIMESTAMP" >> .env; \
-	fi; \
-	echo "📝 Updated .env with LAMBDA_CODE_TIMESTAMP=$$TIMESTAMP"
+	$(MAKE) --no-print-directory generate-web-lambda-code-files
+	$(MAKE) --no-print-directory generate-api-lambda-code-files
+	$(MAKE) --no-print-directory generate-img-lambda-code-files
 
 .PHONY: open
 open: ## Show local site URL
-	@echo "🌐 Visit http://localhost:$(BE_FUNCTION_PORT) in your browser manually."
+	@echo "🌐 Visit http://localhost:$(WEB_LAMBDA_PORT) in your browser manually."
 
 .PHONY: aws-login
 aws-login: ## Obtain AWS auth token
@@ -354,7 +367,7 @@ create-local-dynamodb: ## Create local DynamoDB table
 		echo "⚠️ Table app already exists, skipping creation."; \
 	else \
 		echo "🧩 Extracting DynamoDB schema from CloudFormation..."; \
-		$(DC) exec $(SCRIPTS_CONTAINER) python3 scripts-src/extract_dynamodb_schema.py > /tmp/dynamodb_schema.json; \
+		$(DC) exec $(SCRIPTS_CONTAINER) python3 scripts/extract_dynamodb_schema.py > /tmp/dynamodb_schema.json; \
 		if [ ! -s /tmp/dynamodb_schema.json ]; then echo '❌ Failed to generate valid DynamoDB schema JSON'; exit 1; fi; \
 		echo "📄 Generated schema:"; \
 		cat /tmp/dynamodb_schema.json | jq .; \
@@ -403,18 +416,18 @@ drop-local-dynamodb: ## Drop DynamoDB table in local DynamoDB
 .PHONY: create-local-dynamodb-dummy-fixtures
 create-local-dynamodb-dummy-fixtures: ## Populate local DynamoDB with dummy data
 	@echo "📦 Populating local DynamoDB table app with dummy data..."
-	curl -sf -XPOST "http://localhost:$(BE_FUNCTION_PORT)/api/dummy-fixtures"
+	curl -sf -XPOST "http://localhost:$(API_LAMBDA_PORT)/api/dummy-fixtures"
 
 .PHONY: recreate-local-dynamodb
 recreate-local-dynamodb: drop-local-dynamodb create-local-dynamodb create-local-dynamodb-dummy-fixtures ## Recreate DynamoDB table in local DynamoDB & populate dummy data
 
 .PHONY: tests
 tests:
-	$(DC) exec $(SCRIPTS_CONTAINER) python3 -m pytest -o log_cli_level=INFO -o log_cli=true -v scripts-src/test_be.py scripts-src/test_image_variants_lambda.py -v -s
+	$(DC) exec $(SCRIPTS_CONTAINER) python3 -m pytest -o log_cli_level=INFO -o log_cli=true -v scripts/test_web_api.py scripts/test_img_lambda.py -v -s
 
 .PHONY: tail-test-logs
 tail-test-logs: ## Tail test logs
-	$(DC) logs -f $(BE_FUNCTION_TEST_CONTAINER)
+	$(DC) logs -f $(TESTS_CONTAINER)
 
 .PHONY: tail-scripts-logs
 tail-scripts-logs: ## Tail scripts logs

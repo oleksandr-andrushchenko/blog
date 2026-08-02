@@ -11,10 +11,9 @@ from types import SimpleNamespace
 from urllib.parse import quote
 
 import pytest
-from article_dtos import UpdateArticleCommentDTO, UpdateArticleDTO, UpdateArticleTagDTO
 from pyquery import PyQuery as pq
-from user_dtos import UpdateUserActivitySettingsDTO, UpdateUserDTO
 
+from article_dtos import UpdateArticleCommentDTO, UpdateArticleDTO, UpdateArticleTagDTO
 from test_utils import (
     recreate_dynamodb_table,
     get_guest_client,
@@ -32,6 +31,7 @@ from test_utils import (
     get_dynamodb_article,
     dynamodb_table,
 )
+from user_dtos import UpdateUserActivitySettingsDTO, UpdateUserDTO
 
 
 def get_client(request, user):

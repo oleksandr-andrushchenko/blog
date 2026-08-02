@@ -5,7 +5,6 @@ from urllib.parse import unquote_plus
 import boto3
 from PIL import Image
 
-
 IMAGE_NAME = re.compile(
     r"^(?P<base>.+)_(?P<width>\d+)x(?P<height>\d+)\.(?P<extension>png|jpe?g)$"
 )
@@ -32,7 +31,7 @@ def _put_object(bucket, key, body, content_type, created):
     created.append(key)
 
 
-def handler(event, context):
+def app(event, context):
     created = []
     records = event.get("Records")
     if records is None and event.get("source") == "aws.s3":

@@ -8,7 +8,7 @@ COPY requirements.txt .
 
 RUN pip install -t /opt/vendor -r requirements.txt
 
-ENV PYTHONPATH=/opt/vendor:/app/scripts-src:/app/be-function-src
+ENV PYTHONPATH=/opt/vendor:/app/scripts:/app/lambda-shared:/app/web-lambda:/app/api-lambda
 
 COPY . .
 

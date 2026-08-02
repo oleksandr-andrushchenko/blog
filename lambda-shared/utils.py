@@ -1201,16 +1201,26 @@ def get_url(req, name: str, full: bool = False, **params) -> str:
     Generate a URL for a named route.
     By default, returns path-only URLs; set full=True to prepend base_url.
     """
-    # Find the route
-    route = next(r for r in req.app.routes if getattr(r, "name", None) == name)
+    # Find an executable route first, then URL-only metadata routes used by
+    # the web Lambda for API links. Metadata routes never handle requests.
+    route = next((r for r in req.app.routes if getattr(r, "name", None) == name), None)
+    is_metadata_route = route is None
+    if route is None:
+        route = next((r for r in getattr(req.app, "url_routes", [])
+                      if getattr(r, "name", None) == name), None)
+    if route is None:
+        raise LookupError(f"Unknown route: {name}")
     path_param_names = getattr(route, "param_convertors", {}).keys()
 
     # Split params into path vs query, skipping None
     path_params = {k: v for k, v in params.items() if k in path_param_names and v is not None}
     query_params = {k: v for k, v in params.items() if k not in path_param_names and v is not None}
 
-    # Use req.url_for to get the path
-    url_path = req.url_for(name, **path_params).path
+    # Use the application router for executable routes and the metadata
+    # route itself for URL-only routes.
+    url_path_value = (route.url_path_for(name, **path_params) if is_metadata_route
+                      else req.url_for(name, **path_params))
+    url_path = getattr(url_path_value, "path", str(url_path_value))
 
     if full and url_path == "/":
         url_path = ""
@@ -1227,6 +1237,16 @@ def get_url(req, name: str, full: bool = False, **params) -> str:
                 items.append((k, v))
         if items:
             url_path = f"{url_path}?{urlencode(items)}"
+
+    if is_metadata_route and url_path.startswith("/api/"):
+        api_base_url = os.getenv("API_BASE_URL")
+        if api_base_url:
+            return f"{api_base_url.rstrip("/")}{url_path}"
+
+    if is_metadata_route and not url_path.startswith("/api/"):
+        web_base_url = os.getenv("WEB_BASE_URL")
+        if web_base_url:
+            return f"{web_base_url.rstrip("/")}{url_path}"
 
     if full:
         base_url = get_base_url()
@@ -1336,9 +1356,12 @@ def jinja2_render_article_content(ctx, content):
 
 
 def get_jinja2_env():
-    templates_dir = os.path.join(os.path.dirname(__file__), "templates")
+    shared_templates_dir = os.path.join(os.path.dirname(__file__), "templates")
+    function_templates_dir = os.getenv("FUNCTION_TEMPLATES_DIR", "")
+    templates_dirs = [path for path in function_templates_dir.split(os.pathsep) if path]
+    templates_dirs.append(shared_templates_dir)
     jinja2_env = Environment(
-        loader=FileSystemLoader(templates_dir),
+        loader=FileSystemLoader(templates_dirs),
         trim_blocks=True,
         lstrip_blocks=True,
         auto_reload=not is_prod(),

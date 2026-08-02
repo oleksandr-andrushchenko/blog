@@ -332,12 +332,11 @@
                 interestsCheckbox.disabled = true
                 interestsCheckbox.classList.add("opacity-50")
                 try {
-                  const response = await fetch({{ url('update-user-interests-settings', user_id=user.id) | tojson }}, {
+                  const response = await $.ajax({{ url('update-user-interests-settings', user_id=user.id) | tojson }}, {
                     method: "PATCH",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({show_interests: interestsCheckbox.checked})
+                    contentType: "application/json",
+                    data: JSON.stringify({show_interests: interestsCheckbox.checked})
                   })
-                  if (!response.ok) throw new Error()
                   if (interestsContent) interestsContent.style.display = interestsCheckbox.checked ? "" : "none"
                 } catch (_) {
                   interestsCheckbox.checked = previous
@@ -356,15 +355,14 @@
               const calendar = document.getElementById("activity-calendar-svg")
               if (calendar) calendar.style.display = checkbox.checked ? "" : "none"
               try {
-                const response = await fetch({{ url('update-user-activity-settings', user_id=user.id) | tojson }}, {
+                const response = await $.ajax({{ url('update-user-activity-settings', user_id=user.id) | tojson }}, {
                   method: "PATCH",
-                  headers: {"Content-Type": "application/json"},
-                  body: JSON.stringify({
+                    contentType: "application/json",
+                  data: JSON.stringify({
                     show_activity_calendar: checkbox.checked,
                     show_recent_activity: {{ 'true' if user.show_recent_activity else 'false' }}
                   })
                 })
-                if (!response.ok) throw new Error()
               } catch (_) {
                 checkbox.checked = previous
                 if (calendar) calendar.style.display = previous ? "" : "none"
@@ -380,12 +378,11 @@
                 interestsCheckbox.disabled = true
                 interestsCheckbox.classList.add("opacity-50")
                 try {
-                  const response = await fetch({{ url('update-user-interests-settings', user_id=user.id) | tojson }}, {
+                  const response = await $.ajax({{ url('update-user-interests-settings', user_id=user.id) | tojson }}, {
                     method: "PATCH",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({show_interests: interestsCheckbox.checked})
+                    contentType: "application/json",
+                    data: JSON.stringify({show_interests: interestsCheckbox.checked})
                   })
-                  if (!response.ok) throw new Error()
                   if (interestsContent) interestsContent.style.display = interestsCheckbox.checked ? "" : "none"
                 } catch (_) {
                   interestsCheckbox.checked = previous

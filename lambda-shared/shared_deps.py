@@ -1,44 +1,29 @@
 from typing import Annotated, Optional
 
-from article_dtos import UpdateArticleCommentImpressionDTO
 from utils import (
     User,
     ArticleQueryDTO,
+    ArticleCommentQueryDTO,
     Article,
     ArticleTagQueryDTO,
     UserQueryDTO,
     InvalidTokenError,
     ArticleNotFoundError,
-    ArticleCommentNotFoundError,
     UserNotFoundError,
     get_html_content,
     get_user_by_auth_token,
     get_article,
     get_user,
-    UpdateUserDTO,
-    ImageFileDTO,
-    UpdateArticleDTO,
-    UpdateArticleStatusDTO,
-    UpdateArticleImpressionDTO,
-    UpdateUserImpressionDTO,
-    UpdateUserActivitySettingsDTO,
-    UpdateUserInterestsSettingsDTO,
     get_user_by_slug,
     get_article_by_slugs,
-    ArticleComment,
-    UpdateUserStatusDTO,
-    UpdateArticleCommentDTO,
-    get_article_comment,
     parse_articles_url_slugs_path,
     is_prod,
     get_auth_token_max_age,
     ArticleTag,
     ArticleTagNotFoundError,
     get_article_tag,
-    UpdateArticleTagDTO,
-    ArticleTagSubscriptionDTO,
 )
-from web import Body, Depends, HTMLResponse, HTTPException, JSONResponse, Query, Request, RequestValidationError
+from web import Depends, HTMLResponse, HTTPException, JSONResponse, Query, Request, RequestValidationError
 
 
 def _resolve_user(request: Request) -> User | None:
@@ -86,10 +71,6 @@ def get_article_tag_by_slug(slug: str, cur_user: CurUserDep) -> ArticleTag:
         raise HTTPException(status_code=404, detail=str(e))
 
 
-def get_update_article_tag_dto(update_article_tag_dto: UpdateArticleTagDTO = Body(...)) -> UpdateArticleTagDTO:
-    return update_article_tag_dto
-
-
 def get_user_by_id(user_id: str, cur_user: OptCurUserDep = None) -> User:
     try:
         return get_user(user_id, cur_user)
@@ -124,79 +105,6 @@ def get_article_query_by_slugs(request: Request, slugs_path: str) -> ArticleQuer
         return ArticleQueryDTO(**data)
     except ValueError as e:
         raise RequestValidationError({"query": str(e)})
-
-
-async def get_image_file(request: Request):
-    form = await request.form()
-    file = form.get("file")
-    if file is None or not hasattr(file, "read"):
-        raise HTTPException(status_code=422, detail="Missing file")
-    try:
-        return ImageFileDTO(
-            content=await file.read(),
-            filename=file.filename,
-        )
-    except ValueError as exc:
-        raise RequestValidationError({"file": str(exc)}) from exc
-
-
-def get_update_user_dto(update_user_dto: UpdateUserDTO = Body(...)) -> UpdateUserDTO:
-    return update_user_dto
-
-
-def get_article_tag_subscription_dto(dto: ArticleTagSubscriptionDTO = Body(...)) -> ArticleTagSubscriptionDTO:
-    return dto
-
-
-def get_update_user_activity_settings_dto(
-        dto: UpdateUserActivitySettingsDTO = Body(...)) -> UpdateUserActivitySettingsDTO:
-    return dto
-
-
-def get_update_user_interests_settings_dto(
-        dto: UpdateUserInterestsSettingsDTO = Body(...)) -> UpdateUserInterestsSettingsDTO:
-    return dto
-
-
-def get_update_user_status_dto(update_user_status_dto: UpdateUserStatusDTO = Body(...)) -> UpdateUserStatusDTO:
-    return update_user_status_dto
-
-
-def get_update_article_dto(update_article_dto: UpdateArticleDTO = Body(...)) -> UpdateArticleDTO:
-    return update_article_dto
-
-
-def get_update_article_status_dto(
-        update_article_status_dto: UpdateArticleStatusDTO = Body(...)) -> UpdateArticleStatusDTO:
-    return update_article_status_dto
-
-
-def get_update_article_impression_dto(
-        update_article_impression_dto: UpdateArticleImpressionDTO = Body(...)) -> UpdateArticleImpressionDTO:
-    return update_article_impression_dto
-
-
-def get_article_comment_by_id(article_id: str, comment_id: str) -> ArticleComment:
-    try:
-        return get_article_comment(article_id, comment_id)
-    except ArticleCommentNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-
-def get_update_article_comment_dto(
-        update_article_comment_dto: UpdateArticleCommentDTO = Body(...)) -> UpdateArticleCommentDTO:
-    return update_article_comment_dto
-
-
-def get_update_article_comment_impression_dto(
-        update_article_comment_impression_dto: UpdateArticleCommentImpressionDTO = Body(
-            ...)) -> UpdateArticleCommentImpressionDTO:
-    return update_article_comment_impression_dto
-
-
-def get_update_user_impression_dto(
-        update_user_impression_dto: UpdateUserImpressionDTO = Body(...)) -> UpdateUserImpressionDTO:
-    return update_user_impression_dto
 
 
 def _get_user_by_slug(slug: str, cur_user: OptCurUserDep = None) -> User:
@@ -271,28 +179,12 @@ def drop_token_cookie(response):
 
 UserDep = Annotated[User, Depends(get_user_by_id)]
 UserBySlugDep = Annotated[User, Depends(_get_user_by_slug)]
-UpdateUserDTODep = Annotated[UpdateUserDTO, Depends(get_update_user_dto)]
-UpdateUserActivitySettingsDTODep = Annotated[
-    UpdateUserActivitySettingsDTO, Depends(get_update_user_activity_settings_dto)]
-UpdateUserInterestsSettingsDTODep = Annotated[
-    UpdateUserInterestsSettingsDTO, Depends(get_update_user_interests_settings_dto)]
-UpdateUserStatusDTODep = Annotated[UpdateUserStatusDTO, Depends(get_update_user_status_dto)]
 UserQueryDep = Annotated[UserQueryDTO, Depends()]
 UserQueryBySlugsDep = Annotated[UserQueryDTO, Depends(get_user_query_by_slugs)]
 ArticleDep = Annotated[Article, Depends(get_article_by_id)]
 ArticleBySlugsDep = Annotated[Article, Depends(_get_article_by_slugs)]
-UpdateArticleDTODep = Annotated[UpdateArticleDTO, Depends(get_update_article_dto)]
-UpdateArticleStatusDTODep = Annotated[UpdateArticleStatusDTO, Depends(get_update_article_status_dto)]
-UpdateArticleImpressionDTODep = Annotated[UpdateArticleImpressionDTO, Depends(get_update_article_impression_dto)]
 ArticleQueryDep = Annotated[ArticleQueryDTO, Depends(get_article_query)]
+ArticleCommentQueryDep = Annotated[ArticleCommentQueryDTO, Depends()]
 ArticleQueryBySlugsDep = Annotated[ArticleQueryDTO, Depends(get_article_query_by_slugs)]
-ArticleCommentDep = Annotated[ArticleComment, Depends(get_article_comment_by_id)]
-UpdateArticleCommentDTODep = Annotated[UpdateArticleCommentDTO, Depends(get_update_article_comment_dto)]
-UpdateArticleCommentImpressionDTODep = Annotated[
-    UpdateArticleCommentImpressionDTO, Depends(get_update_article_comment_impression_dto)]
 ArticleTagQueryDep = Annotated[ArticleTagQueryDTO, Depends()]
 ArticleTagDep = Annotated[ArticleTag, Depends(get_article_tag_by_slug)]
-UpdateArticleTagDTODep = Annotated[UpdateArticleTagDTO, Depends(get_update_article_tag_dto)]
-ArticleTagSubscriptionDTODep = Annotated[ArticleTagSubscriptionDTO, Depends(get_article_tag_subscription_dto)]
-ImageFileDTODep = Annotated[ImageFileDTO, Depends(get_image_file)]
-UpdateUserImpressionDTODep = Annotated[UpdateUserImpressionDTO, Depends(get_update_user_impression_dto)]

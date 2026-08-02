@@ -3,19 +3,18 @@ import subprocess
 from pathlib import Path
 
 root_dir = Path(__file__).parent.parent
-source_dir = root_dir / "image-variants-lambda"
+source_dir = root_dir / "img-lambda"
 output_dir = root_dir / ".code-build"
-tmp_dir = output_dir / "tmp_image_variants"
-zip_file = output_dir / "image-variants-function.zip"
+tmp_dir = output_dir / "tmp_img"
+vendor_dir = root_dir / ".tmp/img"
+zip_file = output_dir / "img-function.zip"
 
 if tmp_dir.exists():
     shutil.rmtree(tmp_dir)
 tmp_dir.mkdir(parents=True)
 
-subprocess.run([
-    "pip", "install", "--no-cache-dir", "-r", str(source_dir / "requirements.txt"),
-    "-t", str(tmp_dir),
-], check=True)
+shutil.copytree(vendor_dir, tmp_dir, dirs_exist_ok=True)
+shutil.copy2(source_dir / "app.py", tmp_dir / "app.py")
 shutil.copy2(source_dir / "handler.py", tmp_dir / "handler.py")
 
 for path in tmp_dir.rglob("*"):

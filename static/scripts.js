@@ -1,4 +1,22 @@
 // Form validation & submission
+
+// Send the auth cookie with cross-origin API requests (localhost:5000 -> localhost:5002).
+$.ajaxSetup({
+  xhrFields: {withCredentials: true}
+})
+
+const ajaxResponse = options => new Promise(resolve => {
+  let request
+  const finish = (ok, data, xhr) => resolve({
+    ok,
+    status: xhr.status,
+    json: async () => data ?? {},
+    text: async () => typeof data === "string" ? data : JSON.stringify(data ?? {})
+  })
+  request = $.ajax(options).done((data, _textStatus, xhr) => finish(true, data, xhr))
+    .fail(xhr => finish(false, xhr.responseJSON ?? xhr.responseText, xhr))
+  if (options.signal) options.signal.addEventListener("abort", () => request.abort(), {once: true})
+})
 const toKebabCase = str => String(str || "").trim().toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-")
 
 
@@ -188,10 +206,12 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
       }
 
       // Submit the JSON payload
-      const response = await fetch(submitUrl, {
+      const response = await ajaxResponse({
+        url: submitUrl,
         method,
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(data)
+        contentType: "application/json",
+        data: JSON.stringify(data),
+        dataType: "json"
       })
 
       if (response.ok) {
@@ -288,7 +308,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
       const u = new URL(url, window.location.origin)
       u.searchParams.set("offset", offset)
       u.searchParams.set("limit", limit)
-      const resp = await fetch(u.toString())
+      const resp = await ajaxResponse({url: u.toString(), method: "GET", dataType: "text"})
       if (!resp.ok) {
         console.log(`Request failed with status ${resp.status}`)
         btn.remove()
@@ -439,8 +459,11 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
 
     const u = new URL(url, window.location.origin)
     u.searchParams.set("prefix", prefix)
-    fetch(u.toString(), {
-      headers: {"Content-Type": "application/json"}, signal: controller.signal
+    ajaxResponse({
+      url: u.toString(),
+      method: "GET",
+      dataType: "json",
+      signal: controller.signal
     })
       .then(async res => {
         if (!res.ok) {
@@ -664,8 +687,13 @@ const uploadPublicFile = async function (file, progress = undefined) {
     formData.append("file", file)
 
     // Upload to your existing endpoint
-    const uploadResponse = await fetch(window.CONFIG.upload_public_file_url, {
-      method: "POST", body: formData
+    const uploadResponse = await ajaxResponse({
+      url: window.CONFIG.upload_public_file_url,
+      method: "POST",
+      data: formData,
+      processData: false,
+      contentType: false,
+      dataType: "json"
     })
 
     if (!uploadResponse.ok) {

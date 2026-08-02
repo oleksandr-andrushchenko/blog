@@ -96,6 +96,11 @@ async def resolve(function, request):
 class Application(Starlette):
     def __init__(self, **kwargs):
         super().__init__()
+        self.url_routes = []
+
+    def add_url_route(self, path, name):
+        """Register route metadata for URL generation without a request handler."""
+        self.url_routes.append(Route(path, lambda request: Response(status_code=404), name=name))
 
     def middleware(self, middleware_type):
         def register(function):
