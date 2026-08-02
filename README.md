@@ -81,7 +81,6 @@
 - remove personal contact details
 - add user_name and user_slug attributes to articles, render user in article fragments, sync when user changed
 - tinymce: on image change - call api to drop the old image
-- fix article's review extraction
 - content on article edit page is not editable
 - cover all the avaiable web/API endpoints with integrations tests
 

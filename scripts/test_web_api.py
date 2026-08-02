@@ -765,7 +765,7 @@ def test_article_create_and_new_page_endpoints_success_and_failure(guest_client)
     functional_state["article_id"] = article_item["id"]
     functional_state["article_slug"] = article_item["post_slug"]
     assert article_item["content"].endswith(
-        f'<p><img src="/{ARTICLE_IMAGE_FILENAME}" alt="{ARTICLE_IMAGE_ALT}"></p>')
+        f'<img src="/{ARTICLE_IMAGE_FILENAME}" alt="{ARTICLE_IMAGE_ALT}">')
     assert "figure" not in article_item["content"]
     assert "picture" not in article_item["content"]
 

@@ -247,6 +247,14 @@ def sanitize_forbidden_html(value):
     normalized = re.sub(r"(?:<br\s*/?>\s*)+$", "", normalized, flags=re.IGNORECASE)
     normalized = normalized.strip()
 
+    # Remove image-only paragraph wrappers produced by rich-text editors.
+    normalized = re.sub(
+        r"<p\b[^>]*>\s*(<img\b[^>]*>)\s*</p>",
+        r"\1",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+
     return normalized
 
 
