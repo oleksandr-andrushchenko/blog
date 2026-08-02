@@ -1118,9 +1118,6 @@ def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateAr
     else:
         add_dynamodb_article_tag_update_transact(transacts, article_tag, changes)
 
-    add_user_activity_transact(transacts, cur_user, "article_tag.updated", "article_tag",
-                               slug, changes.get("name", article_tag.name), f"/article-tags/{slug}",
-                               cur_user.id, now)
     try:
         dynamodb_transact_write(transacts)
     except DynamoDBTransactionError as e:
@@ -2202,9 +2199,6 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
     if cur_user.id != article_owner.id:
         add_dynamodb_user_update_transact(transacts, cur_user)
 
-    add_user_activity_transact(transacts, cur_user, "article.updated", "article", article.id, article.title,
-                               f"/articles/{article.id}",
-                               article_owner.id, now)
     try:
         dynamodb_transact_write(transacts)
     except DynamoDBTransactionError as e:
@@ -2359,9 +2353,6 @@ def update_article_comment(article: Article, article_comment: ArticleComment,
     transacts = []
 
     add_dynamodb_update_transact(transacts, (f"POST#{article.id}", f"COMMENT#{article_comment.id}"), changes)
-    add_user_activity_transact(transacts, cur_user, "comment.updated", "comment", article_comment.id, article.title,
-                               f"/articles/{article.id}#comment-{article_comment.id}",
-                               article_comment.owner_id, utc_now())
 
     add_dynamodb_user_update_transact(transacts, cur_user)
 
@@ -2710,8 +2701,6 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
             )
 
     add_dynamodb_user_update_transact(transacts, user, changes, {})
-    add_user_activity_transact(transacts, cur_user, "user.updated", "user", user.id, user.name, f"/users/{user.id}",
-                               user.id, now)
 
     if user.id != cur_user.id:
         add_dynamodb_user_update_transact(transacts, cur_user)
@@ -3143,9 +3132,6 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
         add_dynamodb_user_update_transact(transacts, cur_user)
 
     # logger.debug(transacts)
-    add_user_activity_transact(transacts, cur_user, "article.updated", "article", article.id, article.title,
-                               f"/articles/{article.id}",
-                               article_owner.id, now)
 
     dynamodb_transact_write(transacts)
 
