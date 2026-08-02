@@ -19,13 +19,20 @@
   delete-infra         Delete CF stack
   deploy-cert-infra    Deploy ACM certificate for the domain
   deploy-code-files    Zip and upload Lambda code to S3
+  deploy-web-lambda    Build, upload, and deploy only the Web Lambda
+  deploy-api-lambda    Build, upload, and deploy only the API Lambda
+  deploy-img-lambda    Build, upload, and deploy only the Image Lambda
   deploy-code-infra    Deploy S3 bucket for Lambda / CloudFront code
   deploy-infra         Deploy CF stack for the site
   deploy-site-files    Sync local site files to S3
   down                 Stop local Docker containers
   drop-local-dynamodb  Drop DynamoDB table in local DynamoDB
   fetch-local-dynamodb Fetch 100 records from local DynamoDB
-  generate-code-files  Build Lambda zip for be-function
+  generate-code-files  Build all Lambda zips
+  generate-web-lambda-code-files  Build the Web Lambda zip
+  generate-api-lambda-code-files  Build the API Lambda zip
+  generate-img-lambda-code-files  Build the Image Lambda zip
+  # Individual deploy-* targets also upload the selected artifact and update only that Lambda
   generate-site-files  Run content generator inside Docker container
   get-cert-arn         Fetch the ACM Certificate ARN and save to .env
   get-cert-infra       Show cert CF stack events
@@ -44,6 +51,13 @@
   tail-test-logs       Tail test logs
   up                   Start local Docker containers
 ```
+
+## Lambda layout
+
+- `lambda-shared/` — shared backend code and templates
+- `web-lambda/` — website Lambda handler and dependencies
+- `api-lambda/` — API Lambda
+- `img-lambda/` — S3 image variant Lambda
 
 ## TODO
 
@@ -65,8 +79,11 @@
 - posts form: submit slugs URL version (instead of queries)
 - generate tag combos for post pages (article's tag combos for crawlers)
 - remove personal contact details
-- split into web and api lambdas
 - add user_name and user_slug attributes to articles, render user in article fragments, sync when user changed
+- tinymce: on image change - call api to drop the old image
+- fix article's review extraction
+- content on article edit page is not editable
+- cover all the avaiable web/API endpoints with integrations tests
 
 ## Links
 
