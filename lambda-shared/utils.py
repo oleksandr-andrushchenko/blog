@@ -1353,7 +1353,7 @@ def jinja2_render_article_content(ctx, content):
             **context,
             "filename": src.rsplit("/", 1)[-1],
             "alt": attributes.get("alt", ""),
-            "figure": False,
+            "figure": True,
             "img_sizes": {"1200px": "760px", "992px": "480px", "default": "100vw"},
         })
 
