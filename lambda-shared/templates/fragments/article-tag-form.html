@@ -1,7 +1,15 @@
 <form class="d-flex flex-column gap-2" id="article-tag-form" novalidate>
     <div class="form-group row align-items-center">
         <div class="col col-2">
-            {% include "fragments/article-tag-image.html" %}
+            {% if article_tag and article_tag.image_filename %}
+                <img src="{{ static_url(article_tag.image_filename) }}"
+                     alt="{{ article_tag.name }}" class="w-100 h-100 object-fit-cover rounded">
+            {% else %}
+                <div class="d-flex align-items-center justify-content-center bg-light text-muted"
+                     style="font-weight:600; font-size:1.25rem;">
+                    {{ article_tag.name|upper }}
+                </div>
+            {% endif %}
         </div>
         <div class="col-10">
             <div class="row align-items-center g-3">
