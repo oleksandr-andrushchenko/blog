@@ -3821,6 +3821,7 @@ def extract_image_filename_dimensions(filename: str) -> tuple[int | None, int | 
 
 
 def create_dummy_fixtures(req) -> None:
+    import random
     if is_prod():
         return
     created_articles = []
@@ -3868,32 +3869,37 @@ def create_dummy_fixtures(req) -> None:
     create_article_tag_subscription(ArticleTagSubscriptionDTO(tags=["tag1"]), user3)
     create_article_tag_subscription(ArticleTagSubscriptionDTO(tags=["tag2", "tag3"]), user4)
 
-    def article_figure(filename: str, alt: str, width: int, height: int) -> str:
-        return (
-            f"""<figure class="figure"><img src="/{filename}" alt="{alt}" class="img-fluid" width="{width}" height="{height}">
-<figcaption class="figure-caption">{alt}</figcaption>
-</figure>""")
+    generated_image_filenames = [
+        "3d7af01f-819e-4c2f-bc69-eb7245b76a74_1809x1247.png",
+        "45e97e68-a321-4657-9956-e942d9d757a7_1279x518.png",
+        "5b027ec7-c018-4744-9eda-00abf75cf685_1111x712.png",
+        "6a5118c0-a073-483b-ac5b-79e0a554e703_988x494.png",
+        "a167891d-7e91-40d6-a5c4-1a3ddb27dcc2_1575x842.png",
+    ]
+
+    def random_figure(alt: str) -> str:
+        if random.random() >= 0.3:
+            return ""
+        filename = random.choice(generated_image_filenames)
+        return f'<img src="/{filename}" alt="{alt}">'
 
     articles = [
         ArticleDTO(
             title="Article title #111111111111111111111111",
-            content=("Article content #111111111111111111111111" * 150 + "\n\n" + article_figure(
-                "a167891d-7e91-40d6-a5c4-1a3ddb27dcc2_1575x842.png",
-                "Message Queues Explained: Producers, Consumers, and Brokers", 1575, 842)),
+            content=("<p>Article content #111111111111111111111111" * 150 + "</p>\n\n" + random_figure(
+                "Message Queues Explained: Producers, Consumers, and Brokers")),
             tags=["tag1", "tag2", "tag3"]
         ),
         ArticleDTO(
             title="Article title #22222222222222222222222",
-            content=("Article content #222222222222222222222222" * 150 + "\n\n" + article_figure(
-                "5b027ec7-c018-4744-9eda-00abf75cf685_1111x712.png",
-                "Event-Driven Architecture: Connecting Services with Events", 1111, 712)),
+            content=("<p>Article content #222222222222222222222222" * 150 + "</p>\n\n" + random_figure(
+                "Event-Driven Architecture: Connecting Services with Events")),
             tags=["tag2", "tag3"]
         ),
         ArticleDTO(
             title="Article title #3333333333333333333333333",
-            content=("Article content #33333333333333333333333" * 150 + "\n\n" + article_figure(
-                "45e97e68-a321-4657-9956-e942d9d757a7_1279x518.png",
-                "Designing Reliable Distributed Systems", 1279, 518)),
+            content=("<p>Article content #33333333333333333333333" * 150 + "</p>\n\n" + random_figure(
+                "Designing Reliable Distributed Systems")),
             tags=["tag1", "tag3"]
         ),
     ]
@@ -3913,19 +3919,20 @@ def create_dummy_fixtures(req) -> None:
     articles = [
         ArticleDTO(
             title="Article title #111111111111111111111111 for user 2",
-            content=("Article content #111111111111111111111111" * 150 + "\n\n" + article_figure(
-                "3d7af01f-819e-4c2f-bc69-eb7245b76a74_1809x1247.png",
-                "Scaling Systems: From a Single Service to a Platform", 1809, 1247)),
+            content=("<p>Article content #111111111111111111111111" * 150 + "</p>\n\n" + random_figure(
+                "Scaling Systems: From a Single Service to a Platform")),
             tags=["tag3"]
         ),
         ArticleDTO(
             title="Article title #22222222222222222222222 for user 2",
-            content="Article content #222222222222222222222222" * 150,
+            content=("<p>Article content #222222222222222222222222" * 150 + "</p>" + random_figure(
+                "Article title #22222222222222222222222 for user 2")),
             tags=["tag2"]
         ),
         ArticleDTO(
             title="Article title #3333333333333333333333333 for user 2",
-            content="Article content #33333333333333333333333" * 150,
+            content=("<p>Article content #33333333333333333333333" * 150 + "</p>" + random_figure(
+                "Article title #3333333333333333333333333 for user 2")),
             tags=["tag4"]
         ),
     ]
@@ -3940,9 +3947,10 @@ def create_dummy_fixtures(req) -> None:
         generated_article = create_article(ArticleDTO(
             title=f"Generated Fixture Article #{article_index + 1:03d} for Sitemap Testing",
             content=(
-                    f"Generated fixture article content #{article_index + 1:03d}. "
+                    f"<p>Generated fixture article content #{article_index + 1:03d}.</p>"
                     "This article exists to exercise article creation, publication, pagination, "
                     "and sitemap generation with a larger local dataset. " * 120
+                    + random_figure("Generated fixture article")
             ),
             tags=["tag1", "tag2"] if article_index % 2 else ["tag3"],
         ), root_user)
@@ -3994,7 +4002,6 @@ def create_dummy_fixtures(req) -> None:
             update_article_impression(article, UpdateArticleImpressionDTO(
                 action=ArticleImpressionAction.DISLIKE), user, req)
 
-    import random
     for user in created_users:
         for user2 in created_users:
             if user.id != user2.id:
