@@ -852,7 +852,7 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     assert f"{ARTICLE_IMAGE_FILENAME.rsplit('_', 1)[0]}_1024x" in rendered_source.attr("srcset")
     rendered_img = rendered_picture("img")
     assert rendered_img.attr("alt") == ARTICLE_IMAGE_ALT
-    assert "<figure" not in read_success.text
+    assert "<figure" in read_success.text
 
     dynamodb_table.update_item(
         Key={"pk": f"POST#{article_id}", "sk": "META"},

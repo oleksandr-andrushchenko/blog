@@ -10,7 +10,7 @@ from article_tag_subscription_dtos import ArticleTagSubscriptionDTO
 from basic_dtos import ImageFileDTO
 from query_dtos import ArticleTagQueryDTO
 from user_dtos import UpdateUserDTO, UpdateUserActivitySettingsDTO, UpdateUserImpressionDTO, UpdateUserInterestsSettingsDTO, UpdateUserStatusDTO
-from utils import ArticleComment, ArticleCommentNotFoundError, get_article_comment
+from shared_utils import ArticleComment, ArticleCommentNotFoundError, get_article_comment
 from web import Body, HTTPException, Request
 
 

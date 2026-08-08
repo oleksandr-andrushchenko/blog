@@ -6,7 +6,7 @@ from query_dtos import ArticleStatus
 
 
 def _validate_tags(values):
-    from utils import to_kebab_case
+    from shared_utils import to_kebab_case
     result = list(dict.fromkeys(to_kebab_case(value) for value in (values or [])))
     if not 1 <= len(result) <= 3:
         raise ValueError("tags must contain between 1 and 3 items")

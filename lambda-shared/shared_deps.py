@@ -1,6 +1,6 @@
 from typing import Annotated, Optional
 
-from utils import (
+from shared_utils import (
     User,
     ArticleQueryDTO,
     ArticleCommentQueryDTO,

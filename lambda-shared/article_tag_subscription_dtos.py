@@ -9,7 +9,7 @@ class ArticleTagSubscriptionDTO(BaseDTO):
     tags: list[str]
 
     def __post_init__(self):
-        from utils import sanitize_tags
+        from shared_utils import sanitize_tags
 
         if isinstance(self.tags, str):
             try:

@@ -27,7 +27,7 @@ from deps import (
     UpdateArticleTagDTODep,
     ArticleTagSubscriptionDTODep,
 )
-from utils import (
+from api_utils import (
     to_thread,
     ContactMessageDTO,
     ArticleDTO,
@@ -199,7 +199,7 @@ async def article_tag_redirect_exception_handler(request: Request, exc: ArticleT
 
 @route("post", "upload-public-file", response_class=JSONResponse)
 async def upload_public_file(image_file_dto: ImageFileDTODep) -> str:
-    from utils import save_public_file
+    from api_utils import save_public_file
 
     return save_public_file(image_file_dto)
 
@@ -393,14 +393,14 @@ async def user_articles_fragment(user: UserDep, query_dto: ArticleQueryDep, cur_
 
 @route("post", "create-dummy-fixtures")
 async def _create_dummy_fixtures(request: Request) -> None:
-    from utils import create_dummy_fixtures
+    from api_utils import create_dummy_fixtures
 
     return create_dummy_fixtures(request)
 
 
 @route("post", "generate-sitemap")
 async def _generate_sitemap(cur_user: CurUserDep, request: Request) -> dict:
-    from utils import generate_sitemap
+    from api_utils import generate_sitemap
 
     urls_count, sitemap_url = generate_sitemap(cur_user, request)
     return {"urls_count": urls_count, "sitemap_url": sitemap_url}
@@ -408,7 +408,7 @@ async def _generate_sitemap(cur_user: CurUserDep, request: Request) -> dict:
 
 @route("post", "drop-cdn-cache")
 async def _drop_cdn_cache(cur_user: CurUserDep) -> dict:
-    from utils import drop_cdn_cache
+    from api_utils import drop_cdn_cache
 
     success, items_count = drop_cdn_cache(cur_user)
     return {"success": success, "items_count": items_count}

@@ -18,7 +18,9 @@ from shared_deps import (
     drop_token_cookie,
     ArticleTagDep,
 )
-from utils import (
+from web import Application, Request, Response, HTTPException, HTMLResponse, JSONResponse, RedirectResponse, \
+    RequestValidationError, CORSMiddleware, FileResponse
+from web_utils import (
     to_thread,
     ArticleQueryDTO,
     ArticleCommentQueryDTO,
@@ -67,8 +69,6 @@ from utils import (
     get_user_article_tag_subscription_for_tags,
     get_user_article_tag_subscriptions,
 )
-from web import Application, Request, Response, HTTPException, HTMLResponse, JSONResponse, RedirectResponse, \
-    RequestValidationError, CORSMiddleware, FileResponse
 
 app = Application()
 
@@ -467,7 +467,7 @@ async def edit_user(user: UserDep, cur_user: CurUserDep) -> str:
 
 @route("get", "login", response_class=RedirectResponse)
 async def login(request: Request) -> RedirectResponse:
-    from utils import get_login_redirect_url
+    from web_utils import get_login_redirect_url
 
     redirect_url = get_redirect_url(request)
     callback_url = get_url(request, 'login-callback', full=True)
@@ -479,7 +479,7 @@ async def login(request: Request) -> RedirectResponse:
 
 @route("get", "login-callback", response_class=RedirectResponse)
 async def login_callback(request: Request) -> RedirectResponse:
-    from utils import create_auth_jwt_token, get_user_token_by_code
+    from web_utils import create_auth_jwt_token, get_user_token_by_code
 
     try:
         redirect_url = request.cookies.get("redirect_url") or get_url(request, "index")
@@ -500,7 +500,7 @@ async def login_callback(request: Request) -> RedirectResponse:
 
 @route("get", "logout", response_class=RedirectResponse)
 async def logout(request: Request) -> RedirectResponse:
-    from utils import get_logout_redirect_url
+    from web_utils import get_logout_redirect_url
 
     redirect_url = get_redirect_url(request)
     callback_url = get_url(request, 'logout-callback', full=True)
