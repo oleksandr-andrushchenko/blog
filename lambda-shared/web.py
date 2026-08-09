@@ -119,6 +119,7 @@ class Application(Starlette):
     def _route(self, path, methods, name, response_class, status_code):
         def register(endpoint):
             async def dispatch(request):
+                request.scope["route_name"] = name
                 result = await resolve(endpoint, request)
                 if isinstance(result, Response): return result
                 if status_code == 204: return Response(status_code=204)

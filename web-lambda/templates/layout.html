@@ -1,4 +1,7 @@
 {% set index_url = url("index") %}
+{% set current_route = request.scope.get("route_name") %}
+{% set articles_active = current_route in ["articles", "article", "edit-article", "articles-by-slugs", "article-by-slugs", "edit-article-tag"] %}
+{% set users_active = current_route in ["users", "users-by-slugs", "user", "edit-user", "user-by-slug"] %}
 {% set css_filenames = [
     "https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css",
     "https://fonts.googleapis.com/css2?family=Rethink+Sans:wght@400;700&display=swap",
@@ -130,20 +133,28 @@
             <div class="collapse navbar-collapse" id="navbar">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ articles_url() }}">Articles</a>
+                        <a class="nav-link{% if articles_active %} active{% endif %}" href="{{ articles_url() }}"
+                                {% if articles_active %} aria-current="page"{% endif %}>Articles</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ users_url() }}">Users</a>
+                        <a class="nav-link{% if users_active %} active{% endif %}" href="{{ users_url() }}"
+                                {% if users_active %} aria-current="page"{% endif %}>Users</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link bi bi-currency-dollar" href="{{ url("earn") }}"> Earn</a>
+                        <a class="nav-link bi bi-currency-dollar{% if current_route == "earn" %} active{% endif %}"
+                           href="{{ url("earn") }}"{% if current_route == "earn" %} aria-current="page"{% endif %}>
+                            Earn</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url("contacts") }}">Contacts</a>
+                        <a class="nav-link{% if current_route == "contacts" %} active{% endif %}"
+                           href="{{ url("contacts") }}"{% if current_route == "contacts" %}
+                           aria-current="page"{% endif %}>Contacts</a>
                     </li>
                     {% if cur_user and check_auth(cur_user, Permission.UTILS) %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url("utils") }}">Utils</a>
+                            <a class="nav-link{% if current_route == "utils" %} active{% endif %}"
+                               href="{{ url("utils") }}"{% if current_route == "utils" %}
+                               aria-current="page"{% endif %}>Utils</a>
                         </li>
                     {% endif %}
                 </ul>
