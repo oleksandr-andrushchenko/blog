@@ -547,6 +547,7 @@ def save_public_file(file_dto: FileDTO, filename: str = None) -> str:
     stream = BytesIO(file_dto.content)
     stream.seek(0)
 
+    import mimetypes
     content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
     get_s3_client().upload_fileobj(
         stream,
