@@ -14,11 +14,6 @@
 {% set article_og_published_time = article.published_at | iso_utc if article.published_at else None %}
 {% set article_og_modified_time = article.updated_at | iso_utc if article.updated_at and article.published_at else None %}
 {% set article_og_tags = article.tags %}
-{% set article_rating = article_sentiment_rating(article.likes_count, article.dislikes_count) %}
-{% if article_rating %}
-    {% set meta_rating_value = article_rating.score %}
-    {% set meta_rating_count = article_rating.total_count %}
-{% endif %}
 {% block meta_schema %}
     {% set article_body = html_to_text(article.content) %}
     {% set article_image_url = static_url(article.image_filename, full=True) if article.image_filename else None %}
@@ -101,17 +96,6 @@
     {% endif %}
     {% if article.updated_at and article.published_at and article.updated_at - article.published_at > 86_400_000 %}
         {% set article_schema = article_schema.update({"dateModified": article.updated_at | iso_utc}) or article_schema %}
-    {% endif %}
-    {% if article_rating %}
-        {% set article_schema = article_schema.update({
-            "aggregateRating": {
-                "@type": "AggregateRating",
-                "ratingValue": article_rating.score,
-                "ratingCount": article_rating.total_count,
-                "bestRating": 5,
-                "worstRating": 0
-            }
-        }) or article_schema %}
     {% endif %}
     {{- article_schema | tojson | safe -}}
 {% endblock %}

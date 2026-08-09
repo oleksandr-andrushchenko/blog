@@ -965,10 +965,9 @@ def test_article_impression_comment_and_comment_update_endpoints_success_and_fai
     assert impression_success.status_code == 200, impression_success.text
     rated_doc = pq(get(regular_client, f"/articles/{article_id}").text)
     rated_schema = json.loads(rated_doc('script[type="application/ld+json"]').text())
-    assert rated_schema["aggregateRating"]["ratingValue"] == 5.0
-    assert rated_schema["aggregateRating"]["ratingCount"] == 1
-    assert rated_doc('meta[name="ratingValue"]').attr("content") == "5.0"
-    assert rated_doc('meta[name="ratingCount"]').attr("content") == "1"
+    assert "aggregateRating" not in rated_schema
+    assert not rated_doc('meta[name="ratingValue"]')
+    assert not rated_doc('meta[name="ratingCount"]')
     impression_failure = post(guest_client, f"/api/articles/{article_id}/impression", json={"action": "like"})
     assert impression_failure.status_code == 401
 
