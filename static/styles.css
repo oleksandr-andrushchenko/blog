@@ -1,8 +1,12 @@
-h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .navbar-brand {
+body {
     font-family: "Rethink Sans", sans-serif;
     font-optical-sizing: auto;
-    font-weight: bold;
+    font-weight: 400;
     font-style: normal;
+}
+
+h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .navbar-brand {
+    font-weight: 700;
 }
 
 .tox-tinymce {
@@ -48,10 +52,22 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .navbar-brand {
     height: auto;
 }
 
-.activity-calendar-svg .activity-cell-empty { fill: #e9ecef; }
-.activity-calendar-svg .activity-cell-low { fill: #b7e4c7; }
-.activity-calendar-svg .activity-cell-medium { fill: #52b788; }
-.activity-calendar-svg .activity-cell-high { fill: #1b4332; }
+.activity-calendar-svg .activity-cell-empty {
+    fill: #e9ecef;
+}
+
+.activity-calendar-svg .activity-cell-low {
+    fill: #b7e4c7;
+}
+
+.activity-calendar-svg .activity-cell-medium {
+    fill: #52b788;
+}
+
+.activity-calendar-svg .activity-cell-high {
+    fill: #1b4332;
+}
+
 .activity-calendar-svg .activity-month-label {
     fill: currentColor;
     font-size: 10px;
