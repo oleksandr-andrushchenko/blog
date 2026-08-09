@@ -1,7 +1,7 @@
 {% if breadcrumbs %}
     <!-- Breadcrumbs -->
     <nav aria-label="breadcrumb" style="--bs-breadcrumb-divider: '>';">
-        <ol class="breadcrumb">
+        <ol class="breadcrumb my-3">
             {% for label, url in breadcrumbs.items() %}
                 {% if loop.last or url is none %}
                     <li class="breadcrumb-item active" aria-current="page">{{ label }}</li>
