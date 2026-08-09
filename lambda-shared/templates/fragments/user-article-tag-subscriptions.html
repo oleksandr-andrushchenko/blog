@@ -1,6 +1,6 @@
 <section class="d-flex flex-column gap-3">
     <div class="d-flex align-items-center justify-content-between gap-2">
-        <h2 class="mb-0 text-decoration-underline">Interests</h2>
+        <h2 class="h5 mb-0 text-decoration-underline">Interests</h2>
         {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
             <div class="form-check form-switch small mb-0">
                 <input class="form-check-input" type="checkbox" id="profile-show-interests" {% if user.show_interests %}checked{% endif %}>

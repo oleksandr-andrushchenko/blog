@@ -29,7 +29,7 @@
             {% endif %}
 
             <section class="d-flex flex-column gap-3 mt-4">
-                <h2 class="mb-0 text-decoration-underline">Popular topics</h2>
+                <h2 class="h5 mb-0 text-decoration-underline">Popular topics</h2>
                 {% if popular_topic_article_tags %}
                     <div class="row row-cols-1 row-cols-md-4 g-3">
                         {% for tag in popular_topic_article_tags %}
@@ -63,7 +63,7 @@
             </section>
 
             <section class="d-flex flex-column gap-3 mt-4">
-                <h2 class="mb-0">
+                <h2 class="h5 mb-0">
                     <a href="{{ articles_url() }}" class="link-body-emphasis">Latest articles</a>
                 </h2>
                 {% if latest_articles %}
@@ -102,7 +102,7 @@
         <div class="col col-12 col-lg-6 col-xl-4 border-start">
             {% if show_popular_articles %}
                 <section class="d-flex flex-column gap-3">
-                    <h2 class="mb-0">
+                    <h2 class="h5 mb-0">
                         <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}" class="link-body-emphasis">
                             Popular articles
                         </a>
@@ -136,7 +136,7 @@
             {% endif %}
 
             <section class="d-flex flex-column gap-3{% if show_popular_articles %} mt-4{% endif %}">
-                <h2 class="mb-0 text-decoration-underline">Popular tags</h2>
+                <h2 class="h5 mb-0 text-decoration-underline">Popular tags</h2>
                 {% if popular_article_tags %}
                     <div id="popular-article-tags">
                         {% for tag in popular_article_tags %}
@@ -206,7 +206,7 @@
             {% endif %}
 
             <section class="d-flex flex-column gap-3 mt-4">
-                <h2 class="mb-0 text-decoration-underline">
+                <h2 class="h5 mb-0 text-decoration-underline">
                     <a href="{{ users_url(type=UserQueryType.POPULAR) }}" class="link-body-emphasis">Popular users</a>
                 </h2>
                 {% if popular_users %}
@@ -234,7 +234,7 @@
             </section>
 
             <section class="d-flex flex-column gap-3 mt-4">
-                <h2 class="mb-0 text-decoration-underline">Latest comments</h2>
+                <h2 class="h5 mb-0 text-decoration-underline">Latest comments</h2>
                 {% if latest_article_comments %}
                     <div id="latest-article-comments" class="d-flex flex-column gap-3">
                         {% include "fragments/latest-article-comments.html" %}

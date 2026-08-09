@@ -89,7 +89,7 @@
     <div class="row g-5">
         <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-4">
             <section class="d-flex flex-column gap-3">
-                <h2 class="mb-0 text-decoration-underline">User info</h2>
+                <h2 class="h5 mb-0 text-decoration-underline">User info</h2>
                 <div class="d-flex flex-column gap-1">
                     {% if user.website %}
                         <div>
@@ -225,7 +225,7 @@
 
             {% if user.about %}
                 <section class="d-flex flex-column gap-3">
-                    <h2 class="mb-0 text-decoration-underline">About</h2>
+                    <h2 class="h5 mb-0 text-decoration-underline">About</h2>
                     <div class="card text-bg-light">
                         <div class="card-body">
                             <div class="card-text">{{ user.about }}</div>
@@ -235,7 +235,7 @@
             {% endif %}
 
             <section class="d-flex flex-column gap-3">
-                <h2 class="mb-0 text-decoration-underline">{{ articles_title }}</h2>
+                <h2 class="h5 mb-0 text-decoration-underline">{{ articles_title }}</h2>
 
                 {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE, user) %}
                     <div class="d-flex justify-content-start align-items-center gap-1">
@@ -295,7 +295,7 @@
             {% endif %}
 
             <section class="d-flex flex-column gap-3">
-                <h2 class="mb-0 text-decoration-underline">User actions</h2>
+                <h2 class="h5 mb-0 text-decoration-underline">User actions</h2>
                 <div class="d-flex flex-column gap-1">
                     {% include "fragments/user-status.html" %}
                     {% include "fragments/user-impressions.html" %}
