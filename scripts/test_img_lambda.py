@@ -3,7 +3,6 @@ import io
 import os
 from pathlib import Path
 
-import boto3
 import pytest
 from PIL import Image
 from botocore.exceptions import ClientError

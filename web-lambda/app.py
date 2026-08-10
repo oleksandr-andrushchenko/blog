@@ -18,7 +18,7 @@ from shared_deps import (
     drop_token_cookie,
     ArticleTagDep,
 )
-from web import Application, Request, Response, HTTPException, HTMLResponse, JSONResponse, RedirectResponse, \
+from web import Application, Request, HTTPException, HTMLResponse, JSONResponse, RedirectResponse, \
     RequestValidationError, CORSMiddleware, FileResponse
 from web_utils import (
     to_thread,

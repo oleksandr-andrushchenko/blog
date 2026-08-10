@@ -3,7 +3,6 @@ import uuid
 from urllib.parse import quote
 
 import boto3
-from botocore.config import Config
 from requests import Session, Response
 
 from utils import (

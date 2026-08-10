@@ -77,7 +77,7 @@ from api_utils import (
     create_article_tag_subscription,
     delete_article_tag_subscription,
 )
-from web import Application, Request, Response, HTTPException, HTMLResponse, JSONResponse, RedirectResponse, \
+from web import Application, Request, HTTPException, HTMLResponse, JSONResponse, RedirectResponse, \
     RequestValidationError, CORSMiddleware
 
 app = Application()

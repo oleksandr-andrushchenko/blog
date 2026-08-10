@@ -12,20 +12,20 @@ import sys
 import time
 import uuid
 from dataclasses import dataclass, asdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from decimal import Decimal
 from enum import StrEnum
 from functools import lru_cache, partial
 from html import unescape
 from typing import Callable, TypeVar, Any
-from urllib.parse import quote, urlencode, urlparse
+from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
 from jinja2 import Environment, FileSystemLoader, pass_context, select_autoescape
 
 from article_dtos import (ArticleCommentImpressionAction, ArticleImpressionAction)
 from article_tag_subscription_dtos import ArticleTagSubscription
-from basic_dtos import ImageFileDTO, UserTokenDTO
+from basic_dtos import UserTokenDTO
 from query_dtos import (BaseQueryDTO, ArticleCommentQueryDTO, ArticleQueryDTO, ArticleQueryType, ArticleStatus,
                         ArticleTagQueryDTO, UserQueryDTO, UserQueryType, UserStatus)
 from user_dtos import UserImpressionAction
@@ -124,58 +124,6 @@ def user_activity_from_dynamodb(item: dict[str, Any]) -> UserActivity:
     return UserActivity(id=item["id"], event_type=item["event_type"], entity_type=entity_type,
                         entity_id=entity_id, entity_title=item.get("entity_title"),
                         entity_url=entity_url, created_at=int(item["created_at"]))
-
-
-def get_user_activity(user: User, year: int | None = None, recent_limit: int = 10) -> dict[str, Any]:
-    now = datetime.now(timezone.utc)
-    if year is None:
-        # Show the current calendar month plus the preceding 11 months.
-        month_index = now.year * 12 + (now.month - 1) - 11
-        start_year, start_month = divmod(month_index, 12)
-        start = datetime(start_year, start_month + 1, 1, tzinfo=timezone.utc)
-        end, calendar_year = now, None
-    else:
-        if year < 1970 or year > now.year:
-            raise ValueError("invalid activity year")
-        start, end, calendar_year = datetime(year, 1, 1, tzinfo=timezone.utc), datetime(year + 1, 1, 1,
-                                                                                        tzinfo=timezone.utc), year
-    start_ms, end_ms = int(start.timestamp() * 1000), int(end.timestamp() * 1000)
-    resp = query_dynamodb_table(
-        key_condition_expr=Key("pk").eq(f"USER_ACTIVITY#{user.id}") & Key("sk").between(f"ACTIVITY#{start_ms}",
-                                                                                        f"ACTIVITY#{end_ms}#~"),
-        scan_index_forward=False, limit=1000)
-    activities = [user_activity_from_dynamodb(item) for item in resp.get("Items", []) if item.get("profile_visible")]
-    counts = {}
-    for activity in activities:
-        day = datetime.fromtimestamp(float(activity.created_at) / 1000, tz=timezone.utc).date().isoformat()
-        counts[day] = counts.get(day, 0) + 1
-    first_day = start.date()
-    last_day = (end - timedelta(milliseconds=1)).date()
-    calendar_days = []
-    cursor = first_day
-    while cursor <= last_day:
-        key = cursor.isoformat()
-        calendar_days.append({"date": key, "count": counts.get(key, 0)})
-        cursor += timedelta(days=1)
-    months = []
-    for day in calendar_days:
-        month_key = day["date"][:7]
-        if not months or months[-1]["key"] != month_key:
-            month_date = datetime.strptime(month_key, "%Y-%m")
-            months.append({"key": month_key, "label": month_date.strftime("%b"), "days": []})
-        months[-1]["days"].append(day)
-    for month in months:
-        first = datetime.strptime(month["key"], "%Y-%m").date()
-        leading = (first.weekday() + 1) % 7
-        cells = [{"date": None, "count": 0}] * leading + month["days"]
-        while len(cells) % 7:
-            cells.append({"date": None, "count": 0})
-        month["weeks"] = [cells[index:index + 7] for index in range(0, len(cells), 7)]
-        month["week_count"] = len(month["weeks"])
-        while len(month["weeks"]) < 6:
-            month["weeks"].append([{"date": None, "count": 0} for _ in range(7)])
-    return {"year": calendar_year, "current_year": now.year, "total": len(activities),
-            "days": counts, "calendar_days": calendar_days, "months": months, "recent": activities[:recent_limit]}
 
 
 @dataclass(slots=True)
@@ -2098,11 +2046,6 @@ def get_latest_articles(query_dto: ArticleQueryDTO = None, cur_user: User = None
     )
 
 
-def get_latest_published_articles(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[Article]:
-    query_dto = ArticleQueryDTO(limit=limit)
-    return get_latest_articles(query_dto)
-
-
 def get_popular_articles(query_dto: ArticleQueryDTO = None, cur_user: User = None) -> list[Article]:
     if query_dto is None:
         query_dto = ArticleQueryDTO()
@@ -2118,23 +2061,6 @@ def get_popular_articles(query_dto: ArticleQueryDTO = None, cur_user: User = Non
         key_condition_expr=Key("post_status_pk").eq(f"POST#{query_dto.status}"),
         map_fn=article_from_dynamodb,
     )
-
-
-def should_show_popular_articles(latest_articles: list[Article], popular_articles: list[Article]) -> bool:
-    """
-    Show popular posts only if popular_posts differ from latest_posts.
-    Comparison is based on post IDs.
-    """
-    latest_ids = [article.id for article in latest_articles]
-    popular_ids = [article.id for article in popular_articles]
-
-    # Show popular posts only if the lists are not exactly equal
-    return latest_ids != popular_ids
-
-
-def get_popular_published_articles(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[Article]:
-    query_dto = ArticleQueryDTO(limit=limit)
-    return get_popular_articles(query_dto)
 
 
 def get_latest_articles_by_tags(query_dto: ArticleQueryDTO = None, cur_user: User = None) -> list[Article]:
@@ -2173,22 +2099,6 @@ def get_latest_articles_by_tags(query_dto: ArticleQueryDTO = None, cur_user: Use
     return articles
 
 
-def get_article_related_articles(article: Article, limit: int = 10) -> list[Article]:
-    if not article.tags:
-        return []
-
-    query_dto = ArticleQueryDTO()
-    query_dto.tags = article.tags
-    articles = get_popular_articles_by_tags(query_dto, or_mode=True)
-    article_tags = set(article.tags)
-    related_articles = [candidate for candidate in articles if candidate.id != article.id]
-    return sorted(
-        related_articles,
-        key=lambda candidate: len(article_tags.intersection(candidate.tags)),
-        reverse=True,
-    )[:limit]
-
-
 def get_article_comments(article: Article, query_dto: ArticleCommentQueryDTO | None = None) -> list[ArticleComment]:
     if article.comments_count == 0:
         return []
@@ -2198,17 +2108,6 @@ def get_article_comments(article: Article, query_dto: ArticleCommentQueryDTO | N
     return query_dynamodb_items(
         query_dto=query_dto,
         key_condition_expr=Key("pk").eq(f"POST#{article.id}") & Key('sk').begins_with(f"COMMENT#"),
-        map_fn=article_comment_from_dynamodb,
-    )
-
-
-def get_latest_article_comments(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[ArticleComment]:
-    query_dto = ArticleCommentQueryDTO(limit=limit)
-
-    return query_dynamodb_items(
-        query_dto=query_dto,
-        index_name="POST_COMMENTS_BY_CREATED_AT",
-        key_condition_expr=Key("post_comment_pk").eq(f"POST_COMMENT"),
         map_fn=article_comment_from_dynamodb,
     )
 
@@ -2267,25 +2166,6 @@ def get_popular_article_tags(query_dto: ArticleTagQueryDTO = None) -> list[Artic
         key_condition_expr=Key("tag_type_pk").eq("POST_TAG"),
         map_fn=article_tag_from_dynamodb,
     )
-
-
-def get_article_tags_by_prefix(query_dto: ArticleTagQueryDTO = None) -> list[ArticleTag]:
-    if query_dto is None:
-        query_dto = ArticleTagQueryDTO()
-    resp = query_dynamodb_table(
-        index_name="TAGS_BY_TYPE_NAME",
-        key_condition_expr=Key("tag_type_pk").eq("POST_TAG") & Key("tag_name_sk").begins_with(query_dto.prefix),
-        limit=query_dto.limit
-    )
-    items = resp.get("Items", [])
-    # logger.debug(f"Tags: {items}")
-    return [article_tag_from_dynamodb(item) for item in items]
-
-
-def get_article_tags(query_dto: ArticleTagQueryDTO = None) -> list[ArticleTag]:
-    if query_dto.prefix:
-        return get_article_tags_by_prefix(query_dto)
-    return get_popular_article_tags(query_dto)
 
 
 def find_article_tag_slug_item(slug: str) -> dict[str, Any] | None:
@@ -2391,41 +2271,6 @@ def get_latest_published_articles_by_user(user: User) -> list[Article]:
     return get_latest_articles_by_user(user)
 
 
-def get_all_articles_by_user(user: User) -> list[Article]:
-    articles = []
-    for status in ArticleStatus:
-        exclusive_start_key = None
-        while True:
-            response = query_dynamodb_table(
-                index_name="POSTS_BY_USER_STATUS_CREATED_AT_2",
-                key_condition_expr=Key("post_user_status_pk").eq(f"POST#{user.id}#{status}"),
-                scan_index_forward=False,
-                exclusive_start_key=exclusive_start_key,
-            )
-            articles.extend(article_from_dynamodb(item) for item in response.get("Items", []))
-            exclusive_start_key = response.get("LastEvaluatedKey")
-            if not exclusive_start_key:
-                break
-    return articles
-
-
-def get_all_article_comments_by_user(user: User) -> list[ArticleComment]:
-    comments = []
-    exclusive_start_key = None
-    while True:
-        response = query_dynamodb_table(
-            index_name="POST_COMMENTS_BY_USER_CREATED_AT",
-            key_condition_expr=Key("post_comment_user_pk").eq(f"USER#{user.id}"),
-            scan_index_forward=False,
-            exclusive_start_key=exclusive_start_key,
-        )
-        comments.extend(article_comment_from_dynamodb(item) for item in response.get("Items", []))
-        exclusive_start_key = response.get("LastEvaluatedKey")
-        if not exclusive_start_key:
-            break
-    return comments
-
-
 def get_latest_articles_by_user(user: User, query_dto: ArticleQueryDTO = None, cur_user: User = None) -> list[Article]:
     if query_dto is None:
         query_dto = ArticleQueryDTO()
@@ -2461,11 +2306,6 @@ def get_popular_users(query_dto: UserQueryDTO = None, cur_user: User = None) -> 
         key_condition_expr=Key("user_status_pk").eq(f"USER#{query_dto.status}"),
         map_fn=user_from_dynamodb,
     )
-
-
-def get_popular_active_users(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[User]:
-    query_dto = UserQueryDTO(limit=limit)
-    return get_popular_users(query_dto)
 
 
 def article_impression_from_dynamodb(d_item: dict[str, Any]) -> ArticleImpression:

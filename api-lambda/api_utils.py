@@ -3,7 +3,7 @@ from article_dtos import (
     UpdateArticleStatusDTO, UpdateArticleTagDTO,
 )
 from article_tag_subscription_dtos import ArticleTagSubscriptionDTO
-from basic_dtos import ContactMessageDTO, FileDTO
+from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO
 from shared_utils import *
 from user_dtos import (
     UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO,
@@ -1439,3 +1439,57 @@ def find_static_image_filename(html_content: str) -> str | None:
         return None
 
     return match.group(1)
+
+
+def get_article_tags_by_prefix(query_dto: ArticleTagQueryDTO = None) -> list[ArticleTag]:
+    if query_dto is None:
+        query_dto = ArticleTagQueryDTO()
+    resp = query_dynamodb_table(
+        index_name="TAGS_BY_TYPE_NAME",
+        key_condition_expr=Key("tag_type_pk").eq("POST_TAG") & Key("tag_name_sk").begins_with(query_dto.prefix),
+        limit=query_dto.limit
+    )
+    items = resp.get("Items", [])
+    # logger.debug(f"Tags: {items}")
+    return [article_tag_from_dynamodb(item) for item in items]
+
+
+def get_article_tags(query_dto: ArticleTagQueryDTO = None) -> list[ArticleTag]:
+    if query_dto.prefix:
+        return get_article_tags_by_prefix(query_dto)
+    return get_popular_article_tags(query_dto)
+
+
+def get_all_articles_by_user(user: User) -> list[Article]:
+    articles = []
+    for status in ArticleStatus:
+        exclusive_start_key = None
+        while True:
+            response = query_dynamodb_table(
+                index_name="POSTS_BY_USER_STATUS_CREATED_AT_2",
+                key_condition_expr=Key("post_user_status_pk").eq(f"POST#{user.id}#{status}"),
+                scan_index_forward=False,
+                exclusive_start_key=exclusive_start_key,
+            )
+            articles.extend(article_from_dynamodb(item) for item in response.get("Items", []))
+            exclusive_start_key = response.get("LastEvaluatedKey")
+            if not exclusive_start_key:
+                break
+    return articles
+
+
+def get_all_article_comments_by_user(user: User) -> list[ArticleComment]:
+    comments = []
+    exclusive_start_key = None
+    while True:
+        response = query_dynamodb_table(
+            index_name="POST_COMMENTS_BY_USER_CREATED_AT",
+            key_condition_expr=Key("post_comment_user_pk").eq(f"USER#{user.id}"),
+            scan_index_forward=False,
+            exclusive_start_key=exclusive_start_key,
+        )
+        comments.extend(article_comment_from_dynamodb(item) for item in response.get("Items", []))
+        exclusive_start_key = response.get("LastEvaluatedKey")
+        if not exclusive_start_key:
+            break
+    return comments
