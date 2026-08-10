@@ -576,12 +576,8 @@ def get_config():
     return config
 
 
-
-
 def get_static_files_dir() -> str:
     return config.get("static_files_dir")
-
-
 
 
 def get_base_url():
@@ -598,10 +594,6 @@ def get_dynamodb_endpoint():
 
 def get_dynamodb_table_name():
     return get_config().get("dynamodb_table")
-
-
-
-
 
 
 def article_tag_subscription_key(tags: list[str]) -> str:
@@ -624,12 +616,6 @@ def get_user_article_tag_subscriptions(user: User) -> list[ArticleTagSubscriptio
 def get_user_article_tag_subscription_for_tags(user: User, tags: list[str]) -> ArticleTagSubscription | None:
     wanted = article_tag_subscription_key(tags)
     return next((item for item in get_user_article_tag_subscriptions(user) if item.key == wanted), None)
-
-
-
-
-
-
 
 
 def get_allowed_origins() -> list[str]:
@@ -664,8 +650,6 @@ def get_auth_token_max_age() -> int:
 
 def get_auth_jwt_secret() -> str:
     return get_config().get("auth_jwt_secret")
-
-
 
 
 class Lazy:
@@ -1192,8 +1176,6 @@ def get_html_content(template: str, data: dict[str, Any]) -> str:
     return template.render(data)
 
 
-
-
 def to_datetime(ts: Any) -> datetime:
     if isinstance(ts, (int, float)):
         return datetime.fromtimestamp(ts, tz=timezone.utc)
@@ -1515,10 +1497,6 @@ def html_to_text(value: str | None) -> str:
                    flags=re.IGNORECASE | re.DOTALL)
     value = re.sub(r"<[^>]+>", " ", value)
     return re.sub(r"\s+", " ", unescape(value)).strip()
-
-
-
-
 
 
 def get_text_diff_percentage(t1, t2) -> int:
@@ -2195,11 +2173,20 @@ def get_latest_articles_by_tags(query_dto: ArticleQueryDTO = None, cur_user: Use
     return articles
 
 
-def get_article_related_articles(article: Article) -> list[Article]:
+def get_article_related_articles(article: Article, limit: int = 10) -> list[Article]:
+    if not article.tags:
+        return []
+
     query_dto = ArticleQueryDTO()
     query_dto.tags = article.tags
-    articles = get_popular_articles_by_tags(query_dto)
-    return [p for p in articles if p.id != article.id]
+    articles = get_popular_articles_by_tags(query_dto, or_mode=True)
+    article_tags = set(article.tags)
+    related_articles = [candidate for candidate in articles if candidate.id != article.id]
+    return sorted(
+        related_articles,
+        key=lambda candidate: len(article_tags.intersection(candidate.tags)),
+        reverse=True,
+    )[:limit]
 
 
 def get_article_comments(article: Article, query_dto: ArticleCommentQueryDTO | None = None) -> list[ArticleComment]:
@@ -2226,7 +2213,11 @@ def get_latest_article_comments(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list
     )
 
 
-def get_popular_articles_by_tags(query_dto: ArticleQueryDTO = None, cur_user: User = None) -> list[Article]:
+def get_popular_articles_by_tags(
+        query_dto: ArticleQueryDTO = None,
+        cur_user: User = None,
+        or_mode: bool = False
+) -> list[Article]:
     if query_dto is None:
         query_dto = ArticleQueryDTO()
 
@@ -2242,7 +2233,11 @@ def get_popular_articles_by_tags(query_dto: ArticleQueryDTO = None, cur_user: Us
     offset = articles[-1].offset if articles else None
 
     # Filter by tags
-    filtered_articles = [article for article in articles if set(query_dto.tags).issubset(set(article.tags))]
+    wanted_tags = set(query_dto.tags)
+    if or_mode:
+        filtered_articles = [article for article in articles if wanted_tags.intersection(article.tags)]
+    else:
+        filtered_articles = [article for article in articles if wanted_tags.issubset(set(article.tags))]
     if filtered_articles:
         filtered_articles[-1].offset = offset
 
@@ -2334,16 +2329,6 @@ def get_article_tag(slug: str, cur_user: User) -> ArticleTag:
     if article_tag.slug != slug:
         raise ArticleTagByOldSlugRequestedError(slug, article_tag)
     return article_tag
-
-
-
-
-
-
-
-
-
-
 
 
 def get_latest_users(query_dto: UserQueryDTO = None, cur_user: User = None) -> list[User]:
