@@ -16,6 +16,7 @@ TEST_WEB_LAMBDA_PORT := $(shell sed -n "s/^WEB_LAMBDA_PORT=//p" .env.test)
 TEST_API_LAMBDA_PORT := $(shell sed -n "s/^API_LAMBDA_PORT=//p" .env.test)
 TEST_DYNAMODB_PORT := $(shell sed -n "s/^DYNAMODB_PORT=//p" .env.test)
 TEST_DC = WEB_LAMBDA_PORT=$(TEST_WEB_LAMBDA_PORT) API_LAMBDA_PORT=$(TEST_API_LAMBDA_PORT) DYNAMODB_PORT=$(TEST_DYNAMODB_PORT) $(DC) --env-file .env.test -f docker-compose.test.yml -p $(if $(PROJECT_NAME),$(PROJECT_NAME)-tests,blog-tests)
+SCRIPTS_DC = $(DC) -f docker-compose.yml -f docker-compose.scripts.yml
 TESTS_CONTAINER = tests
 
 WEB_LAMBDA_CONTAINER = web-lambda
@@ -286,7 +287,7 @@ up: ## Start local Docker containers
 
 .PHONY: down
 down: ## Stop local Docker containers
-	$(DC) down
+	$(SCRIPTS_DC) down
 
 .PHONY: restart
 restart: down up ## Restart local Docker containers
@@ -295,53 +296,57 @@ restart: down up ## Restart local Docker containers
 rebuild: ## Rebuild and start Docker containers
 	$(DC) up -d --build --force-recreate
 
+.PHONY: scripts-up
+scripts-up: ## Start the scripts container and local DynamoDB
+	$(SCRIPTS_DC) up -d --build dynamodb scripts
+
 .PHONY: login
 login: ## Open shell in Docker container
 	$(DC) exec -it $(WEB_LAMBDA_CONTAINER) bash
 
-login-scripts: ## Open shell in scripts Docker container
-	$(DC) exec -it $(SCRIPTS_CONTAINER) bash
+login-scripts: scripts-up ## Open shell in scripts Docker container
+	$(SCRIPTS_DC) exec -it $(SCRIPTS_CONTAINER) bash
 
 .PHONY: logs
 logs: ## Show logs of Docker container
 	$(DC) logs -f $(WEB_LAMBDA_CONTAINER)
 
 .PHONY: generate-site-files
-generate-site-files: ## Run content generator inside Docker container
+generate-site-files: scripts-up ## Run content generator inside Docker container
 	@echo "📦 Generating Site files..."
 	mkdir -p $(SITE_BUILD_DIR)
 	rm -rf $(SITE_BUILD_DIR)/*
-	$(DC) exec $(SCRIPTS_CONTAINER) python3 scripts/generate_site_build.py
+	$(SCRIPTS_DC) exec $(SCRIPTS_CONTAINER) python3 scripts/generate_site_build.py
 	@echo "✅ Site files saved to $(SITE_BUILD_DIR) successfully"
 
 .PHONY: generate-web-lambda-code-files
-generate-web-lambda-code-files: ## Build the Web Lambda ZIP
+generate-web-lambda-code-files: scripts-up ## Build the Web Lambda ZIP
 	@echo "📦 Generating Web Lambda code files..."
 	rm -rf .tmp/web
 	rm -f $(CODE_BUILD_DIR)/web-function*.zip
 	mkdir -p .tmp/web $(CODE_BUILD_DIR)
-	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) pip install --no-cache-dir -r /app/web-lambda/requirements.txt -t /app/.tmp/web
-	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) python3 /app/scripts/generate_lambda_build.py web
+	$(SCRIPTS_DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) pip install --no-cache-dir -r /app/web-lambda/requirements.txt -t /app/.tmp/web
+	$(SCRIPTS_DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) python3 /app/scripts/generate_lambda_build.py web
 	@TIMESTAMP=$$(date +%Y%m%d%H%M%S); mv $(CODE_BUILD_DIR)/web-function.zip $(CODE_BUILD_DIR)/web-function-$$TIMESTAMP.zip; if grep -q "^WEB_LAMBDA_CODE_TIMESTAMP=" .env; then sed -i.bak "s|^WEB_LAMBDA_CODE_TIMESTAMP=.*|WEB_LAMBDA_CODE_TIMESTAMP=$$TIMESTAMP|" .env; rm -f .env.bak; else printf "\nWEB_LAMBDA_CODE_TIMESTAMP=$$TIMESTAMP\n" >> .env; fi
 
 .PHONY: generate-api-lambda-code-files
-generate-api-lambda-code-files: ## Build the API Lambda ZIP
+generate-api-lambda-code-files: scripts-up ## Build the API Lambda ZIP
 	@echo "📦 Generating API Lambda code files..."
 	rm -rf .tmp/api
 	rm -f $(CODE_BUILD_DIR)/api-function*.zip
 	mkdir -p .tmp/api $(CODE_BUILD_DIR)
-	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) pip install --no-cache-dir -r /app/api-lambda/requirements.txt -t /app/.tmp/api
-	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) python3 /app/scripts/generate_lambda_build.py api
+	$(SCRIPTS_DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) pip install --no-cache-dir -r /app/api-lambda/requirements.txt -t /app/.tmp/api
+	$(SCRIPTS_DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) python3 /app/scripts/generate_lambda_build.py api
 	@TIMESTAMP=$$(date +%Y%m%d%H%M%S); mv $(CODE_BUILD_DIR)/api-function.zip $(CODE_BUILD_DIR)/api-function-$$TIMESTAMP.zip; if grep -q "^API_LAMBDA_CODE_TIMESTAMP=" .env; then sed -i.bak "s|^API_LAMBDA_CODE_TIMESTAMP=.*|API_LAMBDA_CODE_TIMESTAMP=$$TIMESTAMP|" .env; rm -f .env.bak; else printf "\nAPI_LAMBDA_CODE_TIMESTAMP=$$TIMESTAMP\n" >> .env; fi
 
 .PHONY: generate-img-lambda-code-files
-generate-img-lambda-code-files: ## Build the Image Lambda ZIP
+generate-img-lambda-code-files: scripts-up ## Build the Image Lambda ZIP
 	@echo "📦 Generating Image Lambda code files..."
 	rm -rf .tmp/img
 	rm -f $(CODE_BUILD_DIR)/img-function*.zip
 	mkdir -p .tmp/img $(CODE_BUILD_DIR)
-	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) pip install --no-cache-dir -r /app/img-lambda/requirements.txt -t /app/.tmp/img
-	$(DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) python3 /app/scripts/generate_img_lambda_build.py
+	$(SCRIPTS_DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) pip install --no-cache-dir -r /app/img-lambda/requirements.txt -t /app/.tmp/img
+	$(SCRIPTS_DC) exec --user $(HOST_UID):$(HOST_GID) $(SCRIPTS_CONTAINER) python3 /app/scripts/generate_img_lambda_build.py
 	@TIMESTAMP=$$(date +%Y%m%d%H%M%S); mv $(CODE_BUILD_DIR)/img-function.zip $(CODE_BUILD_DIR)/img-function-$$TIMESTAMP.zip; if grep -q "^IMG_LAMBDA_CODE_TIMESTAMP=" .env; then sed -i.bak "s|^IMG_LAMBDA_CODE_TIMESTAMP=.*|IMG_LAMBDA_CODE_TIMESTAMP=$$TIMESTAMP|" .env; rm -f .env.bak; else printf "\nIMG_LAMBDA_CODE_TIMESTAMP=$$TIMESTAMP\n" >> .env; fi
 
 .PHONY: generate-code-files
@@ -362,7 +367,7 @@ aws-login: ## Obtain AWS auth token
 	aws login --profile $(AWS_PROJECT)
 
 .PHONY: create-local-dynamodb
-create-local-dynamodb: ## Create local DynamoDB table
+create-local-dynamodb: scripts-up ## Create local DynamoDB table
 	@echo "🚀 Creating local DynamoDB table app..."
 	@if aws dynamodb describe-table \
 	    --profile dummy \
@@ -372,7 +377,7 @@ create-local-dynamodb: ## Create local DynamoDB table
 		echo "⚠️ Table app already exists, skipping creation."; \
 	else \
 		echo "🧩 Extracting DynamoDB schema from CloudFormation..."; \
-		$(DC) exec $(SCRIPTS_CONTAINER) python3 scripts/extract_dynamodb_schema.py > /tmp/dynamodb_schema.json; \
+		$(SCRIPTS_DC) exec $(SCRIPTS_CONTAINER) python3 scripts/extract_dynamodb_schema.py > /tmp/dynamodb_schema.json; \
 		if [ ! -s /tmp/dynamodb_schema.json ]; then echo '❌ Failed to generate valid DynamoDB schema JSON'; exit 1; fi; \
 		echo "📄 Generated schema:"; \
 		cat /tmp/dynamodb_schema.json | jq .; \
@@ -440,8 +445,8 @@ tests: ## Run tests in the isolated test Docker Compose stack and remove it afte
 
 
 .PHONY: tail-scripts-logs
-tail-scripts-logs: ## Tail scripts logs
-	$(DC) logs -f $(SCRIPTS_CONTAINER)
+tail-scripts-logs: scripts-up ## Tail scripts logs
+	$(SCRIPTS_DC) logs -f $(SCRIPTS_CONTAINER)
 
 .PHONY: deploy
 deploy: aws-login restart deploy-site-files deploy-code-files deploy-infra ## Deploy static and code files

@@ -1,0 +1,11 @@
+services:
+  scripts:
+    build:
+      context: ./scripts
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      DYNAMODB_ENDPOINT: "http://dynamodb:8000"
+    volumes:
+      - ./:/app
