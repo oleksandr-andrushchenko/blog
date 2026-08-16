@@ -3,7 +3,7 @@
 {% set title = ("Edit " ~ article_tag.name) | trim %}
 {% set meta_robots = "noindex, nofollow" %}
 {% set meta_title = title ~ " " ~ site_name %}
-{% set meta_canonical_url = url("edit-article-tag", slug=article_tag.slug, full=True) %}
+{% set meta_canonical_url = url("edit-article-tag", slug=article_tag.slug, absolute=True) %}
 
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), "Articles": articles_url(), (article_tag.name|title): articles_url(tags=[article_tag.slug]), "Edit": None} %}

@@ -3,7 +3,7 @@
 {% set title = "Utils" %}
 {% set meta_robots = "noindex, nofollow" %}
 {% set meta_title = title ~ " | " ~ site_name %}
-{% set meta_canonical_url = url("utils", full=True) %}
+{% set meta_canonical_url = url("utils", absolute=True) %}
 
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), (title): None} %}
@@ -32,7 +32,7 @@
 
                 <script>
                   document.addEventListener("DOMContentLoaded", () => {
-                    handleFormSubmit("#generate-sitemap-form", {{ url("generate-sitemap") | tojson }}, {
+                    handleFormSubmit("#generate-sitemap-form", {{ url("generate-sitemap", absolute=True) | tojson }}, {
                       method: "POST",
                       onSuccess: (res) => `Sitemap generated!<br>URLs count: ${res.urls_count}, Sitemap URL: <a href="${res.sitemap_url}" target="_blank">${res.sitemap_url}</a>`,
                     })
@@ -57,7 +57,7 @@
 
                 <script>
                   document.addEventListener("DOMContentLoaded", () => {
-                    handleFormSubmit("#drop-cdn-cache-form", {{ url("drop-cdn-cache") | tojson }}, {
+                    handleFormSubmit("#drop-cdn-cache-form", {{ url("drop-cdn-cache", absolute=True) | tojson }}, {
                       method: "POST",
                       onSuccess: (res) => `CDN cache dropped!<br>Items count: ${res.items_count}`,
                     })

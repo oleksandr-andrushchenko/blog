@@ -1,8 +1,8 @@
 {% extends "layout.html" %}
-{% set article_canonical_url = article_url(article, full=True) %}
-{% set article_alternate_url = url("article", article_id=article.id, full=True) %}
-{% set author_canonical_url = user_url(author, full=True) %}
-{% set author_alternate_url = url("user", user_id=author.id, full=True) %}
+{% set article_canonical_url = article_url(article, absolute=True) %}
+{% set article_alternate_url = url("article", article_id=article.id, absolute=True) %}
+{% set author_canonical_url = user_url(author, absolute=True) %}
+{% set author_alternate_url = url("user", user_id=author.id, absolute=True) %}
 {% set meta_desc = [article.title, article.preview, meta_desc] | select | join('. ') | truncate(155, True, '...') %}
 {% set meta_title = article.title ~ " | by " ~ author.name ~ " ~ " ~ site_name %}
 {% set meta_robots = "index, follow" %}
@@ -16,7 +16,7 @@
 {% set article_og_tags = article.tags %}
 {% block meta_schema %}
     {% set article_body = html_to_text(article.content) %}
-    {% set article_image_url = static_url(article.image_filename, full=True) if article.image_filename else None %}
+    {% set article_image_url = static_url(article.image_filename, absolute=True) if article.image_filename else None %}
     {% set comment_schemas = namespace(values=[]) %}
     {% for article_comment in comments %}
         {% set comment_user = article_comment.get_user() %}
@@ -27,9 +27,9 @@
             "url": meta_canonical_url ~ "#" ~ comment_anchor,
             "author": {
                 "@type": "Person",
-                "@id": user_url(comment_user, full=True),
+                "@id": user_url(comment_user, absolute=True),
                 "name": comment_user.name,
-                "url": user_url(comment_user, full=True)
+                "url": user_url(comment_user, absolute=True)
             },
             "datePublished": article_comment.created_at | iso_utc,
             "text": article_comment.text
@@ -69,7 +69,7 @@
             "url": author_schema["url"],
             "logo": {
                 "@type": "ImageObject",
-                "url": static_url(site_img_filename, full=True)
+                "url": static_url(site_img_filename, absolute=True)
             } if site_img_filename else None,
             "sameAs": ([author_alternate_url] if author_canonical_url != author_alternate_url else [])
                        + ([author.website] if author.website else [])
@@ -79,8 +79,8 @@
         "breadcrumb": {
             "@type": "BreadcrumbList",
             "itemListElement": [
-                {"@type": "ListItem", "position": 1, "name": "Home", "item": url("index", full=True)},
-                {"@type": "ListItem", "position": 2, "name": "Articles", "item": articles_url(full=True)},
+                {"@type": "ListItem", "position": 1, "name": "Home", "item": url("index", absolute=True)},
+                {"@type": "ListItem", "position": 2, "name": "Articles", "item": articles_url(absolute=True)},
                 {"@type": "ListItem", "position": 3, "name": article.title, "item": meta_canonical_url}
             ]
         }
@@ -149,7 +149,7 @@
                         {% with limit=comments_query.limit,
                             offset=comments[-1].offset,
                             count=comments|length,
-                            url=url("article-comments-fragment", article_id=article.id, **comments_query.get_dict()),
+                            url=url("article-comments-fragment", article_id=article.id, absolute=True, **comments_query.get_dict()),
                             container="#article-comments" %}
                             {% include "fragments/load-more-button.html" %}
                         {% endwith %}

@@ -11,8 +11,8 @@ services:
       APP_STAGE: local
       APP_ENV: dev
       APP_DEBUG: 1
-      BASE_URL: "http://localhost:${WEB_LAMBDA_PORT}"
-      API_BASE_URL: "http://localhost:${API_LAMBDA_PORT:-5002}"
+      WEB_BASE_URL: "http://localhost:${WEB_LAMBDA_PORT}"
+      API_BASE_URL: "http://localhost:${API_LAMBDA_PORT}"
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"
@@ -35,14 +35,14 @@ services:
       context: ./
       dockerfile: api-lambda/Dockerfile
     ports:
-      - "${API_LAMBDA_PORT:-5002}:5000"
+      - "${API_LAMBDA_PORT}:5000"
     env_file:
       - .env
     environment:
       APP_STAGE: local
       APP_ENV: dev
       APP_DEBUG: 1
-      BASE_URL: "http://localhost:${API_LAMBDA_PORT:-5002}"
+      API_BASE_URL: "http://localhost:${API_LAMBDA_PORT}"
       WEB_BASE_URL: "http://localhost:${WEB_LAMBDA_PORT}"
       ALLOWED_ORIGIN: "http://localhost:${WEB_LAMBDA_PORT}"
       AWS_ACCESS_KEY_ID: dummy
@@ -66,7 +66,7 @@ services:
     build:
       context: ./
       dockerfile: api-lambda/Dockerfile
-    command: ["uvicorn", "local_app:app", "--host", "0.0.0.0", "--port", "5000", "--reload"]
+    command: [ "uvicorn", "local_app:app", "--host", "0.0.0.0", "--port", "5000", "--reload" ]
     ports:
       - "${TESTS_PORT}:5000"
     env_file:
@@ -79,7 +79,8 @@ services:
       WEB_LAMBDA_DIR: "/web-lambda"
       API_LAMBDA_DIR: "/api-lambda"
       APP_DEBUG: 1
-      BASE_URL: "http://localhost:${TESTS_PORT}"
+      WEB_BASE_URL: "http://localhost:${TESTS_PORT}"
+      API_BASE_URL: "http://localhost:${TESTS_PORT}"
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"

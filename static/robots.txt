@@ -5,6 +5,3 @@ Allow: /
 
 # --- BLOCK QUERY PARAMETERS (duplicates, filters, tracking) ---
 Disallow: /*?
-
-# --- BLOCK API ROUTES ---
-Disallow: /api/

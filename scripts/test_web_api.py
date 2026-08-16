@@ -488,7 +488,7 @@ def test_regular_user_can_create_article_comment():
         "comments_count": 0,
     })
 
-    resp = post(comment_user_client, f"/api/articles/{article_id}/comment", json={
+    resp = post(comment_user_client, f"/articles/{article_id}/comment", json={
         "text": "Regular users should be allowed to comment."
     })
 
@@ -568,18 +568,18 @@ def test_legacy_article_page_urls_redirect_to_articles(guest_client, legacy_path
 
 
 @pytest.mark.parametrize(("method", "legacy_path", "article_path"), [
-    ("get", "/api/posts-fragment", "/api/articles-fragment"),
-    ("get", "/api/users/example-id/posts-fragment", "/api/users/example-id/articles-fragment"),
-    ("post", "/api/posts", "/api/articles"),
-    ("patch", "/api/posts/example-id", "/api/articles/example-id"),
-    ("post", "/api/posts/example-id/status", "/api/articles/example-id/status"),
-    ("post", "/api/posts/example-id/impression", "/api/articles/example-id/impression"),
-    ("post", "/api/posts/example-id/comment", "/api/articles/example-id/comment"),
-    ("patch", "/api/posts/example-id/comments/example-comment-id",
-     "/api/articles/example-id/comments/example-comment-id"),
+    ("get", "/posts-fragment", "/articles-fragment"),
+    ("get", "/users/example-id/posts-fragment", "/users/example-id/articles-fragment"),
+    ("post", "/posts", "/articles"),
+    ("patch", "/posts/example-id", "/articles/example-id"),
+    ("post", "/posts/example-id/status", "/articles/example-id/status"),
+    ("post", "/posts/example-id/impression", "/articles/example-id/impression"),
+    ("post", "/posts/example-id/comment", "/articles/example-id/comment"),
+    ("patch", "/posts/example-id/comments/example-comment-id",
+     "/articles/example-id/comments/example-comment-id"),
     ("get", "/post-tags/example-tag/edit", "/article-tags/example-tag/edit"),
-    ("get", "/api/post-tags", "/api/article-tags"),
-    ("patch", "/api/post-tags/example-tag", "/api/article-tags/example-tag"),
+    ("get", "/post-tags", "/article-tags"),
+    ("patch", "/post-tags/example-tag", "/article-tags/example-tag"),
 ])
 def test_legacy_article_endpoint_urls_preserve_method_and_redirect(
         guest_client, method, legacy_path, article_path):
@@ -598,9 +598,9 @@ def test_legacy_article_endpoint_urls_preserve_method_and_redirect(
     "/contacts",
     "/users",
     "/latest/users",
-    "/api/articles-fragment",
-    "/api/users-fragment",
-    "/api/article-tags",
+    "/articles-fragment",
+    "/users-fragment",
+    "/article-tags",
     "/privacy-policy",
     "/rules",
     "/terms-of-service",
@@ -611,7 +611,8 @@ def test_public_read_endpoints_success_and_wrong_method_failure(guest_client, pa
     assert success.status_code == 200, (path, success.status_code, success.text)
 
     failure = post(guest_client, path, json={})
-    assert failure.status_code == 405, (path, failure.status_code, failure.text)
+    expected_status = 422 if path == "/articles" else 405
+    assert failure.status_code == expected_status, (path, failure.status_code, failure.text)
 
 
 @pytest.mark.parametrize("path, schema_type", [
@@ -642,11 +643,11 @@ def test_public_page_seo_schema_and_metadata(guest_client, path, schema_type):
 
 @pytest.mark.parametrize("path", [
     "/articles?limit=invalid",
-    "/api/articles-fragment?limit=0",
+    "/articles-fragment?limit=0",
     "/users?type=invalid",
     "/invalid/users",
-    "/api/users-fragment?status=invalid",
-    "/api/article-tags?prefix=",
+    "/users-fragment?status=invalid",
+    "/article-tags?prefix=",
 ])
 def test_public_query_endpoints_reject_invalid_parameters(guest_client, path):
     response = get(guest_client, path)
@@ -695,20 +696,20 @@ def test_user_edit_update_and_fragment_endpoints_success_and_failure(root_user_c
     edit_failure = get(guest_client, f"/users/{root_id}/edit")
     assert edit_failure.status_code == 401
 
-    update_success = patch(root_user_client, f"/api/users/{root_id}", json={
+    update_success = patch(root_user_client, f"/users/{root_id}", json={
         "name": "Root Functional User",
         "username": "root-functional",
     })
     assert update_success.status_code == 200, update_success.text
-    update_failure = patch(root_user_client, f"/api/users/{root_id}", json={"name": ""})
+    update_failure = patch(root_user_client, f"/users/{root_id}", json={"name": ""})
     assert update_failure.status_code == 422
 
-    fragment_success = get(guest_client, f"/api/users/{root_id}/articles-fragment")
+    fragment_success = get(guest_client, f"/users/{root_id}/articles-fragment")
     assert fragment_success.status_code == 200
     user_read_failure = get(guest_client, "/users/missing-user")
     assert user_read_failure.status_code == 404
 
-    fragment_failure = get(guest_client, "/api/users/missing-user/articles-fragment")
+    fragment_failure = get(guest_client, "/users/missing-user/articles-fragment")
     assert fragment_failure.status_code == 404
 
     slug_success = get(guest_client, "/root-functional")
@@ -722,14 +723,14 @@ def test_user_settings_endpoints_success_and_failure(guest_client):
     root_id = functional_state["root_id"]
     expected_user_url = get_user_href(get_dynamodb_user(root_id))
 
-    activity_success = patch(root_client, f"/api/users/{root_id}/activity-settings", json={
+    activity_success = patch(root_client, f"/users/{root_id}/activity-settings", json={
         "show_activity_calendar": True,
         "show_recent_activity": True,
     })
     assert activity_success.status_code == 200, activity_success.text
     assert activity_success.json() == expected_user_url
 
-    interests_success = patch(root_client, f"/api/users/{root_id}/interests-settings", json={
+    interests_success = patch(root_client, f"/users/{root_id}/interests-settings", json={
         "show_interests": False,
     })
     assert interests_success.status_code == 200, interests_success.text
@@ -740,11 +741,11 @@ def test_user_settings_endpoints_success_and_failure(guest_client):
     assert updated_user["show_recent_activity"] is True
     assert updated_user["show_interests"] is False
 
-    activity_failure = patch(guest_client, f"/api/users/{root_id}/activity-settings", json={
+    activity_failure = patch(guest_client, f"/users/{root_id}/activity-settings", json={
         "show_activity_calendar": True,
     })
     assert activity_failure.status_code == 401
-    interests_failure = patch(guest_client, f"/api/users/{root_id}/interests-settings", json={
+    interests_failure = patch(guest_client, f"/users/{root_id}/interests-settings", json={
         "show_interests": True,
     })
     assert interests_failure.status_code == 401
@@ -753,21 +754,21 @@ def test_user_settings_endpoints_success_and_failure(guest_client):
 def test_user_impression_endpoint_success_and_validation_failure(regular_user_client):
     regular_user_client = get_logged_in_client(regular_user)
     target_id = get_dynamodb_user_by_email(regular_2_user["email"])["id"]
-    success = post(regular_user_client, f"/api/users/{target_id}/impression", json={"action": "follow"})
+    success = post(regular_user_client, f"/users/{target_id}/impression", json={"action": "follow"})
     assert success.status_code == 200, success.text
-    failure = post(regular_user_client, f"/api/users/{target_id}/impression", json={"action": "invalid"})
+    failure = post(regular_user_client, f"/users/{target_id}/impression", json={"action": "invalid"})
     assert failure.status_code == 422
 
 
 def test_user_status_endpoint_success_and_validation_failure(root_user_client):
     root_user_client = get_logged_in_client(root_user)
     target = get_dynamodb_user_by_email("callback-success@example.com")
-    success = post(root_user_client, f"/api/users/{target["id"]}/status", json={
+    success = post(root_user_client, f"/users/{target["id"]}/status", json={
         "status": "banned",
         "comment": "Functional test ban",
     })
     assert success.status_code == 200, success.text
-    failure = post(root_user_client, f"/api/users/{target["id"]}/status", json={"status": "invalid"})
+    failure = post(root_user_client, f"/users/{target["id"]}/status", json={"status": "invalid"})
     assert failure.status_code == 422
 
 
@@ -785,7 +786,7 @@ def test_article_create_and_new_page_endpoints_success_and_failure(guest_client)
     new_failure = get(guest_client, "/articles/new")
     assert new_failure.status_code == 401
 
-    create_success = post(root_client, "/api/articles", json={
+    create_success = post(root_client, "/articles", json={
         "title": "Functional endpoint coverage article",
         "content": ARTICLE_CONTENT,
         "tags": ["functional-tag", "coverage-tag"],
@@ -802,7 +803,7 @@ def test_article_create_and_new_page_endpoints_success_and_failure(guest_client)
     assert "figure" not in article_item["content"]
     assert "picture" not in article_item["content"]
 
-    create_failure = post(root_client, "/api/articles", json={
+    create_failure = post(root_client, "/articles", json={
         "title": "short",
         "content": ARTICLE_CONTENT,
         "tags": ["functional-tag"],
@@ -881,28 +882,28 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     edit_failure = get(regular_client, f"/articles/{article_id}/edit")
     assert edit_failure.status_code == 403
 
-    update_success = patch(root_client, f"/api/articles/{article_id}", json={
+    update_success = patch(root_client, f"/articles/{article_id}", json={
         "title": "Updated functional endpoint coverage article",
         "content": ARTICLE_CONTENT,
         "tags": ["functional-tag", "coverage-tag"],
     })
     assert update_success.status_code == 200, update_success.text
     functional_state["article_slug"] = "updated-functional-endpoint-coverage-article"
-    update_failure = patch(root_client, f"/api/articles/{article_id}", json={
+    update_failure = patch(root_client, f"/articles/{article_id}", json={
         "title": "bad",
         "content": ARTICLE_CONTENT,
         "tags": ["functional-tag"],
     })
     assert update_failure.status_code == 422
 
-    status_success = post(root_client, f"/api/articles/{article_id}/status", json={"status": "published"})
+    status_success = post(root_client, f"/articles/{article_id}/status", json={"status": "published"})
     assert status_success.status_code == 200, status_success.text
 
     published_tag_page = get(guest_client, "/articles?type=latest&status=published&tags=functional-tag")
     assert published_tag_page.status_code == 200
     assert "Updated functional endpoint coverage article" in pq(published_tag_page.text)("#articles").text()
 
-    remove_tag_success = patch(root_client, f"/api/articles/{article_id}", json={
+    remove_tag_success = patch(root_client, f"/articles/{article_id}", json={
         "tags": ["coverage-tag"],
     })
     assert remove_tag_success.status_code == 200, remove_tag_success.text
@@ -910,7 +911,7 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     assert removed_tag_page.status_code == 200
     assert "Updated functional endpoint coverage article" not in pq(removed_tag_page.text)("#articles").text()
 
-    republish_success = post(root_client, f"/api/articles/{article_id}/status", json={"status": "published"})
+    republish_success = post(root_client, f"/articles/{article_id}/status", json={"status": "published"})
     assert republish_success.status_code == 200, republish_success.text
     current_tag_page = get(guest_client, "/articles?type=latest&status=published&tags=coverage-tag")
     assert current_tag_page.status_code == 200
@@ -919,14 +920,14 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     assert stale_tag_page.status_code == 200
     assert "Updated functional endpoint coverage article" not in pq(stale_tag_page.text)("#articles").text()
 
-    restore_tags_success = patch(root_client, f"/api/articles/{article_id}", json={
+    restore_tags_success = patch(root_client, f"/articles/{article_id}", json={
         "tags": ["functional-tag", "coverage-tag"],
     })
     assert restore_tags_success.status_code == 200, restore_tags_success.text
-    restore_publish_success = post(root_client, f"/api/articles/{article_id}/status", json={"status": "published"})
+    restore_publish_success = post(root_client, f"/articles/{article_id}/status", json={"status": "published"})
     assert restore_publish_success.status_code == 200, restore_publish_success.text
 
-    rename_tag_success = patch(root_client, "/api/article-tags/coverage-tag", json={
+    rename_tag_success = patch(root_client, "/article-tags/coverage-tag", json={
         "name": "Coverage Tag Updated",
         "image_action": "keep",
         "image_file": None,
@@ -943,7 +944,7 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     assert renamed_current_tag_page.status_code == 200
     assert "Updated functional endpoint coverage article" in pq(renamed_current_tag_page.text)("#articles").text()
 
-    status_failure = post(root_client, f"/api/articles/{article_id}/status", json={"status": "invalid"})
+    status_failure = post(root_client, f"/articles/{article_id}/status", json={"status": "invalid"})
     assert status_failure.status_code == 422
 
     slug_success = get(guest_client, f"/root-functional/{functional_state["article_slug"]}")
@@ -961,18 +962,18 @@ def test_article_impression_comment_and_comment_update_endpoints_success_and_fai
     regular_client = get_logged_in_client(regular_user)
     article_id = functional_state["article_id"]
 
-    impression_success = post(regular_client, f"/api/articles/{article_id}/impression", json={"action": "like"})
+    impression_success = post(regular_client, f"/articles/{article_id}/impression", json={"action": "like"})
     assert impression_success.status_code == 200, impression_success.text
     rated_doc = pq(get(regular_client, f"/articles/{article_id}").text)
     rated_schema = json.loads(rated_doc('script[type="application/ld+json"]').text())
     assert "aggregateRating" not in rated_schema
     assert not rated_doc('meta[name="ratingValue"]')
     assert not rated_doc('meta[name="ratingCount"]')
-    impression_failure = post(guest_client, f"/api/articles/{article_id}/impression", json={"action": "like"})
+    impression_failure = post(guest_client, f"/articles/{article_id}/impression", json={"action": "like"})
     assert impression_failure.status_code == 401
 
     comment_text = "Functional endpoint comment"
-    comment_success = post(regular_client, f"/api/articles/{article_id}/comment", json={"text": comment_text})
+    comment_success = post(regular_client, f"/articles/{article_id}/comment", json={"text": comment_text})
     assert comment_success.status_code == 200, comment_success.text
     comment_item = next(
         item for item in dynamodb_table.scan()["Items"]
@@ -981,14 +982,14 @@ def test_article_impression_comment_and_comment_update_endpoints_success_and_fai
     comment_id = comment_item["id"]
     encoded_comment_id = quote(comment_id, safe="")
     functional_state["comment_id"] = comment_id
-    comment_failure = post(regular_client, f"/api/articles/{article_id}/comment", json={"text": ""})
+    comment_failure = post(regular_client, f"/articles/{article_id}/comment", json={"text": ""})
     assert comment_failure.status_code == 422
 
-    update_success = patch(regular_client, f"/api/articles/{article_id}/comments/{encoded_comment_id}", json={
+    update_success = patch(regular_client, f"/articles/{article_id}/comments/{encoded_comment_id}", json={
         "text": "Updated functional endpoint comment",
     })
     assert update_success.status_code == 200, update_success.text
-    update_failure = patch(regular_client, f"/api/articles/{article_id}/comments/missing-comment", json={
+    update_failure = patch(regular_client, f"/articles/{article_id}/comments/missing-comment", json={
         "text": "Still valid text",
     })
     assert update_failure.status_code == 404
@@ -1002,24 +1003,24 @@ def test_article_impression_comment_and_comment_update_endpoints_success_and_fai
     assert comments_doc(f"article#{comment_id_fragment}")
     assert comments_doc(f'time[datetime="{comments_schema["comment"][0]["datePublished"]}"]')
 
-    comments_fragment = get(regular_client, f"/api/articles/{article_id}/comments-fragment?limit=1")
+    comments_fragment = get(regular_client, f"/articles/{article_id}/comments-fragment?limit=1")
     assert comments_fragment.status_code == 200, comments_fragment.text
     assert "Updated functional endpoint comment" in comments_fragment.text
     assert "article-comment" in comments_fragment.text
-    missing_fragment = get(guest_client, "/api/articles/missing-article/comments-fragment")
+    missing_fragment = get(guest_client, "/articles/missing-article/comments-fragment")
     assert missing_fragment.status_code == 404
 
 
 def test_public_file_upload_endpoint_success_and_failure(guest_client):
     png_content = b"\x89PNG\r\n\x1a\n" + (b"\x00" * 1100)
-    success = post(guest_client, "/api/public-file", files={
+    success = post(guest_client, "/public-file", files={
         "file": ("functional.png", png_content, "image/png"),
     })
     assert success.status_code == 200, success.text
     uploaded_path = os.path.join("/app/static", success.json())
     os.remove(uploaded_path)
 
-    failure = post(guest_client, "/api/public-file", files={
+    failure = post(guest_client, "/public-file", files={
         "file": ("invalid.txt", b"not an image" * 100, "text/plain"),
     })
     assert failure.status_code == 422
@@ -1028,14 +1029,14 @@ def test_public_file_upload_endpoint_success_and_failure(guest_client):
 
 
 def test_contact_message_endpoint_success_and_validation_failure(guest_client):
-    success = post(guest_client, "/api/contacts/message", json={
+    success = post(guest_client, "/contacts/message", json={
         "name": "Functional Contact",
         "email": "functional-contact@example.com",
         "message": "Functional contact message",
     })
     assert success.status_code == 204, success.text
 
-    failure = post(guest_client, "/api/contacts/message", json={
+    failure = post(guest_client, "/contacts/message", json={
         "name": "X",
         "email": "invalid",
         "message": "bad",
@@ -1052,13 +1053,13 @@ def test_article_tag_edit_and_update_endpoints_success_and_failure():
     edit_failure = get(regular_client, "/article-tags/functional-tag/edit")
     assert edit_failure.status_code == 403
 
-    update_success = patch(root_client, "/api/article-tags/functional-tag", json={
+    update_success = patch(root_client, "/article-tags/functional-tag", json={
         "name": "Functional Tag Updated",
         "image_action": "keep",
         "image_file": None,
     })
     assert update_success.status_code == 200, update_success.text
-    update_failure = patch(root_client, "/api/article-tags/functional-tag-updated", json={
+    update_failure = patch(root_client, "/article-tags/functional-tag-updated", json={
         "name": "X",
         "image_action": "keep",
     })
@@ -1074,7 +1075,7 @@ def test_admin_page_sitemap_and_cache_endpoints_success_and_failure(guest_client
     utils_failure = get(guest_client, "/utils")
     assert utils_failure.status_code == 401
 
-    sitemap_success = post(root_client, "/api/generate-sitemap", json={})
+    sitemap_success = post(root_client, "/generate-sitemap", json={})
     assert sitemap_success.status_code == 200, sitemap_success.text
     assert sitemap_success.json()["urls_count"] > 0
     sitemap = get(guest_client, "/sitemap.xml")
@@ -1082,28 +1083,28 @@ def test_admin_page_sitemap_and_cache_endpoints_success_and_failure(guest_client
     assert "/functional-tag-updated/articles" in sitemap.text
     assert "/popular/functional-tag-updated/articles" in sitemap.text
     assert "/Functional Tag Updated/articles" not in sitemap.text
-    sitemap_failure = post(regular_client, "/api/generate-sitemap", json={})
+    sitemap_failure = post(regular_client, "/generate-sitemap", json={})
     assert sitemap_failure.status_code == 403
 
-    cache_success = post(root_client, "/api/drop-cdn-cache", json={})
+    cache_success = post(root_client, "/drop-cdn-cache", json={})
     assert cache_success.status_code == 200, cache_success.text
     assert cache_success.json()["success"] is True
-    cache_failure = post(regular_client, "/api/drop-cdn-cache", json={})
+    cache_failure = post(regular_client, "/drop-cdn-cache", json={})
     assert cache_failure.status_code == 403
 
 
 def test_dummy_fixtures_endpoint_success_and_wrong_method_failure(guest_client):
-    success = post(guest_client, "/api/dummy-fixtures", json={})
+    success = post(guest_client, "/dummy-fixtures", json={})
     assert success.status_code == 200, success.text
 
-    failure = get(guest_client, "/api/dummy-fixtures")
+    failure = get(guest_client, "/dummy-fixtures")
     assert failure.status_code in (404, 405)
 
 
 def test_article_tag_subscription_create_and_delete():
     root_user_client = get_logged_in_client(root_user)
     tags = ["lifecycle-tag", "lifecycle-combination"]
-    response = post(root_user_client, "/api/article-tag-subscriptions", json={"tags": tags})
+    response = post(root_user_client, "/article-tag-subscriptions", json={"tags": tags})
     assert response.status_code == 200, response.text
 
     fragment = pq(response.text)
@@ -1111,17 +1112,17 @@ def test_article_tag_subscription_create_and_delete():
     assert subscription_id
     assert "Unsubscribe" in response.text
 
-    subscriptions = get(root_user_client, "/api/article-tag-subscriptions")
+    subscriptions = get(root_user_client, "/article-tag-subscriptions")
     assert subscriptions.status_code == 200
     assert any(item["id"] == subscription_id and item["tags"] == sorted(tags)
                for item in subscriptions.json())
 
-    delete_response = delete(root_user_client, f"/api/article-tag-subscriptions/{subscription_id}")
+    delete_response = delete(root_user_client, f"/article-tag-subscriptions/{subscription_id}")
     assert delete_response.status_code == 200, delete_response.text
     assert pq(delete_response.text)(".article-tag-subscription-block").attr("data-article-tag-subscription-id") == ""
     assert "Unsubscribe" not in delete_response.text
 
-    subscriptions = get(root_user_client, "/api/article-tag-subscriptions")
+    subscriptions = get(root_user_client, "/article-tag-subscriptions")
     assert all(item["id"] != subscription_id for item in subscriptions.json())
 
 
@@ -1133,20 +1134,20 @@ def test_article_published_dispatch_matches_combinations_excludes_author_and_ren
     email_dir = Path("/app/.emails")
     existing_emails = set(email_dir.glob("*.eml"))
 
-    root_subscription = post(root_client, "/api/article-tag-subscriptions", json={
+    root_subscription = post(root_client, "/article-tag-subscriptions", json={
         "tags": ["notification-tag3"],
     })
     assert root_subscription.status_code == 200, root_subscription.text
-    author_subscription = post(author_client, "/api/article-tag-subscriptions", json={
+    author_subscription = post(author_client, "/article-tag-subscriptions", json={
         "tags": ["notification-tag1"],
     })
     assert author_subscription.status_code == 200, author_subscription.text
-    combination_subscription = post(combination_client, "/api/article-tag-subscriptions", json={
+    combination_subscription = post(combination_client, "/article-tag-subscriptions", json={
         "tags": ["notification-tag2", "notification-tag3"],
     })
     assert combination_subscription.status_code == 200, combination_subscription.text
 
-    create_response = post(author_client, "/api/articles", json={
+    create_response = post(author_client, "/articles", json={
         "title": "Combination notification integration article",
         "content": ARTICLE_CONTENT,
         "tags": ["notification-tag1", "notification-tag2", "notification-tag3"],
@@ -1154,7 +1155,7 @@ def test_article_published_dispatch_matches_combinations_excludes_author_and_ren
     assert create_response.status_code == 200, create_response.text
     article_id = create_response.json().rstrip("/").split("/")[-1]
 
-    publish_response = post(root_client, f"/api/articles/{article_id}/status", json={
+    publish_response = post(root_client, f"/articles/{article_id}/status", json={
         "status": "published",
     })
     assert publish_response.status_code == 200, publish_response.text

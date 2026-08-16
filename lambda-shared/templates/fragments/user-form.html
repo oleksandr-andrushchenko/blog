@@ -54,7 +54,7 @@
         <label for="username" class="col-form-label col-2">Username</label>
         <div class="col-10">
             <div class="input-group">
-                <span class="input-group-text">{{ base_url.replace('https://', '').replace('http://', '') }}/</span>
+                <span class="input-group-text">{{ web_base_url.replace('https://', '').replace('http://', '') }}/</span>
                 <input type="text" class="form-control" id="username" name="username" placeholder="your-username"
                        value="{{ user.username if user and user.username else "" }}">
             </div>
@@ -183,7 +183,7 @@
       })
     })
 
-    handleFormSubmit("#user-form", {{ (url('update-user', user_id=user.id) if user else '') | tojson }}, {
+    handleFormSubmit("#user-form", {{ (url('update-user', user_id=user.id, absolute=True) if user else '') | tojson }}, {
       method: "{{ 'PATCH' if user else 'POST' }}",
       rules: {
         avatar_file: [

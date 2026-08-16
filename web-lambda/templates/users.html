@@ -11,7 +11,7 @@
 {% set meta_robots = "noindex, follow" if user_query.status != UserStatus.ACTIVE else "index, follow" %}
 {% set subtitle = ([val_map[user_query.type]["subtitle"]] + [val_map[user_query.status]["subtitle"]] + ["Users"]) | select | join(" ") | title %}
 {% set meta_title = title ~ " | " ~ site_name %}
-{% set meta_canonical_url = users_url(query=user_query, full=True) %}
+{% set meta_canonical_url = users_url(query=user_query, absolute=True) %}
 {% set meta_desc = [title, subtitle, site_desc] | select | join('. ') | truncate(155, True, '...') %}
 {% block meta_schema %}
     {% set items = namespace(values=[]) %}
@@ -20,7 +20,7 @@
             "@type": "ListItem",
             "position": loop.index,
             "name": user.name,
-            "url": user_url(user, full=True)
+            "url": user_url(user, absolute=True)
         }] %}
     {% endfor %}
     {{- {
@@ -39,7 +39,7 @@
         "breadcrumb": {
             "@type": "BreadcrumbList",
             "itemListElement": [
-                {"@type": "ListItem", "position": 1, "name": "Home", "item": url("index", full=True)},
+                {"@type": "ListItem", "position": 1, "name": "Home", "item": url("index", absolute=True)},
                 {"@type": "ListItem", "position": 2, "name": "Users", "item": meta_canonical_url}
             ]
         }
@@ -80,7 +80,7 @@
                 {% with limit=user_query.limit,
                     offset=users[-1].offset,
                     count=users|length,
-                    url=url("users-fragment", **user_query.get_dict()),
+                    url=url("users-fragment", absolute=True, **user_query.get_dict()),
                     container="#users" %}
                     {% include "fragments/load-more-button.html" %}
                 {% endwith %}

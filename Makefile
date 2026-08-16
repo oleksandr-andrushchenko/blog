@@ -416,7 +416,7 @@ drop-local-dynamodb: ## Drop DynamoDB table in local DynamoDB
 .PHONY: create-local-dynamodb-dummy-fixtures
 create-local-dynamodb-dummy-fixtures: ## Populate local DynamoDB with dummy data
 	@echo "📦 Populating local DynamoDB table app with dummy data..."
-	curl -sf -XPOST "http://localhost:$(API_LAMBDA_PORT)/api/dummy-fixtures"
+	curl -sf -XPOST "http://localhost:$(API_LAMBDA_PORT)/dummy-fixtures"
 
 .PHONY: recreate-local-dynamodb
 recreate-local-dynamodb: drop-local-dynamodb create-local-dynamodb create-local-dynamodb-dummy-fixtures ## Recreate DynamoDB table in local DynamoDB & populate dummy data

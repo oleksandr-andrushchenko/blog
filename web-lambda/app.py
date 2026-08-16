@@ -129,32 +129,6 @@ async def inject_template_global_vars(request: Request, call_next):
     return await call_next(request)
 
 
-@app.middleware("http")
-async def cache_control_middleware(request: Request, call_next):
-    response = await call_next(request)
-
-    if "Cache-Control" in response.headers:
-        return response
-
-    if request.method not in ("GET", "HEAD"):
-        response.headers["Cache-Control"] = "no-store"
-        return response
-
-    path = request.url.path
-
-    if path.startswith("/api/"):
-        response.headers["Cache-Control"] = "no-store"
-        return response
-
-    cur_user = getattr(request.state, "cur_user", None)
-    if cur_user:
-        response.headers["Cache-Control"] = "private, no-store"
-        return response
-
-    response.headers["Cache-Control"] = "no-store"
-    return response
-
-
 @app.exception_handler(StarletteHTTPException)
 async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
     logger.error(f"HTTP exception: {str(exc)}")
@@ -470,7 +444,7 @@ async def login(request: Request) -> RedirectResponse:
     from web_utils import get_login_redirect_url
 
     redirect_url = get_redirect_url(request)
-    callback_url = get_url(request, 'login-callback', full=True)
+    callback_url = get_url(request, 'login-callback', absolute=True)
     provider_redirect_url = get_login_redirect_url(callback_url)
     response = RedirectResponse(provider_redirect_url)
     response.set_cookie("redirect_url", redirect_url, httponly=True, secure=True)
@@ -483,7 +457,7 @@ async def login_callback(request: Request) -> RedirectResponse:
 
     try:
         redirect_url = request.cookies.get("redirect_url") or get_url(request, "index")
-        callback_url = get_url(request, 'login-callback', full=True)
+        callback_url = get_url(request, 'login-callback', absolute=True)
 
         cognito_user_token = get_user_token_by_code(
             code=request.query_params.get("code"),
@@ -503,7 +477,7 @@ async def logout(request: Request) -> RedirectResponse:
     from web_utils import get_logout_redirect_url
 
     redirect_url = get_redirect_url(request)
-    callback_url = get_url(request, 'logout-callback', full=True)
+    callback_url = get_url(request, 'logout-callback', absolute=True)
     provider_redirect_url = get_logout_redirect_url(callback_url)
     response = RedirectResponse(provider_redirect_url)
     response.set_cookie("redirect_url", redirect_url, httponly=True, secure=True)

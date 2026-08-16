@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
-{% set user_canonical_url = user_url(user, full=True) %}
-{% set user_alternate_url = url("user", user_id=user.id, full=True) %}
+{% set user_canonical_url = user_url(user, absolute=True) %}
+{% set user_alternate_url = url("user", user_id=user.id, absolute=True) %}
 {% set meta_canonical_url = user_canonical_url %}
 {% set og_type = "profile" %}
 {% set og_url = meta_canonical_url %}
@@ -41,8 +41,8 @@
         "breadcrumb": {
             "@type": "BreadcrumbList",
             "itemListElement": [
-                {"@type": "ListItem", "position": 1, "name": "Home", "item": url("index", full=True)},
-                {"@type": "ListItem", "position": 2, "name": "Users", "item": users_url(full=True)},
+                {"@type": "ListItem", "position": 1, "name": "Home", "item": url("index", absolute=True)},
+                {"@type": "ListItem", "position": 2, "name": "Users", "item": users_url(absolute=True)},
                 {"@type": "ListItem", "position": 3, "name": user.name, "item": meta_canonical_url}
             ]
         }
@@ -51,7 +51,7 @@
         {% set user_schema = user_schema.update({"jobTitle": user.headline}) or user_schema %}
     {% endif %}
     {% if user.avatar_filename %}
-        {% set user_schema = user_schema.update({"image": static_url(user.avatar_filename, full=True)}) or user_schema %}
+        {% set user_schema = user_schema.update({"image": static_url(user.avatar_filename, absolute=True)}) or user_schema %}
     {% endif %}
     {{- user_schema | tojson | safe -}}
 {% endblock %}
@@ -277,7 +277,7 @@
                     {% with limit=article_query.limit,
                         offset=articles[-1].offset,
                         count=articles|length,
-                        url=url("user-articles-fragment", user_id=user.id, **article_query.get_dict()),
+                        url=url("user-articles-fragment", user_id=user.id, absolute=True, **article_query.get_dict()),
                         container="#articles" %}
                         {% include "fragments/load-more-button.html" %}
                     {% endwith %}
@@ -332,7 +332,7 @@
                 interestsCheckbox.disabled = true
                 interestsCheckbox.classList.add("opacity-50")
                 try {
-                  const response = await $.ajax({{ url('update-user-interests-settings', user_id=user.id) | tojson }}, {
+                  const response = await $.ajax({{ url('update-user-interests-settings', user_id=user.id, absolute=True) | tojson }}, {
                     method: "PATCH",
                     contentType: "application/json",
                     data: JSON.stringify({show_interests: interestsCheckbox.checked})
@@ -355,7 +355,7 @@
               const calendar = document.getElementById("activity-calendar-svg")
               if (calendar) calendar.style.display = checkbox.checked ? "" : "none"
               try {
-                const response = await $.ajax({{ url('update-user-activity-settings', user_id=user.id) | tojson }}, {
+                const response = await $.ajax({{ url('update-user-activity-settings', user_id=user.id, absolute=True) | tojson }}, {
                   method: "PATCH",
                     contentType: "application/json",
                   data: JSON.stringify({
@@ -378,7 +378,7 @@
                 interestsCheckbox.disabled = true
                 interestsCheckbox.classList.add("opacity-50")
                 try {
-                  const response = await $.ajax({{ url('update-user-interests-settings', user_id=user.id) | tojson }}, {
+                  const response = await $.ajax({{ url('update-user-interests-settings', user_id=user.id, absolute=True) | tojson }}, {
                     method: "PATCH",
                     contentType: "application/json",
                     data: JSON.stringify({show_interests: interestsCheckbox.checked})

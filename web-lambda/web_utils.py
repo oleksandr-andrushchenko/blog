@@ -115,7 +115,7 @@ def get_redirect_url(req) -> str:
         referer = req.headers.get("referer")
         if referer:
             parsed = urlparse(referer)
-            base_url = urlparse(get_base_url())
+            base_url = urlparse(get_web_base_url())
 
             # If referer has no netloc (relative path) → safe
             # If referer belongs to your domain → safe

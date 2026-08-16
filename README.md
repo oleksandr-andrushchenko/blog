@@ -57,6 +57,8 @@
 - `lambda-shared/` — shared backend code and templates
 - `web-lambda/` — website Lambda handler and dependencies
 - `api-lambda/` — API Lambda
+
+API endpoints are exposed through the dedicated API Gateway execute-api URL, with no `/api` path prefix.
 - `img-lambda/` — S3 image variant Lambda
 
 ## TODO
@@ -87,6 +89,7 @@
 - article tags aliases: for example: cache=caching, cdn=content-delivery-network, etc.
 - article page: similar articles section shows no the all articles
 - article page: auto append/generate "More Articles to Read" paragraph
+- create separate docker compose for tests
 
 ## Links
 

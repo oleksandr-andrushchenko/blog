@@ -2,7 +2,7 @@
 
 {% set meta_title = site_name ~ " - " ~ site_short_desc %}
 {% set meta_robots = "index, follow" %}
-{% set meta_canonical_url = url("index", full=True) %}
+{% set meta_canonical_url = url("index", absolute=True) %}
 {% block meta_schema %}
     {{- {
         "@context": "https://schema.org",
@@ -77,7 +77,7 @@
                     {% with limit=latest_articles_query.limit,
                         offset=latest_articles[-1].offset,
                         count=latest_articles | length,
-                        url=url("articles-fragment", **latest_articles_query.get_dict()),
+                        url=url("articles-fragment", absolute=True, **latest_articles_query.get_dict()),
                         container="#articles",
                         auto_click=True %}
                         {% include "fragments/load-more-button.html" %}

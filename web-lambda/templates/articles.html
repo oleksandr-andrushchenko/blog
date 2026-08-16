@@ -12,7 +12,7 @@
 {% set meta_robots = "noindex, follow" if article_query.status != ArticleStatus.PUBLISHED else "index, follow" %}
 {% set subtitle = ([val_map[article_query.type]["subtitle"]]  + article_query.tags + [val_map[article_query.status]["subtitle"]] + ["Articles"]) | select | join(" ") | title %}
 {% set meta_title = title ~ " | " ~ site_name %}
-{% set meta_canonical_url = articles_url(query=article_query, tags=article_query.tags|sort, full=True) %}
+{% set meta_canonical_url = articles_url(query=article_query, tags=article_query.tags|sort, absolute=True) %}
 {% set meta_desc = [title, subtitle, site_desc] | select | join('. ') | truncate(155, True, '...') %}
 {% block meta_schema %}
     {% set items = namespace(values=[]) %}
@@ -21,12 +21,12 @@
             "@type": "ListItem",
             "position": loop.index,
             "name": article.title,
-            "url": article_url(article, full=True)
+            "url": article_url(article, absolute=True)
         }] %}
     {% endfor %}
     {% set breadcrumb_items = namespace(values=[
-        {"@type": "ListItem", "position": 1, "name": "Home", "item": url("index", full=True)},
-        {"@type": "ListItem", "position": 2, "name": "Articles", "item": articles_url(full=True)}
+        {"@type": "ListItem", "position": 1, "name": "Home", "item": url("index", absolute=True)},
+        {"@type": "ListItem", "position": 2, "name": "Articles", "item": articles_url(absolute=True)}
     ]) %}
     {% set breadcrumb_position = 2 %}
     {% if article_query.type and article_query.type != ArticleQueryDTO.DEFAULT_TYPE %}
@@ -35,7 +35,7 @@
             "@type": "ListItem",
             "position": breadcrumb_position,
             "name": article_query.type | title,
-            "item": articles_url(type=article_query.type, full=True)
+            "item": articles_url(type=article_query.type, absolute=True)
         }] %}
     {% endif %}
     {% set tag_path = namespace(values=[]) %}
@@ -46,7 +46,7 @@
             "@type": "ListItem",
             "position": breadcrumb_position,
             "name": tag | title,
-            "item": articles_url(tags=tag_path.values, type=article_query.type, full=True)
+            "item": articles_url(tags=tag_path.values, type=article_query.type, absolute=True)
         }] %}
     {% endfor %}
     {% if article_query.status and article_query.status != ArticleQueryDTO.DEFAULT_STATUS %}
@@ -55,7 +55,7 @@
             "@type": "ListItem",
             "position": breadcrumb_position,
             "name": article_query.status | title,
-            "item": articles_url(type=article_query.status, full=True)
+            "item": articles_url(type=article_query.status, absolute=True)
         }] %}
     {% endif %}
     {{- {
@@ -127,7 +127,7 @@
                 {% with limit=article_query.limit,
                     offset=articles[-1].offset,
                     count=articles|length,
-                    url=url("articles-fragment", **article_query.get_dict()),
+                    url=url("articles-fragment", absolute=True, **article_query.get_dict()),
                     container="#articles" %}
                     {% include "fragments/load-more-button.html" %}
                 {% endwith %}
@@ -163,7 +163,7 @@
 
                         <div>
                             <small class="text-secondary bi bi-tags"> Filter by tags:</small>
-                            {% with url=url("get-article-tags"),
+                            {% with url=url("get-article-tags", absolute=True),
                             value=article_query.tags,
                             tag_items=article_query_tag_items,
                             auto_submit=False,

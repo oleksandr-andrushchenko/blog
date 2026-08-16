@@ -15,7 +15,7 @@
 
     <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-2">
         <small class="text-secondary bi bi-tags"> Tags:</small>
-        {% with url=url("get-article-tags"), value=article.tags if article else [] %}
+        {% with url=url("get-article-tags", absolute=True), value=article.tags if article else [] %}
             {% include "fragments/tags-input.html" %}
         {% endwith %}
 
@@ -30,7 +30,7 @@
 
 <script>
   document.addEventListener("DOMContentLoaded", () => {
-    handleFormSubmit("#article-form", {{ (url('update-article', article_id=article.id) if article else url('create-article')) | tojson }}, {
+    handleFormSubmit("#article-form", {{ (url('update-article', article_id=article.id, absolute=True) if article else url('create-article', absolute=True)) | tojson }}, {
       method: "{{ 'PATCH' if article else 'POST' }}",
       rules: {
         title: [

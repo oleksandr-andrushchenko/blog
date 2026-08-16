@@ -45,7 +45,7 @@ robots_file = output_dir / "robots.txt"
 if robots_file.exists():
     lines_to_append = []
 
-    base_url = os.getenv("BASE_URL")
+    base_url = os.getenv("WEB_BASE_URL")
     lines_to_append.append(f"Sitemap: {base_url.rstrip('/')}/sitemap.xml" if base_url else "Sitemap: /sitemap.xml")
 
     if (output_dir / "license.xml").exists():

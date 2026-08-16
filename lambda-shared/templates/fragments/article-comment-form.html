@@ -14,8 +14,8 @@
 
 <script>
   document.addEventListener("DOMContentLoaded", () => {
-    {% set form_url = url('update-article-comment', article_id=article.id, article_comment_id=article_comment.id) if article_comment
-    else url('create-article-comment', article_id=article.id) %}
+    {% set form_url = url('update-article-comment', article_id=article.id, article_comment_id=article_comment.id, absolute=True) if article_comment
+    else url('create-article-comment', article_id=article.id, absolute=True) %}
     handleFormSubmit("#article-comment-form", {{ form_url | tojson }}, {
       method: "{{ 'PATCH' if article_comment else 'POST' }}",
       rules: {

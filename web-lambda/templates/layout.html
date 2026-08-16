@@ -54,9 +54,9 @@
     <meta name="mobile-web-app-capable" content="yes"/>
     <meta name="apple-mobile-web-app-title" content="{{ site_name }}"/>
 
-    {% set social_url = og_url or meta_canonical_url or url("index", full=True) %}
+    {% set social_url = og_url or meta_canonical_url or url("index", absolute=True) %}
     {% set image_filename = og_img_filename or meta_img_filename or site_img_filename %}
-    {% set social_image_url = static_url(image_filename, full=True) if image_filename else None %}
+    {% set social_image_url = static_url(image_filename, absolute=True) if image_filename else None %}
     <meta property="og:title" content="{{ og_title or meta_title or site_title }}"/>
     <meta property="og:description" content="{{ og_desc or meta_desc or site_desc }}"/>
     <meta property="og:type" content="{{ og_type or "website" }}"/>
@@ -95,8 +95,8 @@
     {{- {
         "@context": "https://schema.org",
         "@type": "WebPage",
-        "@id": meta_canonical_url or url("index", full=True),
-        "url": meta_canonical_url or url("index", full=True),
+        "@id": meta_canonical_url or url("index", absolute=True),
+        "url": meta_canonical_url or url("index", absolute=True),
         "name": meta_title or site_title,
         "description": meta_desc or site_desc,
         "inLanguage": "en"
@@ -284,16 +284,16 @@
 <script>
   window.CONFIG = {
     current_user: {{ ({"id": cur_user.id} | tojson) if cur_user else "null" }},
-    update_article_status_url: {{ url("update-article-status", article_id="{article_id}") | tojson }},
-    update_article_impression_url: {{ url("update-article-impression", article_id="{article_id}") | tojson }},
-    update_user_status_url: {{ url("update-user-status", user_id="{user_id}") | tojson }},
-    update_user_impression_url: {{ url("update-user-impression", user_id="{user_id}") | tojson }},
-    create_article_tag_subscription_url: {{ url("create-article-tag-subscription") | tojson }},
-    delete_article_tag_subscription_url: {{ url("delete-article-tag-subscription", article_tag_subscription_id="{article_tag_subscription_id}") | tojson }},
+    update_article_status_url: {{ url("update-article-status", article_id="{article_id}", absolute=True) | tojson }},
+    update_article_impression_url: {{ url("update-article-impression", article_id="{article_id}", absolute=True) | tojson }},
+    update_user_status_url: {{ url("update-user-status", user_id="{user_id}", absolute=True) | tojson }},
+    update_user_impression_url: {{ url("update-user-impression", user_id="{user_id}", absolute=True) | tojson }},
+    create_article_tag_subscription_url: {{ url("create-article-tag-subscription", absolute=True) | tojson }},
+    delete_article_tag_subscription_url: {{ url("delete-article-tag-subscription", article_tag_subscription_id="{article_tag_subscription_id}", absolute=True) | tojson }},
     init_tinymce: {% if tinymce_api_key %}true{% else %}false{% endif %},
     css_filenames: {{ css_filenames | tojson | safe }},
     static_relative_url: {{ static_url("{filename}") | tojson }},
-    upload_public_file_url: {{ url("upload-public-file") | tojson }}
+    upload_public_file_url: {{ url("upload-public-file", absolute=True) | tojson }}
   }
 </script>
 <script src="{{ static_url('scripts.js', _=js_cache_counter) }}"></script>

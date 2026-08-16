@@ -452,7 +452,8 @@ Resources:
           APP_ENV: !Ref Env
           APP_DEBUG: !Ref Debug
           APP_SECRET: !Ref Secret
-          BASE_URL: !Sub "https://${DomainName}"
+          WEB_BASE_URL: !Sub "https://${DomainName}"
+          API_BASE_URL: !Sub "https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com"
           DYNAMODB_TABLE: !Ref DynamoDBTable
           GOOGLE_ANALYTICS_ID: !Ref GoogleAnalyticsId
           TINYMCE_API_KEY: !Ref TinyMceApiKey
@@ -497,7 +498,8 @@ Resources:
           APP_ENV: !Ref Env
           APP_DEBUG: !Ref Debug
           APP_SECRET: !Ref Secret
-          BASE_URL: !Sub "https://${DomainName}"
+          API_BASE_URL: !Sub "https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com"
+          WEB_BASE_URL: !Sub "https://${DomainName}"
           DYNAMODB_TABLE: !Ref DynamoDBTable
           ALLOWED_ORIGIN: !Sub "https://${DomainName}"
           CONTACT_TOPIC_ARN: !Ref ContactFormTopic
@@ -522,7 +524,7 @@ Resources:
       Action: lambda:InvokeFunction
       FunctionName: !Ref ApiFunction
       Principal: apigateway.amazonaws.com
-      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/*/*"
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayApi}/*/*/*"
 
   ApiGateway:
     Type: AWS::ApiGatewayV2::Api
@@ -543,14 +545,6 @@ Resources:
       IntegrationUri: !GetAtt WebFunction.Arn
       PayloadFormatVersion: "2.0"
 
-  ApiGatewayApiLambdaIntegration:
-    Type: AWS::ApiGatewayV2::Integration
-    Properties:
-      ApiId: !Ref ApiGateway
-      IntegrationType: AWS_PROXY
-      IntegrationUri: !GetAtt ApiFunction.Arn
-      PayloadFormatVersion: "2.0"
-
   ApiGatewayDefaultRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
@@ -558,17 +552,48 @@ Resources:
       RouteKey: "ANY /{proxy+}"
       Target: !Sub "integrations/${ApiGatewayLambdaIntegration}"
 
-  ApiGatewayApiRoute:
-    Type: AWS::ApiGatewayV2::Route
-    Properties:
-      ApiId: !Ref ApiGateway
-      RouteKey: "ANY /api/{proxy+}"
-      Target: !Sub "integrations/${ApiGatewayApiLambdaIntegration}"
-
   ApiGatewayDefaultStage:
     Type: AWS::ApiGatewayV2::Stage
     Properties:
       ApiId: !Ref ApiGateway
+      StageName: $default
+      AutoDeploy: true
+      Tags:
+        Stage: !Ref Stage
+        Project: !Ref Project
+        Owner: !Ref Owner
+        Region: !Ref AWS::Region
+
+  ApiGatewayApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub "${AWS::StackName}-api-lambda"
+      ProtocolType: HTTP
+      Tags:
+        Stage: !Ref Stage
+        Project: !Ref Project
+        Owner: !Ref Owner
+        Region: !Ref AWS::Region
+
+  ApiGatewayApiLambdaIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref ApiGatewayApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt ApiFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  ApiGatewayApiRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGatewayApi
+      RouteKey: "ANY /{proxy+}"
+      Target: !Sub "integrations/${ApiGatewayApiLambdaIntegration}"
+
+  ApiGatewayApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref ApiGatewayApi
       StageName: $default
       AutoDeploy: true
       Tags:
@@ -724,13 +749,6 @@ Resources:
             CachePolicyId: !Ref S3CachePolicy
             OriginRequestPolicyId: !Ref S3OriginRequestPolicy
             ResponseHeadersPolicyId: !Ref StaticResponseHeadersPolicy
-          - PathPattern: "/api/*"
-            TargetOriginId: apiOrigin
-            ViewerProtocolPolicy: redirect-to-https
-            AllowedMethods: [ GET, HEAD, POST, PUT, DELETE, PATCH, OPTIONS ]
-            CachedMethods: [ GET, HEAD ]
-            CachePolicyId: "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
-            OriginRequestPolicyId: !Ref ApiOriginRequestPolicy
         ViewerCertificate:
           AcmCertificateArn: !Ref CertificateArn
           SslSupportMethod: sni-only
@@ -869,7 +887,7 @@ Outputs:
     Description: URL of the deployed website
   CloudFrontDistributionId:
     Value: !GetAtt CloudFrontDistribution.Id
-    Description: ID of the CloudFront distribution serving the website and API
+    Description: ID of the CloudFront distribution serving the website
   WebFunctionName:
     Value: !Ref WebFunction
     Description: Name of the Web Lambda function
@@ -882,9 +900,15 @@ Outputs:
   WebFunctionLogGroupName:
     Value: !Ref WebFunctionLogGroup
     Description: CloudWatch log group for the Web Lambda
+  ApiGatewayApiId:
+    Value: !Ref ApiGatewayApi
+    Description: ID of the API Gateway dedicated to the API Lambda
+  ApiGatewayApiURL:
+    Value: !Sub "https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com"
+    Description: Execute-api URL of the API Lambda
   ApiGatewayId:
     Value: !Ref ApiGateway
-    Description: ID of the API Gateway for the Web and API Lambdas
+    Description: ID of the API Gateway for the Web Lambda
   DynamoDBTableName:
     Value: !Ref DynamoDBTable
     Description: Name of the application DynamoDB table

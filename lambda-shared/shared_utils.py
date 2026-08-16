@@ -23,6 +23,7 @@ from zoneinfo import ZoneInfo
 
 from jinja2 import Environment, FileSystemLoader, pass_context, select_autoescape
 
+from api_route_metadata import API_URL_ROUTES
 from article_dtos import (ArticleCommentImpressionAction, ArticleImpressionAction)
 from article_tag_subscription_dtos import ArticleTagSubscription
 from basic_dtos import UserTokenDTO
@@ -447,7 +448,8 @@ def get_live_config():
         "app_env": os.getenv("APP_ENV"),
         "app_debug": os.getenv("APP_DEBUG"),
         "app_secret": os.getenv("APP_SECRET"),
-        "base_url": os.getenv("BASE_URL"),
+        "web_base_url": os.getenv("WEB_BASE_URL"),
+        "api_base_url": os.getenv("API_BASE_URL"),
         "aws_region": os.getenv("AWS_REGION"),
         "dynamodb_endpoint": os.getenv("DYNAMODB_ENDPOINT"),
         "dynamodb_table": os.getenv("DYNAMODB_TABLE"),
@@ -525,11 +527,15 @@ def get_config():
 
 
 def get_static_files_dir() -> str:
-    return config.get("static_files_dir")
+    return config.get("static_files_dir") or ""
 
 
-def get_base_url():
-    return get_config().get("base_url")
+def get_web_base_url() -> str:
+    return get_config().get("web_base_url") or ""
+
+
+def get_api_base_url() -> str:
+    return get_config().get("api_base_url") or ""
 
 
 def get_aws_region():
@@ -894,10 +900,10 @@ def get_users_url(req, query: UserQueryDTO | None = None, **params) -> str:
     return get_url(req, "users-by-slugs", type=slugs[0], **params)
 
 
-def get_url(req, name: str, full: bool = False, **params) -> str:
+def get_url(req, name: str, absolute: bool = False, **params) -> str:
     """
     Generate a URL for a named route.
-    By default, returns path-only URLs; set full=True to prepend base_url.
+    By default, returns path-only URLs; set absolute=True to prepend the configured route base URL.
     """
     # Find an executable route first, then URL-only metadata routes used by
     # the web Lambda for API links. Metadata routes never handle requests.
@@ -920,7 +926,7 @@ def get_url(req, name: str, full: bool = False, **params) -> str:
                       else req.url_for(name, **path_params))
     url_path = getattr(url_path_value, "path", str(url_path_value))
 
-    if full and url_path == "/":
+    if absolute and url_path == "/":
         url_path = ""
 
     # Handle query parameters
@@ -936,19 +942,9 @@ def get_url(req, name: str, full: bool = False, **params) -> str:
         if items:
             url_path = f"{url_path}?{urlencode(items)}"
 
-    if is_metadata_route and url_path.startswith("/api/"):
-        api_base_url = os.getenv("API_BASE_URL")
-        if api_base_url:
-            return f"{api_base_url.rstrip("/")}{url_path}"
-
-    if is_metadata_route and not url_path.startswith("/api/"):
-        web_base_url = os.getenv("WEB_BASE_URL")
-        if web_base_url:
-            return f"{web_base_url.rstrip("/")}{url_path}"
-
-    if full:
-        base_url = get_base_url()
-        return f"{base_url}{url_path}"
+    if absolute:
+        base_url = get_api_base_url() if name in API_URL_ROUTES else get_web_base_url()
+        return f"{base_url.rstrip("/")}{url_path}"
 
     return url_path
 

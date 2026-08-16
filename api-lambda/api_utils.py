@@ -115,7 +115,7 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
 
     # Post lists
     def articles_url(tp: ArticleQueryType, tg: ArticleTag | None = None) -> str:
-        return get_articles_url(req, type=tp, tags=[tg.slug] if tg else [], full=True)
+        return get_articles_url(req, type=tp, tags=[tg.slug] if tg else [], absolute=True)
 
     for type_ in ArticleQueryType:
         urls.append((articles_url(type_), today))
@@ -125,7 +125,7 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
 
     # Posts
     def article_url(article: Article) -> str:
-        return get_article_url(req, article, full=True)
+        return get_article_url(req, article, absolute=True)
 
     offset = None
     while articles := get_latest_articles(ArticleQueryDTO(status=ArticleStatus.PUBLISHED, limit=1000, offset=offset)):
@@ -136,14 +136,14 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
 
     # User lists
     def users_url(tp: UserQueryType) -> str:
-        return get_users_url(req, type=tp, full=True)
+        return get_users_url(req, type=tp, absolute=True)
 
     for type_ in UserQueryType:
         urls.append((users_url(type_), today))
 
     # Users
     def user_url(user_: User) -> str:
-        return get_user_url(req, user_, full=True)
+        return get_user_url(req, user_, absolute=True)
 
     offset = None
     while users := get_latest_users(
@@ -160,7 +160,7 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
         FileDTO(content=sitemap_xml.encode("utf-8"), filename="sitemap.xml"),
         filename="sitemap.xml",
     )
-    sitemap_url = get_static_url(req, sitemap_filename, full=True)
+    sitemap_url = get_static_url(req, sitemap_filename, absolute=True)
 
     # Invalidate CDN cache
     if is_prod():
@@ -1277,7 +1277,7 @@ def handle_article_published_event(event: ArticlePublishedEvent) -> None:
         return
     sender = sender or "no-reply@localhost"
 
-    base_url = get_base_url().rstrip('/')
+    base_url = get_web_base_url().rstrip('/')
     article_url = f"{base_url}/articles/{article.id}"
     subject = f"New article matching your interests: {article.title}"
 

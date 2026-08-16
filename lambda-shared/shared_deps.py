@@ -127,6 +127,7 @@ def _get_article_by_slugs(user_slug: str, article_slug: str, cur_user: OptCurUse
 
 
 def get_error_response(request: Request, status_code: int, details: dict | str = None):
+    from api_route_metadata import API_URL_ROUTES
     from http import HTTPStatus
     status_enum = HTTPStatus(status_code)
     public_data = {
@@ -137,7 +138,7 @@ def get_error_response(request: Request, status_code: int, details: dict | str =
     }
 
     content_type = request.headers.get("content-type", "")
-    is_api_request = request.url.path.startswith("/api/")
+    is_api_request = request.scope.get("route_name") in API_URL_ROUTES
     if is_api_request or "application/json" in content_type:
         return JSONResponse(
             status_code=status_code,
