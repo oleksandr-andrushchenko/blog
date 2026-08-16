@@ -23,6 +23,7 @@ WEB_LAMBDA_CONTAINER = web-lambda
 SCRIPTS_CONTAINER = scripts
 CODE_STACK_NAME = $(AWS_STACK)-code
 CERT_STACK_NAME = $(AWS_STACK)-cert
+API_CERT_STACK_NAME = $(AWS_STACK)-api-cert
 SITE_BUILD_DIR=.site-build
 CODE_BUILD_DIR=.code-build
 
@@ -167,6 +168,10 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 		echo "❌ CLOUDFRONT_CERTIFICATE_ARN is not defined. Run \`make get-cert-arn\` or export it in .env"; \
 		exit 1; \
 	fi
+	@if [ -z "$(API_CERTIFICATE_ARN)" ]; then \
+		echo "❌ API_CERTIFICATE_ARN is not defined. Run make deploy-api-cert-infra and make get-api-cert-arn"; \
+		exit 1; \
+	fi
 	aws cloudformation deploy \
 		--profile $(AWS_PROJECT) \
 		--region $(AWS_REGION) \
@@ -183,6 +188,7 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 			Secret="$(APP_SECRET)" \
 			DomainName="$(DOMAIN_NAME)" \
 			HostedZoneId="$(HOSTED_ZONE_ID)" \
+			ApiCertificateArn="$(API_CERTIFICATE_ARN)" \
 			CertificateArn="$(CLOUDFRONT_CERTIFICATE_ARN)" \
 			NotificationEmail="$(NOTIFICATION_EMAIL)" \
 			NotificationPhone="$(NOTIFICATION_PHONE)" \
@@ -450,3 +456,34 @@ tail-scripts-logs: scripts-up ## Tail scripts logs
 
 .PHONY: deploy
 deploy: aws-login restart deploy-site-files deploy-code-files deploy-infra ## Deploy static and code files
+.PHONY: deploy-api-cert-infra
+deploy-api-cert-infra: check-env check-aws ## Deploy ACM certificate for api.<domain>
+	@echo "🔐 Deploying API certificate for api.$(DOMAIN_NAME) in us-west-2..."
+	aws cloudformation deploy \
+		--profile $(AWS_PROJECT) \
+		--region us-west-2 \
+		--template-file cf-api-cert.yml \
+		--stack-name $(API_CERT_STACK_NAME) \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--no-fail-on-empty-changeset \
+		--parameter-overrides \
+			DomainName="$(DOMAIN_NAME)" \
+			HostedZoneId="$(HOSTED_ZONE_ID)" \
+			Project="$(AWS_PROJECT)" \
+			Owner="$(AWS_OWNER)" \
+			Stage="$(APP_STAGE)" \
+		--tags \
+			Project="$(AWS_PROJECT)" \
+			Owner="$(AWS_OWNER)" \
+			Stage="$(APP_STAGE)" \
+			Region="us-west-2"
+	@echo "✅ API certificate deployment triggered. Waiting for DNS validation..."
+
+.PHONY: get-api-cert-arn
+get-api-cert-arn: check-env check-aws ## Fetch the API ACM certificate ARN and save to .env
+	@echo "🔍 Fetching the API certificate ARN for api.$(DOMAIN_NAME) in us-west-2..."
+	@ARN=$$(aws cloudformation describe-stacks --stack-name $(API_CERT_STACK_NAME) --region us-west-2 --profile $(AWS_PROJECT) --query "Stacks[0].Outputs[?OutputKey=='CertificateArn'].OutputValue" --output text); \
+	if [ -z "$$ARN" ]; then echo "❌ API certificate ARN not found. Run make deploy-api-cert-infra first."; else \
+		if grep -q "^API_CERTIFICATE_ARN=" .env; then sed -i.bak "s|^API_CERTIFICATE_ARN=.*|API_CERTIFICATE_ARN=$$ARN|" .env; rm -f .env.bak; else echo "API_CERTIFICATE_ARN=$$ARN" >> .env; fi; \
+		echo "📝 Updated .env with API_CERTIFICATE_ARN"; \
+	fi

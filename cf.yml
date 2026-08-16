@@ -33,6 +33,10 @@ Parameters:
   CertificateArn:
     Type: String
     Description: ARN of the ACM certificate in us-east-1 for CloudFront
+  ApiCertificateArn:
+    Type: String
+    Description: ARN of the ACM certificate in the API region for api.<domain>
+
   NotificationEmail:
     Type: String
     Description: Email for contact form notifications
@@ -453,7 +457,7 @@ Resources:
           APP_DEBUG: !Ref Debug
           APP_SECRET: !Ref Secret
           WEB_BASE_URL: !Sub "https://${DomainName}"
-          API_BASE_URL: !Sub "https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com"
+          API_BASE_URL: !Sub "https://api.${DomainName}"
           DYNAMODB_TABLE: !Ref DynamoDBTable
           GOOGLE_ANALYTICS_ID: !Ref GoogleAnalyticsId
           TINYMCE_API_KEY: !Ref TinyMceApiKey
@@ -498,7 +502,7 @@ Resources:
           APP_ENV: !Ref Env
           APP_DEBUG: !Ref Debug
           APP_SECRET: !Ref Secret
-          API_BASE_URL: !Sub "https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com"
+          API_BASE_URL: !Sub "https://api.${DomainName}"
           WEB_BASE_URL: !Sub "https://${DomainName}"
           DYNAMODB_TABLE: !Ref DynamoDBTable
           ALLOWED_ORIGIN: !Sub "https://${DomainName}"
@@ -602,6 +606,31 @@ Resources:
         Owner: !Ref Owner
         Region: !Ref AWS::Region
 
+  ApiGatewayApiDomainName:
+    Type: AWS::ApiGatewayV2::DomainName
+    Properties:
+      DomainName: !Sub "api.${DomainName}"
+      DomainNameConfigurations:
+        - CertificateArn: !Ref ApiCertificateArn
+          EndpointType: REGIONAL
+          SecurityPolicy: TLS_1_2
+
+  ApiGatewayApiMapping:
+    Type: AWS::ApiGatewayV2::ApiMapping
+    Properties:
+      ApiId: !Ref ApiGatewayApi
+      DomainName: !Ref ApiGatewayApiDomainName
+      Stage: !Ref ApiGatewayApiStage
+
+  ApiGatewayApiDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub "api.${DomainName}"
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt ApiGatewayApiDomainName.RegionalDomainName
+        HostedZoneId: !GetAtt ApiGatewayApiDomainName.RegionalHostedZoneId
   CognitoUserPoolV2:
     Type: AWS::Cognito::UserPool
     Properties:
@@ -904,8 +933,8 @@ Outputs:
     Value: !Ref ApiGatewayApi
     Description: ID of the API Gateway dedicated to the API Lambda
   ApiGatewayApiURL:
-    Value: !Sub "https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com"
-    Description: Execute-api URL of the API Lambda
+    Value: !Sub "https://api.${DomainName}"
+    Description: Custom domain URL of the API Lambda
   ApiGatewayId:
     Value: !Ref ApiGateway
     Description: ID of the API Gateway for the Web Lambda

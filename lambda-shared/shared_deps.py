@@ -1,4 +1,5 @@
 from typing import Annotated, Optional
+from urllib.parse import urlparse
 
 from shared_utils import (
     User,
@@ -11,6 +12,7 @@ from shared_utils import (
     ArticleNotFoundError,
     UserNotFoundError,
     get_html_content,
+    get_web_base_url,
     get_user_by_auth_token,
     get_article,
     get_user,
@@ -163,12 +165,21 @@ def get_error_response(request: Request, status_code: int, details: dict | str =
     )
 
 
+def _auth_cookie_domain() -> str | None:
+    hostname = urlparse(get_web_base_url()).hostname
+    if not hostname or hostname in {"localhost", "127.0.0.1"}:
+        return None
+    return f".{hostname}"
+
+
 def set_token_cookie(token, response):
+    response.delete_cookie("token")
     response.set_cookie(
         key="token",
         value=token,
         httponly=True,
         secure=is_prod(),
+        domain=_auth_cookie_domain(),
         samesite="lax",
         max_age=get_auth_token_max_age(),
     )
@@ -176,6 +187,7 @@ def set_token_cookie(token, response):
 
 def drop_token_cookie(response):
     response.delete_cookie("token")
+    response.delete_cookie("token", domain=_auth_cookie_domain())
 
 
 UserDep = Annotated[User, Depends(get_user_by_id)]
