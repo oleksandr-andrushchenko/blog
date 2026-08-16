@@ -24,12 +24,12 @@ def build(name, excluded):
     if vendor_dir.exists(): shutil.copytree(vendor_dir, tmp, dirs_exist_ok=True)
     source_dir = source_dirs[name]
     for item in shared_dir.iterdir():
-        if item.name in {"requirements.txt", "Dockerfile", "local_app.py", "__pycache__", ".pytest_cache",
+        if item.name in {"requirements.txt", "Dockerfile", "__pycache__", ".pytest_cache",
                          ".mypy_cache"}: continue
         dest = tmp / item.name
         shutil.copytree(item, dest, dirs_exist_ok=True) if item.is_dir() else shutil.copy2(item, dest)
     for item in source_dir.iterdir():
-        if item.name in {"requirements.txt", "Dockerfile", "local_app.py", "__pycache__", ".pytest_cache",
+        if item.name in {"requirements.txt", "Dockerfile", "__pycache__", ".pytest_cache",
                          ".mypy_cache"}: continue
         dest = tmp / item.name
         shutil.copytree(item, dest, dirs_exist_ok=True) if item.is_dir() else shutil.copy2(item, dest)

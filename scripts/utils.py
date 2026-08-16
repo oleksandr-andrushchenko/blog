@@ -2,6 +2,7 @@ import base64
 import decimal
 import json
 import logging
+import os
 from pathlib import Path
 
 import yaml
@@ -9,7 +10,7 @@ import yaml
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-root_dir = Path(__file__).parent.parent
+root_dir = Path(os.getenv("PROJECT_ROOT", Path(__file__).parent.parent))
 
 
 def get_dynamodb_schema() -> dict:

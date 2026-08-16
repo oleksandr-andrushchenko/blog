@@ -1,3 +1,5 @@
+name: ${PROJECT_NAME:-blog}-tests
+
 services:
   web-lambda:
     build:
@@ -7,16 +9,17 @@ services:
       - "${WEB_LAMBDA_PORT}:5000"
     env_file:
       - .env
+      - .env.test
     environment:
       APP_STAGE: local
-      APP_ENV: dev
+      APP_ENV: test
       APP_DEBUG: 1
-      WEB_BASE_URL: "http://localhost:${WEB_LAMBDA_PORT}"
-      API_BASE_URL: "http://localhost:${API_LAMBDA_PORT}"
+      WEB_BASE_URL: "http://web-lambda:5000"
+      API_BASE_URL: "http://api-lambda:5000"
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"
-      DYNAMODB_TABLE: app
+      DYNAMODB_TABLE: app_test
       GOOGLE_ANALYTICS_ID: ""
       TINYMCE_API_KEY: ""
       CONTACT_TOPIC_ARN: ""
@@ -28,7 +31,9 @@ services:
       - ./lambda-shared:/app
       - ./web-lambda:/web-lambda
       - ./static:/app-static
+      - ./static:/app/static
       - ./.emails:/app-emails
+      - ./.emails:/app/.emails
 
   api-lambda:
     build:
@@ -38,17 +43,18 @@ services:
       - "${API_LAMBDA_PORT}:5000"
     env_file:
       - .env
+      - .env.test
     environment:
       APP_STAGE: local
-      APP_ENV: dev
+      APP_ENV: test
       APP_DEBUG: 1
-      API_BASE_URL: "http://localhost:${API_LAMBDA_PORT}"
-      WEB_BASE_URL: "http://localhost:${WEB_LAMBDA_PORT}"
-      ALLOWED_ORIGIN: "http://localhost:${WEB_LAMBDA_PORT}"
+      API_BASE_URL: "http://api-lambda:5000"
+      WEB_BASE_URL: "http://web-lambda:5000"
+      ALLOWED_ORIGIN: "http://web-lambda:5000"
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"
-      DYNAMODB_TABLE: app
+      DYNAMODB_TABLE: app_test
       GOOGLE_ANALYTICS_ID: ""
       TINYMCE_API_KEY: ""
       CONTACT_TOPIC_ARN: ""
@@ -60,7 +66,35 @@ services:
       - ./lambda-shared:/app
       - ./api-lambda:/api-lambda
       - ./static:/app-static
+      - ./static:/app/static
       - ./.emails:/app-emails
+      - ./.emails:/app/.emails
+
+  tests:
+    build:
+      context: ./
+      dockerfile: tests/Dockerfile
+    command: [ "tail", "-f", "/dev/null" ]
+    depends_on:
+      - dynamodb
+    env_file:
+      - .env
+      - .env.test
+    environment:
+      PYTHONPATH: "/tests:/scripts"
+      WEB_TEST_BASE_URL: "http://web-lambda:5000"
+      API_TEST_BASE_URL: "http://api-lambda:5000"
+      TEST_DYNAMODB_TABLE: app_test
+      PROJECT_ROOT: "/project"
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
+      DYNAMODB_ENDPOINT: "http://dynamodb:8000"
+    volumes:
+      - ./tests:/tests
+      - ./:/project
+      - ./scripts:/scripts
+      - ./static:/app/static
+      - ./.emails:/app/.emails
 
   dynamodb:
     image: amazon/dynamodb-local
@@ -68,19 +102,8 @@ services:
     ports:
       - "${DYNAMODB_PORT}:8000"
     volumes:
-      - dynamodb-data:/home/dynamodblocal/data
+      - dynamodb-test-data:/home/dynamodblocal/data
     command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data"
 
-  scripts:
-    build:
-      context: ./scripts
-      dockerfile: Dockerfile
-    env_file:
-      - .env
-    environment:
-      DYNAMODB_ENDPOINT: "http://dynamodb:8000"
-    volumes:
-      - ./:/app
-
 volumes:
-  dynamodb-data:
+  dynamodb-test-data:

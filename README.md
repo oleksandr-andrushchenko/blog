@@ -48,7 +48,7 @@
   recreate-local-dynamodb Recreate DynamoDB table in local DynamoDB & populate dummy data
   restart              Restart local Docker containers
   tail-scripts-logs    Tail scripts logs
-  tail-test-logs       Tail test logs
+  tests                Run the test suite in the isolated test Docker Compose stack
   up                   Start local Docker containers
 ```
 
@@ -89,7 +89,6 @@ API endpoints are exposed through the dedicated API Gateway execute-api URL, wit
 - article tags aliases: for example: cache=caching, cdn=content-delivery-network, etc.
 - article page: similar articles section shows no the all articles
 - article page: auto append/generate "More Articles to Read" paragraph
-- create separate docker compose for tests
 
 ## Links
 

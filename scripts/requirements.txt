@@ -3,4 +3,3 @@ pytest
 requests
 boto3
 pyquery
-Pillow

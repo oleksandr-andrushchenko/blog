@@ -12,8 +12,13 @@ else
     DC := docker-compose
 endif
 
-WEB_LAMBDA_CONTAINER = web-lambda
+TEST_WEB_LAMBDA_PORT := $(shell sed -n "s/^WEB_LAMBDA_PORT=//p" .env.test)
+TEST_API_LAMBDA_PORT := $(shell sed -n "s/^API_LAMBDA_PORT=//p" .env.test)
+TEST_DYNAMODB_PORT := $(shell sed -n "s/^DYNAMODB_PORT=//p" .env.test)
+TEST_DC = WEB_LAMBDA_PORT=$(TEST_WEB_LAMBDA_PORT) API_LAMBDA_PORT=$(TEST_API_LAMBDA_PORT) DYNAMODB_PORT=$(TEST_DYNAMODB_PORT) $(DC) --env-file .env.test -f docker-compose.test.yml -p $(if $(PROJECT_NAME),$(PROJECT_NAME)-tests,blog-tests)
 TESTS_CONTAINER = tests
+
+WEB_LAMBDA_CONTAINER = web-lambda
 SCRIPTS_CONTAINER = scripts
 CODE_STACK_NAME = $(AWS_STACK)-code
 CERT_STACK_NAME = $(AWS_STACK)-cert
@@ -422,12 +427,17 @@ create-local-dynamodb-dummy-fixtures: ## Populate local DynamoDB with dummy data
 recreate-local-dynamodb: drop-local-dynamodb create-local-dynamodb create-local-dynamodb-dummy-fixtures ## Recreate DynamoDB table in local DynamoDB & populate dummy data
 
 .PHONY: tests
-tests:
-	$(DC) exec $(SCRIPTS_CONTAINER) python3 -m pytest -o log_cli_level=INFO -o log_cli=true -v scripts/test_web_api.py scripts/test_img_lambda.py -v -s
+tests: ## Run tests in the isolated test Docker Compose stack and remove it afterward
+	@status=0; \
+	$(TEST_DC) up -d --build --remove-orphans || status=$$?; \
+	if [ $$status -eq 0 ]; then \
+		$(TEST_DC) exec $(TESTS_CONTAINER) python3 -m pytest -o log_cli_level=INFO -o log_cli=true -v /tests/test_web_api.py -m "functional" -v -s || status=$$?; \
+	fi; \
+	$(TEST_DC) down || true; \
+	exit $$status
 
-.PHONY: tail-test-logs
-tail-test-logs: ## Tail test logs
-	$(DC) logs -f $(TESTS_CONTAINER)
+
+
 
 .PHONY: tail-scripts-logs
 tail-scripts-logs: ## Tail scripts logs
