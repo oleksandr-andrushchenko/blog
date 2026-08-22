@@ -167,7 +167,7 @@ def get_error_response(request: Request, status_code: int, details: dict | str =
 
 def _auth_cookie_domain() -> str | None:
     hostname = urlparse(get_web_base_url()).hostname
-    if not hostname or hostname in {"localhost", "127.0.0.1"}:
+    if not hostname or hostname in {"localhost", "127.0.0.1"} or "." not in hostname:
         return None
     return f".{hostname}"
 

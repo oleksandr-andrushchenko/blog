@@ -30,7 +30,7 @@ info.txt
 bootstrap-5.3.7-dist/
 bootstrap-icons-1.13.1/
 
-lambda-shared/data.json
+shared/data.json
 static/*
 !static/styles.css
 !static/scripts.js

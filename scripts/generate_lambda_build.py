@@ -9,7 +9,7 @@ source_dirs = {
     "web-function": root_dir / "web-lambda",
     "api-function": root_dir / "api-lambda",
 }
-shared_dir = root_dir / "lambda-shared"
+shared_dir = root_dir / "shared"
 vendor_dirs = {
     "web-function": root_dir / ".tmp/web",
     "api-function": root_dir / ".tmp/api",

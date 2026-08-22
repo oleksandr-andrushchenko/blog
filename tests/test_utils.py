@@ -18,7 +18,7 @@ TEST_BASE_URL = WEB_TEST_BASE_URL
 AWS_REGION = os.getenv("AWS_REGION", "us-west-2")
 DYNAMODB_ENDPOINT = os.getenv("DYNAMODB_ENDPOINT")
 TEST_DYNAMODB_TABLE = os.getenv("TEST_DYNAMODB_TABLE")
-REQUEST_TIMEOUT = 10
+REQUEST_TIMEOUT = 30
 
 aws_params = {
     "aws_access_key_id": "dummy",

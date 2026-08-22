@@ -1,6 +1,6 @@
 """API-only request dependencies.
 
-The web lambda keeps the shared read/query dependencies in ``lambda-shared``;
+The web lambda keeps the shared read/query dependencies in ``shared``;
 upload and mutation request parsing belongs to the API lambda.
 """
 

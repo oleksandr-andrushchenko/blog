@@ -28,7 +28,7 @@ services:
       PYTHONPATH: "/app:/web-lambda"
       FUNCTION_TEMPLATES_DIR: "/web-lambda/templates"
     volumes:
-      - ./lambda-shared:/app
+      - ./shared:/app
       - ./web-lambda:/web-lambda
       - ./static:/app-static
       - ./static:/app/static
@@ -63,7 +63,7 @@ services:
       PYTHONPATH: "/app:/api-lambda"
       FUNCTION_TEMPLATES_DIR: "/api-lambda/templates"
     volumes:
-      - ./lambda-shared:/app
+      - ./shared:/app
       - ./api-lambda:/api-lambda
       - ./static:/app-static
       - ./static:/app/static

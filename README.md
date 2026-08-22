@@ -54,7 +54,7 @@
 
 ## Lambda layout
 
-- `lambda-shared/` — shared backend code and templates
+- `shared/` — shared backend code and templates
 - `web-lambda/` — website Lambda handler and dependencies
 - `api-lambda/` — API Lambda
 
