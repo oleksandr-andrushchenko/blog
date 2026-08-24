@@ -67,39 +67,15 @@
     <h1>{{ title }}</h1>
     <p class="small text-secondary">{{ subtitle }}</p>
 
-    <div class="row g-5">
-        <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-4">
-            {% if users %}
-                <div class="row g-3" id="users">
-                    {% with image_column_size={"def":3,"md":2},
-                        user_avatar_img_sizes={"1200px": "127px", "992px": "80px", "768px": "120px", "default": "25vw"} %}
-                        {% include "fragments/users.html" %}
-                    {% endwith %}
-                </div>
+    <section class="d-flex flex-wrap align-items-center gap-3 mb-4">
+        <h2 class="h5 mb-0 text-decoration-underline bi bi-filter"> Filter users</h2>
 
-                {% with limit=user_query.limit,
-                    offset=users[-1].offset,
-                    count=users|length,
-                    url=url("users-fragment", absolute=True, **user_query.get_dict()),
-                    container="#users",
-                    auto_click=True %}
-                    {% include "fragments/load-more-button.html" %}
-                {% endwith %}
-            {% else %}
-                <div>N/A</div>
-            {% endif %}
-        </div>
-
-        <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
-            <section class="d-flex flex-column gap-3">
-                <h2 class="h5 mb-0 text-decoration-underline bi bi-filter"> Filter users</h2>
-
-                <form action="{{ users_url() }}" method="get">
+        <form action="{{ users_url() }}" method="get" class="d-flex flex-wrap align-items-center gap-3 mb-0">
                     <input type="hidden" name="type" value="{{ user_query.type }}">
                     <input type="hidden" name="status" value="{{ user_query.status }}">
 
-                    <div class="d-flex flex-column gap-1">
-                        <div>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-2">
                             <small class="text-secondary bi bi-sort-down"> Show:</small>
                             <div class="btn-group">
                                 {% set is_latest = user_query.type == UserQueryType.LATEST %}
@@ -116,7 +92,7 @@
                         </div>
 
                         {% if cur_user and check_auth(cur_user, Permission.READ_NON_ACTIVE_USER) %}
-                            <div>
+                            <div class="d-flex align-items-center gap-2">
                                 <small class="text-secondary bi bi-toggle2-on"> Filter by status:</small>
                                 <div class="btn-group">
                                     {% set is_active = user_query.status == UserStatus.ACTIVE %}
@@ -140,8 +116,26 @@
                             </div>
                         {% endif %}
                     </div>
-                </form>
-            </section>
+        </form>
+    </section>
+
+    {% if users %}
+        <div class="row g-3" id="users">
+            {% with image_column_size={"def":3,"md":2},
+                user_avatar_img_sizes={"1200px": "127px", "992px": "80px", "768px": "120px", "default": "25vw"} %}
+                {% include "fragments/users.html" %}
+            {% endwith %}
         </div>
-    </div>
+
+        {% with limit=user_query.limit,
+            offset=users[-1].offset,
+            count=users|length,
+            url=url("users-fragment", absolute=True, **user_query.get_dict()),
+            container="#users",
+            auto_click=True %}
+            {% include "fragments/load-more-button.html" %}
+        {% endwith %}
+    {% else %}
+        <div>N/A</div>
+    {% endif %}
 {% endblock %}
