@@ -105,48 +105,15 @@
     <h1>{{ title }}</h1>
     <p class="small text-secondary">{{ subtitle }}</p>
 
-    <div class="row g-5">
-        <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-4">
-            {% if article_tag and article_tag.image_filename %}
-                {% with filename=article_tag.image_filename,
-                    alt=title,
-                    figure=True,
-                    img_sizes={"1200px": "760px", "992px": "480px", "default": "100vw"} %}
-                    {% include "fragments/image.html" %}
-                {% endwith %}
-            {% endif %}
+    <section class="d-flex flex-wrap align-items-center gap-3 mb-4">
+        <h2 class="h5 mb-0 text-decoration-underline bi bi-filter"> Filter articles</h2>
 
-            {% if articles %}
-                <section id="articles" class="d-flex flex-column gap-3">
-                    {% with h_tag_size=2,
-                        article_img_sizes={"1400px": "196px", "1200px": "166px", "992px": "96px", "768px": "156px", "default": "100vw"} %}
-                        {% include "fragments/articles.html" %}
-                    {% endwith %}
-                </section>
-
-                {% with limit=article_query.limit,
-                    offset=articles[-1].offset,
-                    count=articles|length,
-                    url=url("articles-fragment", absolute=True, **article_query.get_dict()),
-                    container="#articles",
-                    auto_click=True %}
-                    {% include "fragments/load-more-button.html" %}
-                {% endwith %}
-            {% else %}
-                <div>N/A</div>
-            {% endif %}
-        </div>
-
-        <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
-            <section class="d-flex flex-column gap-3">
-                <h2 class="h5 mb-0 text-decoration-underline bi bi-filter"> Filter articles</h2>
-
-                <form action="{{ articles_url() }}" method="get">
+        <form action="{{ articles_url() }}" method="get" class="d-flex flex-wrap align-items-center gap-3 mb-0">
                     <input type="hidden" name="type" value="{{ article_query.type }}">
                     <input type="hidden" name="status" value="{{ article_query.status }}">
 
-                    <div class="d-flex flex-column gap-1">
-                        <div>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-2">
                             <small class="text-secondary bi bi-sort-down"> Show:</small>
                             <div class="btn-group">
                                 {% set is_latest = article_query.type == ArticleQueryType.LATEST %}
@@ -162,11 +129,12 @@
                             </div>
                         </div>
 
-                        <div>
+                        <div class="d-flex flex-wrap align-items-center gap-2">
                             <small class="text-secondary bi bi-tags"> Filter by tags:</small>
                             {% with url=url("get-article-tags", absolute=True),
                             value=article_query.tags,
                             tag_items=article_query_tag_items,
+                            class_name="w-auto",
                             auto_submit=False,
                             inject_hidden=True %}
                                 {% include "fragments/tags-input.html" %}
@@ -176,7 +144,7 @@
                         </div>
 
                         {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE) %}
-                            <div>
+                            <div class="d-flex align-items-center gap-2">
                                 <small class="text-secondary bi bi-toggle2-on"> Filter by status:</small>
                                 <div class="btn-group">
                                     {% set is_published = article_query.status == ArticleStatus.PUBLISHED %}
@@ -206,19 +174,44 @@
                             </div>
                         {% endif %}
                     </div>
-                </form>
+        </form>
 
-                {% if article_tag and cur_user and check_auth(cur_user, Permission.UPDATE_ARTICLE_TAG) %}
-                    <div>
-                        <a href="{{ url("edit-article-tag", slug=article_query.tags[0]) }}"
-                           class="btn btn-light bi bi-pencil">
-                            Edit article tag
-                        </a>
-                    </div>
-                {% endif %}
-            </section>
+        {% if article_tag and cur_user and check_auth(cur_user, Permission.UPDATE_ARTICLE_TAG) %}
+            <a href="{{ url("edit-article-tag", slug=article_query.tags[0]) }}"
+               class="btn btn-light bi bi-pencil">
+                Edit article tag
+            </a>
+        {% endif %}
+    </section>
 
-            {% include "fragments/article-tag-subscription.html" %}
-        </div>
-    </div>
+    {% if article_tag and article_tag.image_filename %}
+        {% with filename=article_tag.image_filename,
+            alt=title,
+            figure=True,
+            img_sizes={"1200px": "760px", "992px": "480px", "default": "100vw"} %}
+            {% include "fragments/image.html" %}
+        {% endwith %}
+    {% endif %}
+
+    {% if articles %}
+        <section id="articles" class="d-flex flex-column gap-3">
+            {% with h_tag_size=2,
+                article_img_sizes={"1400px": "196px", "1200px": "166px", "992px": "96px", "768px": "156px", "default": "100vw"} %}
+                {% include "fragments/articles.html" %}
+            {% endwith %}
+        </section>
+
+        {% with limit=article_query.limit,
+            offset=articles[-1].offset,
+            count=articles|length,
+            url=url("articles-fragment", absolute=True, **article_query.get_dict()),
+            container="#articles",
+            auto_click=True %}
+            {% include "fragments/load-more-button.html" %}
+        {% endwith %}
+    {% else %}
+        <div>N/A</div>
+    {% endif %}
+
+    {% include "fragments/article-tag-subscription.html" %}
 {% endblock %}
