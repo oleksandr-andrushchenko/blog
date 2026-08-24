@@ -128,7 +128,8 @@
                     offset=articles[-1].offset,
                     count=articles|length,
                     url=url("articles-fragment", absolute=True, **article_query.get_dict()),
-                    container="#articles" %}
+                    container="#articles",
+                    auto_click=True %}
                     {% include "fragments/load-more-button.html" %}
                 {% endwith %}
             {% else %}
