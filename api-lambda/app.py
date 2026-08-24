@@ -46,7 +46,6 @@ from api_utils import (
     get_article_url,
     create_article,
     create_contact_message,
-    get_article_tags,
     update_article_status,
     get_users,
     get_latest_articles_by_user,
@@ -77,6 +76,8 @@ from api_utils import (
     create_article_tag_subscription,
     delete_article_tag_subscription,
 )
+from shared_utils import get_article_tags
+
 from web import Application, Request, HTTPException, HTMLResponse, JSONResponse, RedirectResponse, \
     RequestValidationError, CORSMiddleware
 
@@ -330,6 +331,13 @@ async def _update_article_tag(update_article_tag_dto: UpdateArticleTagDTODep, ar
 @route("get", "get-article-tags", response_class=JSONResponse)
 async def _get_article_tags(query_dto: ArticleTagQueryDep) -> list[ArticleTag]:
     return get_article_tags(query_dto)
+
+
+@route("get", "article-tags-fragment", response_class=HTMLResponse)
+async def article_tags_fragment(query_dto: ArticleTagQueryDep) -> str:
+    return get_html_content("fragments/article-tags.html", {
+        "article_tags": get_article_tags(query_dto),
+    })
 
 
 @route("get", "users-fragment", response_class=HTMLResponse)

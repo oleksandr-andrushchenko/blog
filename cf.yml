@@ -203,6 +203,14 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
+        - IndexName: TAGS_BY_TYPE_CREATED_AT # get_latest_article_tags
+          KeySchema:
+            - AttributeName: tag_type_pk # e.g. "POST_TAG"
+              KeyType: HASH
+            - AttributeName: created_at # e.g. 1759086095241
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
         - IndexName: POSTS_BY_STATUS_RATING # get_popular_posts
           KeySchema:
             - AttributeName: post_status_pk # e.g. "POST#published"

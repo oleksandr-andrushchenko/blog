@@ -133,6 +133,11 @@
             <div class="collapse navbar-collapse" id="navbar">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
+                        <a class="nav-link{% if current_route == "article-tags" %} active{% endif %}"
+                           href="{{ url("article-tags") }}"{% if current_route == "article-tags" %}
+                           aria-current="page"{% endif %}>Topics</a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link{% if articles_active %} active{% endif %}" href="{{ articles_url() }}"
                                 {% if articles_active %} aria-current="page"{% endif %}>Articles</a>
                     </li>

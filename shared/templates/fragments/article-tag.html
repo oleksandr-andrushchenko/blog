@@ -1,0 +1,29 @@
+{% set image = image | default(True) and article_tag.image_filename %}
+{% set image_class = image_class | default("card-img-top object-fit-cover") %}
+{% set image_style = image_style | default("height: 8rem;") %}
+{% set article_tag_img_sizes = article_tag_img_sizes | default({"768px": "25vw", "default": "100vw"}) %}
+{% set h_tag_size = h_tag_size | default(2) %}
+{% set h_display_size = h_display_size | default(5) %}
+{% set show_count = show_count | default(True) %}
+{% set card_class = card_class | default("card h-100 text-decoration-none link-body-emphasis") %}
+
+<div class="col">
+    <a href="{{ articles_url(tags=[article_tag.slug]) }}" class="{{ card_class }}">
+        {% if image %}
+            {% with filename=article_tag.image_filename,
+                alt=article_tag.name,
+                img_class=image_class,
+                img_style=image_style,
+                img_sizes=article_tag_img_sizes,
+                figure=False %}
+                {% include "fragments/image.html" %}
+            {% endwith %}
+        {% endif %}
+        <div class="card-body d-flex justify-content-between align-items-center gap-2">
+            <h{{ h_tag_size }} class="h{{ h_display_size }} mb-0">{{ article_tag.name }}</h{{ h_tag_size }}>
+            {% if show_count %}
+                <span class="badge text-bg-light">{{ article_tag.articles_count }}</span>
+            {% endif %}
+        </div>
+    </a>
+</div>

@@ -5,6 +5,7 @@ from article_dtos import (
 from article_tag_subscription_dtos import ArticleTagSubscriptionDTO
 from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO
 from shared_utils import *
+from shared_utils import get_article_tags
 from user_dtos import (
     UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO,
     UpdateUserActivitySettingsDTO, UpdateUserInterestsSettingsDTO,
@@ -107,6 +108,7 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
 
     urls.extend([
         (url("index"), today),
+        (url("article-tags"), today),
         (url("contacts"), today),
         (url("rules"), today),
         (url("terms"), today),
@@ -1439,25 +1441,6 @@ def find_static_image_filename(html_content: str) -> str | None:
         return None
 
     return match.group(1)
-
-
-def get_article_tags_by_prefix(query_dto: ArticleTagQueryDTO = None) -> list[ArticleTag]:
-    if query_dto is None:
-        query_dto = ArticleTagQueryDTO()
-    resp = query_dynamodb_table(
-        index_name="TAGS_BY_TYPE_NAME",
-        key_condition_expr=Key("tag_type_pk").eq("POST_TAG") & Key("tag_name_sk").begins_with(query_dto.prefix),
-        limit=query_dto.limit
-    )
-    items = resp.get("Items", [])
-    # logger.debug(f"Tags: {items}")
-    return [article_tag_from_dynamodb(item) for item in items]
-
-
-def get_article_tags(query_dto: ArticleTagQueryDTO = None) -> list[ArticleTag]:
-    if query_dto.prefix:
-        return get_article_tags_by_prefix(query_dto)
-    return get_popular_article_tags(query_dto)
 
 
 def get_all_articles_by_user(user: User) -> list[Article]:

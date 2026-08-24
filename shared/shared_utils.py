@@ -28,7 +28,7 @@ from article_dtos import (ArticleCommentImpressionAction, ArticleImpressionActio
 from article_tag_subscription_dtos import ArticleTagSubscription
 from basic_dtos import UserTokenDTO
 from query_dtos import (BaseQueryDTO, ArticleCommentQueryDTO, ArticleQueryDTO, ArticleQueryType, ArticleStatus,
-                        ArticleTagQueryDTO, UserQueryDTO, UserQueryType, UserStatus)
+                        ArticleTagQueryDTO, ArticleTagQueryType, UserQueryDTO, UserQueryType, UserStatus)
 from user_dtos import UserImpressionAction
 
 
@@ -2162,6 +2162,40 @@ def get_popular_article_tags(query_dto: ArticleTagQueryDTO = None) -> list[Artic
         key_condition_expr=Key("tag_type_pk").eq("POST_TAG"),
         map_fn=article_tag_from_dynamodb,
     )
+
+
+def get_article_tags_by_prefix(query_dto: ArticleTagQueryDTO = None) -> list[ArticleTag]:
+    if query_dto is None:
+        query_dto = ArticleTagQueryDTO()
+
+    resp = query_dynamodb_table(
+        index_name="TAGS_BY_TYPE_NAME",
+        key_condition_expr=Key("tag_type_pk").eq("POST_TAG") & Key("tag_name_sk").begins_with(query_dto.prefix),
+        limit=query_dto.limit
+    )
+    return [article_tag_from_dynamodb(item) for item in resp.get("Items", [])]
+
+
+def get_latest_article_tags(query_dto: ArticleTagQueryDTO = None) -> list[ArticleTag]:
+    if query_dto is None:
+        query_dto = ArticleTagQueryDTO(type=ArticleTagQueryType.LATEST)
+
+    return query_dynamodb_items(
+        query_dto=query_dto,
+        index_name="TAGS_BY_TYPE_CREATED_AT",
+        key_condition_expr=Key("tag_type_pk").eq("POST_TAG"),
+        map_fn=article_tag_from_dynamodb,
+    )
+
+
+def get_article_tags(query_dto: ArticleTagQueryDTO = None) -> list[ArticleTag]:
+    if query_dto is None:
+        query_dto = ArticleTagQueryDTO()
+    if query_dto.prefix:
+        return get_article_tags_by_prefix(query_dto)
+    if query_dto.type == ArticleTagQueryType.POPULAR:
+        return get_popular_article_tags(query_dto)
+    return get_latest_article_tags(query_dto)
 
 
 def find_article_tag_slug_item(slug: str) -> dict[str, Any] | None:

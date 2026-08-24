@@ -16,6 +16,7 @@ API_URL_ROUTES = {
     "delete-article-tag-subscription": "/article-tag-subscriptions/{article_tag_subscription_id}",
     "update-article-tag": "/article-tags/{slug}",
     "get-article-tags": "/article-tags",
+    "article-tags-fragment": "/article-tags-fragment",
     "users-fragment": "/users-fragment",
     "update-user-status": "/users/{user_id}/status",
     "update-user-impression": "/users/{user_id}/impression",

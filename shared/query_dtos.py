@@ -17,8 +17,8 @@ class BaseQueryDTO:
     DEFAULT_OFFSET = None
     DEFAULT_LIMIT = 20
 
-    offset: str | None = None
-    limit: int = 20
+    offset: str | None = DEFAULT_OFFSET
+    limit: int = DEFAULT_LIMIT
 
     def __post_init__(self):
         self.limit = _limit(self.limit)
@@ -59,17 +59,26 @@ class UserQueryDTO(BaseQueryDTO):
         return BaseQueryDTO.has_params(self) or self.type != self.DEFAULT_TYPE or self.status != self.DEFAULT_STATUS
 
 
+class ArticleTagQueryType(StrEnum):
+    LATEST = "latest"
+    POPULAR = "popular"
+
+
 @dataclass(slots=True)
 class ArticleTagQueryDTO(BaseQueryDTO):
+    DEFAULT_TYPE = ArticleTagQueryType.LATEST
+
+    type: ArticleTagQueryType = DEFAULT_TYPE
     prefix: str | None = None
 
     def __post_init__(self):
         BaseQueryDTO.__post_init__(self)
+        self.type = ArticleTagQueryType(self.type)
         if self.prefix is not None and not 1 <= len(self.prefix) <= 40:
             raise ValueError("prefix must contain between 1 and 40 characters")
 
     def has_params(self):
-        return BaseQueryDTO.has_params(self) or self.prefix is not None
+        return BaseQueryDTO.has_params(self) or self.type != self.DEFAULT_TYPE or self.prefix is not None
 
 
 class ArticleQueryType(StrEnum):

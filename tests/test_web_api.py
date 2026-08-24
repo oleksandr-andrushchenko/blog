@@ -653,6 +653,21 @@ def test_public_query_endpoints_reject_invalid_parameters(guest_client, path):
     assert response.status_code == 422, (path, response.status_code, response.text)
 
 
+def test_article_tags_fragment_endpoint_success(guest_client):
+    response = get(guest_client, "/article-tags-fragment?type=latest&limit=6")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+
+
+@pytest.mark.parametrize("tag_type", ["latest", "popular"])
+def test_article_tags_endpoint_supports_tag_types(guest_client, tag_type):
+    response = get(guest_client, f"/article-tags?type={tag_type}&limit=6")
+
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
 def test_login_endpoint_success_and_wrong_method_failure(guest_client):
     success = get(guest_client, "/login", allow_redirects=False)
     assert success.status_code in (302, 307)
@@ -1079,6 +1094,7 @@ def test_admin_page_sitemap_and_cache_endpoints_success_and_failure(guest_client
     assert sitemap_success.json()["urls_count"] > 0
     sitemap = get(guest_client, "/sitemap.xml")
     assert sitemap.status_code == 200
+    assert "/article-tags" in sitemap.text
     assert "/functional-tag-updated/articles" in sitemap.text
     assert "/popular/functional-tag-updated/articles" in sitemap.text
     assert "/Functional Tag Updated/articles" not in sitemap.text

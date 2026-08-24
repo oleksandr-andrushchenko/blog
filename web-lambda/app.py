@@ -17,7 +17,9 @@ from shared_deps import (
     set_token_cookie,
     drop_token_cookie,
     ArticleTagDep,
+    ArticleTagQueryDep,
 )
+from shared_utils import get_article_tags
 from web import Application, Request, HTTPException, HTMLResponse, JSONResponse, RedirectResponse, \
     RequestValidationError, CORSMiddleware, FileResponse
 from web_utils import (
@@ -285,6 +287,16 @@ async def new_article(cur_user: CurUserDep) -> str:
 @route("get", "articles", response_class=HTMLResponse)
 async def articles_page(query_dto: ArticleQueryDep, cur_user: OptCurUserDep):
     return await _articles_page(query_dto, cur_user)
+
+
+@route("get", "article-tags", response_class=HTMLResponse)
+async def article_tags_page(query_dto: ArticleTagQueryDep, cur_user: OptCurUserDep) -> str:
+    article_tags = get_article_tags(query_dto)
+    return get_html_content("article-tags.html", {
+        "cur_user": cur_user,
+        "article_tags": article_tags,
+        "article_tags_query": query_dto,
+    })
 
 
 @route("get", "article")
