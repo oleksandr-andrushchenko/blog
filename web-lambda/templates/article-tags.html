@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 
-{% set title = "Article tags" %}
+{% set title = "Topics" %}
 {% set meta_title = title ~ " | " ~ site_name %}
 {% set meta_robots = "index, follow" %}
 {% set meta_canonical_url = url("article-tags", absolute=True) %}
@@ -40,7 +40,7 @@
 {% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), "Article tags": None} %}
+    {% with breadcrumbs = {"Home": url("index"), "Topics": None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}

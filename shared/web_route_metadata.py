@@ -4,7 +4,7 @@ WEB_URL_ROUTES = {
     "index": "/",
     "new-article": "/articles/new",
     "articles": "/articles",
-    "article-tags": "/article-tags",
+    "article-tags": "/topics",
     "article": "/articles/{article_id}",
     "edit-article": "/articles/{article_id}/edit",
     "articles-by-slugs": "/{slugs_path:path}/articles",

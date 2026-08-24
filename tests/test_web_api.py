@@ -600,6 +600,7 @@ def test_legacy_article_endpoint_urls_preserve_method_and_redirect(
     "/articles-fragment",
     "/users-fragment",
     "/article-tags",
+    "/topics",
     "/privacy-policy",
     "/rules",
     "/terms-of-service",
@@ -1094,7 +1095,7 @@ def test_admin_page_sitemap_and_cache_endpoints_success_and_failure(guest_client
     assert sitemap_success.json()["urls_count"] > 0
     sitemap = get(guest_client, "/sitemap.xml")
     assert sitemap.status_code == 200
-    assert "/article-tags" in sitemap.text
+    assert "/topics" in sitemap.text
     assert "/functional-tag-updated/articles" in sitemap.text
     assert "/popular/functional-tag-updated/articles" in sitemap.text
     assert "/Functional Tag Updated/articles" not in sitemap.text

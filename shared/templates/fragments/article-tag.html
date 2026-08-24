@@ -7,7 +7,7 @@
 {% set show_count = show_count | default(True) %}
 {% set card_class = card_class | default("card h-100 text-decoration-none link-body-emphasis") %}
 
-<div class="col">
+<div class="col"{% if article_tag.offset %} data-offset="{{ article_tag.offset }}"{% endif %}>
     <a href="{{ articles_url(tags=[article_tag.slug]) }}" class="{{ card_class }}">
         {% if image %}
             {% with filename=article_tag.image_filename,

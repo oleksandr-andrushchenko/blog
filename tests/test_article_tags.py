@@ -69,3 +69,21 @@ def test_article_tag_pages_use_expected_grid_columns(template, grid_class):
 
     assert grid_class in template_source
     assert 'include "fragments/article-tag.html"' in template_source
+
+
+def test_article_tag_fragment_propagates_pagination_offset():
+    fragment = (project_root / "shared/templates/fragments/article-tag.html").read_text()
+
+    assert 'data-offset="{{ article_tag.offset }}"' in fragment
+
+
+
+@pytest.mark.parametrize(("fragment", "offset_expression"), [
+    ("article.html", "article.offset"),
+    ("user.html", "user.offset"),
+    ("article-tag.html", "article_tag.offset"),
+])
+def test_paginated_fragments_propagate_offsets(fragment, offset_expression):
+    source = (project_root / "shared/templates/fragments" / fragment).read_text()
+
+    assert f'data-offset="{{{{ {offset_expression} }}}}"' in source
