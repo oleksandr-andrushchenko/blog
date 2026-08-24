@@ -438,17 +438,17 @@ create-local-dynamodb-dummy-fixtures: ## Populate local DynamoDB with dummy data
 recreate-local-dynamodb: drop-local-dynamodb create-local-dynamodb create-local-dynamodb-dummy-fixtures ## Recreate DynamoDB table in local DynamoDB & populate dummy data
 
 .PHONY: tests
-tests: ## Run tests in the isolated test Docker Compose stack and remove it afterward
+tests: ## Run the full test suite in the isolated Docker Compose stack
 	@status=0; \
+	echo "==> Starting test services..."; \
 	$(TEST_DC) up -d --build --remove-orphans || status=$$?; \
 	if [ $$status -eq 0 ]; then \
-		$(TEST_DC) exec $(TESTS_CONTAINER) python3 -m pytest -o log_cli_level=INFO -o log_cli=true -v /tests/test_web_api.py -m "functional" -v -s || status=$$?; \
+		echo "==> Running pytest..."; \
+		$(TEST_DC) exec $(TESTS_CONTAINER) python3 -m pytest -o log_cli_level=INFO -o log_cli=true -v /tests -s || status=$$?; \
 	fi; \
+	echo "==> Stopping test services..."; \
 	$(TEST_DC) down || true; \
 	exit $$status
-
-
-
 
 .PHONY: tail-scripts-logs
 tail-scripts-logs: scripts-up ## Tail scripts logs
