@@ -81,7 +81,8 @@
                     offset=users[-1].offset,
                     count=users|length,
                     url=url("users-fragment", absolute=True, **user_query.get_dict()),
-                    container="#users" %}
+                    container="#users",
+                    auto_click=True %}
                     {% include "fragments/load-more-button.html" %}
                 {% endwith %}
             {% else %}
