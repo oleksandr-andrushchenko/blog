@@ -1084,6 +1084,7 @@ def get_jinja2_env():
         "ArticleImpressionAction": ArticleImpressionAction,
         "UserImpressionAction": UserImpressionAction,
         "ArticleQueryType": ArticleQueryType,
+        "ArticleTagQueryType": ArticleTagQueryType,
         "UserQueryType": UserQueryType,
         "UserStatus": UserStatus,
         "ArticleQueryDTO": ArticleQueryDTO,

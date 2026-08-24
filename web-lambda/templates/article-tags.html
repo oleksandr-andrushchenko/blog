@@ -49,6 +49,38 @@
     <h1>{{ title }}</h1>
     <p class="small text-secondary">Browse all available article topics.</p>
 
+    <section class="d-flex flex-wrap align-items-center gap-3 mb-4">
+        <h2 class="h5 mb-0 text-decoration-underline bi bi-filter"> Filter topics</h2>
+
+        <form action="{{ url("article-tags") }}" method="get" class="d-flex flex-wrap align-items-center gap-3 mb-0">
+            <input type="hidden" name="type" value="{{ article_tags_query.type }}">
+
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <small class="text-secondary bi bi-sort-down"> Show:</small>
+                    <div class="btn-group">
+                        {% set is_latest = article_tags_query.type == ArticleTagQueryType.LATEST %}
+                        <a href="{{ url("article-tags", **article_tags_query.get_dict({"type": None if is_latest else ArticleTagQueryType.LATEST})) }}"
+                           class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
+                            {{ ArticleTagQueryType.LATEST | title }} first
+                        </a>
+                        {% set is_popular = article_tags_query.type == ArticleTagQueryType.POPULAR %}
+                        <a href="{{ url("article-tags", **article_tags_query.get_dict({"type": None if is_popular else ArticleTagQueryType.POPULAR})) }}"
+                           class="btn {% if is_popular %}btn-primary active{% else %}btn-light{% endif %} bi bi-star{{ "-fill" if is_popular else "" }}">
+                            {{ ArticleTagQueryType.POPULAR | title }} first
+                        </a>
+                    </div>
+                </div>
+
+                {% if article_tags_query.has_params() %}
+                    <div>
+                        <a href="{{ url("article-tags") }}" class="btn btn-light bi bi-x-lg"> Reset</a>
+                    </div>
+                {% endif %}
+            </div>
+        </form>
+    </section>
+
     {% if article_tags %}
         <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-6 g-3" id="article-tags">
             {% for article_tag in article_tags %}
