@@ -19,9 +19,6 @@ class UpdateUserDTO(BaseDTO):
     address: str | None | object = UNSET
     github_username: str | None | object = UNSET
     bmc_username: str | None | object = UNSET
-    show_activity_calendar: bool | object = UNSET
-    show_recent_activity: bool | object = UNSET
-    show_interests: bool | object = UNSET
 
     def __post_init__(self):
         if self.name is not UNSET:
@@ -62,11 +59,6 @@ class UpdateUserActivitySettingsDTO(BaseDTO):
 class UserImpressionAction(StrEnum):
     FOLLOW = "follow"
     BLOCK = "block"
-
-
-@dataclass(slots=True)
-class UpdateUserInterestsSettingsDTO(BaseDTO):
-    show_interests: bool | object = UNSET
 
 
 @dataclass(slots=True)

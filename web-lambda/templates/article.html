@@ -130,48 +130,8 @@
                         {% endif %}
                     </p>
                 </header>
-                {{ render_article_content(article.content) | safe }}
-            </article>
 
-            <section class="article-comments">
-                <h3>Comments ({{ article.comments_count }})</h3>
-
-                <div class="d-flex flex-column gap-4">
-                    {% include "fragments/article-comment-form.html" %}
-
-                    {% if comments %}
-                        <div id="article-comments" class="d-flex flex-column gap-3">
-                            {% with article_comments=comments %}
-                                {% include "fragments/article-comments.html" %}
-                            {% endwith %}
-                        </div>
-
-                        {% with limit=comments_query.limit,
-                            offset=comments[-1].offset,
-                            url=url("article-comments-fragment", article_id=article.id, absolute=True, **comments_query.get_dict()),
-                            container="#article-comments" %}
-                            {% include "fragments/load-more-button.html" %}
-                        {% endwith %}
-                    {% endif %}
-                </div>
-            </section>
-        </div>
-
-        <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
-            <section class="d-flex flex-column gap-3">
-                <h2 class="h5 mb-0 text-decoration-underline">Article's Author</h2>
-                {% with user=author, h_tag_size=3 %}
-                    {% include "fragments/user.html" %}
-                {% endwith %}
-            </section>
-
-            {% with user=author %}
-                {% include "fragments/bmc-donate.html" %}
-            {% endwith %}
-
-            <section class="d-flex flex-column gap-3">
-                <h2 class="h5 mb-0 text-decoration-underline">Article's info & actions</h2>
-                <div class="d-flex flex-column gap-1">
+                <div class="d-flex flex-wrap align-items-center gap-3 mb-2">
                     {% if article.tags %}
                         <div>
                             <small class="text-secondary bi bi-tags"> Tags:</small>
@@ -201,21 +161,55 @@
                     {% if cur_user and check_auth(cur_user, Permission.UPDATE_ARTICLE, article) %}
                         <div>
                             <a href="{{ url("edit-article", article_id=article.id) }}"
-                               class="btn btn-light bi bi-pencil">
+                               class="btn btn-dark btn-sm bi bi-pencil">
                                 Edit article
                             </a>
                         </div>
                     {% endif %}
 
-                    {% with url_to_copy=article_alternate_url, copy_url_label="Copy persistent article link" %}
-                        {% include "fragments/copy-url.html" %}
-                    {% endwith %}
-
                     {% with share_label="Share this article" %}
                         {% include "fragments/share.html" %}
                     {% endwith %}
                 </div>
+
+                {{ render_article_content(article.content) | safe }}
+            </article>
+
+            <section class="article-comments">
+                <h3>Comments ({{ article.comments_count }})</h3>
+
+                <div class="d-flex flex-column gap-4">
+                    {% include "fragments/article-comment-form.html" %}
+
+                    {% if comments %}
+                        <div id="article-comments" class="d-flex flex-column gap-3">
+                            {% with article_comments=comments %}
+                                {% include "fragments/article-comments.html" %}
+                            {% endwith %}
+                        </div>
+
+                        {% with limit=comments_query.limit,
+                            offset=comments[-1].offset,
+                            url=url("article-comments-fragment", article_id=article.id, absolute=True, **comments_query.get_dict()),
+                            container="#article-comments" %}
+                            {% include "fragments/load-more-button.html" %}
+                        {% endwith %}
+                    {% endif %}
+                </div>
             </section>
+        </div>
+
+        <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
+            <section class="d-flex flex-column gap-3">
+                <h2 class="h5 mb-0 text-decoration-underline">Author</h2>
+                {% with user=author, h_tag_size=3 %}
+                    {% include "fragments/user.html" %}
+                {% endwith %}
+            </section>
+
+            {% with user=author %}
+                {% include "fragments/bmc-donate.html" %}
+            {% endwith %}
 
             {% if related_articles %}
                 <section class="d-flex flex-column gap-3">

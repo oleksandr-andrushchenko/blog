@@ -128,7 +128,7 @@ def get_redirect_url(req) -> str:
     return redirect_url
 
 
-def get_user_activity(user: User, year: int | None = None, recent_limit: int = 10) -> dict[str, Any]:
+def get_user_activities(user: User, year: int | None = None, recent_limit: int = 10) -> dict[str, Any]:
     now = datetime.now(timezone.utc)
     if year is None:
         # Show the current calendar month plus the preceding 11 months.

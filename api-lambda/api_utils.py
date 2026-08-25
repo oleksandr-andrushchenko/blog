@@ -8,7 +8,6 @@ from shared_utils import *
 from shared_utils import get_tags
 from user_dtos import (
     UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO,
-    UpdateUserActivitySettingsDTO, UpdateUserInterestsSettingsDTO,
     UserImpressionAction,
 )
 
@@ -687,29 +686,6 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
 
     if old_avatar and avatar_action in {"delete", "replace"}:
         drop_public_file(old_avatar)
-
-
-def update_user_activity_settings(user: User, dto: UpdateUserActivitySettingsDTO, cur_user: User) -> None:
-    verify_authorization(cur_user, Permission.UPDATE_USER, user)
-    if cur_user.status == UserStatus.BANNED:
-        raise UserBannedError()
-    changes = dto.get_changes(user)
-    if not changes:
-        return
-    update_dynamodb_item((f"USER#{user.id}", "META"), changes=changes)
-    for k, v in changes.items():
-        setattr(user, k, v)
-
-
-def update_user_interests_settings(user: User, dto: UpdateUserInterestsSettingsDTO, cur_user: User) -> None:
-    verify_authorization(cur_user, Permission.UPDATE_USER, user)
-    if cur_user.status == UserStatus.BANNED:
-        raise UserBannedError()
-    changes = dto.get_changes(user)
-    if not changes:
-        return
-    update_dynamodb_item((f"USER#{user.id}", "META"), changes=changes)
-    user.show_interests = changes["show_interests"]
 
 
 def update_user_status(user: User, update_user_status_dto: UpdateUserStatusDTO, cur_user: User, req) -> None:

@@ -2,31 +2,6 @@ import asyncio
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from deps import (
-    OptCurUserDep,
-    ImageFileDTODep,
-    CurUserDep,
-    ArticleQueryDep,
-    ArticleCommentQueryDep,
-    ArticleDep,
-    TagQueryDep,
-    UserQueryDep,
-    UserDep,
-    UpdateUserDTODep,
-    UpdateUserActivitySettingsDTODep,
-    UpdateUserInterestsSettingsDTODep,
-    get_error_response,
-    UpdateArticleDTODep,
-    UpdateArticleStatusDTODep,
-    UpdateArticleImpressionDTODep,
-    UpdateUserImpressionDTODep,
-    UpdateUserStatusDTODep,
-    ArticleCommentDep,
-    UpdateArticleCommentDTODep,
-    TagDep,
-    UpdateTagDTODep,
-    TagSubscriptionDTODep,
-)
 from api_utils import (
     to_thread,
     ContactMessageDTO,
@@ -53,8 +28,6 @@ from api_utils import (
     find_user,
     jinja2_env,
     update_user,
-    update_user_activity_settings,
-    update_user_interests_settings,
     update_article,
     find_article_impression,
     update_article_impression,
@@ -76,8 +49,30 @@ from api_utils import (
     create_tag_subscription,
     delete_tag_subscription,
 )
+from deps import (
+    OptCurUserDep,
+    ImageFileDTODep,
+    CurUserDep,
+    ArticleQueryDep,
+    ArticleCommentQueryDep,
+    ArticleDep,
+    TagQueryDep,
+    UserQueryDep,
+    UserDep,
+    UpdateUserDTODep,
+    get_error_response,
+    UpdateArticleDTODep,
+    UpdateArticleStatusDTODep,
+    UpdateArticleImpressionDTODep,
+    UpdateUserImpressionDTODep,
+    UpdateUserStatusDTODep,
+    ArticleCommentDep,
+    UpdateArticleCommentDTODep,
+    TagDep,
+    UpdateTagDTODep,
+    TagSubscriptionDTODep,
+)
 from shared_utils import get_tags
-
 from web import Application, Request, HTTPException, HTMLResponse, JSONResponse, RedirectResponse, \
     RequestValidationError, CORSMiddleware
 
@@ -322,8 +317,8 @@ async def _delete_tag_subscription(tag_subscription_id: str, cur_user: CurUserDe
 
 @route("patch", "update-tag", response_class=JSONResponse)
 async def _update_tag(update_tag_dto: UpdateTagDTODep, tag: TagDep,
-                              cur_user: CurUserDep,
-                              request: Request) -> str:
+                      cur_user: CurUserDep,
+                      request: Request) -> str:
     update_tag(tag, update_tag_dto, cur_user, request)
     return get_tag_url(request, tag)
 
@@ -371,21 +366,6 @@ async def _update_user_impression(user: UserDep, update_user_impression_dto: Upd
         "user_impression": user_impression,
         "cur_user": cur_user,
     })
-
-
-@route("patch", "update-user-activity-settings", response_class=JSONResponse)
-async def _update_user_activity_settings(dto: UpdateUserActivitySettingsDTODep, user: UserDep, cur_user: CurUserDep,
-                                         request: Request) -> str:
-    update_user_activity_settings(user, dto, cur_user)
-    return get_user_url(request, user)
-
-
-@route("patch", "update-user-interests-settings",
-       response_class=JSONResponse)
-async def _update_user_interests_settings(dto: UpdateUserInterestsSettingsDTODep, user: UserDep, cur_user: CurUserDep,
-                                          request: Request) -> str:
-    update_user_interests_settings(user, dto, cur_user)
-    return get_user_url(request, user)
 
 
 @route("patch", "update-user", response_class=JSONResponse)

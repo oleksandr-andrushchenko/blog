@@ -89,6 +89,7 @@ API endpoints are exposed through the dedicated API Gateway execute-api URL, wit
 - tags aliases: for example: cache=caching, cdn=content-delivery-network, etc.
 - article page: similar articles section shows no the all articles
 - article page: auto append/generate "More Articles to Read" paragraph
+- add tags_url function
 
 ## Links
 

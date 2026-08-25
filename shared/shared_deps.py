@@ -91,7 +91,7 @@ def get_user_query_by_slugs(request: Request, type: str) -> UserQueryDTO:
 
 def get_article_query(request: Request, tags: list[str] = Query([])) -> ArticleQueryDTO:
     data = dict(request.query_params)
-    data.pop("activity_year", None)
+    data.pop("activities_year", None)
     data.update({"tags": tags})
     try:
         return ArticleQueryDTO(**data)
@@ -101,7 +101,7 @@ def get_article_query(request: Request, tags: list[str] = Query([])) -> ArticleQ
 
 def get_article_query_by_slugs(request: Request, slugs_path: str) -> ArticleQueryDTO:
     data = dict(request.query_params)
-    data.pop("activity_year", None)
+    data.pop("activities_year", None)
     data.update(parse_articles_url_slugs_path(slugs_path))
     try:
         return ArticleQueryDTO(**data)

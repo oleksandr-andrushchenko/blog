@@ -1,0 +1,54 @@
+{% if activities %}
+    <section id="activity-calendar" class="mb-4">
+        <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+            <h2 class="h5 mb-2 text-decoration-underline">
+                {{ activities.total }} activities {% if activities.year %}in
+                {{ activities.year }}{% else %}in the past year{% endif %}
+            </h2>
+
+            <div class="d-flex align-items-center gap-1">
+                <label for="activity-year" class="small text-secondary">Year</label>
+                <select id="activity-year" class="form-select form-select-sm"
+                        onchange="window.location.href = this.value ? '?activities_year=' + this.value : window.location.pathname">
+                    <option value="">Past year</option>
+                    {% for year in range(activities.current_year, 2019, -1) %}
+                        <option value="{{ year }}"
+                                {% if activities_year == year %}selected{% endif %}>{{ year }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        {% set calendar_width = 720 %}
+        {% if activities.months %}
+            {% set calendar_width = ((activities.months|length - 1) * 60) + (activities.months[-1].week_count * 10) %}
+        {% endif %}
+
+        <svg id="activity-calendar-svg"
+             class="activity-calendar-svg w-100" viewBox="0 0 {{ calendar_width }} 92" role="img"
+             aria-label="Activity calendar" preserveAspectRatio="xMidYMid meet">
+            {% for month in activities.months %}
+                {% set month_index = loop.index0 %}
+                {% for week in month.weeks[:month.week_count] %}
+                    {% set week_index = loop.index0 %}
+                    {% for day in week %}
+                        {% if day.date %}
+                            <rect x="{{ month_index * 60 + week_index * 10 }}"
+                                  y="{{ loop.index0 * 10 }}"
+                                  width="8" height="8" rx="1"
+                                  class="{% if day.count == 0 %}activity-cell-empty{% elif day.count == 1 %}activity-cell-low{% elif day.count < 4 %}activity-cell-medium{% else %}activity-cell-high{% endif %}"
+                                  style="fill: {% if day.count == 0 %}#e9ecef{% elif day.count == 1 %}#b7e4c7{% elif day.count < 4 %}#52b788{% else %}#1b4332{% endif %}"
+                                  aria-label="{{ day.count }} activities on {{ day.date }}">
+                                <title>{{ day.count }} activit{{ 'y' if day.count == 1 else 'ies' }}
+                                    on {{ day.date }}</title>
+                            </rect>
+                        {% endif %}
+                    {% endfor %}
+                {% endfor %}
+                <text x="{{ month_index * 60 + (month.week_count * 10 / 2) }}" y="88"
+                      text-anchor="middle"
+                      class="activity-month-label">{{ month.label }}</text>
+            {% endfor %}
+        </svg>
+    </section>
+{% endif %}

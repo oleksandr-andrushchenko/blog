@@ -77,9 +77,6 @@ class User:
     created_at: int
     updated_at: int | None
     offset: str | None
-    show_activity_calendar: bool
-    show_recent_activity: bool
-    show_interests: bool
 
 
 @dataclass(slots=True)
@@ -1654,9 +1651,6 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         created_at=d_item["created_at"],
         updated_at=d_item.get("updated_at"),
         offset=None,
-        show_activity_calendar=d_item.get("show_activity_calendar", False),
-        show_recent_activity=d_item.get("show_recent_activity", False),
-        show_interests=d_item.get("show_interests", True),
     )
 
 

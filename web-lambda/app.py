@@ -51,7 +51,6 @@ from web_utils import (
     jinja2_env,
     get_popular_active_users,
     Permission,
-    check_authorization,
     verify_authorization,
     find_article_impression,
     find_user_impression,
@@ -70,7 +69,7 @@ from web_utils import (
     get_user_by_auth_token,
     get_tag_url,
     find_tag,
-    get_user_activity,
+    get_user_activities,
     get_user_tag_subscription_for_tags,
     get_user_tag_subscriptions,
 )
@@ -210,8 +209,8 @@ async def index(cur_user: OptCurUserDep) -> str:
     )
     return get_html_content("index.html", {
         "cur_user": cur_user,
-        "featured_tags": popular_tags[:12],
-        "popular_tags": popular_tags[12:],
+        "featured_tags": popular_tags[:20],
+        "popular_tags": popular_tags[20:],
         "latest_articles_query": latest_articles_query,
         "latest_articles": latest_articles,
         "popular_articles": popular_articles,
@@ -384,44 +383,29 @@ async def users_page_by_slugs(query_dto: UserQueryBySlugsDep, cur_user: OptCurUs
 
 async def _user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_user: OptCurUserDep,
                      request: Request) -> HTMLResponse:
-    activity_year = request.query_params.get("activity_year")
-    try:
-        activity_year = int(activity_year) if activity_year else None
-    except ValueError:
-        activity_year = None
+    activities_year = request.query_params.get("activities_year")
+    activities_year = int(activities_year) if activities_year else None
 
-    can_manage_profile = bool(cur_user and check_authorization(cur_user, Permission.UPDATE_USER, user))
-    should_load_activity = user.show_activity_calendar or can_manage_profile
-    can_manage_interests = can_manage_profile
-    should_load_interests = (
-            user.tag_subscriptions_count != 0
-            and (user.show_interests or can_manage_interests)
-    )
-    should_render_interests = user.show_interests or can_manage_interests
+    async def get_activities():
+        if user.published_articles_count == 0 and user.article_comments_count == 0:
+            return []
+        return await to_thread(get_user_activities, user, activities_year)
 
-    async def load_activity():
-        if not should_load_activity:
-            return None
-        try:
-            return await to_thread(get_user_activity, user, activity_year)
-        except ValueError:
-            return await to_thread(get_user_activity, user, None)
-
-    async def load_interests():
-        if not should_load_interests:
+    async def get_interests():
+        if user.tag_subscriptions_count == 0:
             return []
         return await to_thread(get_user_tag_subscriptions, user)
 
     (
         articles,
         user_impression,
-        activity,
+        activities,
         tag_subscriptions,
     ) = await asyncio.gather(
         to_thread(get_latest_articles_by_user, user, articles_query_dto, cur_user),
         to_thread(find_user_impression, user, cur_user) if cur_user else asyncio.sleep(0, result=None),
-        load_activity(),
-        load_interests(),
+        get_activities(),
+        get_interests(),
     )
 
     html_content = get_html_content("user.html", {
@@ -430,10 +414,9 @@ async def _user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_use
         "article_query": articles_query_dto,
         "articles": articles,
         "user_impression": user_impression,
-        "activity": activity,
-        "activity_year": activity_year,
+        "activities": activities,
+        "activities_year": activities_year,
         "tag_subscriptions": tag_subscriptions,
-        "show_tag_subscriptions": should_render_interests,
     })
     return HTMLResponse(html_content)
 

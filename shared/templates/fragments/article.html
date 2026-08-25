@@ -14,7 +14,7 @@
         {% if image and horizontal %}
             <div class="row g-0">{% endif %}
         {% if image %}
-            <div class="{% if horizontal %}{{ image_column_size | column_classes }} d-flex{% endif %}">
+            <div class="{% if horizontal %}{{ image_column_size | column_classes }} d-flex align-items-center order-2{% endif %}">
                 {% include "fragments/article-link-image.html" %}
             </div>
         {% endif %}

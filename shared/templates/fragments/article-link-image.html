@@ -1,8 +1,8 @@
 <a href="{{ article_url(article) }}">
     {% with filename=image,
         alt=article.title,
-        img_class="img-fluid w-100 h-100 object-fit-cover" if horizontal else "card-img-top w-100 h-auto",
-        img_style="width:100%; height:100%; object-fit:cover;" if horizontal else None,
+        img_class="img-fluid w-100 h-auto",
+        img_style=None,
         img_sizes=article_img_sizes %}
         {% include "fragments/image.html" %}
     {% endwith %}

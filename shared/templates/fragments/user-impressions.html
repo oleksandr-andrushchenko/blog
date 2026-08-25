@@ -1,4 +1,4 @@
-<div class="user-impressions d-flex gap-1 align-items-center user-impressions">
+<div class="user-impressions d-flex gap-1 align-items-center user-impressions mb-2">
     <!-- Counts -->
     <div><b class="followers-count">{{ user.followers_count }}</b> <small class="text-secondary">Followers</small></div>
     <div><b class="following-count">{{ user.following_count }}</b> <small class="text-secondary">Following</small></div>
@@ -8,7 +8,7 @@
             <!-- Follow / Unfollow Button -->
             {% set is_followed = user_impression and user_impression.action == UserImpressionAction.FOLLOW %}
             <button type="button"
-                    class="btn btn-user-follow {% if is_followed %}btn-success active{% else %}btn-light{% endif %}{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}"
+                    class="btn btn-user-follow btn-sm {% if is_followed %}btn-success active{% else %}btn-outline-success{% endif %}{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}"
                     data-user-id="{{ user.id }}"
                     data-action="{{ UserImpressionAction.FOLLOW.value }}"
                     title="{% if is_followed %}Unfollow this user{% else %}Follow this user{% endif %}">
@@ -19,7 +19,7 @@
             <!-- Block / Unblock Button -->
             {% set is_blocked = user_impression and user_impression.action == UserImpressionAction.BLOCK %}
             <button type="button"
-                    class="btn btn-user-block {% if is_blocked %}btn-danger active{% else %}btn-light{% endif %}{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}"
+                    class="btn btn-user-block btn-sm {% if is_blocked %}btn-danger active{% else %}btn-outline-danger{% endif %}{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}"
                     data-user-id="{{ user.id }}"
                     data-action="{{ UserImpressionAction.BLOCK.value }}"
                     title="{% if is_blocked %}Unblock this user{% else %}Block this user{% endif %}">

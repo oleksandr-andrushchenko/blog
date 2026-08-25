@@ -66,226 +66,129 @@
 {% endblock %}
 
 {% block content %}
-    <section class="card text-bg-light border-0 shadow-sm">
+    <section class="text-bg-light mb-4">
         <div class="container">
-            <div class="card-body p-3 p-lg-4">
+            <div class="p-3 p-lg-4">
                 <div class="row align-items-center g-4">
                     <div class="col-12 col-sm-3 col-lg-2">
                         {% include "fragments/user-avatar.html" %}
                     </div>
 
                     <div class="col-12 col-sm-9 col-lg-10">
-                        <h1 class="m-0">{{ user.name }}</h1>
+                        <h1 class="mb-0">{{ user.name }}</h1>
 
                         {% if user.username %}
-                            <div>
+                            <div class="mb-2">
                                 @{{ user.username }}
                             </div>
                         {% endif %}
 
                         {% if user.headline %}
-                            <h2 class="h5">{{ user.headline }}</h2>
+                            <h2 class="h6">{{ user.headline }}</h2>
                         {% endif %}
 
-                        {% if user.website %}
+                        <div class="d-flex gap-3 flex-wrap mb-2">
+                            {% if user.website %}
+                                <div>
+                                    <small class="bi bi-link-45deg"> Website:</small>
+                                    <a class="text-decoration-none link-body-emphasis d-inline-block me-2"
+                                       href="{{ user.website }}"
+                                       target="_blank" rel="noopener noreferrer">
+                                        {{ user.website | replace("https://", "", 1) | replace("http://", "", 1) }}
+                                        <i class="bi bi-box-arrow-up-right"></i>
+                                    </a>
+                                </div>
+                            {% endif %}
+
+                            {% if user.github_username %}
+                                <div>
+                                    <small class="bi bi-github"> GitHub:</small>
+                                    <a class="text-decoration-none link-body-emphasis d-inline-block me-2"
+                                       href="https://github.com/{{ user.github_username }}" target="_blank"
+                                       rel="noopener noreferrer">
+                                        {{ user.github_username }}
+                                        <i class="bi bi-box-arrow-up-right"></i>
+                                    </a>
+                                </div>
+                            {% endif %}
+
+                            {% if user.bmc_username and user.published_articles_count %}
+                                <div>
+                                    <small class="bi bi-currency-dollar"> Buy Me a Coffee:</small>
+                                    <a class="text-decoration-none link-body-emphasis d-inline-block me-2"
+                                       href="https://buymeacoffee.com/{{ user.bmc_username }}" target="_blank"
+                                       rel="noopener noreferrer">
+                                        {{ user.bmc_username }}
+                                        <i class="bi bi-box-arrow-up-right"></i>
+                                    </a>
+                                </div>
+                            {% endif %}
+
+                            {% if user.address %}
+                                <div>
+                                    <small class="bi bi-geo"> Location:</small>
+                                    {{ user.address }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex gap-3 flex-wrap mb-2">
                             <div>
-                                <small class="text-secondary bi bi-link-45deg"> Website:</small>
-                                <a class="text-decoration-none link-body-emphasis d-inline-block me-2"
-                                   href="{{ user.website }}"
-                                   target="_blank" rel="noopener noreferrer">
-                                    {{ user.website | replace("https://", "", 1) | replace("http://", "", 1) }}
-                                    <i class="bi bi-box-arrow-up-right"></i>
-                                </a>
-                            </div>
-                        {% endif %}
-
-                        {% if user.github_username %}
-                            <div>
-                                <small class="text-secondary bi bi-github"> GitHub:</small>
-                                <a class="text-decoration-none link-body-emphasis d-inline-block me-2"
-                                   href="https://github.com/{{ user.github_username }}" target="_blank"
-                                   rel="noopener noreferrer">
-                                    {{ user.github_username }}
-                                    <i class="bi bi-box-arrow-up-right"></i>
-                                </a>
-                            </div>
-                        {% endif %}
-
-                        {% if user.bmc_username and user.published_articles_count %}
-                            <div>
-                                <small class="text-secondary bi bi-currency-dollar"> Buy Me a Coffee:</small>
-                                <a class="text-decoration-none link-body-emphasis d-inline-block me-2"
-                                   href="https://buymeacoffee.com/{{ user.bmc_username }}" target="_blank"
-                                   rel="noopener noreferrer">
-                                    {{ user.bmc_username }}
-                                    <i class="bi bi-box-arrow-up-right"></i>
-                                </a>
-                            </div>
-                        {% endif %}
-
-                        {% if user.address %}
-                            <div>
-                                <small class="text-secondary bi bi-geo"> Address:</small>
-                                {{ user.address }}
-                            </div>
-                        {% endif %}
-
-                        <div class="d-flex gap-3 flex-wrap small">
-                            <div class="d-flex align-items-center gap-1">
-                                <span class="bi bi-heart text-secondary"> {{ user.followers_count }}</span>
-                                <span class="text-secondary">Followers</span>
-                            </div>
-
-                            <div class="d-flex align-items-center gap-1">
-                                <span class="bi bi-person-heart text-secondary"> {{ user.following_count }}</span>
-                                <span class="text-secondary">Following</span>
+                                <small class="bi bi-calendar2"> Joined:</small>
+                                {{ (user.created_at / 1000) | unix_to_full_date() }}
                             </div>
 
                             <div class="d-flex align-items-center gap-1">
-                                <span class="bi bi-pencil text-secondary"> {{ user.published_articles_count }}</span>
-                                <span class="text-secondary">Articles</span>
+                                <span class="bi bi-heart"> {{ user.followers_count }}</span>
+                                Followers
                             </div>
 
                             <div class="d-flex align-items-center gap-1">
-                                <span class="bi bi-chat text-secondary"> {{ user.article_comments_count }}</span>
-                                <span class="text-secondary">Comments</span>
+                                <span class="bi bi-person-heart"> {{ user.following_count }}</span>
+                                Following
+                            </div>
+
+                            <div class="d-flex align-items-center gap-1">
+                                <span class="bi bi-pencil"> {{ user.published_articles_count }}</span>
+                                Articles
+                            </div>
+
+                            <div class="d-flex align-items-center gap-1">
+                                <span class="bi bi-chat"> {{ user.article_comments_count }}</span>
+                                Comments
                             </div>
                         </div>
 
-                        <div>
-                            <small class="text-secondary bi bi-calendar2"> Joined:</small>
-                            {{ (user.created_at / 1000) | unix_to_full_date() }}
-                        </div>
+                        {% include "fragments/user-status.html" %}
+                        {% include "fragments/user-impressions.html" %}
+
+                        {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
+                            <div>
+                                <a href="{{ url("edit-user", user_id=user.id) }}"
+                                   class="btn btn-dark btn-sm bi bi-pencil">
+                                    Edit profile
+                                </a>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <div class="container mt-4">
-        <div class="row">
-            <div class="col col-12 col-lg-6 col-xl-8">
-                {% if user.about %}
-                    <div>
-                        <h2 class="h5 mb-2">About</h2>
-                        <div class="card-text">{{ user.about }}</div>
-                    </div>
-                {% endif %}
-
-                {% if activity %}
-                    <section id="activity-calendar" class="d-flex flex-column gap-3 mt-4">
-                        <div class="d-flex align-items-center justify-content-between gap-2">
-                            <div class="d-flex align-items-center gap-3">
-                                <div class="h5 mb-0">{{ activity.total }} activities {% if activity.year %}in
-                                    {{ activity.year }}{% else %}in the past year{% endif %}</div>
-                                {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
-                                    <div class="form-check form-switch small mb-0">
-                                        <input class="form-check-input" type="checkbox"
-                                               id="profile-show-activity-calendar"
-                                               {% if user.show_activity_calendar %}checked{% endif %}>
-                                        <label class="form-check-label" for="profile-show-activity-calendar">Show on
-                                            profile</label>
-                                    </div>
-                                {% endif %}
-                            </div>
-                            <div class="d-flex align-items-center gap-1">
-                                <label for="activity-year" class="small text-secondary">Year</label>
-                                <select id="activity-year" class="form-select form-select-sm"
-                                        onchange="window.location.href = this.value ? '?activity_year=' + this.value : window.location.pathname">
-                                    <option value="">Past year</option>
-                                    {% for year in range(activity.current_year, 2019, -1) %}
-                                        <option value="{{ year }}"
-                                                {% if activity_year == year %}selected{% endif %}>{{ year }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        {% set calendar_width = 720 %}
-                        {% if activity.months %}
-                            {% set calendar_width = ((activity.months|length - 1) * 60) + (activity.months[-1].week_count * 10) %}
-                        {% endif %}
-                        <svg id="activity-calendar-svg"
-                             {% if not user.show_activity_calendar %}style="display: none"{% endif %}
-                             class="activity-calendar-svg w-100" viewBox="0 0 {{ calendar_width }} 92" role="img"
-                             aria-label="Activity calendar" preserveAspectRatio="xMidYMid meet">
-                            {% for month in activity.months %}
-                                {% set month_index = loop.index0 %}
-                                {% for week in month.weeks[:month.week_count] %}
-                                    {% set week_index = loop.index0 %}
-                                    {% for day in week %}
-                                        {% if day.date %}
-                                            <rect x="{{ month_index * 60 + week_index * 10 }}"
-                                                  y="{{ loop.index0 * 10 }}"
-                                                  width="8" height="8" rx="1"
-                                                  class="{% if day.count == 0 %}activity-cell-empty{% elif day.count == 1 %}activity-cell-low{% elif day.count < 4 %}activity-cell-medium{% else %}activity-cell-high{% endif %}"
-                                                  style="fill: {% if day.count == 0 %}#e9ecef{% elif day.count == 1 %}#b7e4c7{% elif day.count < 4 %}#52b788{% else %}#1b4332{% endif %}"
-                                                  aria-label="{{ day.count }} activities on {{ day.date }}">
-                                                <title>{{ day.count }} activit{{ 'y' if day.count == 1 else 'ies' }}
-                                                    on {{ day.date }}</title>
-                                            </rect>
-                                        {% endif %}
-                                    {% endfor %}
-                                {% endfor %}
-                                <text x="{{ month_index * 60 + (month.week_count * 10 / 2) }}" y="88"
-                                      text-anchor="middle"
-                                      class="activity-month-label">{{ month.label }}</text>
-                            {% endfor %}
-                        </svg>
-                    </section>
-                {% endif %}
-
-                <section class="d-flex flex-column gap-3 mt-4">
-                    <h2 class="h5 mb-0 text-decoration-underline">{{ articles_title }}</h2>
-
-                    {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE, user) %}
-                        <div class="d-flex justify-content-start align-items-center gap-1">
-                            <small class="text-secondary">Filter by status:</small>
-
-                            <div class="btn-group btn-group-sm" role="group">
-                                {% set is_published = article_query.status == ArticleStatus.PUBLISHED %}
-                                <a href="{{ user_url(user, **article_query.get_dict({"status": None if is_published else ArticleStatus.PUBLISHED.value})) }}"
-                                   class="btn {% if is_published %}btn-success active{% else %}btn-light{% endif %}">
-                                    {{ ArticleStatus.PUBLISHED | title }} ({{ user.published_articles_count }})
-                                </a>
-
-                                {% set is_unpublished = article_query.status == ArticleStatus.UNPUBLISHED %}
-                                <a href="{{ user_url(user, **article_query.get_dict({"status": None if is_unpublished else ArticleStatus.UNPUBLISHED.value})) }}"
-                                   class="btn {% if is_unpublished %}btn-warning active{% else %}btn-light{% endif %}">
-                                    {{ ArticleStatus.UNPUBLISHED | title }} ({{ user.unpublished_articles_count }})
-                                </a>
-
-                                {% set is_rejected = article_query.status == ArticleStatus.REJECTED %}
-                                <a href="{{ user_url(user, **article_query.get_dict({"status": None if is_rejected else ArticleStatus.REJECTED.value})) }}"
-                                   class="btn {% if is_rejected %}btn-danger active{% else %}btn-light{% endif %}">
-                                    {{ ArticleStatus.REJECTED | title }} ({{ user.rejected_articles_count }})
-                                </a>
-                            </div>
-
-                            {% if article_query.has_params() %}
-                                <a href="{{ user_url(user) }}" class="btn btn-light bi bi-x-lg"> Reset</a>
-                            {% endif %}
-                        </div>
-                    {% endif %}
-
-                    {% if articles %}
-                        <div id="articles" class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-2"
-                             data-masonry='{"percentPosition": true }'>
-                            {% with article_img_sizes={"1400px": "196px", "1200px": "166px", "992px": "96px", "768px": "156px", "default": "100vw"} %}
-                                {% include "fragments/articles.html" %}
-                            {% endwith %}
-                        </div>
-
-                        {% with limit=article_query.limit,
-                        offset=articles[-1].offset,
-                        url=url("user-articles-fragment", user_id=user.id, absolute=True, **article_query.get_dict()),
-                        container="#articles" %}
-                            {% include "fragments/load-more-button.html" %}
-                        {% endwith %}
-                    {% else %}
-                        <div>N/A</div>
-                    {% endif %}
-                </section>
+    <div class="container">
+        {% if user.about %}
+            <div class="mb-4">
+                <h2 class="h5 mb-2 text-decoration-underline">About</h2>
+                <div class="card-text">{{ user.about }}</div>
             </div>
+        {% endif %}
+
+        <div class="row mb-4">
+            <div class="col col-12 col-lg-6 col-xl-8">
+                {% include "fragments/user-activities.html" %}
+            </div>
+
             <div class="col col-12 col-lg-6 col-xl-4 border-start">
                 {% if user.published_articles_count %}
                     {% with header="Enjoy this author’s work?" %}
@@ -293,108 +196,60 @@
                     {% endwith %}
                 {% endif %}
 
-                <section class="d-flex flex-column gap-3 mt-4">
-                    <h2 class="h5 mb-0 text-decoration-underline">User actions</h2>
-                    <div class="d-flex flex-column gap-1">
-                        {% include "fragments/user-status.html" %}
-                        {% include "fragments/user-impressions.html" %}
-
-                        {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
-                            <div>
-                                <a href="{{ url("edit-user", user_id=user.id) }}" class="btn btn-light bi bi-pencil">
-                                    Edit profile
-                                </a>
-                            </div>
-                        {% endif %}
-
-                        {% with url_to_copy=user_alternate_url, copy_url_label="Copy persistent user profile link" %}
-                            {% include "fragments/copy-url.html" %}
-                        {% endwith %}
-                    </div>
-                </section>
-
-                {% if show_tag_subscriptions %}
-                    {% include "fragments/user-tag-subscriptions.html" %}
-                {% endif %}
+                {% include "fragments/user-tag-subscriptions.html" %}
             </div>
         </div>
+
+        <section>
+            <h2 class="h5 mb-2 text-decoration-underline">{{ articles_title }}</h2>
+
+            {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE, user) %}
+                <div class="d-flex justify-content-start align-items-center gap-1 mb-2">
+                    <small class="text-secondary">Filter by status:</small>
+
+                    <div class="btn-group btn-group-sm" role="group">
+                        {% set is_published = article_query.status == ArticleStatus.PUBLISHED %}
+                        <a href="{{ user_url(user, **article_query.get_dict({"status": None if is_published else ArticleStatus.PUBLISHED.value})) }}"
+                           class="btn {% if is_published %}btn-success active{% else %}btn-light{% endif %}">
+                            {{ ArticleStatus.PUBLISHED | title }} ({{ user.published_articles_count }})
+                        </a>
+
+                        {% set is_unpublished = article_query.status == ArticleStatus.UNPUBLISHED %}
+                        <a href="{{ user_url(user, **article_query.get_dict({"status": None if is_unpublished else ArticleStatus.UNPUBLISHED.value})) }}"
+                           class="btn {% if is_unpublished %}btn-warning active{% else %}btn-light{% endif %}">
+                            {{ ArticleStatus.UNPUBLISHED | title }} ({{ user.unpublished_articles_count }})
+                        </a>
+
+                        {% set is_rejected = article_query.status == ArticleStatus.REJECTED %}
+                        <a href="{{ user_url(user, **article_query.get_dict({"status": None if is_rejected else ArticleStatus.REJECTED.value})) }}"
+                           class="btn {% if is_rejected %}btn-danger active{% else %}btn-light{% endif %}">
+                            {{ ArticleStatus.REJECTED | title }} ({{ user.rejected_articles_count }})
+                        </a>
+                    </div>
+
+                    {% if article_query.has_params() %}
+                        <a href="{{ user_url(user) }}" class="btn btn-light bi bi-x-lg"> Reset</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            {% if articles %}
+                <div id="articles" class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-2"
+                     data-masonry='{"percentPosition": true }'>
+                    {% with article_img_sizes={"1400px": "196px", "1200px": "166px", "992px": "96px", "768px": "156px", "default": "100vw"} %}
+                        {% include "fragments/articles.html" %}
+                    {% endwith %}
+                </div>
+
+                {% with limit=article_query.limit,
+                        offset=articles[-1].offset,
+                        url=url("user-articles-fragment", user_id=user.id, absolute=True, **article_query.get_dict()),
+                        container="#articles" %}
+                    {% include "fragments/load-more-button.html" %}
+                {% endwith %}
+            {% else %}
+                <div>N/A</div>
+            {% endif %}
+        </section>
     </div>
-
-    {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
-        <script>
-          document.addEventListener("DOMContentLoaded", () => {
-            const checkbox = document.getElementById("profile-show-activity-calendar")
-            const interestsCheckbox = document.getElementById("profile-show-interests")
-            const interestsContent = document.getElementById("profile-interests-content")
-            if (!checkbox && !interestsCheckbox) return
-            if (!checkbox) {
-              interestsCheckbox.addEventListener("change", async () => {
-                const previous = interestsCheckbox.checked
-                interestsCheckbox.disabled = true
-                interestsCheckbox.classList.add("opacity-50")
-                try {
-                  const response = await $.ajax({{ url('update-user-interests-settings', user_id=user.id, absolute=True) | tojson }}, {
-                    method: "PATCH",
-                    contentType: "application/json",
-                    data: JSON.stringify({show_interests: interestsCheckbox.checked})
-                  })
-                  if (interestsContent) interestsContent.style.display = interestsCheckbox.checked ? "" : "none"
-                } catch (_) {
-                  interestsCheckbox.checked = previous
-                  if (interestsContent) interestsContent.style.display = previous ? "" : "none"
-                } finally {
-                  interestsCheckbox.disabled = false
-                  interestsCheckbox.classList.remove("opacity-50")
-                }
-              })
-              return
-            }
-            checkbox.addEventListener("change", async () => {
-              const previous = checkbox.checked
-              checkbox.disabled = true
-              checkbox.classList.add("opacity-50")
-              const calendar = document.getElementById("activity-calendar-svg")
-              if (calendar) calendar.style.display = checkbox.checked ? "" : "none"
-              try {
-                const response = await $.ajax({{ url('update-user-activity-settings', user_id=user.id, absolute=True) | tojson }}, {
-                  method: "PATCH",
-                  contentType: "application/json",
-                  data: JSON.stringify({
-                    show_activity_calendar: checkbox.checked,
-                    show_recent_activity: {{ 'true' if user.show_recent_activity else 'false' }}
-                  })
-                })
-              } catch (_) {
-                checkbox.checked = previous
-                if (calendar) calendar.style.display = previous ? "" : "none"
-              } finally {
-                checkbox.disabled = false
-                checkbox.classList.remove("opacity-50")
-              }
-            })
-
-            if (interestsCheckbox) {
-              interestsCheckbox.addEventListener("change", async () => {
-                const previous = interestsCheckbox.checked
-                interestsCheckbox.disabled = true
-                interestsCheckbox.classList.add("opacity-50")
-                try {
-                  const response = await $.ajax({{ url('update-user-interests-settings', user_id=user.id, absolute=True) | tojson }}, {
-                    method: "PATCH",
-                    contentType: "application/json",
-                    data: JSON.stringify({show_interests: interestsCheckbox.checked})
-                  })
-                  if (interestsContent) interestsContent.style.display = interestsCheckbox.checked ? "" : "none"
-                } catch (_) {
-                  interestsCheckbox.checked = previous
-                  if (interestsContent) interestsContent.style.display = previous ? "" : "none"
-                } finally {
-                  interestsCheckbox.disabled = false
-                  interestsCheckbox.classList.remove("opacity-50")
-                }
-              })
-            }
-          })
-        </script>
-    {% endif %}
 {% endblock %}

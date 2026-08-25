@@ -4,13 +4,14 @@ The web lambda keeps the shared read/query dependencies in ``shared``;
 upload and mutation request parsing belongs to the API lambda.
 """
 
-from shared_deps import *
-from article_dtos import UpdateArticleCommentDTO, UpdateArticleCommentImpressionDTO, UpdateArticleDTO, UpdateArticleImpressionDTO, UpdateArticleStatusDTO, UpdateTagDTO
-from tag_subscription_dtos import TagSubscriptionDTO
+from article_dtos import UpdateArticleCommentDTO, UpdateArticleCommentImpressionDTO, UpdateArticleDTO, \
+    UpdateArticleImpressionDTO, UpdateArticleStatusDTO, UpdateTagDTO
 from basic_dtos import ImageFileDTO
 from query_dtos import TagQueryDTO
-from user_dtos import UpdateUserDTO, UpdateUserActivitySettingsDTO, UpdateUserImpressionDTO, UpdateUserInterestsSettingsDTO, UpdateUserStatusDTO
+from shared_deps import *
 from shared_utils import ArticleComment, ArticleCommentNotFoundError, get_article_comment
+from tag_subscription_dtos import TagSubscriptionDTO
+from user_dtos import UpdateUserDTO, UpdateUserActivitySettingsDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO
 from web import Body, HTTPException, Request
 
 
@@ -30,16 +31,6 @@ def get_update_user_dto(value: UpdateUserDTO = Body(...)) -> UpdateUserDTO:
 
 
 def get_tag_subscription_dto(value: TagSubscriptionDTO = Body(...)) -> TagSubscriptionDTO:
-    return value
-
-
-def get_update_user_activity_settings_dto(
-        value: UpdateUserActivitySettingsDTO = Body(...)) -> UpdateUserActivitySettingsDTO:
-    return value
-
-
-def get_update_user_interests_settings_dto(
-        value: UpdateUserInterestsSettingsDTO = Body(...)) -> UpdateUserInterestsSettingsDTO:
     return value
 
 
@@ -84,10 +75,6 @@ def get_update_tag_dto(value: UpdateTagDTO = Body(...)) -> UpdateTagDTO:
 
 
 UpdateUserDTODep = Annotated[UpdateUserDTO, Depends(get_update_user_dto)]
-UpdateUserActivitySettingsDTODep = Annotated[
-    UpdateUserActivitySettingsDTO, Depends(get_update_user_activity_settings_dto)]
-UpdateUserInterestsSettingsDTODep = Annotated[
-    UpdateUserInterestsSettingsDTO, Depends(get_update_user_interests_settings_dto)]
 UpdateUserStatusDTODep = Annotated[UpdateUserStatusDTO, Depends(get_update_user_status_dto)]
 UpdateArticleDTODep = Annotated[UpdateArticleDTO, Depends(get_update_article_dto)]
 UpdateArticleStatusDTODep = Annotated[UpdateArticleStatusDTO, Depends(get_update_article_status_dto)]

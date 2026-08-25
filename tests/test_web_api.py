@@ -733,39 +733,6 @@ def test_user_edit_update_and_fragment_endpoints_success_and_failure(root_user_c
     assert slug_failure.status_code == 404
 
 
-def test_user_settings_endpoints_success_and_failure(guest_client):
-    root_client = get_logged_in_client(root_user)
-    root_id = functional_state["root_id"]
-    expected_user_url = get_user_href(get_dynamodb_user(root_id))
-
-    activity_success = patch(root_client, f"/users/{root_id}/activity-settings", json={
-        "show_activity_calendar": True,
-        "show_recent_activity": True,
-    })
-    assert activity_success.status_code == 200, activity_success.text
-    assert activity_success.json() == expected_user_url
-
-    interests_success = patch(root_client, f"/users/{root_id}/interests-settings", json={
-        "show_interests": False,
-    })
-    assert interests_success.status_code == 200, interests_success.text
-    assert interests_success.json() == expected_user_url
-
-    updated_user = get_dynamodb_user(root_id)
-    assert updated_user["show_activity_calendar"] is True
-    assert updated_user["show_recent_activity"] is True
-    assert updated_user["show_interests"] is False
-
-    activity_failure = patch(guest_client, f"/users/{root_id}/activity-settings", json={
-        "show_activity_calendar": True,
-    })
-    assert activity_failure.status_code == 401
-    interests_failure = patch(guest_client, f"/users/{root_id}/interests-settings", json={
-        "show_interests": True,
-    })
-    assert interests_failure.status_code == 401
-
-
 def test_user_impression_endpoint_success_and_validation_failure(regular_user_client):
     regular_user_client = get_logged_in_client(regular_user)
     target_id = get_dynamodb_user_by_email(regular_2_user["email"])["id"]

@@ -1,0 +1,22 @@
+{% if (cur_user and cur_user.published_articles_count==0) or not cur_user %}
+    <section class="card shadow-sm mb-4 text-bg-light">
+        <div class="card-body">
+            <h2 class="h4 card-title">
+                <i class="bi bi-lightbulb"></i>
+                Become an author
+            </h2>
+
+            <p class="card-text">
+                Share your ideas and earn money from your content.
+            </p>
+
+            <a href="{{ url('new-article') if cur_user else url('login', redirect_url=url('new-article')) }}"
+               class="btn btn-dark bi bi-pencil-fill">
+                Write an article
+            </a>
+            <a href="{{ url("earn") }}" class="btn btn-outline-dark btn-sm bi bi-currency-dollar">
+                Earn with us
+            </a>
+        </div>
+    </section>
+{% endif %}
