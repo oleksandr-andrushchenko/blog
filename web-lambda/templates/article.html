@@ -116,8 +116,10 @@
                     {% with rating_size="fs-3", rating_extended=True %}
                         {% include "fragments/article-rating.html" %}
                     {% endwith %}
+                </header>
 
-                    <p class="small text-secondary">
+                <div class="d-flex flex-wrap align-items-center gap-3 mb-2">
+                    <div>
                         By <a href="{{ user_url(author) }}" class="link-secondary">{{ author.name }}</a>
                         {% if article.published_at %}
                             &mdash;
@@ -128,10 +130,8 @@
                                 <time>{{ (article.updated_at / 1000) | unix_to_full_date }}</time>
                             {% endif %}
                         {% endif %}
-                    </p>
-                </header>
+                    </div>
 
-                <div class="d-flex flex-wrap align-items-center gap-3 mb-2">
                     {% if article.tags %}
                         <div>
                             <small class="text-secondary bi bi-tags"> Tags:</small>
@@ -161,7 +161,7 @@
                     {% if cur_user and check_auth(cur_user, Permission.UPDATE_ARTICLE, article) %}
                         <div>
                             <a href="{{ url("edit-article", article_id=article.id) }}"
-                               class="btn btn-dark btn-sm bi bi-pencil">
+                               class="btn btn-light btn-sm bi bi-pencil">
                                 Edit article
                             </a>
                         </div>

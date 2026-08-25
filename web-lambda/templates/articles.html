@@ -106,13 +106,6 @@
     <p class="small text-secondary">{{ subtitle }}</p>
 
     <form action="{{ articles_url() }}" method="get" class="d-flex flex-wrap align-items-center gap-3 mb-4">
-        {% if tag and cur_user and check_auth(cur_user, Permission.UPDATE_TAG) %}
-            <a href="{{ url("edit-tag", slug=article_query.tags[0]) }}"
-               class="btn btn-dark btn-sm bi bi-pencil">
-                Edit tag
-            </a>
-        {% endif %}
-
         <h2 class="h5 mb-0 text-decoration-underline bi bi-filter"> Filter articles</h2>
 
         <input type="hidden" name="type" value="{{ article_query.type }}">
@@ -175,8 +168,15 @@
 
         {% if article_query.has_params() %}
             <div>
-                <a href="{{ articles_url() }}" class="btn btn-light bi bi-x-lg"> Reset</a>
+                <a href="{{ articles_url() }}" class="btn btn-light btn-sm bi bi-x-lg"> Reset</a>
             </div>
+        {% endif %}
+
+        {% if tag and cur_user and check_auth(cur_user, Permission.UPDATE_TAG) %}
+            <a href="{{ url("edit-tag", slug=article_query.tags[0]) }}"
+               class="btn btn-light btn-sm bi bi-pencil">
+                Edit tag
+            </a>
         {% endif %}
     </form>
 
@@ -192,7 +192,9 @@
     {% if articles %}
         <section id="articles" class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-2"
                  data-masonry='{"percentPosition": true }'>
-            {% include "fragments/tag-subscription.html" %}
+            <div class="col">
+                {% include "fragments/tag-subscription.html" %}
+            </div>
 
             {% with h_tag_size=2,
                 article_img_sizes={"1400px": "196px", "1200px": "166px", "992px": "96px", "768px": "156px", "default": "100vw"} %}

@@ -165,7 +165,7 @@
                         {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
                             <div>
                                 <a href="{{ url("edit-user", user_id=user.id) }}"
-                                   class="btn btn-dark btn-sm bi bi-pencil">
+                                   class="btn btn-light btn-sm bi bi-pencil">
                                     Edit profile
                                 </a>
                             </div>
@@ -228,7 +228,7 @@
                     </div>
 
                     {% if article_query.has_params() %}
-                        <a href="{{ user_url(user) }}" class="btn btn-light bi bi-x-lg"> Reset</a>
+                        <a href="{{ user_url(user) }}" class="btn btn-light btn-sm bi bi-x-lg"> Reset</a>
                     {% endif %}
                 </div>
             {% endif %}
