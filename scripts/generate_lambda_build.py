@@ -51,7 +51,7 @@ if output_dir.exists():
     for path in output_dir.glob("tmp_*"): shutil.rmtree(path)
 web_only = set()
 api_only = {"index.html", "articles.html", "article.html", "contacts.html", "edit-article.html",
-            "edit-article-tag.html", "edit-user.html", "earn.html", "policy.html", "rules.html", "terms.html",
+            "edit-tag.html", "edit-user.html", "earn.html", "policy.html", "rules.html", "terms.html",
             "users.html", "user.html", "new-article.html"}
 
 requested = sys.argv[1:] or ["all"]

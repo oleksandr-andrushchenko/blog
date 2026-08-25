@@ -876,37 +876,37 @@ $(function () {
   $(".share-btn.email").attr("href", `mailto:?subject=${pageTitle}&body=Check out this article: ${pageUrl}`)
 })
 
-// Article tag subscriptions
-$(document).on("click", ".btn-article-tag-subscription", function () {
+// Tag subscriptions
+$(document).on("click", ".btn-tag-subscription", function () {
   const button = $(this)
-  const block = button.closest(".article-tag-subscription-block, .article-tag-subscription-item")
-  const message = block.find(".article-tag-subscription-message")
+  const block = button.closest(".tag-subscription-block, .tag-subscription-item")
+  const message = block.find(".tag-subscription-message")
   button.setButtonLoading()
-  const subscriptionId = button.attr("data-article-tag-subscription-id")
+  const subscriptionId = button.attr("data-tag-subscription-id")
   const request = subscriptionId
     ? $.ajax({
-      url: window.CONFIG.delete_article_tag_subscription_url.replace("{article_tag_subscription_id}", subscriptionId),
+      url: window.CONFIG.delete_tag_subscription_url.replace("{tag_subscription_id}", subscriptionId),
       method: "DELETE"
     })
     : $.ajax({
-      url: window.CONFIG.create_article_tag_subscription_url,
+      url: window.CONFIG.create_tag_subscription_url,
       method: "POST",
       contentType: "application/json",
       data: JSON.stringify({tags: JSON.parse(button.attr("data-tags"))})
     })
   request.done((html) => {
-    if (block.hasClass("article-tag-subscription-item")) {
+    if (block.hasClass("tag-subscription-item")) {
       block.remove()
       const interestsContent = $("#profile-interests-content")
-      if (interestsContent.length && !interestsContent.find(".article-tag-subscription-item").length) {
-        interestsContent.html('<div class="text-muted small article-tag-subscription-empty">You have no interests.</div>')
+      if (interestsContent.length && !interestsContent.find(".tag-subscription-item").length) {
+        interestsContent.html('<div class="text-muted small tag-subscription-empty">You have no interests.</div>')
       }
     } else {
       block.replaceWith(html)
     }
   })
     .fail((xhr) => {
-      message.text(xhr.responseJSON?.detail?.message || "Unable to update article tag subscription.");
+      message.text(xhr.responseJSON?.detail?.message || "Unable to update tag subscription.");
       button.clearButtonLoading()
     })
 })

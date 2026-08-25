@@ -9,7 +9,7 @@ from deps import (
     ArticleQueryDep,
     ArticleCommentQueryDep,
     ArticleDep,
-    ArticleTagQueryDep,
+    TagQueryDep,
     UserQueryDep,
     UserDep,
     UpdateUserDTODep,
@@ -23,9 +23,9 @@ from deps import (
     UpdateUserStatusDTODep,
     ArticleCommentDep,
     UpdateArticleCommentDTODep,
-    ArticleTagDep,
-    UpdateArticleTagDTODep,
-    ArticleTagSubscriptionDTODep,
+    TagDep,
+    UpdateTagDTODep,
+    TagSubscriptionDTODep,
 )
 from api_utils import (
     to_thread,
@@ -33,11 +33,11 @@ from api_utils import (
     ArticleDTO,
     ArticleQueryDTO,
     ArticleCommentDTO,
-    ArticleTag,
+    Tag,
     SlugDuplicationError,
     NotAuthorizedError,
     ArticleByOldSlugRequestedError,
-    ArticleTagByOldSlugRequestedError,
+    TagByOldSlugRequestedError,
     UserByOldSlugRequestedError,
     UserNotFoundError,
     logger,
@@ -70,13 +70,13 @@ from api_utils import (
     get_article_comments,
     update_article_comment,
     get_article_comment_url,
-    get_article_tag_url,
-    update_article_tag,
-    get_user_article_tag_subscriptions,
-    create_article_tag_subscription,
-    delete_article_tag_subscription,
+    get_tag_url,
+    update_tag,
+    get_user_tag_subscriptions,
+    create_tag_subscription,
+    delete_tag_subscription,
 )
-from shared_utils import get_article_tags
+from shared_utils import get_tags
 
 from web import Application, Request, HTTPException, HTMLResponse, JSONResponse, RedirectResponse, \
     RequestValidationError, CORSMiddleware
@@ -109,7 +109,7 @@ async def redirect_legacy_api_endpoints(request: Request, call_next):
     path = request.url.path
     replacements = (
         ("/posts", "/articles"),
-        ("/post-tags", "/article-tags"),
+        ("/post-tags", "/tags"),
     )
     for old, new in replacements:
         # In the combined local test app, GET /posts belongs to the web
@@ -192,13 +192,13 @@ async def article_redirect_exception_handler(request: Request, exc: UserByOldSlu
     return RedirectResponse(url=url, status_code=301)
 
 
-@app.exception_handler(ArticleTagByOldSlugRequestedError)
-async def article_tag_redirect_exception_handler(request: Request, exc: ArticleTagByOldSlugRequestedError):
-    logger.info(f"Redirect: {str(exc.slug)} -> {exc.article_tag.slug}")
-    if request.url.path.startswith("/article-tags/"):
-        url = get_url(request, "edit-article-tag", slug=exc.article_tag.slug)
+@app.exception_handler(TagByOldSlugRequestedError)
+async def tag_redirect_exception_handler(request: Request, exc: TagByOldSlugRequestedError):
+    logger.info(f"Redirect: {str(exc.slug)} -> {exc.tag.slug}")
+    if request.url.path.startswith("/tags/"):
+        url = get_url(request, "edit-tag", slug=exc.tag.slug)
     else:
-        url = get_article_tag_url(request, exc.article_tag)
+        url = get_tag_url(request, exc.tag)
     return RedirectResponse(url=url, status_code=301)
 
 
@@ -288,55 +288,55 @@ async def _create_contact_message(message_dto: ContactMessageDTO, cur_user: OptC
     create_contact_message(message_dto, cur_user)
 
 
-@route("get", "get-article-tag-subscriptions", response_class=JSONResponse)
-async def _get_article_tag_subscriptions(cur_user: CurUserDep):
-    return get_user_article_tag_subscriptions(cur_user)
+@route("get", "get-tag-subscriptions", response_class=JSONResponse)
+async def _get_tag_subscriptions(cur_user: CurUserDep):
+    return get_user_tag_subscriptions(cur_user)
 
 
-@route("post", "create-article-tag-subscription", response_class=HTMLResponse)
-async def _create_article_tag_subscription(dto: ArticleTagSubscriptionDTODep, cur_user: CurUserDep):
+@route("post", "create-tag-subscription", response_class=HTMLResponse)
+async def _create_tag_subscription(dto: TagSubscriptionDTODep, cur_user: CurUserDep):
     try:
-        article_tag_subscription = create_article_tag_subscription(dto, cur_user)
-        return get_html_content("fragments/article-tag-subscription.html", {
+        tag_subscription = create_tag_subscription(dto, cur_user)
+        return get_html_content("fragments/tag-subscription.html", {
             "cur_user": cur_user,
-            "article_query": ArticleQueryDTO(tags=article_tag_subscription.tags),
-            "article_tag_subscription": article_tag_subscription,
+            "article_query": ArticleQueryDTO(tags=tag_subscription.tags),
+            "tag_subscription": tag_subscription,
         })
     except SlugDuplicationError as exc:
         raise HTTPException(status_code=409, detail=exc.to_dict())
 
 
-@route("delete", "delete-article-tag-subscription",
+@route("delete", "delete-tag-subscription",
        response_class=HTMLResponse)
-async def _delete_article_tag_subscription(article_tag_subscription_id: str, cur_user: CurUserDep):
+async def _delete_tag_subscription(tag_subscription_id: str, cur_user: CurUserDep):
     try:
-        article_tag_subscription = delete_article_tag_subscription(article_tag_subscription_id, cur_user)
-        return get_html_content("fragments/article-tag-subscription.html", {
+        tag_subscription = delete_tag_subscription(tag_subscription_id, cur_user)
+        return get_html_content("fragments/tag-subscription.html", {
             "cur_user": cur_user,
-            "article_query": ArticleQueryDTO(tags=article_tag_subscription.tags),
-            "article_tag_subscription": None,
+            "article_query": ArticleQueryDTO(tags=tag_subscription.tags),
+            "tag_subscription": None,
         })
     except UserNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
 
-@route("patch", "update-article-tag", response_class=JSONResponse)
-async def _update_article_tag(update_article_tag_dto: UpdateArticleTagDTODep, article_tag: ArticleTagDep,
+@route("patch", "update-tag", response_class=JSONResponse)
+async def _update_tag(update_tag_dto: UpdateTagDTODep, tag: TagDep,
                               cur_user: CurUserDep,
                               request: Request) -> str:
-    update_article_tag(article_tag, update_article_tag_dto, cur_user, request)
-    return get_article_tag_url(request, article_tag)
+    update_tag(tag, update_tag_dto, cur_user, request)
+    return get_tag_url(request, tag)
 
 
-@route("get", "get-article-tags", response_class=JSONResponse)
-async def _get_article_tags(query_dto: ArticleTagQueryDep) -> list[ArticleTag]:
-    return get_article_tags(query_dto)
+@route("get", "get-tags", response_class=JSONResponse)
+async def _get_tags(query_dto: TagQueryDep) -> list[Tag]:
+    return get_tags(query_dto)
 
 
-@route("get", "article-tags-fragment", response_class=HTMLResponse)
-async def article_tags_fragment(query_dto: ArticleTagQueryDep) -> str:
-    return get_html_content("fragments/article-tags.html", {
-        "article_tags": get_article_tags(query_dto),
+@route("get", "tags-fragment", response_class=HTMLResponse)
+async def tags_fragment(query_dto: TagQueryDep) -> str:
+    return get_html_content("fragments/tags.html", {
+        "tags": get_tags(query_dto),
     })
 
 

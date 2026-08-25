@@ -1,14 +1,14 @@
 {% extends "layout.html" %}
 
-{% set title = "Topics" %}
+{% set title = "Tags" %}
 {% set meta_title = title ~ " | " ~ site_name %}
 {% set meta_robots = "index, follow" %}
-{% set meta_canonical_url = url("article-tags", absolute=True) %}
-{% set meta_desc = "Browse all article topics on " ~ site_name ~ "." %}
+{% set meta_canonical_url = url("tags", absolute=True) %}
+{% set meta_desc = "Browse all article tags on " ~ site_name ~ "." %}
 
 {% block meta_schema %}
     {% set items = namespace(values=[]) %}
-    {% for tag in article_tags %}
+    {% for tag in tags %}
         {% set items.values = items.values + [{
             "@type": "ListItem",
             "position": loop.index,
@@ -40,59 +40,59 @@
 {% endblock %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), "Topics": None} %}
+    {% with breadcrumbs = {"Home": url("index"), "Tags": None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
 
 {% block content %}
     <h1>{{ title }}</h1>
-    <p class="small text-secondary">Browse all available article topics.</p>
+    <p class="small text-secondary">Browse all available article tags.</p>
 
     <section class="d-flex flex-wrap align-items-center gap-3 mb-4">
-        <h2 class="h5 mb-0 text-decoration-underline bi bi-filter"> Filter topics</h2>
+        <h2 class="h5 mb-0 text-decoration-underline bi bi-filter"> Filter tags</h2>
 
-        <form action="{{ url("article-tags") }}" method="get" class="d-flex flex-wrap align-items-center gap-3 mb-0">
-            <input type="hidden" name="type" value="{{ article_tags_query.type }}">
+        <form action="{{ url("tags") }}" method="get" class="d-flex flex-wrap align-items-center gap-3 mb-0">
+            <input type="hidden" name="type" value="{{ tags_query.type }}">
 
             <div class="d-flex flex-wrap align-items-center gap-2">
                 <div class="d-flex align-items-center gap-2">
                     <small class="text-secondary bi bi-sort-down"> Show:</small>
                     <div class="btn-group">
-                        {% set is_latest = article_tags_query.type == ArticleTagQueryType.LATEST %}
-                        <a href="{{ url("article-tags", **article_tags_query.get_dict({"type": None if is_latest else ArticleTagQueryType.LATEST})) }}"
+                        {% set is_latest = tags_query.type == TagQueryType.LATEST %}
+                        <a href="{{ url("tags", **tags_query.get_dict({"type": None if is_latest else TagQueryType.LATEST})) }}"
                            class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
-                            {{ ArticleTagQueryType.LATEST | title }} first
+                            {{ TagQueryType.LATEST | title }} first
                         </a>
-                        {% set is_popular = article_tags_query.type == ArticleTagQueryType.POPULAR %}
-                        <a href="{{ url("article-tags", **article_tags_query.get_dict({"type": None if is_popular else ArticleTagQueryType.POPULAR})) }}"
+                        {% set is_popular = tags_query.type == TagQueryType.POPULAR %}
+                        <a href="{{ url("tags", **tags_query.get_dict({"type": None if is_popular else TagQueryType.POPULAR})) }}"
                            class="btn {% if is_popular %}btn-primary active{% else %}btn-light{% endif %} bi bi-star{{ "-fill" if is_popular else "" }}">
-                            {{ ArticleTagQueryType.POPULAR | title }} first
+                            {{ TagQueryType.POPULAR | title }} first
                         </a>
                     </div>
                 </div>
 
-                {% if article_tags_query.has_params() %}
+                {% if tags_query.has_params() %}
                     <div>
-                        <a href="{{ url("article-tags") }}" class="btn btn-light bi bi-x-lg"> Reset</a>
+                        <a href="{{ url("tags") }}" class="btn btn-light bi bi-x-lg"> Reset</a>
                     </div>
                 {% endif %}
             </div>
         </form>
     </section>
 
-    {% if article_tags %}
-        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-6 g-3" id="article-tags">
-            {% for article_tag in article_tags %}
-                {% include "fragments/article-tag.html" %}
+    {% if tags %}
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-6 g-3" id="tags">
+            {% for tag in tags %}
+                {% include "fragments/tag.html" %}
             {% endfor %}
         </div>
 
-        {% with limit=article_tags_query.limit,
-                offset=article_tags[-1].offset,
-                count=article_tags | length,
-                url=url("article-tags-fragment", absolute=True, **article_tags_query.get_dict()),
-                container="#article-tags",
+        {% with limit=tags_query.limit,
+                offset=tags[-1].offset,
+                count=tags | length,
+                url=url("tags-fragment", absolute=True, **tags_query.get_dict()),
+                container="#tags",
                 auto_click=True %}
             {% include "fragments/load-more-button.html" %}
         {% endwith %}

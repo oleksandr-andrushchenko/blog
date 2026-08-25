@@ -1,11 +1,11 @@
 from article_dtos import (
     ArticleCommentDTO, ArticleDTO, UpdateArticleCommentDTO, UpdateArticleDTO, UpdateArticleImpressionDTO,
-    UpdateArticleStatusDTO, UpdateArticleTagDTO,
+    UpdateArticleStatusDTO, UpdateTagDTO,
 )
-from article_tag_subscription_dtos import ArticleTagSubscriptionDTO
+from tag_subscription_dtos import TagSubscriptionDTO
 from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO
 from shared_utils import *
-from shared_utils import get_article_tags
+from shared_utils import get_tags
 from user_dtos import (
     UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO,
     UpdateUserActivitySettingsDTO, UpdateUserInterestsSettingsDTO,
@@ -108,7 +108,7 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
 
     urls.extend([
         (url("index"), today),
-        (url("article-tags"), today),
+        (url("tags"), today),
         (url("contacts"), today),
         (url("rules"), today),
         (url("terms"), today),
@@ -116,12 +116,12 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
     ])
 
     # Post lists
-    def articles_url(tp: ArticleQueryType, tg: ArticleTag | None = None) -> str:
+    def articles_url(tp: ArticleQueryType, tg: Tag | None = None) -> str:
         return get_articles_url(req, type=tp, tags=[tg.slug] if tg else [], absolute=True)
 
     for type_ in ArticleQueryType:
         urls.append((articles_url(type_), today))
-        for tag in get_article_tags(ArticleTagQueryDTO(limit=1000)):
+        for tag in get_tags(TagQueryDTO(limit=1000)):
             if tag.articles_count > 0:
                 urls.append((articles_url(type_, tag), today))
 
@@ -223,9 +223,9 @@ def create_dummy_fixtures(req) -> None:
         avatar_filename="5b027ec7-c018-4744-9eda-00abf75cf685_1111x712.png",
     ), root_user, req)
     user4.avatar_filename = "5b027ec7-c018-4744-9eda-00abf75cf685_1111x712.png"
-    create_article_tag_subscription(ArticleTagSubscriptionDTO(tags=["tag3"]), root_user)
-    create_article_tag_subscription(ArticleTagSubscriptionDTO(tags=["tag1"]), user3)
-    create_article_tag_subscription(ArticleTagSubscriptionDTO(tags=["tag2", "tag3"]), user4)
+    create_tag_subscription(TagSubscriptionDTO(tags=["tag3"]), root_user)
+    create_tag_subscription(TagSubscriptionDTO(tags=["tag1"]), user3)
+    create_tag_subscription(TagSubscriptionDTO(tags=["tag2", "tag3"]), user4)
 
     generated_image_filenames = [
         "3d7af01f-819e-4c2f-bc69-eb7245b76a74_1809x1247.png",
@@ -320,13 +320,13 @@ def create_dummy_fixtures(req) -> None:
 
     for tag_name, image_filename in [("tag1", "45e97e68-a321-4657-9956-e942d9d757a7_1279x518.png"),
                                      ("tag2", "a167891d-7e91-40d6-a5c4-1a3ddb27dcc2_1575x842.png")]:
-        article_tag = find_article_tag(tag_name)
-        update_article_tag(article_tag, UpdateArticleTagDTO(
+        tag = find_tag(tag_name)
+        update_tag(tag, UpdateTagDTO(
             name=tag_name,
             image_action="replace",
             image_filename=image_filename,
         ), root_user, req)
-        article_tag.image_filename = image_filename
+        tag.image_filename = image_filename
 
     comment_texts = [
         "This helped clarify the trade-offs. Thanks for writing it.",
@@ -407,34 +407,34 @@ def create_dummy_fixtures(req) -> None:
                               root_user, req)
 
 
-def create_article_tag_subscription(dto: ArticleTagSubscriptionDTO, user: User) -> ArticleTagSubscription:
-    article_tag_subscription_id, now, key = str(uuid.uuid4()), utc_now(), article_tag_subscription_key(dto.tags)
+def create_tag_subscription(dto: TagSubscriptionDTO, user: User) -> TagSubscription:
+    tag_subscription_id, now, key = str(uuid.uuid4()), utc_now(), tag_subscription_key(dto.tags)
     transacts = []
-    add_dynamodb_put_transact(transacts, (f"USER#{user.id}", f"ARTICLE_TAG_SUBSCRIPTION#{article_tag_subscription_id}"),
-                              {"article_tag_subscription_id": article_tag_subscription_id, "user_id": user.id,
+    add_dynamodb_put_transact(transacts, (f"USER#{user.id}", f"ARTICLE_TAG_SUBSCRIPTION#{tag_subscription_id}"),
+                              {"article_tag_subscription_id": tag_subscription_id, "user_id": user.id,
                                "tags": dto.tags, "article_tag_subscription_key": key, "created_at": now})
     add_dynamodb_put_transact(transacts, (f"ARTICLE_TAG_SUBSCRIBERS#{key}", f"USER#{user.id}"),
-                              {"user_id": user.id, "article_tag_subscription_id": article_tag_subscription_id,
+                              {"user_id": user.id, "article_tag_subscription_id": tag_subscription_id,
                                "article_tag_subscription_key": key, "created_at": now}, new_pk_only=True)
     add_dynamodb_user_update_transact(transacts, user, deltas={"article_tag_subscriptions_count": 1})
     try:
         dynamodb_transact_write(transacts)
     except DynamoDBTransactionError as exc:
         if exc.is_conditional():
-            raise SlugDuplicationError("Article tag subscription already exists", "tags")
+            raise SlugDuplicationError("Tag subscription already exists", "tags")
         raise
-    return ArticleTagSubscription(article_tag_subscription_id, user.id, dto.tags, now)
+    return TagSubscription(tag_subscription_id, user.id, dto.tags, now)
 
 
-def delete_article_tag_subscription(article_tag_subscription_id: str, user: User) -> ArticleTagSubscription:
-    item = get_dynamodb_item(f"USER#{user.id}", f"ARTICLE_TAG_SUBSCRIPTION#{article_tag_subscription_id}")
+def delete_tag_subscription(tag_subscription_id: str, user: User) -> TagSubscription:
+    item = get_dynamodb_item(f"USER#{user.id}", f"ARTICLE_TAG_SUBSCRIPTION#{tag_subscription_id}")
     if not item:
-        raise UserNotFoundError("Article tag subscription not found")
-    subscription = article_tag_subscription_from_dynamodb(item)
-    key = item["article_tag_subscription_key"]
+        raise UserNotFoundError("Tag subscription not found")
+    subscription = tag_subscription_from_dynamodb(item)
+    key = item.get("tag_subscription_key") or item["article_tag_subscription_key"]
     transacts = []
     add_dynamodb_delete_transact(
-        transacts, (f"USER#{user.id}", f"ARTICLE_TAG_SUBSCRIPTION#{article_tag_subscription_id}")
+        transacts, (f"USER#{user.id}", f"ARTICLE_TAG_SUBSCRIPTION#{tag_subscription_id}")
     )
     add_dynamodb_delete_transact(
         transacts, (f"ARTICLE_TAG_SUBSCRIBERS#{key}", f"USER#{user.id}")
@@ -446,14 +446,14 @@ def delete_article_tag_subscription(article_tag_subscription_id: str, user: User
     return subscription
 
 
-def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateArticleTagDTO, cur_user: User,
+def update_tag(tag: Tag, update_tag_dto: UpdateTagDTO, cur_user: User,
                        req) -> None:
-    verify_authorization(cur_user, Permission.UPDATE_ARTICLE_TAG, article_tag)
+    verify_authorization(cur_user, Permission.UPDATE_TAG, tag)
 
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
-    changes = update_article_tag_dto.get_changes(article_tag)
+    changes = update_tag_dto.get_changes(tag)
     if not changes:
         return
 
@@ -462,7 +462,7 @@ def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateAr
     new_name = changes.pop("name", None)
     if new_name is not None:
         new_name = new_name.strip()
-        if new_name != article_tag.name:
+        if new_name != tag.name:
             changes["name"] = new_name
 
     image_action = changes.pop("image_action", "keep")
@@ -475,8 +475,8 @@ def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateAr
     if not changes:
         return
 
-    old_image = article_tag.image_filename
-    old_slug = article_tag.slug
+    old_image = tag.image_filename
+    old_slug = tag.slug
     slug = to_kebab_case(changes["name"]) if "name" in changes else old_slug
     slug_changed = slug != old_slug
     transacts = []
@@ -484,7 +484,7 @@ def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateAr
     if slug_changed:
         old_item = get_dynamodb_item(f"POST_TAG#{old_slug}", "META")
         if old_item is None:
-            raise ArticleTagNotFoundError(f"Article tag '{old_slug}' not found")
+            raise TagNotFoundError(f"Tag '{old_slug}' not found")
 
         new_item = {k: v for k, v in old_item.items() if k not in {"pk", "sk"}}
         new_item.update(changes)
@@ -504,11 +504,11 @@ def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateAr
             old_tags = list(article.tags)
             tags = list(dict.fromkeys(slug if tag == old_slug else tag for tag in old_tags))
 
-            add_delete_article_tag_combos_transact(transacts, article, old_slug)
+            add_delete_tag_combos_transact(transacts, article, old_slug)
             add_dynamodb_article_update_transact(transacts, article, {"tags": tags})
-            add_put_article_tag_combos_transact(transacts, article, slug)
+            add_put_tag_combos_transact(transacts, article, slug)
     else:
-        add_dynamodb_article_tag_update_transact(transacts, article_tag, changes)
+        add_dynamodb_tag_update_transact(transacts, tag, changes)
 
     try:
         dynamodb_transact_write(transacts)
@@ -518,11 +518,11 @@ def update_article_tag(article_tag: ArticleTag, update_article_tag_dto: UpdateAr
         raise
 
     if "name" in changes:
-        article_tag.name = changes["name"]
+        tag.name = changes["name"]
     if slug_changed:
-        article_tag.slug = slug
+        tag.slug = slug
     if "image_filename" in changes:
-        article_tag.image_filename = changes["image_filename"]
+        tag.image_filename = changes["image_filename"]
 
     if old_image and image_action in {"delete", "replace"}:
         drop_public_file(old_image)
@@ -688,10 +688,10 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
             changes["status"] = ArticleStatus.UNPUBLISHED
 
     if published_already and changes.get("status") == ArticleStatus.UNPUBLISHED:
-        add_decrease_article_tags_rating_transact(transacts, old_tags, now)
-        add_delete_article_tag_combos_transact(transacts, article)
+        add_decrease_tags_rating_transact(transacts, old_tags, now)
+        add_delete_tag_combos_transact(transacts, article)
     elif tags_changed:
-        add_delete_article_tag_combos_transact(transacts, article)
+        add_delete_tag_combos_transact(transacts, article)
 
     article_owner = get_user(article.owner_id)
     if article.user_name != article_owner.name:
@@ -1004,11 +1004,11 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
         if article_owner:
             changes["user_slug"] = article_owner.username
 
-        add_increase_article_tags_rating_transact(transacts, article.tags, now)
-        add_put_article_tag_combos_transact(transacts, article)
+        add_increase_tags_rating_transact(transacts, article.tags, now)
+        add_put_tag_combos_transact(transacts, article)
     elif crossed_published_boundary:
-        add_decrease_article_tags_rating_transact(transacts, article.tags, now)
-        add_delete_article_tag_combos_transact(transacts, article)
+        add_decrease_tags_rating_transact(transacts, article.tags, now)
+        add_delete_tag_combos_transact(transacts, article)
 
     changes["post_status_pk"] = f"POST#{status}"
     changes["post_user_status_pk"] = f"POST#{article.user_id}#{status}"
@@ -1291,20 +1291,20 @@ def handle_article_published_event(event: ArticlePublishedEvent) -> None:
         if not user or not user.email:
             continue
 
-        article_tag_links = [
+        tag_links = [
             {
                 "name": " + ".join(subscription_tags),
                 "url": f"{base_url}/articles?{urlencode([('type', 'latest'), ('status', 'published')] + [('tags', tag) for tag in subscription_tags])}",
             }
             for subscription_tags in sorted(subscriptions)
         ]
-        subscribed_tags_text = ", ".join(link["name"] for link in article_tag_links)
+        subscribed_tags_text = ", ".join(link["name"] for link in tag_links)
         text_body = (
                 f"Hello {user.name or 'there'},\n\n"
                 "A new article matching your interests was published:\n\n"
                 f"{article.title}\n"
                 f"Subscribed interests: {subscribed_tags_text}\n"
-                + "\n".join(f"{tag['name']}: {tag['url']}" for tag in article_tag_links)
+                + "\n".join(f"{tag['name']}: {tag['url']}" for tag in tag_links)
                 + f"\n\nRead it here: {article_url}\n\n"
                   f"Best regards,\n{get_config().get('site_name', 'The team')}\n"
         )
@@ -1312,7 +1312,7 @@ def handle_article_published_event(event: ArticlePublishedEvent) -> None:
             "recipient_name": user.name or "there",
             "article_title": article.title,
             "article_url": article_url,
-            "article_tag_links": article_tag_links,
+            "tag_links": tag_links,
         })
         try:
             if not is_prod():

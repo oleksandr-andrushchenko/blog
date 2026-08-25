@@ -25,10 +25,10 @@ from jinja2 import Environment, FileSystemLoader, pass_context, select_autoescap
 
 from api_route_metadata import API_URL_ROUTES
 from article_dtos import (ArticleCommentImpressionAction, ArticleImpressionAction)
-from article_tag_subscription_dtos import ArticleTagSubscription
+from tag_subscription_dtos import TagSubscription
 from basic_dtos import UserTokenDTO
 from query_dtos import (BaseQueryDTO, ArticleCommentQueryDTO, ArticleQueryDTO, ArticleQueryType, ArticleStatus,
-                        ArticleTagQueryDTO, ArticleTagQueryType, UserQueryDTO, UserQueryType, UserStatus)
+                        TagQueryDTO, TagQueryType, UserQueryDTO, UserQueryType, UserStatus)
 from user_dtos import UserImpressionAction
 
 
@@ -70,7 +70,7 @@ class User:
     following_count: int
     comment: str | None
     article_comments_count: int
-    article_tag_subscriptions_count: int
+    tag_subscriptions_count: int
     bmc_username: str | None
     redirect_to: str | None
     created_at: int
@@ -118,8 +118,8 @@ def user_activity_from_dynamodb(item: dict[str, Any]) -> UserActivity:
     if not entity_url:
         if entity_type == "article":
             entity_url = f"/articles/{entity_id}"
-        elif entity_type == "article_tag":
-            entity_url = f"/article-tags/{entity_id}"
+        elif entity_type == "tag":
+            entity_url = f"/tags/{entity_id}"
         elif entity_type == "user":
             entity_url = f"/users/{entity_id}"
     return UserActivity(id=item["id"], event_type=item["event_type"], entity_type=entity_type,
@@ -203,7 +203,7 @@ def sanitize_forbidden_html(value):
 
 
 @dataclass(slots=True)
-class ArticleTag:
+class Tag:
     name: str
     slug: str
     rating: int
@@ -338,8 +338,8 @@ class Permission(StrEnum):
     UPDATE_ARTICLE_IMPRESSION = "toggle_post_impression"
     READ_NON_PUBLISHED_ARTICLE = "read_non_published_post"
 
-    READ_ARTICLE_TAG = "read_post_tag"
-    UPDATE_ARTICLE_TAG = "update_post_tag"
+    READ_TAG = "read_post_tag"
+    UPDATE_TAG = "update_post_tag"
 
     CREATE_ARTICLE_COMMENT = "create_post_comment"
     UPDATE_ARTICLE_COMMENT = "update_post_comment"
@@ -399,14 +399,14 @@ class ArticleByOldSlugRequestedError(Exception):
         self.article = article
 
 
-class ArticleTagNotFoundError(BaseError):
+class TagNotFoundError(BaseError):
     pass
 
 
-class ArticleTagByOldSlugRequestedError(Exception):
-    def __init__(self, slug: str, article_tag: ArticleTag):
+class TagByOldSlugRequestedError(Exception):
+    def __init__(self, slug: str, tag: Tag):
         self.slug = slug
-        self.article_tag = article_tag
+        self.tag = tag
 
 
 class ArticleCommentNotFoundError(BaseError):
@@ -550,26 +550,26 @@ def get_dynamodb_table_name():
     return get_config().get("dynamodb_table")
 
 
-def article_tag_subscription_key(tags: list[str]) -> str:
+def tag_subscription_key(tags: list[str]) -> str:
     return "#".join(sorted(set(sanitize_tags(tags))))
 
 
-def article_tag_subscription_from_dynamodb(item: dict[str, Any]) -> ArticleTagSubscription:
-    return ArticleTagSubscription(item["article_tag_subscription_id"], item["user_id"], item["tags"],
+def tag_subscription_from_dynamodb(item: dict[str, Any]) -> TagSubscription:
+    return TagSubscription(item.get("tag_subscription_id") or item["article_tag_subscription_id"], item["user_id"], item["tags"],
                                   item["created_at"])
 
 
-def get_user_article_tag_subscriptions(user: User) -> list[ArticleTagSubscription]:
-    if user.article_tag_subscriptions_count == 0:
+def get_user_tag_subscriptions(user: User) -> list[TagSubscription]:
+    if user.tag_subscriptions_count == 0:
         return []
     response = query_dynamodb_table(
         key_condition_expr=Key("pk").eq(f"USER#{user.id}") & Key("sk").begins_with("ARTICLE_TAG_SUBSCRIPTION#"))
-    return [article_tag_subscription_from_dynamodb(item) for item in response.get("Items", [])]
+    return [tag_subscription_from_dynamodb(item) for item in response.get("Items", [])]
 
 
-def get_user_article_tag_subscription_for_tags(user: User, tags: list[str]) -> ArticleTagSubscription | None:
-    wanted = article_tag_subscription_key(tags)
-    return next((item for item in get_user_article_tag_subscriptions(user) if item.key == wanted), None)
+def get_user_tag_subscription_for_tags(user: User, tags: list[str]) -> TagSubscription | None:
+    wanted = tag_subscription_key(tags)
+    return next((item for item in get_user_tag_subscriptions(user) if item.key == wanted), None)
 
 
 def get_allowed_origins() -> list[str]:
@@ -797,8 +797,8 @@ def jinja2_articles_url(ctx, query: ArticleQueryDTO | None = None, **params) -> 
 
 
 @pass_context
-def jinja2_articles_tag_url(ctx, article_tag: ArticleTag, **params) -> str:
-    return get_article_tag_url(ctx.get("request"), article_tag, **params)
+def jinja2_articles_tag_url(ctx, tag: Tag, **params) -> str:
+    return get_tag_url(ctx.get("request"), tag, **params)
 
 
 def get_articles_url(req, query: ArticleQueryDTO | None = None, **params) -> str:
@@ -839,8 +839,8 @@ def get_articles_url(req, query: ArticleQueryDTO | None = None, **params) -> str
     return get_url(req, "articles-by-slugs", slugs_path="/".join(slugs), **params)
 
 
-def get_article_tag_url(req, article_tag: ArticleTag) -> str:
-    return get_articles_url(req, tags=[article_tag.slug])
+def get_tag_url(req, tag: Tag) -> str:
+    return get_articles_url(req, tags=[tag.slug])
 
 
 def parse_articles_url_slugs_path(slugs_path: str) -> dict:
@@ -1077,14 +1077,14 @@ def get_jinja2_env():
         "article_url": jinja2_article_url,
         "articles_url": jinja2_articles_url,
         "users_url": jinja2_users_url,
-        "article_tag_url": jinja2_articles_tag_url,
+        "tag_url": jinja2_articles_tag_url,
         "Permission": Permission,
         "check_auth": check_authorization,
         "ArticleStatus": ArticleStatus,
         "ArticleImpressionAction": ArticleImpressionAction,
         "UserImpressionAction": UserImpressionAction,
         "ArticleQueryType": ArticleQueryType,
-        "ArticleTagQueryType": ArticleTagQueryType,
+        "TagQueryType": TagQueryType,
         "UserQueryType": UserQueryType,
         "UserStatus": UserStatus,
         "ArticleQueryDTO": ArticleQueryDTO,
@@ -1452,27 +1452,27 @@ def get_text_diff_percentage(t1, t2) -> int:
     return int(change_percentage)
 
 
-def add_put_article_tag_combos_transact(transacts: list, article: Article, slug: str | None = None) -> None:
+def add_put_tag_combos_transact(transacts: list, article: Article, slug: str | None = None) -> None:
     from itertools import combinations
     for r in range(1, len(article.tags) + 1):
         for combo in combinations(sorted(article.tags), r):
             if slug is None or slug in combo:
-                article_tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo),
+                tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo),
                                          f"POST#{article.created_at}#{article.id}")
-                add_dynamodb_put_transact(transacts, article_tag_combo_key, {"post_id": article.id})
+                add_dynamodb_put_transact(transacts, tag_combo_key, {"post_id": article.id})
 
 
-def add_delete_article_tag_combos_transact(transacts: list, article: Article, slug: str | None = None) -> None:
+def add_delete_tag_combos_transact(transacts: list, article: Article, slug: str | None = None) -> None:
     from itertools import combinations
     for r in range(1, len(article.tags) + 1):
         for combo in combinations(sorted(article.tags), r):
             if slug is None or slug in combo:
-                article_tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo),
+                tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo),
                                          f"POST#{article.created_at}#{article.id}")
-                add_dynamodb_delete_transact(transacts, article_tag_combo_key)
+                add_dynamodb_delete_transact(transacts, tag_combo_key)
 
 
-def add_increase_article_tags_rating_transact(transacts: list, tags: list, now):
+def add_increase_tags_rating_transact(transacts: list, tags: list, now):
     for tag in tags:
         transacts.append({
             "Update": {
@@ -1513,7 +1513,7 @@ def add_increase_article_tags_rating_transact(transacts: list, tags: list, now):
         })
 
 
-def add_decrease_article_tags_rating_transact(transacts: list, tags: list, now):
+def add_decrease_tags_rating_transact(transacts: list, tags: list, now):
     for tag in tags:
         transacts.append({
             "Update": {
@@ -1647,7 +1647,7 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         following_count=d_item.get("following_count", 0),
         comment=d_item.get("comment"),
         article_comments_count=d_item.get("post_comments_count", 0),
-        article_tag_subscriptions_count=d_item.get("article_tag_subscriptions_count", 0),
+        tag_subscriptions_count=d_item.get("tag_subscriptions_count", d_item.get("article_tag_subscriptions_count", 0)),
         bmc_username=d_item.get("bmc_username"),
         redirect_to=d_item.get("redirect_to"),
         created_at=d_item["created_at"],
@@ -1823,10 +1823,10 @@ def add_dynamodb_article_update_transact(transacts: list, article: Article, chan
                                             deltas=deltas)
 
 
-def add_dynamodb_article_tag_update_transact(transacts: list, article_tag: ArticleTag,
+def add_dynamodb_tag_update_transact(transacts: list, tag: Tag,
                                              changes: dict[str, Any] | None = None,
                                              deltas: dict[str, Any] | None = None) -> None:
-    return add_dynamodb_obj_update_transact(transacts, article_tag, (f"POST_TAG#{article_tag.slug}", "META"),
+    return add_dynamodb_obj_update_transact(transacts, tag, (f"POST_TAG#{tag.slug}", "META"),
                                             changes=changes,
                                             deltas=deltas)
 
@@ -2140,10 +2140,10 @@ def get_popular_articles_by_tags(
     return filtered_articles
 
 
-def article_tag_from_dynamodb(d_item: dict[str, Any]) -> ArticleTag:
+def tag_from_dynamodb(d_item: dict[str, Any]) -> Tag:
     # logger.debug(d_item)
     slug = d_item["tag_name_sk"]
-    return ArticleTag(
+    return Tag(
         name=d_item.get("name") or slug,
         slug=slug,
         rating=d_item["rating_sk"],
@@ -2153,60 +2153,60 @@ def article_tag_from_dynamodb(d_item: dict[str, Any]) -> ArticleTag:
     )
 
 
-def get_popular_article_tags(query_dto: ArticleTagQueryDTO = None) -> list[ArticleTag]:
+def get_popular_tags(query_dto: TagQueryDTO = None) -> list[Tag]:
     if query_dto is None:
-        query_dto = ArticleTagQueryDTO()
+        query_dto = TagQueryDTO()
 
     return query_dynamodb_items(
         query_dto=query_dto,
         index_name="TAGS_BY_TYPE_RATING",
         key_condition_expr=Key("tag_type_pk").eq("POST_TAG"),
-        map_fn=article_tag_from_dynamodb,
+        map_fn=tag_from_dynamodb,
     )
 
 
-def get_article_tags_by_prefix(query_dto: ArticleTagQueryDTO = None) -> list[ArticleTag]:
+def get_tags_by_prefix(query_dto: TagQueryDTO = None) -> list[Tag]:
     if query_dto is None:
-        query_dto = ArticleTagQueryDTO()
+        query_dto = TagQueryDTO()
 
     resp = query_dynamodb_table(
         index_name="TAGS_BY_TYPE_NAME",
         key_condition_expr=Key("tag_type_pk").eq("POST_TAG") & Key("tag_name_sk").begins_with(query_dto.prefix),
         limit=query_dto.limit
     )
-    return [article_tag_from_dynamodb(item) for item in resp.get("Items", [])]
+    return [tag_from_dynamodb(item) for item in resp.get("Items", [])]
 
 
-def get_latest_article_tags(query_dto: ArticleTagQueryDTO = None) -> list[ArticleTag]:
+def get_latest_tags(query_dto: TagQueryDTO = None) -> list[Tag]:
     if query_dto is None:
-        query_dto = ArticleTagQueryDTO(type=ArticleTagQueryType.LATEST)
+        query_dto = TagQueryDTO(type=TagQueryType.LATEST)
 
     return query_dynamodb_items(
         query_dto=query_dto,
         index_name="TAGS_BY_TYPE_CREATED_AT",
         key_condition_expr=Key("tag_type_pk").eq("POST_TAG"),
-        map_fn=article_tag_from_dynamodb,
+        map_fn=tag_from_dynamodb,
     )
 
 
-def get_article_tags(query_dto: ArticleTagQueryDTO = None) -> list[ArticleTag]:
+def get_tags(query_dto: TagQueryDTO = None) -> list[Tag]:
     if query_dto is None:
-        query_dto = ArticleTagQueryDTO()
+        query_dto = TagQueryDTO()
     if query_dto.prefix:
-        return get_article_tags_by_prefix(query_dto)
-    if query_dto.type == ArticleTagQueryType.POPULAR:
-        return get_popular_article_tags(query_dto)
-    return get_latest_article_tags(query_dto)
+        return get_tags_by_prefix(query_dto)
+    if query_dto.type == TagQueryType.POPULAR:
+        return get_popular_tags(query_dto)
+    return get_latest_tags(query_dto)
 
 
-def find_article_tag_slug_item(slug: str) -> dict[str, Any] | None:
+def find_tag_slug_item(slug: str) -> dict[str, Any] | None:
     item = get_dynamodb_item(f"POST_TAG#{slug}", "META")
     if item:
         return item
     return get_dynamodb_item(f"POST_TAG_REDIRECT#{slug}", "META")
 
 
-def find_article_tag_by_slug_follow_redirects(slug: str) -> ArticleTag | None:
+def find_tag_by_slug_follow_redirects(slug: str) -> Tag | None:
     visited = set()
     current_slug = slug
 
@@ -2216,7 +2216,7 @@ def find_article_tag_by_slug_follow_redirects(slug: str) -> ArticleTag | None:
 
         visited.add(current_slug)
 
-        item = find_article_tag_slug_item(current_slug)
+        item = find_tag_slug_item(current_slug)
         if not item:
             return None
 
@@ -2225,21 +2225,21 @@ def find_article_tag_by_slug_follow_redirects(slug: str) -> ArticleTag | None:
             current_slug = redirect_to
             continue
 
-        return article_tag_from_dynamodb(item)
+        return tag_from_dynamodb(item)
 
 
-def find_article_tag(slug: str) -> ArticleTag | None:
-    return find_article_tag_by_slug_follow_redirects(slug)
+def find_tag(slug: str) -> Tag | None:
+    return find_tag_by_slug_follow_redirects(slug)
 
 
-def get_article_tag(slug: str, cur_user: User) -> ArticleTag:
-    article_tag = find_article_tag_by_slug_follow_redirects(slug)
-    if article_tag is None:
-        raise ArticleTagNotFoundError(f"Article tag '{slug}' not found")
-    verify_authorization(cur_user, Permission.READ_ARTICLE_TAG, article_tag)
-    if article_tag.slug != slug:
-        raise ArticleTagByOldSlugRequestedError(slug, article_tag)
-    return article_tag
+def get_tag(slug: str, cur_user: User) -> Tag:
+    tag = find_tag_by_slug_follow_redirects(slug)
+    if tag is None:
+        raise TagNotFoundError(f"Tag '{slug}' not found")
+    verify_authorization(cur_user, Permission.READ_TAG, tag)
+    if tag.slug != slug:
+        raise TagByOldSlugRequestedError(slug, tag)
+    return tag
 
 
 def get_latest_users(query_dto: UserQueryDTO = None, cur_user: User = None) -> list[User]:

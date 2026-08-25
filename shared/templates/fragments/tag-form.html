@@ -1,13 +1,13 @@
-<form class="d-flex flex-column gap-2" id="article-tag-form" novalidate>
+<form class="d-flex flex-column gap-2" id="tag-form" novalidate>
     <div class="form-group row align-items-center">
         <div class="col col-2">
-            {% if article_tag and article_tag.image_filename %}
-                <img src="{{ static_url(article_tag.image_filename) }}"
-                     alt="{{ article_tag.name }}" class="w-100 h-100 object-fit-cover rounded">
+            {% if tag and tag.image_filename %}
+                <img src="{{ static_url(tag.image_filename) }}"
+                     alt="{{ tag.name }}" class="w-100 h-100 object-fit-cover rounded">
             {% else %}
                 <div class="d-flex align-items-center justify-content-center bg-light text-muted"
                      style="font-weight:600; font-size:1.25rem;">
-                    {{ article_tag.name|upper }}
+                    {{ tag.name|upper }}
                 </div>
             {% endif %}
         </div>
@@ -24,7 +24,7 @@
                         <label class="form-check-label" for="keep-image">Keep current</label>
                     </div>
 
-                    {% if article_tag and article_tag.image_filename %}
+                    {% if tag and tag.image_filename %}
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="image_action" id="delete-image"
                                    value="delete">
@@ -51,15 +51,15 @@
         <label for="name" class="col-form-label col-2 label-required">Name</label>
         <div class="col-10">
             <input type="text" class="form-control" id="name" name="name" placeholder="Name"
-                   value="{{ article_tag.name if article_tag and article_tag.name else "" }}">
+                   value="{{ tag.name if tag and tag.name else "" }}">
         </div>
     </div>
 
     <div class="form-group row">
         <div class="col col-10 offset-2">
             <button type="submit" class="btn btn-light">
-                <i class="bi {% if article_tag %}bi-arrow-clockwise{% else %}bi-plus-lg{% endif %}"></i>
-                {% if article_tag %}Update{% else %}Create{% endif %} article tag
+                <i class="bi {% if tag %}bi-arrow-clockwise{% else %}bi-plus-lg{% endif %}"></i>
+                {% if tag %}Update{% else %}Create{% endif %} tag
             </button>
         </div>
     </div>
@@ -83,8 +83,8 @@
       })
     })
 
-    handleFormSubmit("#article-tag-form", {{ (url('update-article-tag', slug=article_tag.slug, absolute=True) if article_tag else '') | tojson }}, {
-      method: "{{ 'PATCH' if article_tag else 'POST' }}",
+    handleFormSubmit("#tag-form", {{ (url('update-tag', slug=tag.slug, absolute=True) if tag else '') | tojson }}, {
+      method: "{{ 'PATCH' if tag else 'POST' }}",
       rules: {
         image_file: [
           {

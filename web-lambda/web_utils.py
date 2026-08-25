@@ -209,11 +209,11 @@ def get_article_related_articles(article: Article, limit: int = 10) -> list[Arti
     query_dto = ArticleQueryDTO()
     query_dto.tags = article.tags
     articles = get_popular_articles_by_tags(query_dto, or_mode=True)
-    article_tags = set(article.tags)
+    tags = set(article.tags)
     related_articles = [candidate for candidate in articles if candidate.id != article.id]
     return sorted(
         related_articles,
-        key=lambda candidate: len(article_tags.intersection(candidate.tags)),
+        key=lambda candidate: len(tags.intersection(candidate.tags)),
         reverse=True,
     )[:limit]
 

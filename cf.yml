@@ -203,7 +203,7 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
-        - IndexName: TAGS_BY_TYPE_CREATED_AT # get_latest_article_tags
+        - IndexName: TAGS_BY_TYPE_CREATED_AT # get_latest_topics
           KeySchema:
             - AttributeName: tag_type_pk # e.g. "POST_TAG"
               KeyType: HASH

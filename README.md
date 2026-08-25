@@ -86,7 +86,7 @@ API endpoints are exposed through the dedicated API Gateway execute-api URL, wit
 - content on article edit page is not editable
 - cover all the avaiable web/API endpoints with integrations tests
 - refactor article voting: vote from 0 to 5 (by star selection), user rating recalculated from article rating
-- article tags aliases: for example: cache=caching, cdn=content-delivery-network, etc.
+- tags aliases: for example: cache=caching, cdn=content-delivery-network, etc.
 - article page: similar articles section shows no the all articles
 - article page: auto append/generate "More Articles to Read" paragraph
 

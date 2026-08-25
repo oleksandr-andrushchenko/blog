@@ -62,7 +62,7 @@ class UpdateArticleDTO(BaseDTO):
 
 
 @dataclass(slots=True)
-class UpdateArticleTagDTO(BaseDTO):
+class UpdateTagDTO(BaseDTO):
     name: str | None | object = UNSET
     image_action: str | None | object = UNSET
     image_filename: str | None | object = UNSET

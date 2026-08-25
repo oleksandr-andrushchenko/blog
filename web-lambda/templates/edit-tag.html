@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+
+{% set title = ("Edit " ~ tag.name) | trim %}
+{% set meta_robots = "noindex, nofollow" %}
+{% set meta_title = title ~ " " ~ site_name %}
+{% set meta_canonical_url = url("edit-tag", slug=tag.slug, absolute=True) %}
+
+{% block breadcrumbs %}
+    {% with breadcrumbs = {"Home": url("index"), "Articles": articles_url(), (tag.name|title): articles_url(tags=[tag.slug]), "Edit": None} %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
+{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    <p class="small text-secondary">Update tag</p>
+    {% include "fragments/tag-form.html" %}
+{% endblock %}

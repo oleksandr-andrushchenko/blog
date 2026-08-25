@@ -107,7 +107,7 @@ def _api_path(path: str) -> str:
     if path.startswith("/post-"):
         return "/article-" + path[len("/post-"): ]
     if path.startswith("/post-tags"):
-        return "/article-tags" + path[len("/post-tags"): ]
+        return "/tags" + path[len("/post-tags"): ]
     return path
 
 
@@ -117,22 +117,22 @@ def _is_api_request(method: str, url: str) -> bool:
         return False
     if method == "GET":
         return path in {
-            "/articles-fragment", "/article-tag-subscriptions", "/article-tags",
-            "/article-tags-fragment", "/users-fragment",
+            "/articles-fragment", "/tag-subscriptions", "/tags",
+            "/tags-fragment", "/users-fragment",
         } or any(
             path.endswith(suffix) for suffix in ("/comments-fragment", "/articles-fragment")
         )
     if method == "POST":
         return path in {
             "/public-file", "/articles", "/contacts/message",
-            "/article-tag-subscriptions", "/dummy-fixtures",
+            "/tag-subscriptions", "/dummy-fixtures",
             "/generate-sitemap", "/drop-cdn-cache",
         } or bool(re.fullmatch(r"/articles/[^/]+/(status|impression|comment)", path)) or bool(
             re.fullmatch(r"/users/[^/]+/(status|impression)", path)
         )
     if method == "PATCH":
-        return path.startswith(("/articles/", "/users/", "/article-tags/"))
-    return method == "DELETE" and path.startswith("/article-tag-subscriptions/")
+        return path.startswith(("/articles/", "/users/", "/tags/"))
+    return method == "DELETE" and path.startswith("/tag-subscriptions/")
 
 
 def _copy_auth_cookies_to_api(client: Session) -> None:

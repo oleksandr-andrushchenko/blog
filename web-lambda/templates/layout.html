@@ -1,6 +1,6 @@
 {% set index_url = url("index") %}
 {% set current_route = request.scope.get("route_name") %}
-{% set articles_active = current_route in ["articles", "article", "edit-article", "articles-by-slugs", "article-by-slugs", "edit-article-tag"] %}
+{% set articles_active = current_route in ["articles", "article", "edit-article", "articles-by-slugs", "article-by-slugs", "edit-tag"] %}
 {% set users_active = current_route in ["users", "users-by-slugs", "user", "edit-user", "user-by-slug"] %}
 {% set css_filenames = [
     "https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css",
@@ -133,9 +133,9 @@
             <div class="collapse navbar-collapse" id="navbar">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link{% if current_route == "article-tags" %} active{% endif %}"
-                           href="{{ url("article-tags") }}"{% if current_route == "article-tags" %}
-                           aria-current="page"{% endif %}>Topics</a>
+                        <a class="nav-link{% if current_route == "tags" %} active{% endif %}"
+                           href="{{ url("tags") }}"{% if current_route == "tags" %}
+                           aria-current="page"{% endif %}>Tags</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link{% if articles_active %} active{% endif %}" href="{{ articles_url() }}"
@@ -293,8 +293,8 @@
     update_article_impression_url: {{ url("update-article-impression", article_id="{article_id}", absolute=True) | tojson }},
     update_user_status_url: {{ url("update-user-status", user_id="{user_id}", absolute=True) | tojson }},
     update_user_impression_url: {{ url("update-user-impression", user_id="{user_id}", absolute=True) | tojson }},
-    create_article_tag_subscription_url: {{ url("create-article-tag-subscription", absolute=True) | tojson }},
-    delete_article_tag_subscription_url: {{ url("delete-article-tag-subscription", article_tag_subscription_id="{article_tag_subscription_id}", absolute=True) | tojson }},
+    create_tag_subscription_url: {{ url("create-tag-subscription", absolute=True) | tojson }},
+    delete_tag_subscription_url: {{ url("delete-tag-subscription", tag_subscription_id="{tag_subscription_id}", absolute=True) | tojson }},
     init_tinymce: {% if tinymce_api_key %}true{% else %}false{% endif %},
     css_filenames: {{ css_filenames | tojson | safe }},
     static_relative_url: {{ static_url("{filename}") | tojson }},

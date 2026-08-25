@@ -29,11 +29,11 @@
             {% endif %}
 
             <section class="d-flex flex-column gap-3 mt-4">
-                <h2 class="h5 mb-0 text-decoration-underline">Popular topics</h2>
-                {% if popular_topic_article_tags %}
+                <h2 class="h5 mb-0 text-decoration-underline">Popular tags</h2>
+                {% if featured_tags %}
                     <div class="row row-cols-1 row-cols-md-4 g-3">
-                        {% for article_tag in popular_topic_article_tags %}
-                            {% include "fragments/article-tag.html" %}
+                        {% for tag in featured_tags %}
+                            {% include "fragments/tag.html" %}
                         {% endfor %}
                     </div>
                 {% else %}
@@ -116,16 +116,16 @@
 
             <section class="d-flex flex-column gap-3{% if show_popular_articles %} mt-4{% endif %}">
                 <h2 class="h5 mb-0 text-decoration-underline">Popular tags</h2>
-                {% if popular_article_tags %}
-                    <div id="popular-article-tags">
-                        {% for tag in popular_article_tags %}
-                            <a href="{{ articles_url(tags=[tag.slug]) }}" class="btn btn-light btn-sm article-tag mb-1">
+                {% if popular_tags %}
+                    <div id="popular-tags">
+                        {% for tag in popular_tags %}
+                            <a href="{{ articles_url(tags=[tag.slug]) }}" class="btn btn-light btn-sm tag mb-1">
                                 <h3 class="h6 fw-normal mb-0">{{ tag.name }} ({{ tag.articles_count }})</h3>
                             </a>
                         {% endfor %}
 
                         <div>
-                            <a href="{{ url("article-tags") }}" class="btn btn-light btn-sm bi bi-tags">
+                            <a href="{{ url("tags") }}" class="btn btn-light btn-sm bi bi-tags">
                                 See all tags
                             </a>
                             <a href="{{ articles_url() }}" class="btn btn-light btn-sm bi bi-tags">

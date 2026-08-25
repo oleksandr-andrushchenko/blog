@@ -576,9 +576,9 @@ def test_legacy_article_page_urls_redirect_to_articles(guest_client, legacy_path
     ("post", "/posts/example-id/comment", "/articles/example-id/comment"),
     ("patch", "/posts/example-id/comments/example-comment-id",
      "/articles/example-id/comments/example-comment-id"),
-    ("get", "/post-tags/example-tag/edit", "/article-tags/example-tag/edit"),
-    ("get", "/post-tags", "/article-tags"),
-    ("patch", "/post-tags/example-tag", "/article-tags/example-tag"),
+    ("get", "/post-tags/example-tag/edit", "/tags/example-tag/edit"),
+    ("get", "/post-tags", "/tags"),
+    ("patch", "/post-tags/example-tag", "/tags/example-tag"),
 ])
 def test_legacy_article_endpoint_urls_preserve_method_and_redirect(
         guest_client, method, legacy_path, article_path):
@@ -599,8 +599,8 @@ def test_legacy_article_endpoint_urls_preserve_method_and_redirect(
     "/latest/users",
     "/articles-fragment",
     "/users-fragment",
-    "/article-tags",
-    "/topics",
+    "/tags",
+    "/tags",
     "/privacy-policy",
     "/rules",
     "/terms-of-service",
@@ -647,23 +647,23 @@ def test_public_page_seo_schema_and_metadata(guest_client, path, schema_type):
     "/users?type=invalid",
     "/invalid/users",
     "/users-fragment?status=invalid",
-    "/article-tags?prefix=",
+    "/tags?prefix=",
 ])
 def test_public_query_endpoints_reject_invalid_parameters(guest_client, path):
     response = get(guest_client, path)
     assert response.status_code == 422, (path, response.status_code, response.text)
 
 
-def test_article_tags_fragment_endpoint_success(guest_client):
-    response = get(guest_client, "/article-tags-fragment?type=latest&limit=6")
+def test_tags_fragment_endpoint_success(guest_client):
+    response = get(guest_client, "/tags-fragment?type=latest&limit=6")
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
 
 
 @pytest.mark.parametrize("tag_type", ["latest", "popular"])
-def test_article_tags_endpoint_supports_tag_types(guest_client, tag_type):
-    response = get(guest_client, f"/article-tags?type={tag_type}&limit=6")
+def test_tags_endpoint_supports_tag_types(guest_client, tag_type):
+    response = get(guest_client, f"/tags?type={tag_type}&limit=6")
 
     assert response.status_code == 200
     assert isinstance(response.json(), list)
@@ -942,7 +942,7 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     restore_publish_success = post(root_client, f"/articles/{article_id}/status", json={"status": "published"})
     assert restore_publish_success.status_code == 200, restore_publish_success.text
 
-    rename_tag_success = patch(root_client, "/article-tags/coverage-tag", json={
+    rename_tag_success = patch(root_client, "/tags/coverage-tag", json={
         "name": "Coverage Tag Updated",
         "image_action": "keep",
         "image_file": None,
@@ -1059,22 +1059,22 @@ def test_contact_message_endpoint_success_and_validation_failure(guest_client):
     assert failure.status_code == 422
 
 
-def test_article_tag_edit_and_update_endpoints_success_and_failure():
+def test_tag_edit_and_update_endpoints_success_and_failure():
     root_client = get_logged_in_client(root_user)
     regular_client = get_logged_in_client(regular_user)
 
-    edit_success = get(root_client, "/article-tags/functional-tag/edit")
+    edit_success = get(root_client, "/tags/functional-tag/edit")
     assert edit_success.status_code == 200, edit_success.text
-    edit_failure = get(regular_client, "/article-tags/functional-tag/edit")
+    edit_failure = get(regular_client, "/tags/functional-tag/edit")
     assert edit_failure.status_code == 403
 
-    update_success = patch(root_client, "/article-tags/functional-tag", json={
+    update_success = patch(root_client, "/tags/functional-tag", json={
         "name": "Functional Tag Updated",
         "image_action": "keep",
         "image_file": None,
     })
     assert update_success.status_code == 200, update_success.text
-    update_failure = patch(root_client, "/article-tags/functional-tag-updated", json={
+    update_failure = patch(root_client, "/tags/functional-tag-updated", json={
         "name": "X",
         "image_action": "keep",
     })
@@ -1095,7 +1095,7 @@ def test_admin_page_sitemap_and_cache_endpoints_success_and_failure(guest_client
     assert sitemap_success.json()["urls_count"] > 0
     sitemap = get(guest_client, "/sitemap.xml")
     assert sitemap.status_code == 200
-    assert "/topics" in sitemap.text
+    assert "/tags" in sitemap.text
     assert "/functional-tag-updated/articles" in sitemap.text
     assert "/popular/functional-tag-updated/articles" in sitemap.text
     assert "/Functional Tag Updated/articles" not in sitemap.text
@@ -1117,28 +1117,28 @@ def test_dummy_fixtures_endpoint_success_and_wrong_method_failure(guest_client):
     assert failure.status_code in (404, 405)
 
 
-def test_article_tag_subscription_create_and_delete():
+def test_tag_subscription_create_and_delete():
     root_user_client = get_logged_in_client(root_user)
     tags = ["lifecycle-tag", "lifecycle-combination"]
-    response = post(root_user_client, "/article-tag-subscriptions", json={"tags": tags})
+    response = post(root_user_client, "/tag-subscriptions", json={"tags": tags})
     assert response.status_code == 200, response.text
 
     fragment = pq(response.text)
-    subscription_id = fragment(".article-tag-subscription-block").attr("data-article-tag-subscription-id")
+    subscription_id = fragment(".tag-subscription-block").attr("data-tag-subscription-id")
     assert subscription_id
     assert "Unsubscribe" in response.text
 
-    subscriptions = get(root_user_client, "/article-tag-subscriptions")
+    subscriptions = get(root_user_client, "/tag-subscriptions")
     assert subscriptions.status_code == 200
     assert any(item["id"] == subscription_id and item["tags"] == sorted(tags)
                for item in subscriptions.json())
 
-    delete_response = delete(root_user_client, f"/article-tag-subscriptions/{subscription_id}")
+    delete_response = delete(root_user_client, f"/tag-subscriptions/{subscription_id}")
     assert delete_response.status_code == 200, delete_response.text
-    assert pq(delete_response.text)(".article-tag-subscription-block").attr("data-article-tag-subscription-id") == ""
+    assert pq(delete_response.text)(".tag-subscription-block").attr("data-tag-subscription-id") == ""
     assert "Unsubscribe" not in delete_response.text
 
-    subscriptions = get(root_user_client, "/article-tag-subscriptions")
+    subscriptions = get(root_user_client, "/tag-subscriptions")
     assert all(item["id"] != subscription_id for item in subscriptions.json())
 
 
@@ -1150,15 +1150,15 @@ def test_article_published_dispatch_matches_combinations_excludes_author_and_ren
     email_dir = Path("/app/.emails")
     existing_emails = set(email_dir.glob("*.eml"))
 
-    root_subscription = post(root_client, "/article-tag-subscriptions", json={
+    root_subscription = post(root_client, "/tag-subscriptions", json={
         "tags": ["notification-tag3"],
     })
     assert root_subscription.status_code == 200, root_subscription.text
-    author_subscription = post(author_client, "/article-tag-subscriptions", json={
+    author_subscription = post(author_client, "/tag-subscriptions", json={
         "tags": ["notification-tag1"],
     })
     assert author_subscription.status_code == 200, author_subscription.text
-    combination_subscription = post(combination_client, "/article-tag-subscriptions", json={
+    combination_subscription = post(combination_client, "/tag-subscriptions", json={
         "tags": ["notification-tag2", "notification-tag3"],
     })
     assert combination_subscription.status_code == 200, combination_subscription.text

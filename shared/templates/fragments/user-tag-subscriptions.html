@@ -10,19 +10,19 @@
     </div>
 
     <div id="profile-interests-content" {% if not user.show_interests %}style="display: none"{% endif %}>
-        {% if article_tag_subscriptions %}
+        {% if tag_subscriptions %}
         <div class="d-flex flex-wrap gap-2">
-            {% for subscription in article_tag_subscriptions %}
+            {% for subscription in tag_subscriptions %}
                 {% if cur_user and cur_user.id == user.id %}
-                    <div class="article-tag-subscription-item"
-                         data-article-tag-subscription-id="{{ subscription.id }}">
-                        <button class="btn btn-light btn-sm fw-semibold btn-article-tag-subscription bi bi-bell-slash"
+                    <div class="tag-subscription-item"
+                         data-tag-subscription-id="{{ subscription.id }}">
+                        <button class="btn btn-light btn-sm fw-semibold btn-tag-subscription bi bi-bell-slash"
                                 type="button"
-                                data-article-tag-subscription-id="{{ subscription.id }}"
+                                data-tag-subscription-id="{{ subscription.id }}"
                                 title="Unsubscribe from {{ subscription.tags | join(' + ') }}">
                             {{ subscription.tags | join(' + ') }}
                         </button>
-                        <small class="article-tag-subscription-message text-secondary"></small>
+                        <small class="tag-subscription-message text-secondary"></small>
                     </div>
                 {% else %}
                     <a href="{{ articles_url(tags=subscription.tags) }}"
@@ -33,7 +33,7 @@
             {% endfor %}
         </div>
         {% elif cur_user and cur_user.id == user.id %}
-            <div class="text-muted small article-tag-subscription-empty">You have no interests.</div>
+            <div class="text-muted small tag-subscription-empty">You have no interests.</div>
         {% else %}
             <div class="text-muted small">No interests.</div>
         {% endif %}

@@ -131,7 +131,7 @@
 
                         <div class="d-flex flex-wrap align-items-center gap-2">
                             <small class="text-secondary bi bi-tags"> Filter by tags:</small>
-                            {% with url=url("get-article-tags", absolute=True),
+                            {% with url=url("get-tags", absolute=True),
                             value=article_query.tags,
                             tag_items=article_query_tag_items,
                             class_name="w-auto",
@@ -176,16 +176,16 @@
                     </div>
         </form>
 
-        {% if article_tag and cur_user and check_auth(cur_user, Permission.UPDATE_ARTICLE_TAG) %}
-            <a href="{{ url("edit-article-tag", slug=article_query.tags[0]) }}"
+        {% if tag and cur_user and check_auth(cur_user, Permission.UPDATE_TAG) %}
+            <a href="{{ url("edit-tag", slug=article_query.tags[0]) }}"
                class="btn btn-light bi bi-pencil">
-                Edit article tag
+                Edit tag
             </a>
         {% endif %}
     </section>
 
-    {% if article_tag and article_tag.image_filename %}
-        {% with filename=article_tag.image_filename,
+    {% if tag and tag.image_filename %}
+        {% with filename=tag.image_filename,
             alt=title,
             figure=True,
             img_sizes={"1200px": "760px", "992px": "480px", "default": "100vw"} %}
@@ -213,5 +213,5 @@
         <div>N/A</div>
     {% endif %}
 
-    {% include "fragments/article-tag-subscription.html" %}
+    {% include "fragments/tag-subscription.html" %}
 {% endblock %}

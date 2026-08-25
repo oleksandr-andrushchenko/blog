@@ -59,21 +59,21 @@ class UserQueryDTO(BaseQueryDTO):
         return BaseQueryDTO.has_params(self) or self.type != self.DEFAULT_TYPE or self.status != self.DEFAULT_STATUS
 
 
-class ArticleTagQueryType(StrEnum):
+class TagQueryType(StrEnum):
     LATEST = "latest"
     POPULAR = "popular"
 
 
 @dataclass(slots=True)
-class ArticleTagQueryDTO(BaseQueryDTO):
-    DEFAULT_TYPE = ArticleTagQueryType.LATEST
+class TagQueryDTO(BaseQueryDTO):
+    DEFAULT_TYPE = TagQueryType.LATEST
 
-    type: ArticleTagQueryType = DEFAULT_TYPE
+    type: TagQueryType = DEFAULT_TYPE
     prefix: str | None = None
 
     def __post_init__(self):
         BaseQueryDTO.__post_init__(self)
-        self.type = ArticleTagQueryType(self.type)
+        self.type = TagQueryType(self.type)
         if self.prefix is not None and not 1 <= len(self.prefix) <= 40:
             raise ValueError("prefix must contain between 1 and 40 characters")
 

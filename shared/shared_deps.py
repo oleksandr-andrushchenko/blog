@@ -6,7 +6,7 @@ from shared_utils import (
     ArticleQueryDTO,
     ArticleCommentQueryDTO,
     Article,
-    ArticleTagQueryDTO,
+    TagQueryDTO,
     UserQueryDTO,
     InvalidTokenError,
     ArticleNotFoundError,
@@ -21,9 +21,9 @@ from shared_utils import (
     parse_articles_url_slugs_path,
     is_prod,
     get_auth_token_max_age,
-    ArticleTag,
-    ArticleTagNotFoundError,
-    get_article_tag,
+    Tag,
+    TagNotFoundError,
+    get_tag,
 )
 from web import Depends, HTMLResponse, HTTPException, JSONResponse, Query, Request, RequestValidationError
 
@@ -66,10 +66,10 @@ def get_article_by_id(article_id: str, cur_user: OptCurUserDep = None) -> Articl
         raise HTTPException(status_code=404, detail=str(e))
 
 
-def get_article_tag_by_slug(slug: str, cur_user: CurUserDep) -> ArticleTag:
+def get_tag_by_slug(slug: str, cur_user: CurUserDep) -> Tag:
     try:
-        return get_article_tag(slug, cur_user)
-    except ArticleTagNotFoundError as e:
+        return get_tag(slug, cur_user)
+    except TagNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
@@ -199,5 +199,5 @@ ArticleBySlugsDep = Annotated[Article, Depends(_get_article_by_slugs)]
 ArticleQueryDep = Annotated[ArticleQueryDTO, Depends(get_article_query)]
 ArticleCommentQueryDep = Annotated[ArticleCommentQueryDTO, Depends()]
 ArticleQueryBySlugsDep = Annotated[ArticleQueryDTO, Depends(get_article_query_by_slugs)]
-ArticleTagQueryDep = Annotated[ArticleTagQueryDTO, Depends()]
-ArticleTagDep = Annotated[ArticleTag, Depends(get_article_tag_by_slug)]
+TagQueryDep = Annotated[TagQueryDTO, Depends()]
+TagDep = Annotated[Tag, Depends(get_tag_by_slug)]

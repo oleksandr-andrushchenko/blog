@@ -5,10 +5,10 @@ upload and mutation request parsing belongs to the API lambda.
 """
 
 from shared_deps import *
-from article_dtos import UpdateArticleCommentDTO, UpdateArticleCommentImpressionDTO, UpdateArticleDTO, UpdateArticleImpressionDTO, UpdateArticleStatusDTO, UpdateArticleTagDTO
-from article_tag_subscription_dtos import ArticleTagSubscriptionDTO
+from article_dtos import UpdateArticleCommentDTO, UpdateArticleCommentImpressionDTO, UpdateArticleDTO, UpdateArticleImpressionDTO, UpdateArticleStatusDTO, UpdateTagDTO
+from tag_subscription_dtos import TagSubscriptionDTO
 from basic_dtos import ImageFileDTO
-from query_dtos import ArticleTagQueryDTO
+from query_dtos import TagQueryDTO
 from user_dtos import UpdateUserDTO, UpdateUserActivitySettingsDTO, UpdateUserImpressionDTO, UpdateUserInterestsSettingsDTO, UpdateUserStatusDTO
 from shared_utils import ArticleComment, ArticleCommentNotFoundError, get_article_comment
 from web import Body, HTTPException, Request
@@ -29,7 +29,7 @@ def get_update_user_dto(value: UpdateUserDTO = Body(...)) -> UpdateUserDTO:
     return value
 
 
-def get_article_tag_subscription_dto(value: ArticleTagSubscriptionDTO = Body(...)) -> ArticleTagSubscriptionDTO:
+def get_tag_subscription_dto(value: TagSubscriptionDTO = Body(...)) -> TagSubscriptionDTO:
     return value
 
 
@@ -79,7 +79,7 @@ def get_update_user_impression_dto(value: UpdateUserImpressionDTO = Body(...)) -
     return value
 
 
-def get_update_article_tag_dto(value: UpdateArticleTagDTO = Body(...)) -> UpdateArticleTagDTO:
+def get_update_tag_dto(value: UpdateTagDTO = Body(...)) -> UpdateTagDTO:
     return value
 
 
@@ -96,9 +96,9 @@ ArticleCommentDep = Annotated[ArticleComment, Depends(get_article_comment_by_id)
 UpdateArticleCommentDTODep = Annotated[UpdateArticleCommentDTO, Depends(get_update_article_comment_dto)]
 UpdateArticleCommentImpressionDTODep = Annotated[
     UpdateArticleCommentImpressionDTO, Depends(get_update_article_comment_impression_dto)]
-ArticleTagQueryDep = Annotated[ArticleTagQueryDTO, Depends()]
-ArticleTagDep = Annotated[ArticleTag, Depends(get_article_tag_by_slug)]
-UpdateArticleTagDTODep = Annotated[UpdateArticleTagDTO, Depends(get_update_article_tag_dto)]
-ArticleTagSubscriptionDTODep = Annotated[ArticleTagSubscriptionDTO, Depends(get_article_tag_subscription_dto)]
+TagQueryDep = Annotated[TagQueryDTO, Depends()]
+TagDep = Annotated[Tag, Depends(get_tag_by_slug)]
+UpdateTagDTODep = Annotated[UpdateTagDTO, Depends(get_update_tag_dto)]
+TagSubscriptionDTODep = Annotated[TagSubscriptionDTO, Depends(get_tag_subscription_dto)]
 ImageFileDTODep = Annotated[ImageFileDTO, Depends(get_image_file)]
 UpdateUserImpressionDTODep = Annotated[UpdateUserImpressionDTO, Depends(get_update_user_impression_dto)]

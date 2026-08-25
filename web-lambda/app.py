@@ -16,10 +16,10 @@ from shared_deps import (
     UserQueryBySlugsDep,
     set_token_cookie,
     drop_token_cookie,
-    ArticleTagDep,
-    ArticleTagQueryDep,
+    TagDep,
+    TagQueryDep,
 )
-from shared_utils import get_article_tags
+from shared_utils import get_tags
 from web import Application, Request, HTTPException, HTMLResponse, JSONResponse, RedirectResponse, \
     RequestValidationError, CORSMiddleware, FileResponse
 from web_utils import (
@@ -32,7 +32,7 @@ from web_utils import (
     CodeExchangeFailedError,
     NotAuthorizedError,
     ArticleByOldSlugRequestedError,
-    ArticleTagByOldSlugRequestedError,
+    TagByOldSlugRequestedError,
     UserByOldSlugRequestedError,
     logger,
     get_html_content,
@@ -42,7 +42,7 @@ from web_utils import (
     get_latest_articles_by_user,
     get_articles,
     get_latest_published_articles,
-    get_popular_article_tags,
+    get_popular_tags,
     get_popular_published_articles,
     find_user,
     jinja2_env,
@@ -65,11 +65,11 @@ from web_utils import (
     get_article_comments,
     get_latest_article_comments,
     get_user_by_auth_token,
-    get_article_tag_url,
-    find_article_tag,
+    get_tag_url,
+    find_tag,
     get_user_activity,
-    get_user_article_tag_subscription_for_tags,
-    get_user_article_tag_subscriptions,
+    get_user_tag_subscription_for_tags,
+    get_user_tag_subscriptions,
 )
 
 app = Application()
@@ -114,7 +114,7 @@ app.add_middleware(
 async def redirect_legacy_web_endpoints(request: Request, call_next):
     path = request.url.path
     replacements = (
-        ("/post-tags", "/article-tags"),
+        ("/post-tags", "/tags"),
         ("/posts-fragment", "/articles-fragment"),
     )
     for old, new in replacements:
@@ -178,13 +178,13 @@ async def article_redirect_exception_handler(request: Request, exc: UserByOldSlu
     return RedirectResponse(url=url, status_code=301)
 
 
-@app.exception_handler(ArticleTagByOldSlugRequestedError)
-async def article_tag_redirect_exception_handler(request: Request, exc: ArticleTagByOldSlugRequestedError):
-    logger.info(f"Redirect: {str(exc.slug)} -> {exc.article_tag.slug}")
-    if request.url.path.startswith("/article-tags/"):
-        url = get_url(request, "edit-article-tag", slug=exc.article_tag.slug)
+@app.exception_handler(TagByOldSlugRequestedError)
+async def tag_redirect_exception_handler(request: Request, exc: TagByOldSlugRequestedError):
+    logger.info(f"Redirect: {str(exc.slug)} -> {exc.tag.slug}")
+    if request.url.path.startswith("/tags/"):
+        url = get_url(request, "edit-tag", slug=exc.tag.slug)
     else:
-        url = get_article_tag_url(request, exc.article_tag)
+        url = get_tag_url(request, exc.tag)
     return RedirectResponse(url=url, status_code=301)
 
 
@@ -193,13 +193,13 @@ async def index(cur_user: OptCurUserDep) -> str:
     latest_articles_query = ArticleQueryDTO()
     latest_article_comments_query = ArticleCommentQueryDTO(limit=5)
     (
-        popular_article_tags,
+        popular_tags,
         latest_articles,
         popular_articles,
         latest_article_comments,
         popular_users,
     ) = await asyncio.gather(
-        to_thread(get_popular_article_tags),
+        to_thread(get_popular_tags),
         to_thread(get_latest_published_articles, limit=latest_articles_query.limit),
         to_thread(get_popular_published_articles, limit=5),
         to_thread(get_latest_article_comments, limit=latest_article_comments_query.limit),
@@ -207,8 +207,8 @@ async def index(cur_user: OptCurUserDep) -> str:
     )
     return get_html_content("index.html", {
         "cur_user": cur_user,
-        "popular_topic_article_tags": popular_article_tags[:8],
-        "popular_article_tags": popular_article_tags[8:],
+        "featured_tags": popular_tags[:8],
+        "popular_tags": popular_tags[8:],
         "latest_articles_query": latest_articles_query,
         "latest_articles": latest_articles,
         "popular_articles": popular_articles,
@@ -244,18 +244,18 @@ async def _article_page(article: ArticleDep, cur_user: OptCurUserDep) -> HTMLRes
 
 
 async def _articles_page(query_dto: ArticleQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
-    article_tag_slug = query_dto.tags[0] if query_dto.tags and len(query_dto.tags) == 1 else None
+    tag_slug = query_dto.tags[0] if query_dto.tags and len(query_dto.tags) == 1 else None
     (
         articles,
-        article_tag,
+        tag,
         article_query_tags,
     ) = await asyncio.gather(
         to_thread(get_articles, query_dto, cur_user),
-        to_thread(find_article_tag, article_tag_slug) if article_tag_slug else asyncio.sleep(0, result=None),
-        asyncio.gather(*(to_thread(find_article_tag, tag) for tag in query_dto.tags)),
+        to_thread(find_tag, tag_slug) if tag_slug else asyncio.sleep(0, result=None),
+        asyncio.gather(*(to_thread(find_tag, tag) for tag in query_dto.tags)),
     )
-    if article_tag and article_tag_slug and article_tag.slug != article_tag_slug:
-        raise ArticleTagByOldSlugRequestedError(article_tag_slug, article_tag)
+    if tag and tag_slug and tag.slug != tag_slug:
+        raise TagByOldSlugRequestedError(tag_slug, tag)
 
     article_query_tag_names = [tag.name if tag else slug for tag, slug in zip(article_query_tags, query_dto.tags)]
     article_query_tag_items = [
@@ -268,8 +268,8 @@ async def _articles_page(query_dto: ArticleQueryDep, cur_user: OptCurUserDep) ->
         "article_query_tag_names": article_query_tag_names,
         "article_query_tag_items": article_query_tag_items,
         "articles": articles,
-        "article_tag": article_tag,
-        "article_tag_subscription": get_user_article_tag_subscription_for_tags(cur_user,
+        "tag": tag,
+        "tag_subscription": get_user_tag_subscription_for_tags(cur_user,
                                                                                query_dto.tags) if cur_user and query_dto.tags else None,
     })
 
@@ -289,13 +289,13 @@ async def articles_page(query_dto: ArticleQueryDep, cur_user: OptCurUserDep):
     return await _articles_page(query_dto, cur_user)
 
 
-@route("get", "article-tags", response_class=HTMLResponse)
-async def article_tags_page(query_dto: ArticleTagQueryDep, cur_user: OptCurUserDep) -> str:
-    article_tags = get_article_tags(query_dto)
-    return get_html_content("article-tags.html", {
+@route("get", "tags", response_class=HTMLResponse)
+async def tags_page(query_dto: TagQueryDep, cur_user: OptCurUserDep) -> str:
+    tags = get_tags(query_dto)
+    return get_html_content("tags.html", {
         "cur_user": cur_user,
-        "article_tags": article_tags,
-        "article_tags_query": query_dto,
+        "tags": tags,
+        "tags_query": query_dto,
     })
 
 
@@ -352,12 +352,12 @@ async def contacts(cur_user: OptCurUserDep) -> str:
     })
 
 
-@route("get", "edit-article-tag", response_class=HTMLResponse)
-async def edit_article_tag(article_tag: ArticleTagDep, cur_user: CurUserDep) -> str:
-    verify_authorization(cur_user, Permission.UPDATE_ARTICLE_TAG, article_tag)
-    return get_html_content("edit-article-tag.html", {
+@route("get", "edit-tag", response_class=HTMLResponse)
+async def edit_tag(tag: TagDep, cur_user: CurUserDep) -> str:
+    verify_authorization(cur_user, Permission.UPDATE_TAG, tag)
+    return get_html_content("edit-tag.html", {
         "cur_user": cur_user,
-        "article_tag": article_tag,
+        "tag": tag,
     })
 
 
@@ -391,7 +391,7 @@ async def _user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_use
     should_load_activity = user.show_activity_calendar or can_manage_profile
     can_manage_interests = can_manage_profile
     should_load_interests = (
-            user.article_tag_subscriptions_count != 0
+            user.tag_subscriptions_count != 0
             and (user.show_interests or can_manage_interests)
     )
     should_render_interests = user.show_interests or can_manage_interests
@@ -407,13 +407,13 @@ async def _user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_use
     async def load_interests():
         if not should_load_interests:
             return []
-        return await to_thread(get_user_article_tag_subscriptions, user)
+        return await to_thread(get_user_tag_subscriptions, user)
 
     (
         articles,
         user_impression,
         activity,
-        article_tag_subscriptions,
+        tag_subscriptions,
     ) = await asyncio.gather(
         to_thread(get_latest_articles_by_user, user, articles_query_dto, cur_user),
         to_thread(find_user_impression, user, cur_user) if cur_user else asyncio.sleep(0, result=None),
@@ -429,8 +429,8 @@ async def _user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_use
         "user_impression": user_impression,
         "activity": activity,
         "activity_year": activity_year,
-        "article_tag_subscriptions": article_tag_subscriptions,
-        "show_article_tag_subscriptions": should_render_interests,
+        "tag_subscriptions": tag_subscriptions,
+        "show_tag_subscriptions": should_render_interests,
     })
     return HTMLResponse(html_content)
 
