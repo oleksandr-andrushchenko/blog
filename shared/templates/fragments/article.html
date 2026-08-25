@@ -10,11 +10,11 @@
 {% set article_img_sizes = article_img_sizes | default({"768px": "25vw", "default": "100vw"}) %}
 
 <div class="article col"{% if article.offset %} data-offset="{{ article.offset }}"{% endif %}>
-    <div class="card text-bg-light shadow-sm overflow-hidden">
+    <div class="card overflow-hidden">
         {% if image and horizontal %}
             <div class="row g-0">{% endif %}
         {% if image %}
-            <div class="{% if horizontal %}{{ image_column_size | column_classes }} d-flex align-items-center order-2{% endif %}">
+            <div class="{% if horizontal %}{{ image_column_size | column_classes }} d-flex align-items-center{% endif %}">
                 {% include "fragments/article-link-image.html" %}
             </div>
         {% endif %}

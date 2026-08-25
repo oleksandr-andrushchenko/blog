@@ -1,22 +1,24 @@
 {% if user.bmc_username %}
-    <section class="card mb-4">
-        <div class="card-body d-flex flex-column gap-1">
-            <div class="fw-semibold">{{ header | default("Enjoyed this article?") }}</div>
-
-            <div class="text-muted small">Support {{ user.name }}</div>
-
-            <div>
-                <a href="https://buymeacoffee.com/{{ user.bmc_username }}"
-                   target="_blank" rel="noopener noreferrer"
-                   class="btn btn-warning fw-semibold">
-                    <i class="bi bi-cup-hot"></i>
-                    Buy me a coffee
-                </a>
+    <section class="card shadow-sm mb-4 text-bg-light">
+        <div class="card-body">
+            <div class="h4 card-title">
+                {{ header | default("Enjoyed this article?") }}
             </div>
 
-            <div class="text-muted small">
+            <p class="card-text">
+                Support {{ user.name }}
+            </p>
+
+            <a href="https://buymeacoffee.com/{{ user.bmc_username }}"
+               target="_blank" rel="noopener noreferrer"
+               class="btn btn-warning">
+                <i class="bi bi-cup-hot"></i>
+                Buy me a coffee
+            </a>
+
+            <p class="card-text mb-0">
                 This helps {{ user.name }} continue creating useful content
-            </div>
+            </p>
         </div>
     </section>
 {% endif %}

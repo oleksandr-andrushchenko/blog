@@ -23,7 +23,7 @@
         {% endwith %}
     {% endif %}
 
-    <section class="p-4 p-lg-5 text-bg-light overflow-hidden mb-4">
+    <section class="p-5 text-bg-warning overflow-hidden mb-4">
         <div class="container">
             <h1 class="d-inline">{{ site_name }} <i class="bi bi-{{ site_icon }}"></i></h1>
             <span class="mt-2 fw-bold">&mdash; {{ site_short_desc }}</span>
@@ -33,7 +33,7 @@
                     <i class="bi bi-compass me-1" aria-hidden="true"></i>
                     Explore articles
                 </a>
-                <a href="{{ users_url() }}" class="btn btn-outline-dark btn-sm">
+                <a href="{{ users_url() }}" class="btn btn-dark btn-sm">
                     <i class="bi bi-people me-1" aria-hidden="true"></i>
                     Meet the community
                 </a>
@@ -59,39 +59,6 @@
                         <div>N/A</div>
                     {% endif %}
                 </section>
-
-                {% if show_popular_articles %}
-                    <section class="mb-4">
-                        <h2 class="h5 mb-2">
-                            <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}" class="link-body-emphasis">
-                                Popular articles
-                            </a>
-                        </h2>
-                        {% if popular_articles %}
-                            <div id="popular-articles" class="row row-cols-1 g-3 mb-2">
-                                {% with articles=popular_articles,
-                                preview=False,
-                                vert_gap=0,
-                                h_display_size=6,
-                                horizontal=True,
-                                article_img_sizes={"1400px": "86px", "1200px": "71px", "992px": "96px", "768px": "156px", "default": "100vw"} %}
-                                    {% include "fragments/articles.html" %}
-                                {% endwith %}
-                            </div>
-
-                            <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}"
-                               class="btn btn-light btn-sm bi bi-star">
-                                See all popular articles
-                            </a>
-                            <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}"
-                               class="btn btn-light btn-sm bi bi-tags">
-                                Search popular articles by tags
-                            </a>
-                        {% else %}
-                            <div>N/A</div>
-                        {% endif %}
-                    </section>
-                {% endif %}
 
                 <section class="d-flex flex-column gap-2">
                     <h2 class="h5 mb-0">
@@ -131,6 +98,39 @@
             </div>
 
             <div class="col col-12 col-lg-6 col-xl-4 border-start">
+                {% if show_popular_articles %}
+                    <section class="mb-4">
+                        <h2 class="h5 mb-2">
+                            <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}" class="link-body-emphasis">
+                                Popular articles
+                            </a>
+                        </h2>
+                        {% if popular_articles %}
+                            <div id="popular-articles" class="row row-cols-1 g-3 mb-2">
+                                {% with articles=popular_articles,
+                                preview=False,
+                                vert_gap=0,
+                                h_display_size=6,
+                                horizontal=True,
+                                article_img_sizes={"1400px": "86px", "1200px": "71px", "992px": "96px", "768px": "156px", "default": "100vw"} %}
+                                    {% include "fragments/articles.html" %}
+                                {% endwith %}
+                            </div>
+
+                            <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}"
+                               class="btn btn-light btn-sm bi bi-star">
+                                See all popular articles
+                            </a>
+                            <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}"
+                               class="btn btn-light btn-sm bi bi-tags">
+                                Search popular articles by tags
+                            </a>
+                        {% else %}
+                            <div>N/A</div>
+                        {% endif %}
+                    </section>
+                {% endif %}
+
                 <section class="d-flex flex-column gap-2 mb-4">
                     <h2 class="h5 mb-0 text-decoration-underline">
                         <a href="{{ users_url(type=UserQueryType.POPULAR) }}" class="link-body-emphasis">Popular

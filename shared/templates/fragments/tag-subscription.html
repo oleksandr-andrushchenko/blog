@@ -13,19 +13,18 @@
 
             {% if cur_user %}
                 {% if tag_subscription %}
-                    <button class="btn btn-dark btn-sm btn-tag-subscription" type="button"
+                    <button class="btn btn-success btn-sm btn-tag-subscription" type="button"
                             data-tag-subscription-id="{{ tag_subscription.id }}">
-                        <i class="bi bi-bell-slash"></i>
-                        Unsubscribe
+                        <i class="bi bi-bell"></i>
+                        Subscribed
                     </button>
                 {% else %}
-                    <button class="btn btn-dark btn-sm btn-tag-subscription" type="button"
+                    <button class="btn btn-outline-success btn-sm btn-tag-subscription" type="button"
                             data-tags='{{ article_query.tags | tojson }}'>
                         <i class="bi bi-bell"></i>
                         Subscribe
                     </button>
                 {% endif %}
-                <small class="tag-subscription-message d-block mt-2" style="height: 10px"></small>
             {% else %}
                 <a class="btn btn-dark btn-sm"
                    href="{{ url('login', redirect_url=request.url.path ~ ("?" ~ request.url.query if request.url.query else "")) }}">
