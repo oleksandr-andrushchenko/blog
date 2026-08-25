@@ -42,23 +42,23 @@
     </section>
 
     <div class="container mt-4">
-        <section class="d-flex flex-column gap-2">
-            <h2 class="h5 mb-0 text-decoration-underline">Popular tags</h2>
-            {% if featured_tags %}
-                <div class="row row-cols-1 row-cols-md-6 g-3">
-                    {% for tag in featured_tags %}
-                        {% include "fragments/tag.html" %}
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div>N/A</div>
-            {% endif %}
-        </section>
-
-        <div class="row mt-4">
+        <div class="row">
             <div class="col col-12 col-lg-6 col-xl-8">
+                <section class="d-flex flex-column gap-2">
+                    <h2 class="h5 mb-0 text-decoration-underline">Popular tags</h2>
+                    {% if featured_tags %}
+                        <div class="row row-cols-1 row-cols-md-4 g-3">
+                            {% for tag in featured_tags %}
+                                {% include "fragments/tag.html" %}
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div>N/A</div>
+                    {% endif %}
+                </section>
+
                 {% if show_popular_articles %}
-                    <section class="d-flex flex-column gap-2">
+                    <section class="d-flex flex-column gap-2 mt-4">
                         <h2 class="h5 mb-0">
                             <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}" class="link-body-emphasis">
                                 Popular articles
@@ -131,7 +131,7 @@
             </div>
 
             <div class="col col-12 col-lg-6 col-xl-4 border-start">
-                <section class="d-flex flex-column gap-2 mt-4">
+                <section class="d-flex flex-column gap-2">
                     <h2 class="h5 mb-0 text-decoration-underline">More tags</h2>
                     {% if popular_tags %}
                         <div id="popular-tags">
