@@ -24,7 +24,6 @@ API_URL_ROUTES = {
     "update-user-interests-settings": "/users/{user_id}/interests-settings",
     "update-user": "/users/{user_id}",
     "user-articles-fragment": "/users/{user_id}/articles-fragment",
-    "create-dummy-fixtures": "/dummy-fixtures",
     "generate-sitemap": "/generate-sitemap",
     "drop-cdn-cache": "/drop-cdn-cache",
 }

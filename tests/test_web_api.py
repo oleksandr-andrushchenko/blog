@@ -1109,14 +1109,6 @@ def test_admin_page_sitemap_and_cache_endpoints_success_and_failure(guest_client
     assert cache_failure.status_code == 403
 
 
-def test_dummy_fixtures_endpoint_success_and_wrong_method_failure(guest_client):
-    success = post(guest_client, "/dummy-fixtures", json={})
-    assert success.status_code == 200, success.text
-
-    failure = get(guest_client, "/dummy-fixtures")
-    assert failure.status_code in (404, 405)
-
-
 def test_tag_subscription_create_and_delete():
     root_user_client = get_logged_in_client(root_user)
     tags = ["lifecycle-tag", "lifecycle-combination"]

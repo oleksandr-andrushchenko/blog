@@ -231,7 +231,7 @@
             validator: (value) => {
               const _username_blacklist = [
                 "api", "articles", "articles-fragment", "contacts", "tags", "users", "users-fragment", "login",
-                "login-callback", "logout", "logout-callback", "dummy-fixtures", "me", "privacy-policy", "rules",
+                "login-callback", "logout", "logout-callback", "me", "privacy-policy", "rules",
                 "terms-of-service", "earn-with-us", "popular", "utils"
               ]
               return !_username_blacklist.includes(value)

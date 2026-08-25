@@ -17,6 +17,7 @@ from decimal import Decimal
 from enum import StrEnum
 from functools import lru_cache, partial
 from html import unescape
+from pathlib import Path
 from typing import Callable, TypeVar, Any
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
@@ -510,8 +511,8 @@ def get_live_config():
             "Y": "#FF6D00",  # Bright Orange
             "Z": "#C51162"  # Bright Pink
         },
-        **json.load(open("./data.default.json")),
-        **json.load(open("./data.json"))
+        **json.load(open(Path(__file__).with_name("data.default.json"))),
+        **json.load(open(Path(__file__).with_name("data.json")))
     }
 
 

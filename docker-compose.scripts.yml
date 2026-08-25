@@ -6,6 +6,12 @@ services:
     env_file:
       - .env
     environment:
+      APP_STAGE: local
+      APP_ENV: dev
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
+      DYNAMODB_TABLE: app
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"
+      FUNCTION_TEMPLATES_DIR: "/app/api-lambda/templates"
     volumes:
       - ./:/app

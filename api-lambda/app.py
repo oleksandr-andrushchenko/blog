@@ -403,13 +403,6 @@ async def user_articles_fragment(user: UserDep, query_dto: ArticleQueryDep, cur_
     })
 
 
-@route("post", "create-dummy-fixtures")
-async def _create_dummy_fixtures(request: Request) -> None:
-    from api_utils import create_dummy_fixtures
-
-    return create_dummy_fixtures(request)
-
-
 @route("post", "generate-sitemap")
 async def _generate_sitemap(cur_user: CurUserDep, request: Request) -> dict:
     from api_utils import generate_sitemap

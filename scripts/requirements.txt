@@ -3,3 +3,10 @@ pytest
 requests
 boto3
 pyquery
+starlette
+Jinja2>=3.1.3
+httpx
+python-jose
+python-multipart
+filetype
+nh3
