@@ -58,7 +58,7 @@
             <div class="d-flex flex-wrap align-items-center gap-2">
                 <div class="d-flex align-items-center gap-2">
                     <small class="text-secondary bi bi-sort-down"> Show:</small>
-                    <div class="btn-group">
+                    <div class="btn-group btn-group-sm" role="group">
                         {% set is_latest = tags_query.type == TagQueryType.LATEST %}
                         <a href="{{ url("tags", **tags_query.get_dict({"type": None if is_latest else TagQueryType.LATEST})) }}"
                            class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
@@ -82,7 +82,7 @@
     </section>
 
     {% if tags %}
-        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-6 g-3" id="tags">
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-6 g-3" id="tags" data-masonry='{"percentPosition": true }'>
             {% for tag in tags %}
                 {% include "fragments/tag.html" %}
             {% endfor %}

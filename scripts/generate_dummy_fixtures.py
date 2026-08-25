@@ -33,6 +33,78 @@ def create_dummy_fixtures(req=None) -> None:
         return
     created_articles = []
     created_users = []
+    generated_image_filenames = [
+        "3d7af01f-819e-4c2f-bc69-eb7245b76a74_1809x1247.png",
+        "45e97e68-a321-4657-9956-e942d9d757a7_1279x518.png",
+        "4fdd2dcc-8c7d-40ac-80a6-647c828af338_1000x376.png",
+        "5b027ec7-c018-4744-9eda-00abf75cf685_1111x712.png",
+        "6a5118c0-a073-483b-ac5b-79e0a554e703_988x494.png",
+        "a167891d-7e91-40d6-a5c4-1a3ddb27dcc2_1575x842.png",
+        "ebdbe93d-99ec-4a47-b821-f4dfe0da769b_798x475.png",
+    ]
+    used_user_names = {"John Doe"}
+    used_article_titles = set()
+    first_names = ["Lorem", "Ipsum", "Dolor", "Amet", "Consectetur", "Adipiscing", "Elit"]
+    last_names = ["Systems", "Patterns", "Scalability", "Reliability", "Architecture", "Telemetry", "Networks"]
+    title_openers = ["Designing", "Building", "Exploring", "Modeling", "Operating", "Scaling", "Evolving"]
+    title_subjects = ["Reliable Event Pipelines", "Distributed Data Planes", "Resilient Service Boundaries", "Adaptive Storage Systems", "Observable Control Loops", "Fault Tolerant Workflows", "Composable Platform Primitives"]
+    title_endings = ["with Practical Constraints", "for Fast-Growing Systems", "under Real-World Load", "from First Principles", "without Losing Simplicity", "for Teams That Ship"]
+    fixture_tag_names = [
+        "distributed-systems", "event-driven", "cloud-architecture", "databases",
+        "devops", "software-design", "observability", "reliability", "api-design",
+        "backend", "frontend", "testing", "security", "performance", "automation",
+        "containers", "kubernetes", "serverless", "messaging", "networking",
+        "data-engineering", "machine-learning", "open-source", "teamwork",
+    ]
+    unused_fixture_tags = fixture_tag_names.copy()
+    content_openers = ["A useful starting point is", "The practical challenge is", "In a production system", "A resilient design keeps", "The simplest approach begins with", "Over time, teams discover that"]
+    content_subjects = ["clear ownership", "small feedback loops", "explicit boundaries", "measurable failure modes", "repeatable deployments", "well-defined contracts", "careful capacity planning"]
+    content_actions = ["reduces unnecessary coordination", "makes failures easier to isolate", "keeps operational work visible", "creates room for gradual change", "turns assumptions into testable decisions", "helps teams compare trade-offs"]
+    content_endings = ["before the system becomes difficult to change.", "without hiding important constraints.", "while keeping the implementation understandable.", "even when traffic and team size increase.", "so the result remains useful beyond the first release."]
+
+    def unique_user_name() -> str:
+        while True:
+            name = f"{random.choice(first_names)} {random.choice(last_names)}"
+            if name not in used_user_names:
+                used_user_names.add(name)
+                return name
+
+    def unique_article_title() -> str:
+        while True:
+            title = f"{random.choice(title_openers)} {random.choice(title_subjects)} {random.choice(title_endings)}"
+            if title not in used_article_titles:
+                used_article_titles.add(title)
+                return title
+    def random_article_tags() -> list[str]:
+        required_tag = unused_fixture_tags.pop(random.randrange(len(unused_fixture_tags))) if unused_fixture_tags else None
+        available_tags = [tag for tag in fixture_tag_names if tag != required_tag]
+        extra_tags = random.sample(available_tags, random.randint(0, 2))
+        return [required_tag, *extra_tags] if required_tag else random.sample(fixture_tag_names, random.randint(1, 3))
+
+    def random_figure(alt: str) -> str:
+        if random.random() >= 0.5:
+            return ""
+        filename = random.choice(generated_image_filenames)
+        return f"<img src=\"/{filename}\" alt=\"{alt}\">"
+
+    def random_article_content(alt: str) -> str:
+        paragraphs = []
+        for _ in range(random.randint(10, 16)):
+            sentences = [
+                f"{random.choice(content_openers)} {random.choice(content_subjects)} "
+                f"{random.choice(content_actions)} {random.choice(content_endings)}"
+                for _ in range(random.randint(4, 7))
+            ]
+            paragraphs.append("<p>" + " ".join(sentences) + "</p>")
+        content = "".join(paragraphs)
+        while len(content) < 5000:
+            sentence = ("<p>" + f"{random.choice(content_openers)} {random.choice(content_subjects)} "
+                        f"{random.choice(content_actions)} {random.choice(content_endings)} "
+                        f"{random.choice(content_openers)} {random.choice(content_subjects)} "
+                        f"{random.choice(content_actions)} {random.choice(content_endings)}</p>")
+            content += sentence
+        return random_figure(alt) + content
+
     user_token = get_dummy_user_token()
     root_user = upsert_user_by_user_token(user_token)
     created_users.append(root_user)
@@ -58,89 +130,65 @@ def create_dummy_fixtures(req=None) -> None:
     user3 = upsert_user_by_user_token(user_token3)
     created_users.append(user3)
     update_user(user3, UpdateUserDTO(
-        name=user3.name,
-        avatar_action="replace",
-        avatar_filename="6a5118c0-a073-483b-ac5b-79e0a554e703_988x494.png",
+        name=unique_user_name(),
+        avatar_action="delete",
     ), root_user, req)
-    user3.avatar_filename = "6a5118c0-a073-483b-ac5b-79e0a554e703_988x494.png"
     user_token4 = get_dummy_user_token(sub="p4", email="test4@example.com")
     user4 = upsert_user_by_user_token(user_token4)
     created_users.append(user4)
     update_user(user4, UpdateUserDTO(
-        name=user4.name,
+        name=unique_user_name(),
         avatar_action="replace",
         avatar_filename="5b027ec7-c018-4744-9eda-00abf75cf685_1111x712.png",
     ), root_user, req)
     user4.avatar_filename = "5b027ec7-c018-4744-9eda-00abf75cf685_1111x712.png"
-    create_tag_subscription(TagSubscriptionDTO(tags=["tag3"]), root_user)
-    create_tag_subscription(TagSubscriptionDTO(tags=["tag1"]), user3)
-    create_tag_subscription(TagSubscriptionDTO(tags=["tag2", "tag3"]), user4)
-
-    generated_image_filenames = [
-        "3d7af01f-819e-4c2f-bc69-eb7245b76a74_1809x1247.png",
-        "45e97e68-a321-4657-9956-e942d9d757a7_1279x518.png",
-        "5b027ec7-c018-4744-9eda-00abf75cf685_1111x712.png",
-        "6a5118c0-a073-483b-ac5b-79e0a554e703_988x494.png",
-        "a167891d-7e91-40d6-a5c4-1a3ddb27dcc2_1575x842.png",
-    ]
-
-    def random_figure(alt: str) -> str:
-        if random.random() >= 0.3:
-            return ""
-        filename = random.choice(generated_image_filenames)
-        return f'<img src="/{filename}" alt="{alt}">'
+    create_tag_subscription(TagSubscriptionDTO(tags=["observability"]), root_user)
+    create_tag_subscription(TagSubscriptionDTO(tags=["event-driven"]), user3)
+    create_tag_subscription(TagSubscriptionDTO(tags=["databases", "reliability"]), user4)
 
     articles = [
         ArticleDTO(
-            title="Article title #111111111111111111111111",
-            content=random_figure(
-                "Message Queues Explained: Producers, Consumers, and Brokers") + "<p>Article content #111111111111111111111111" * 150 + "</p>",
-            tags=["tag1", "tag2", "tag3"]
+            title=unique_article_title(),
+            content=random_article_content("Message Queues Explained: Producers, Consumers, and Brokers"),
+            tags=random_article_tags()
         ),
         ArticleDTO(
-            title="Article title #22222222222222222222222",
-            content=random_figure(
-                "Event-Driven Architecture: Connecting Services with Events") + "<p>Article content #222222222222222222222222" * 150 + "</p>",
-            tags=["tag2", "tag3"]
+            title=unique_article_title(),
+            content=random_article_content("Event-Driven Architecture: Connecting Services with Events"),
+            tags=random_article_tags()
         ),
         ArticleDTO(
-            title="Article title #3333333333333333333333333",
-            content=random_figure(
-                "Designing Reliable Distributed Systems") + "<p>Article content #33333333333333333333333" * 150 + "</p>",
-            tags=["tag1", "tag3"]
+            title=unique_article_title(),
+            content=random_article_content("Designing Reliable Distributed Systems"),
+            tags=random_article_tags()
         ),
     ]
     for article in articles:
         created_article = create_article(article, root_user)
         update_article_status(created_article, UpdateArticleStatusDTO(status=ArticleStatus.PUBLISHED), root_user, req)
         created_articles.append(created_article)
-    user_token2 = get_dummy_user_token(sub="p2", email="test2@example.com", name="Some test user")
+    user_token2 = get_dummy_user_token(sub="p2", email="test2@example.com", name=unique_user_name())
     user2 = upsert_user_by_user_token(user_token2)
     created_users.append(user2)
     update_user(user2, UpdateUserDTO(
         name=user2.name,
-        avatar_action="replace",
-        avatar_filename="6a5118c0-a073-483b-ac5b-79e0a554e703_988x494.png",
+        avatar_action="delete",
     ), root_user, req)
-    user2.avatar_filename = "6a5118c0-a073-483b-ac5b-79e0a554e703_988x494.png"
     articles = [
         ArticleDTO(
-            title="Article title #111111111111111111111111 for user 2",
-            content=random_figure(
-                "Scaling Systems: From a Single Service to a Platform") + "<p>Article content #111111111111111111111111" * 150 + "</p>",
-            tags=["tag3"]
+            title=unique_article_title(),
+            content=random_article_content("Scaling Systems: From a Single Service to a Platform"),
+            tags=random_article_tags()
         ),
         ArticleDTO(
-            title="Article title #22222222222222222222222 for user 2",
-            content=random_figure(
-                "Article title #22222222222222222222222 for user 2") + "<p>Article content #222222222222222222222222" * 150 + "</p>",
-            tags=["tag2"]
+            title=unique_article_title(),
+            content=random_article_content("Distributed systems fixture article"),
+            tags=random_article_tags()
         ),
         ArticleDTO(
-            title="Article title #3333333333333333333333333 for user 2",
-            content=random_figure(
-                "Article title #3333333333333333333333333 for user 2") + "<p>Article content #33333333333333333333333" * 150 + "</p>",
-            tags=["tag4"]
+            title=unique_article_title(),
+            content=random_article_content("Platform architecture fixture article"),
+            tags=random_article_tags()
         ),
     ]
     for article in articles:
@@ -149,15 +197,11 @@ def create_dummy_fixtures(req=None) -> None:
         created_articles.append(created_article)
 
     # Add enough published articles to exercise sitemap generation with a larger dataset.
-    # Keep the six deterministic articles above unchanged, then bring the total to 75 articles.
     for article_index in range(len(created_articles), 75):
         generated_article = create_article(ArticleDTO(
-            title=f"Generated Fixture Article #{article_index + 1:03d} for Sitemap Testing",
-            content=random_figure("Generated fixture article")
-                    + f"<p>Generated fixture article content #{article_index + 1:03d}.</p>"
-                      "This article exists to exercise article creation, publication, pagination, "
-                      "and sitemap generation with a larger local dataset. " * 120,
-            tags=["tag1", "tag2"] if article_index % 2 else ["tag3"],
+            title=unique_article_title(),
+            content=random_article_content("Generated fixture article"),
+            tags=random_article_tags(),
         ), root_user)
         update_article_status(
             generated_article,
@@ -167,8 +211,8 @@ def create_dummy_fixtures(req=None) -> None:
         )
         created_articles.append(generated_article)
 
-    for tag_name, image_filename in [("tag1", "45e97e68-a321-4657-9956-e942d9d757a7_1279x518.png"),
-                                     ("tag2", "a167891d-7e91-40d6-a5c4-1a3ddb27dcc2_1575x842.png")]:
+    for tag_name, image_filename in [("distributed-systems", "45e97e68-a321-4657-9956-e942d9d757a7_1279x518.png"),
+                                     ("event-driven", "a167891d-7e91-40d6-a5c4-1a3ddb27dcc2_1575x842.png") ]:
         tag = find_tag(tag_name)
         update_tag(tag, UpdateTagDTO(
             name=tag_name,
@@ -189,23 +233,16 @@ def create_dummy_fixtures(req=None) -> None:
             text = comment_texts[(article_index + comment_index) % len(comment_texts)]
             create_article_comment(article, ArticleCommentDTO(text=text), user, req)
 
-    # Seed deterministic article feedback so every rating state is visible in local development.
-    # Each tuple is (likes, dislikes), limited by the number of dummy users.
-    article_feedback_patterns = [
-        (0, 0),  # unrated
-        (1, 0),  # five stars from one positive vote
-        (3, 1),  # mostly positive
-        (1, 3),  # mostly negative
-        (2, 2),  # neutral
-        (4, 0),  # fully positive
-    ]
-    for article, (likes_count, dislikes_count) in zip(created_articles, article_feedback_patterns):
-        for user in created_users[:likes_count]:
+    # Seed article feedback through the same impression flow used by the API.
+    # Each article gets a random, unique subset of the available users as voters.
+    for article in created_articles:
+        voters = random.sample(created_users, k=random.randint(0, len(created_users)))
+        for user in voters:
             update_article_impression(article, UpdateArticleImpressionDTO(
-                action=ArticleImpressionAction.LIKE), user, req)
-        for user in created_users[likes_count:likes_count + dislikes_count]:
-            update_article_impression(article, UpdateArticleImpressionDTO(
-                action=ArticleImpressionAction.DISLIKE), user, req)
+                action=random.choice([
+                    ArticleImpressionAction.LIKE,
+                    ArticleImpressionAction.DISLIKE,
+                ])), user, req)
 
     for user in created_users:
         for user2 in created_users:
@@ -215,38 +252,38 @@ def create_dummy_fixtures(req=None) -> None:
                                        req)
     unpublished_articles = [
         ArticleDTO(
-            title="Unpublished Article title #111111111111111111111111",
-            content="Article content #111111111111111111111111" * 150,
-            tags=["tag1", "tag2", "tag3"]
+            title=unique_article_title(),
+            content=random_article_content("Unpublished fixture article"),
+            tags=random_article_tags()
         ),
         ArticleDTO(
-            title="Unpublished Article title #22222222222222222222222",
-            content="Article content #2222222222222222222222" * 150,
-            tags=["tag2", "tag3"]
+            title=unique_article_title(),
+            content=random_article_content("Unpublished fixture article"),
+            tags=random_article_tags()
         ),
         ArticleDTO(
-            title="Unpublished Article title #3333333333333333333333333",
-            content="Article content #333333333333333333333" * 150,
-            tags=["tag1", "tag3"]
+            title=unique_article_title(),
+            content=random_article_content("Unpublished fixture article"),
+            tags=random_article_tags()
         ),
     ]
     for article in unpublished_articles:
         create_article(article, user2)
     rejected_articles = [
         ArticleDTO(
-            title="Rejected Article title #111111111111111111111111",
-            content="Article content #111111111111111111111111" * 150,
-            tags=["tag1", "tag2", "tag3"]
+            title=unique_article_title(),
+            content=random_article_content("Rejected fixture article"),
+            tags=random_article_tags()
         ),
         ArticleDTO(
-            title="Rejected Article title #22222222222222222222222",
-            content="Article content #2222222222222222222222" * 150,
-            tags=["tag2", "tag3"]
+            title=unique_article_title(),
+            content=random_article_content("Rejected fixture article"),
+            tags=random_article_tags()
         ),
         ArticleDTO(
-            title="Rejected Article title #3333333333333333333333333",
-            content="Article content #333333333333333333333" * 150,
-            tags=["tag1", "tag3"]
+            title=unique_article_title(),
+            content=random_article_content("Rejected fixture article"),
+            tags=random_article_tags()
         ),
     ]
     for article in rejected_articles:

@@ -2,6 +2,9 @@ import asyncio
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from query_dtos import (
+    TagQueryDTO,
+)
 from shared_deps import (
     OptCurUserDep,
     CurUserDep,
@@ -199,7 +202,7 @@ async def index(cur_user: OptCurUserDep) -> str:
         latest_article_comments,
         popular_users,
     ) = await asyncio.gather(
-        to_thread(get_popular_tags),
+        to_thread(get_popular_tags, TagQueryDTO(limit=40)),
         to_thread(get_latest_published_articles, limit=latest_articles_query.limit),
         to_thread(get_popular_published_articles, limit=5),
         to_thread(get_latest_article_comments, limit=latest_article_comments_query.limit),
@@ -207,8 +210,8 @@ async def index(cur_user: OptCurUserDep) -> str:
     )
     return get_html_content("index.html", {
         "cur_user": cur_user,
-        "featured_tags": popular_tags[:8],
-        "popular_tags": popular_tags[8:],
+        "featured_tags": popular_tags[:12],
+        "popular_tags": popular_tags[12:],
         "latest_articles_query": latest_articles_query,
         "latest_articles": latest_articles,
         "popular_articles": popular_articles,
@@ -270,7 +273,7 @@ async def _articles_page(query_dto: ArticleQueryDep, cur_user: OptCurUserDep) ->
         "articles": articles,
         "tag": tag,
         "tag_subscription": get_user_tag_subscription_for_tags(cur_user,
-                                                                               query_dto.tags) if cur_user and query_dto.tags else None,
+                                                               query_dto.tags) if cur_user and query_dto.tags else None,
     })
 
 

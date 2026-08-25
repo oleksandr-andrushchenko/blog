@@ -109,71 +109,71 @@
         <h2 class="h5 mb-0 text-decoration-underline bi bi-filter"> Filter articles</h2>
 
         <form action="{{ articles_url() }}" method="get" class="d-flex flex-wrap align-items-center gap-3 mb-0">
-                    <input type="hidden" name="type" value="{{ article_query.type }}">
-                    <input type="hidden" name="status" value="{{ article_query.status }}">
+            <input type="hidden" name="type" value="{{ article_query.type }}">
+            <input type="hidden" name="status" value="{{ article_query.status }}">
 
-                    <div class="d-flex flex-wrap align-items-center gap-2">
-                        <div class="d-flex align-items-center gap-2">
-                            <small class="text-secondary bi bi-sort-down"> Show:</small>
-                            <div class="btn-group">
-                                {% set is_latest = article_query.type == ArticleQueryType.LATEST %}
-                                <a href="{{ articles_url(**article_query.get_dict({"type": None if is_latest else ArticleQueryType.LATEST})) }}"
-                                   class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
-                                    {{ ArticleQueryType.LATEST | title }} first
-                                </a>
-                                {% set is_popular = article_query.type == ArticleQueryType.POPULAR %}
-                                <a href="{{ articles_url(**article_query.get_dict({"type": None if is_popular else ArticleQueryType.POPULAR})) }}"
-                                   class="btn {% if is_popular %}btn-primary active{% else %}btn-light{% endif %} bi bi-star{{ "-fill" if is_popular else "" }}">
-                                    {{ ArticleQueryType.POPULAR | title }} first
-                                </a>
-                            </div>
-                        </div>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <small class="text-secondary bi bi-sort-down"> Show:</small>
+                    <div class="btn-group btn-group-sm" role="group">
+                        {% set is_latest = article_query.type == ArticleQueryType.LATEST %}
+                        <a href="{{ articles_url(**article_query.get_dict({"type": None if is_latest else ArticleQueryType.LATEST})) }}"
+                           class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
+                            {{ ArticleQueryType.LATEST | title }} first
+                        </a>
+                        {% set is_popular = article_query.type == ArticleQueryType.POPULAR %}
+                        <a href="{{ articles_url(**article_query.get_dict({"type": None if is_popular else ArticleQueryType.POPULAR})) }}"
+                           class="btn {% if is_popular %}btn-primary active{% else %}btn-light{% endif %} bi bi-star{{ "-fill" if is_popular else "" }}">
+                            {{ ArticleQueryType.POPULAR | title }} first
+                        </a>
+                    </div>
+                </div>
 
-                        <div class="d-flex flex-wrap align-items-center gap-2">
-                            <small class="text-secondary bi bi-tags"> Filter by tags:</small>
-                            {% with url=url("get-tags", absolute=True),
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <small class="text-secondary bi bi-tags"> Filter by tags:</small>
+                    {% with url=url("get-tags", absolute=True),
                             value=article_query.tags,
                             tag_items=article_query_tag_items,
                             class_name="w-auto",
                             auto_submit=False,
                             inject_hidden=True %}
-                                {% include "fragments/tags-input.html" %}
-                            {% endwith %}
+                        {% include "fragments/tags-input.html" %}
+                    {% endwith %}
 
-                            <button class="btn btn-light bi bi-search" type="submit"> Search</button>
+                    <button class="btn btn-light bi bi-search" type="submit"> Search</button>
+                </div>
+
+                {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE) %}
+                    <div class="d-flex align-items-center gap-2">
+                        <small class="text-secondary bi bi-toggle2-on"> Filter by status:</small>
+                        <div class="btn-group btn-group-sm" role="group">
+                            {% set is_published = article_query.status == ArticleStatus.PUBLISHED %}
+                            <a href="{{ articles_url(**article_query.get_dict({"status": None if is_published else ArticleStatus.PUBLISHED})) }}"
+                               class="btn {% if is_published %}btn-success active{% else %}btn-light{% endif %}">
+                                {{ ArticleStatus.PUBLISHED | title }}
+                            </a>
+
+                            {% set is_unpublished = article_query.status == ArticleStatus.UNPUBLISHED %}
+                            <a href="{{ articles_url(**article_query.get_dict({"status": None if is_unpublished else ArticleStatus.UNPUBLISHED})) }}"
+                               class="btn {% if is_unpublished %}btn-warning active{% else %}btn-light{% endif %}">
+                                {{ ArticleStatus.UNPUBLISHED | title }}
+                            </a>
+
+                            {% set is_rejected = article_query.status == ArticleStatus.REJECTED %}
+                            <a href="{{ articles_url(**article_query.get_dict({"status": None if is_rejected else ArticleStatus.REJECTED})) }}"
+                               class="btn {% if is_rejected %}btn-danger active{% else %}btn-light{% endif %}">
+                                {{ ArticleStatus.REJECTED | title }}
+                            </a>
                         </div>
-
-                        {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE) %}
-                            <div class="d-flex align-items-center gap-2">
-                                <small class="text-secondary bi bi-toggle2-on"> Filter by status:</small>
-                                <div class="btn-group">
-                                    {% set is_published = article_query.status == ArticleStatus.PUBLISHED %}
-                                    <a href="{{ articles_url(**article_query.get_dict({"status": None if is_published else ArticleStatus.PUBLISHED})) }}"
-                                       class="btn {% if is_published %}btn-success active{% else %}btn-light{% endif %}">
-                                        {{ ArticleStatus.PUBLISHED | title }}
-                                    </a>
-
-                                    {% set is_unpublished = article_query.status == ArticleStatus.UNPUBLISHED %}
-                                    <a href="{{ articles_url(**article_query.get_dict({"status": None if is_unpublished else ArticleStatus.UNPUBLISHED})) }}"
-                                       class="btn {% if is_unpublished %}btn-warning active{% else %}btn-light{% endif %}">
-                                        {{ ArticleStatus.UNPUBLISHED | title }}
-                                    </a>
-
-                                    {% set is_rejected = article_query.status == ArticleStatus.REJECTED %}
-                                    <a href="{{ articles_url(**article_query.get_dict({"status": None if is_rejected else ArticleStatus.REJECTED})) }}"
-                                       class="btn {% if is_rejected %}btn-danger active{% else %}btn-light{% endif %}">
-                                        {{ ArticleStatus.REJECTED | title }}
-                                    </a>
-                                </div>
-                            </div>
-                        {% endif %}
-
-                        {% if article_query.has_params() %}
-                            <div>
-                                <a href="{{ articles_url() }}" class="btn btn-light bi bi-x-lg"> Reset</a>
-                            </div>
-                        {% endif %}
                     </div>
+                {% endif %}
+
+                {% if article_query.has_params() %}
+                    <div>
+                        <a href="{{ articles_url() }}" class="btn btn-light bi bi-x-lg"> Reset</a>
+                    </div>
+                {% endif %}
+            </div>
         </form>
 
         {% if tag and cur_user and check_auth(cur_user, Permission.UPDATE_TAG) %}
@@ -194,7 +194,9 @@
     {% endif %}
 
     {% if articles %}
-        <section id="articles" class="d-flex flex-column gap-3">
+        <section id="articles" class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-2" data-masonry='{"percentPosition": true }'>
+            {% include "fragments/tag-subscription.html" %}
+
             {% with h_tag_size=2,
                 article_img_sizes={"1400px": "196px", "1200px": "166px", "992px": "96px", "768px": "156px", "default": "100vw"} %}
                 {% include "fragments/articles.html" %}
@@ -212,6 +214,4 @@
     {% else %}
         <div>N/A</div>
     {% endif %}
-
-    {% include "fragments/tag-subscription.html" %}
 {% endblock %}

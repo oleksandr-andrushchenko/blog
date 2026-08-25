@@ -1,29 +1,27 @@
-{% set image = image | default(True) and tag.image_filename %}
-{% set image_class = image_class | default("card-img-top object-fit-cover") %}
-{% set image_style = image_style | default("height: 8rem;") %}
+{% set image = tag.image_filename %}
+{% set image_style = image_style | default("height: auto;") %}
 {% set tag_img_sizes = tag_img_sizes | default({"768px": "25vw", "default": "100vw"}) %}
 {% set h_tag_size = h_tag_size | default(2) %}
 {% set h_display_size = h_display_size | default(5) %}
-{% set show_count = show_count | default(True) %}
-{% set card_class = card_class | default("card h-100 text-decoration-none link-body-emphasis") %}
 
-<div class="col"{% if tag.offset %} data-offset="{{ tag.offset }}"{% endif %}>
-    <a href="{{ articles_url(tags=[tag.slug]) }}" class="{{ card_class }}">
+<div class="tag col"{% if tag.offset %} data-offset="{{ tag.offset }}"{% endif %}>
+    <a href="{{ articles_url(tags=[tag.slug]) }}"
+       class="card text-bg-light shadow-sm overflow-hidden text-decoration-none link-body-emphasis h-100">
         {% if image %}
-            {% with filename=tag.image_filename,
+            {% with filename=image,
                 alt=tag.name,
-                img_class=image_class,
+                img_class="card-img-top w-100 h-auto",
                 img_style=image_style,
                 img_sizes=tag_img_sizes,
                 figure=False %}
                 {% include "fragments/image.html" %}
             {% endwith %}
         {% endif %}
-        <div class="card-body d-flex justify-content-between align-items-center gap-2">
+        <div class="card-body d-flex flex-column gap-2">
             <h{{ h_tag_size }} class="h{{ h_display_size }} mb-0">{{ tag.name }}</h{{ h_tag_size }}>
-            {% if show_count %}
-                <span class="badge text-bg-light">{{ tag.articles_count }}</span>
-            {% endif %}
+            <span class="badge text-bg-light align-self-start">
+                {{ tag.articles_count }} article{% if tag.articles_count != 1 %}s{% endif %}
+            </span>
         </div>
     </a>
 </div>

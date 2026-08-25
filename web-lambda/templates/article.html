@@ -160,11 +160,8 @@
 
         <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4 border-start">
             <section class="d-flex flex-column gap-3">
-                <h2 class="h5 mb-0 text-decoration-underline">Author</h2>
-                {% with user=author,
-                    h_tag_size=3,
-                    image_column_size={"def":3,"md":2},
-                    border=False %}
+                <h2 class="h5 mb-0 text-decoration-underline">Article's Author</h2>
+                {% with user=author, h_tag_size=3 %}
                     {% include "fragments/user.html" %}
                 {% endwith %}
             </section>
@@ -174,7 +171,7 @@
             {% endwith %}
 
             <section class="d-flex flex-column gap-3">
-                <h2 class="h5 mb-0 text-decoration-underline">Article info</h2>
+                <h2 class="h5 mb-0 text-decoration-underline">Article's info & actions</h2>
                 <div class="d-flex flex-column gap-1">
                     {% if article.tags %}
                         <div>
@@ -199,28 +196,6 @@
                         </div>
                     {% endif %}
 
-                    <div>
-                        <small class="text-secondary bi bi-calendar2"> Created:</small>
-                        {{ (article.created_at / 1000) | unix_to_full_date }}
-
-                        {% if article.updated_at %}
-                            <br>
-                            <small class="text-secondary">Updated:</small>
-                            {{ (article.updated_at / 1000) | unix_to_full_date }}
-                        {% endif %}
-
-                        {% if article.published_at %}
-                            <br>
-                            <small class="text-secondary">Published:</small>
-                            {{ (article.published_at / 1000) | unix_to_full_date }}
-                        {% endif %}
-                    </div>
-                </div>
-            </section>
-
-            <section class="d-flex flex-column gap-3">
-                <h2 class="h5 mb-0 text-decoration-underline">Article actions</h2>
-                <div class="d-flex flex-column gap-1">
                     {% include "fragments/article-status.html" %}
                     {% include "fragments/article-impressions.html" %}
 
@@ -248,8 +223,8 @@
                     <h2 class="h5 mb-0 text-decoration-underline">Related articles</h2>
                     <div id="related-articles" class="d-flex flex-column gap-3">
                         {% with articles=related_articles,
+                            horizontal=True,
                             preview=False,
-                            border=False,
                             vert_gap=0,
                             h_tag_size=3,
                             h_display_size=6,

@@ -2,20 +2,10 @@ from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 
 
-def _limit(value) -> int:
-    try:
-        value = int(value)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("limit must be an integer") from exc
-    if not 1 <= value <= 20 and value != 1000:
-        raise ValueError("limit must be between 1 and 20")
-    return value
-
-
 @dataclass(slots=True)
 class BaseQueryDTO:
     DEFAULT_OFFSET = None
-    DEFAULT_LIMIT = 20
+    DEFAULT_LIMIT = 40
 
     offset: str | None = DEFAULT_OFFSET
     limit: int = DEFAULT_LIMIT
@@ -30,6 +20,16 @@ class BaseQueryDTO:
 
     def has_params(self):
         return self.offset is not None or self.limit != self.DEFAULT_LIMIT
+
+
+def _limit(value) -> int:
+    try:
+        value = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("limit must be an integer") from exc
+    if not 1 <= value <= BaseQueryDTO.DEFAULT_LIMIT and value != 1000:
+        raise ValueError("limit must be between 1 and " + str(BaseQueryDTO.DEFAULT_LIMIT))
+    return value
 
 
 class UserQueryType(StrEnum):

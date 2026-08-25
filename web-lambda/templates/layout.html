@@ -207,23 +207,21 @@
     </nav>
 </header>
 
-<main>
-    <div class="container pb-3">
-        {% block breadcrumbs %}{% endblock %}
+<main class="pb-3 {{ main_class | default("container") }}">
+    {% block breadcrumbs %}{% endblock %}
 
-        <!-- Cookie alert -->
-        <div class="alert alert-secondary alert-dismissible fade fixed-bottom m-0" role="alert" id="cookie-alert">
-            <div class="container d-flex justify-content-between align-items-center">
-                <div>
-                    This website uses cookies to ensure you get the best experience.
-                    <a href="{{ url('policy') }}" class="alert-link">Learn more</a>.
-                </div>
-                <button type="button" class="btn btn-dark btn-sm bi bi-check2-all" id="accept-cookies"> Accept</button>
+    <!-- Cookie alert -->
+    <div class="alert alert-secondary alert-dismissible fade fixed-bottom m-0" role="alert" id="cookie-alert">
+        <div class="container d-flex justify-content-between align-items-center">
+            <div>
+                This website uses cookies to ensure you get the best experience.
+                <a href="{{ url('policy') }}" class="alert-link">Learn more</a>.
             </div>
+            <button type="button" class="btn btn-dark btn-sm bi bi-check2-all" id="accept-cookies"> Accept</button>
         </div>
-
-        {% block content %}{% endblock %}
     </div>
+
+    {% block content %}{% endblock %}
 </main>
 
 <footer class="mt-auto bg-light">
@@ -304,5 +302,8 @@
 <script src="{{ static_url('scripts.js', _=js_cache_counter) }}"></script>
 <!-- Code samples highlight -->
 <link href="https://cdn.jsdelivr.net/npm/prismjs@1.x/themes/prism.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js"
+        integrity="sha384-GNFwBvfVxBkLMJpYMOABq3c+d3KnQxudP/mGPkzpZSTYykLBNsZEnG2D9G/X/+7D"
+        crossorigin="anonymous"></script>
 </body>
 </html>

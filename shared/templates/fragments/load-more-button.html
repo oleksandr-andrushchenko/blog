@@ -1,3 +1,5 @@
+{% set auto_click = auto_click | default(True) %}
+
 {% if limit == count %}
     <button class="btn btn-light btn-sm btn-load-more"
             data-limit="{{ limit }}"

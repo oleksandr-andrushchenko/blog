@@ -1,57 +1,19 @@
-{% set image = image | default(True) %}
 {% set vert_gap = vert_gap | default(1) %}
 {% set h_tag_size = h_tag_size | default(2) %}
 {% set h_display_size = h_display_size | default(3) %}
-{% set image_column_size = image_column_size | default({"def":2,"sm":1}) if image else 0 %}
-{% set border = border | default(True) %}
 {% set user_avatar_img_sizes = user_avatar_img_sizes | default({"default": "120px"}) %}
 
-<div class="user row g-3 {% if border %}pb-3 border-bottom{% endif %}"
-     {% if user.offset %}data-offset="{{ user.offset }}"{% endif %}>
-    {% if image %}
-        <div class="{{ image_column_size | column_classes }}">
-            <a href="{{ user_url(user) }}">
+<div class="user col"{% if user.offset %} data-offset="{{ user.offset }}"{% endif %}>
+    <div class="card shadow-sm overflow-hidden d-flex flex-row rounded-pill align-items-center p-2">
+        <a class="d-flex h-100 w-100 flex-shrink-0 justify-content-center"
+           style="flex:0 0 25%; max-width:25%;" href="{{ user_url(user) }}">
+            {% with avatar_img_class="img-fluid d-block rounded-circle",
+                    avatar_wrapper_style="height:100%; width:auto; aspect-ratio:1 / 1; max-width:100%; align-self:center; flex-shrink:0; overflow:hidden; border-radius:50%;",
+                    user_avatar_img_sizes=user_avatar_img_sizes %}
                 {% include "fragments/user-avatar.html" %}
-            </a>
-        </div>
-    {% endif %}
-
-    <div class="{{ image_column_size | column_classes(inverse=True) }} d-flex flex-column gap-{{ vert_gap }}">
-        <a class="link-body-emphasis text-decoration-none d-flex flex-column gap-{{ vert_gap }}"
-           href="{{ user_url(user) }}">
-            <h{{ h_tag_size }} class="h{{ h_display_size | default(3) }} mb-0">{{ user.name }}</h{{ h_tag_size }}>
-
-            {% if user.headline %}
-                <div>{{ user.headline }}</div>
-            {% endif %}
+            {% endwith %}
         </a>
 
-        <div class="d-flex flex-wrap gap-2">
-            <small class="text-secondary bi bi-calendar2" title="Joined at">
-                {{ (user.created_at / 1000) | unix_to_full_date }}
-            </small>
-
-            {% if user.status == UserStatus.BANNED %}
-                <span class="badge text-bg-danger fs-6" title="{{ user.comment }}">Banned</span>
-            {% endif %}
-
-            {% if user.followers_count %}
-                <small class="text-secondary bi bi-heart" title="Followers">
-                    {{ user.followers_count }}
-                </small>
-            {% endif %}
-
-            {% if user.published_articles_count %}
-                <small class="text-secondary bi bi-pencil" title="Articles written">
-                    {{ user.published_articles_count }}
-                </small>
-            {% endif %}
-
-            {% if user.article_comments_count %}
-                <small class="text-secondary bi bi-chat" title="Article comments added">
-                    {{ user.article_comments_count }}
-                </small>
-            {% endif %}
-        </div>
+        {% include "fragments/user-body.html" %}
     </div>
 </div>

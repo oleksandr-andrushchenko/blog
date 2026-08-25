@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 
 {% set meta_title = site_name ~ " - " ~ site_short_desc %}
+{% set main_class = "" %}
 {% set meta_robots = "index, follow" %}
 {% set meta_canonical_url = url("index", absolute=True) %}
 {% block meta_schema %}
@@ -16,95 +17,136 @@
 {% endblock %}
 
 {% block content %}
-    <div class="row g-5 pt-4">
-        <div class="col col-12 col-lg-6 col-xl-8">
-            <h1 class="h2 d-inline-block">{{ site_name }}</h1>
-            <p class="small text-secondary d-inline-block">&mdash; {{ site_short_desc }}</p>
-            <p class="d-none d-lg-inline-block small">{{ site_desc }}</p>
+    {% if False and site_img_filename %}
+        {% with filename=site_img_filename, alt=site_about, figure=True %}
+            {% include "fragments/image.html" %}
+        {% endwith %}
+    {% endif %}
 
-            {% if False and site_img_filename %}
-                {% with filename=site_img_filename, alt=site_about, figure=True %}
-                    {% include "fragments/image.html" %}
-                {% endwith %}
+    <section class="p-4 p-lg-5 text-bg-light shadow-sm overflow-hidden">
+        <div class="container">
+            <h1 class="d-inline text-body">{{ site_name }} <i class="bi bi-{{ site_icon }}"></i></h1>
+            <span class="mt-2 text-body fw-bold">&mdash; {{ site_short_desc }}</span>
+            <p class="mt-3 text-body-secondary">{{ site_desc }}</p>
+            <div class="mt-4">
+                <a href="{{ articles_url() }}" class="btn btn-dark">
+                    <i class="bi bi-compass me-1" aria-hidden="true"></i>
+                    Explore articles
+                </a>
+                <a href="{{ users_url() }}" class="btn btn-outline-dark btn-sm">
+                    <i class="bi bi-people me-1" aria-hidden="true"></i>
+                    Meet the community
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <div class="container mt-4">
+        <section class="d-flex flex-column gap-2">
+            <h2 class="h5 mb-0 text-decoration-underline">Popular tags</h2>
+            {% if featured_tags %}
+                <div class="row row-cols-1 row-cols-md-6 g-3">
+                    {% for tag in featured_tags %}
+                        {% include "fragments/tag.html" %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div>N/A</div>
             {% endif %}
+        </section>
 
-            <section class="d-flex flex-column gap-3 mt-4">
-                <h2 class="h5 mb-0 text-decoration-underline">Popular tags</h2>
-                {% if featured_tags %}
-                    <div class="row row-cols-1 row-cols-md-4 g-3">
-                        {% for tag in featured_tags %}
-                            {% include "fragments/tag.html" %}
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div>N/A</div>
+        <div class="row mt-4">
+            <div class="col col-12 col-lg-6 col-xl-8">
+                {% if show_popular_articles %}
+                    <section class="d-flex flex-column gap-2">
+                        <h2 class="h5 mb-0">
+                            <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}" class="link-body-emphasis">
+                                Popular articles
+                            </a>
+                        </h2>
+                        {% if popular_articles %}
+                            <div id="popular-articles" class="d-flex flex-column gap-2">
+                                {% with articles=popular_articles,
+                                preview=False,
+                                vert_gap=0,
+                                h_display_size=6,
+                                horizontal=True,
+                                article_img_sizes={"1400px": "86px", "1200px": "71px", "992px": "96px", "768px": "156px", "default": "100vw"} %}
+                                    {% include "fragments/articles.html" %}
+                                {% endwith %}
+
+                                <div>
+                                    <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}"
+                                       class="btn btn-light btn-sm bi bi-star">
+                                        See all popular articles
+                                    </a>
+                                    <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}"
+                                       class="btn btn-light btn-sm bi bi-tags">
+                                        Search popular articles by tags
+                                    </a>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div>N/A</div>
+                        {% endif %}
+                    </section>
                 {% endif %}
-            </section>
 
-            <section class="d-flex flex-column gap-3 mt-4">
-                <h2 class="h5 mb-0">
-                    <a href="{{ articles_url() }}" class="link-body-emphasis">Latest articles</a>
-                </h2>
-                {% if latest_articles %}
-                    <div id="articles" class="d-flex flex-column gap-3">
-                        {% with articles=latest_articles,
+                <section class="d-flex flex-column gap-2 mt-4">
+                    <h2 class="h5 mb-0">
+                        <a href="{{ articles_url() }}" class="link-body-emphasis">Latest articles</a>
+                    </h2>
+                    {% if latest_articles %}
+                        <div id="articles" class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3"
+                             data-masonry='{"percentPosition": true }'>
+                            {% with articles=latest_articles,
                             article_img_sizes={"1400px": "196px", "1200px": "166px", "992px": "96px", "768px": "156px", "default": "100vw"} %}
-                            {% include "fragments/articles.html" %}
-                        {% endwith %}
-                    </div>
+                                {% include "fragments/articles.html" %}
+                            {% endwith %}
+                        </div>
 
-                    {% with limit=latest_articles_query.limit,
+                        {% with limit=latest_articles_query.limit,
                         offset=latest_articles[-1].offset,
                         count=latest_articles | length,
                         url=url("articles-fragment", absolute=True, **latest_articles_query.get_dict()),
                         container="#articles",
                         auto_click=True %}
-                        {% include "fragments/load-more-button.html" %}
-                    {% endwith %}
+                            {% include "fragments/load-more-button.html" %}
+                        {% endwith %}
 
-                    <div>
-                        <a href="{{ articles_url(type=ArticleQueryType.LATEST) }}"
-                           class="btn btn-light btn-sm bi bi-clock">
-                            See all latest articles
-                        </a>
-                        <a href="{{ articles_url(type=ArticleQueryType.LATEST) }}"
-                           class="btn btn-light btn-sm bi bi-tags">
-                            Search latest articles by tags
-                        </a>
-                    </div>
-                {% else %}
-                    <div>N/A</div>
-                {% endif %}
-            </section>
-        </div>
+                        <div>
+                            <a href="{{ articles_url(type=ArticleQueryType.LATEST) }}"
+                               class="btn btn-light btn-sm bi bi-clock">
+                                See all latest articles
+                            </a>
+                            <a href="{{ articles_url(type=ArticleQueryType.LATEST) }}"
+                               class="btn btn-light btn-sm bi bi-tags">
+                                Search latest articles by tags
+                            </a>
+                        </div>
+                    {% else %}
+                        <div>N/A</div>
+                    {% endif %}
+                </section>
+            </div>
 
-        <div class="col col-12 col-lg-6 col-xl-4 border-start">
-            {% if show_popular_articles %}
-                <section class="d-flex flex-column gap-3">
-                    <h2 class="h5 mb-0">
-                        <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}" class="link-body-emphasis">
-                            Popular articles
-                        </a>
-                    </h2>
-                    {% if popular_articles %}
-                        <div id="popular-articles" class="d-flex flex-column gap-3">
-                            {% with articles=popular_articles,
-                                preview=False,
-                                border=False,
-                                vert_gap=0,
-                                h_display_size=6,
-                                article_img_sizes={"1400px": "86px", "1200px": "71px", "992px": "96px", "768px": "156px", "default": "100vw"} %}
-                                {% include "fragments/articles.html" %}
-                            {% endwith %}
+            <div class="col col-12 col-lg-6 col-xl-4 border-start">
+                <section class="d-flex flex-column gap-2 mt-4">
+                    <h2 class="h5 mb-0 text-decoration-underline">More tags</h2>
+                    {% if popular_tags %}
+                        <div id="popular-tags">
+                            {% for tag in popular_tags %}
+                                <a href="{{ articles_url(tags=[tag.slug]) }}" class="btn btn-light btn-sm tag mb-1">
+                                    <h3 class="h6 fw-normal mb-0">{{ tag.name }} ({{ tag.articles_count }})</h3>
+                                </a>
+                            {% endfor %}
 
                             <div>
-                                <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}"
-                                   class="btn btn-light btn-sm bi bi-star">
-                                    See all popular articles
+                                <a href="{{ url("tags") }}" class="btn btn-light btn-sm bi bi-tags">
+                                    See all tags
                                 </a>
-                                <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}"
-                                   class="btn btn-light btn-sm bi bi-tags">
-                                    Search popular articles by tags
+                                <a href="{{ articles_url() }}" class="btn btn-light btn-sm bi bi-tags">
+                                    Search articles by tags
                                 </a>
                             </div>
                         </div>
@@ -112,119 +154,95 @@
                         <div>N/A</div>
                     {% endif %}
                 </section>
-            {% endif %}
 
-            <section class="d-flex flex-column gap-3{% if show_popular_articles %} mt-4{% endif %}">
-                <h2 class="h5 mb-0 text-decoration-underline">Popular tags</h2>
-                {% if popular_tags %}
-                    <div id="popular-tags">
-                        {% for tag in popular_tags %}
-                            <a href="{{ articles_url(tags=[tag.slug]) }}" class="btn btn-light btn-sm tag mb-1">
-                                <h3 class="h6 fw-normal mb-0">{{ tag.name }} ({{ tag.articles_count }})</h3>
-                            </a>
-                        {% endfor %}
+                {% if cur_user and cur_user.published_articles_count==0 %}
+                    <section class="card mt-4">
+                        <div class="card-body d-flex flex-column gap-2">
+                            <div class="d-flex align-items-center gap-2 fw-semibold">
+                                <i class="bi bi-lightbulb"></i>
+                                <h2 class="h4 mb-0">Become an author</h2>
+                            </div>
 
-                        <div>
-                            <a href="{{ url("tags") }}" class="btn btn-light btn-sm bi bi-tags">
-                                See all tags
-                            </a>
-                            <a href="{{ articles_url() }}" class="btn btn-light btn-sm bi bi-tags">
-                                Search articles by tags
-                            </a>
+                            <div class="text-muted small">
+                                Share your ideas and earn money from your content.
+                            </div>
+
+                            <div>
+                                <a href="{{ url("earn") }}" class="btn btn-warning fw-semibold bi bi-currency-dollar">
+                                    Earn with us
+                                </a>
+                                <a href="{{ url('new-article') }}"
+                                   class="btn btn-light fw-semibold bi bi-pencil-fill{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}">
+                                    Write a article
+                                </a>
+                            </div>
                         </div>
-                    </div>
-                {% else %}
-                    <div>N/A</div>
+                    </section>
                 {% endif %}
-            </section>
 
-            {% if cur_user and cur_user.published_articles_count==0 %}
-                <section class="card mt-4">
-                    <div class="card-body d-flex flex-column gap-2">
-                        <div class="d-flex align-items-center gap-2 fw-semibold">
-                            <i class="bi bi-lightbulb"></i>
-                            <h2 class="h4 mb-0">Become an author</h2>
+                {% if not cur_user %}
+                    <section class="card mt-4">
+                        <div class="card-body d-flex flex-column gap-2">
+                            <div class="d-flex align-items-center gap-2 fw-semibold">
+                                <h2 class="h4 mb-0">Become an Author</h2>
+                            </div>
+
+                            <div class="text-muted small">
+                                Join our community, share your ideas, and earn money from your content.
+                            </div>
+
+                            <div>
+                                <a href="{{ url("earn") }}" class="btn btn-warning fw-semibold bi bi-currency-dollar">
+                                    Earn with us
+                                </a>
+                                <a href="{{ url('login', redirect_url=url('new-article')) }}"
+                                   class="btn btn-primary fw-semibold bi bi-pencil-fill">
+                                    Write a article
+                                </a>
+                            </div>
                         </div>
+                    </section>
+                {% endif %}
 
-                        <div class="text-muted small">
-                            Share your ideas and earn money from your content.
-                        </div>
-
-                        <div>
-                            <a href="{{ url("earn") }}" class="btn btn-warning fw-semibold bi bi-currency-dollar">
-                                Earn with us
-                            </a>
-                            <a href="{{ url('new-article') }}"
-                               class="btn btn-light fw-semibold bi bi-pencil-fill{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}">
-                                Write a article
-                            </a>
-                        </div>
-                    </div>
-                </section>
-            {% endif %}
-
-            {% if not cur_user %}
-                <section class="card mt-4">
-                    <div class="card-body d-flex flex-column gap-2">
-                        <div class="d-flex align-items-center gap-2 fw-semibold">
-                            <h2 class="h4 mb-0">Become an Author</h2>
-                        </div>
-
-                        <div class="text-muted small">
-                            Join our community, share your ideas, and earn money from your content.
-                        </div>
-
-                        <div>
-                            <a href="{{ url("earn") }}" class="btn btn-warning fw-semibold bi bi-currency-dollar">
-                                Earn with us
-                            </a>
-                            <a href="{{ url('login', redirect_url=url('new-article')) }}"
-                               class="btn btn-primary fw-semibold bi bi-pencil-fill">
-                                Write a article
-                            </a>
-                        </div>
-                    </div>
-                </section>
-            {% endif %}
-
-            <section class="d-flex flex-column gap-3 mt-4">
-                <h2 class="h5 mb-0 text-decoration-underline">
-                    <a href="{{ users_url(type=UserQueryType.POPULAR) }}" class="link-body-emphasis">Popular users</a>
-                </h2>
-                {% if popular_users %}
-                    <div id="popular-users" class="d-flex flex-column gap-3">
-                        {% with users=popular_users,
-                            border=False,
+                <section class="d-flex flex-column gap-2 mt-4">
+                    <h2 class="h5 mb-0 text-decoration-underline">
+                        <a href="{{ users_url(type=UserQueryType.POPULAR) }}" class="link-body-emphasis">Popular
+                            users</a>
+                    </h2>
+                    {% if popular_users %}
+                        <div id="popular-users" class="d-flex flex-column gap-2">
+                            {% with users=popular_users,
                             vert_gap=0,
                             h_tag_size=3,
                             h_display_size=6,
                             image_column_size={"def":3,"md":2},
                             user_avatar_img_sizes={"1400px": "49px", "1200px": "40px", "992px": "56px", "768px": "96px", "default": "120px"} %}
-                            {% include "fragments/users.html" %}
-                        {% endwith %}
+                                {% include "fragments/users.html" %}
+                            {% endwith %}
 
-                        <div>
-                            <a href="{{ users_url(type=UserQueryType.POPULAR) }}"
-                               class="btn btn-light btn-sm bi bi-heart">
-                                See all popular authors
-                            </a>
+                            <div>
+                                <a href="{{ users_url(type=UserQueryType.POPULAR) }}"
+                                   class="btn btn-light btn-sm bi bi-heart">
+                                    See all popular authors
+                                </a>
+                            </div>
                         </div>
-                    </div>
-                {% else %}
-                    <div>N/A</div>
-                {% endif %}
-            </section>
+                    {% else %}
+                        <div>N/A</div>
+                    {% endif %}
+                </section>
 
-            <section class="d-flex flex-column gap-3 mt-4">
-                <h2 class="h5 mb-0 text-decoration-underline">Latest comments</h2>
-                {% if latest_article_comments %}
-                    <div id="latest-article-comments" class="d-flex flex-column gap-3">
-                        {% include "fragments/latest-article-comments.html" %}
-                    </div>
-                {% else %}
-                    <div>N/A</div>
-                {% endif %}
-            </section>
+                <section class="d-flex flex-column gap-2 mt-4">
+                    <h2 class="h5 mb-0 text-decoration-underline">Latest comments</h2>
+                    {% if latest_article_comments %}
+                        <div id="latest-article-comments" class="d-flex flex-column gap-2">
+                            {% include "fragments/latest-article-comments.html" %}
+                        </div>
+                    {% else %}
+                        <div>N/A</div>
+                    {% endif %}
+                </section>
+            </div>
         </div>
     </div>
 {% endblock %}

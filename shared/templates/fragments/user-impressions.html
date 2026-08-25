@@ -4,7 +4,7 @@
     <div><b class="following-count">{{ user.following_count }}</b> <small class="text-secondary">Following</small></div>
 
     {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER_IMPRESSION, user) and cur_user.id != user.id %}
-        <div class="btn-group">
+        <div class="btn-group btn-group-sm" role="group">
             <!-- Follow / Unfollow Button -->
             {% set is_followed = user_impression and user_impression.action == UserImpressionAction.FOLLOW %}
             <button type="button"

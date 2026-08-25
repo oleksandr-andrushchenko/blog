@@ -1,10 +1,10 @@
 {% set name = user.name %}
 
-<div class="avatar-wrapper" style="width:100%; aspect-ratio:1 / 1;">
+<div class="avatar-wrapper" style="{{ avatar_wrapper_style | default("width:100%; aspect-ratio:1 / 1;") }}">
     {% if user.avatar_filename %}
         {% with filename=user.avatar_filename,
             alt=name,
-            img_class="rounded-circle img-fluid d-block",
+            img_class=avatar_img_class | default("rounded-circle img-fluid d-block"),
             img_style="width:100%; height:100%; object-fit:cover;",
             img_sizes=user_avatar_img_sizes | default({"default": "120px"}) %}
             {% include "fragments/image.html" %}

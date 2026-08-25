@@ -19,6 +19,32 @@ const ajaxResponse = options => new Promise(resolve => {
 })
 const toKebabCase = str => String(str || "").trim().toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-")
 
+function getMasonryInstance(container) {
+  if (typeof Masonry === "undefined" || !container.matches("[data-masonry]")) return null
+
+  let masonry = Masonry.data(container)
+  if (masonry) return masonry
+
+  try {
+    const options = JSON.parse(container.dataset.masonry || "{}")
+    masonry = new Masonry(container, options)
+  } catch (err) {
+    console.error("Unable to initialize Masonry:", err)
+  }
+  return masonry
+}
+
+function initializeMasonryContainers() {
+  if (typeof Masonry === "undefined") return
+  document.querySelectorAll("[data-masonry]").forEach(getMasonryInstance)
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initializeMasonryContainers, {once: true})
+} else {
+  initializeMasonryContainers()
+}
+
 
 $.fn.setButtonLoading = function (loadingText = "Loading...") {
   return this.each(function () {
@@ -321,7 +347,19 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
         return
       }
 
-      container.insertAdjacentHTML("beforeend", content)
+      const fragment = document.createRange().createContextualFragment(content)
+      const newElements = Array.from(fragment.children)
+      container.append(fragment)
+
+      const masonry = getMasonryInstance(container)
+      if (masonry && newElements.length) {
+        masonry.appended(newElements)
+        const images = newElements.flatMap(element => Array.from(element.querySelectorAll("img")))
+        Promise.all(images.map(image => image.complete ? Promise.resolve() : new Promise(resolve => {
+          image.addEventListener("load", resolve, {once: true})
+          image.addEventListener("error", resolve, {once: true})
+        }))).then(() => masonry.layout())
+      }
 
       const lastElement = container.lastElementChild
       const newOffset = lastElement.dataset.offset
