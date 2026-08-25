@@ -90,7 +90,6 @@
 
         {% with limit=tags_query.limit,
                 offset=tags[-1].offset,
-                count=tags | length,
                 url=url("tags-fragment", absolute=True, **tags_query.get_dict()),
                 container="#tags",
                 auto_click=True %}

@@ -107,7 +107,6 @@
 
                         {% with limit=latest_articles_query.limit,
                         offset=latest_articles[-1].offset,
-                        count=latest_articles | length,
                         url=url("articles-fragment", absolute=True, **latest_articles_query.get_dict()),
                         container="#articles",
                         auto_click=True %}

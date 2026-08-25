@@ -277,7 +277,6 @@
 
                         {% with limit=article_query.limit,
                         offset=articles[-1].offset,
-                        count=articles|length,
                         url=url("user-articles-fragment", user_id=user.id, absolute=True, **article_query.get_dict()),
                         container="#articles" %}
                             {% include "fragments/load-more-button.html" %}

@@ -1,6 +1,6 @@
 {% set auto_click = auto_click | default(True) %}
 
-{% if limit == count %}
+{% if offset %}
     <button class="btn btn-light btn-sm btn-load-more"
             data-limit="{{ limit }}"
             data-offset="{{ offset }}"
