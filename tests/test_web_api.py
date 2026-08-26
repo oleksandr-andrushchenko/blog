@@ -288,7 +288,7 @@ def check_latest_article_comments(doc, comments_count: int, comment_texts: list[
     main_el = doc("main")
     comments_el = main_el("#latest-article-comments")
     if comments_count:
-        assert len(comments_el(".latest-article-comment")) == comments_count
+        assert len(comments_el(".article-comment")) == comments_count
         rendered_text = comments_el.text()
         for comment_text in comment_texts:
             assert comment_text in rendered_text
@@ -540,11 +540,11 @@ def test_index_shows_latest_article_comments(guest_client):
         comment_texts.append(comment_text)
 
     doc = get_index(guest_client)
-    check_latest_article_comments(doc, comments_count=5, comment_texts=list(reversed(comment_texts[-5:])))
+    check_latest_article_comments(doc, comments_count=3, comment_texts=list(reversed(comment_texts[-3:])))
 
-    comments = [pq(el).text() for el in doc("#latest-article-comments .latest-article-comment").items()]
+    comments = [pq(el).text() for el in doc("#latest-article-comments .article-comment").items()]
     assert comment_texts[5] in comments[0]
-    assert comment_texts[1] in comments[-1]
+    assert comment_texts[3] in comments[-1]
     assert comment_texts[0] not in doc("#latest-article-comments").text()
     assert article_title in doc("#latest-article-comments").text()
 
@@ -639,6 +639,28 @@ def test_public_page_seo_schema_and_metadata(guest_client, path, schema_type):
     assert all(value is not None for value in schema.values())
     if schema_type in {"CollectionPage", "ContactPage", "WebPage"}:
         assert schema.get("breadcrumb", {}).get("itemListElement")
+
+
+@pytest.mark.parametrize(("path", "heading", "selector"), [
+    ("/", "SysDesPro", "h1"),
+    ("/articles", "Articles", "h1"),
+    ("/users", "Users", "h1"),
+    ("/latest/users", "Users", "h1"),
+    ("/contacts", "Contacts", "#contact-form"),
+    ("/privacy-policy", "Privacy", "h1"),
+    ("/rules", "Rules", "h1"),
+    ("/terms-of-service", "Terms", "h1"),
+    ("/earn-with-us", "Earn", "h1"),
+])
+def test_public_pages_render_main_content(guest_client, path, heading, selector):
+    response = get(guest_client, path)
+    assert response.status_code == 200, (path, response.status_code, response.text)
+
+    doc = pq(response.text)
+    main = doc("main")
+    assert main
+    assert heading.lower() in main("h1").text().lower()
+    assert main(selector)
 
 
 @pytest.mark.parametrize("path", [
@@ -1085,7 +1107,7 @@ def test_tag_subscription_create_and_delete():
     fragment = pq(response.text)
     subscription_id = fragment(".tag-subscription-block").attr("data-tag-subscription-id")
     assert subscription_id
-    assert "Unsubscribe" in response.text
+    assert "Subscribed" in response.text
 
     subscriptions = get(root_user_client, "/tag-subscriptions")
     assert subscriptions.status_code == 200
@@ -1095,7 +1117,7 @@ def test_tag_subscription_create_and_delete():
     delete_response = delete(root_user_client, f"/tag-subscriptions/{subscription_id}")
     assert delete_response.status_code == 200, delete_response.text
     assert pq(delete_response.text)(".tag-subscription-block").attr("data-tag-subscription-id") == ""
-    assert "Unsubscribe" not in delete_response.text
+    assert "Subscribed" not in delete_response.text
 
     subscriptions = get(root_user_client, "/tag-subscriptions")
     assert all(item["id"] != subscription_id for item in subscriptions.json())

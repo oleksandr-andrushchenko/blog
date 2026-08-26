@@ -1,42 +1,45 @@
 {% for article_comment in latest_article_comments %}
     {% set article = article_comment.get_article() %}
     {% set user = article_comment.get_user() %}
-    <article class="latest-article-comment card"
-             {% if article_comment.offset %}data-offset="{{ article_comment.offset }}"{% endif %}>
-        <div class="card-body p-3">
-            <div class="d-flex align-items-center gap-2 mb-3">
-                <a class="flex-shrink-0" href="{{ user_url(user) }}" aria-label="View {{ user.name }}'s profile">
-                    {% with avatar_wrapper_style="width:2.5rem; height:2.5rem;",
+    <article class="article-comment col"{% if article_comment.offset %}
+             data-offset="{{ article_comment.offset }}"{% endif %}>
+        <div class="card">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <a class="flex-shrink-0" href="{{ user_url(user) }}" aria-label="View {{ user.name }}'s profile">
+                        {% with avatar_wrapper_style="width:2.5rem; height:2.5rem;",
                             avatar_img_class="rounded-circle img-fluid d-block border" %}
-                        {% include "fragments/user-avatar.html" %}
-                    {% endwith %}
-                </a>
-                <div class="min-w-0">
-                    <a class="link-body-emphasis fw-semibold text-decoration-none" href="{{ user_url(user) }}">
-                        {{ user.name }}
+                            {% include "fragments/user-avatar.html" %}
+                        {% endwith %}
                     </a>
-                    <div class="small text-secondary">
-                        <time class="article-comment-created-at" datetime="{{ article_comment.created_at | iso_utc }}">
-                            <i class="bi bi-clock me-1"
-                               aria-hidden="true"></i>{{ (article_comment.created_at / 1000) | unix_to_full_date }}
-                        </time>
-                        {% if article_comment.updated_at and article_comment.updated_at - article_comment.created_at > 86_400_000 %}
-                            <span class="article-comment-updated-at ms-2">· edited</span>
-                        {% endif %}
+                    <div class="min-w-0">
+                        <a class="link-body-emphasis fw-semibold text-decoration-none" href="{{ user_url(user) }}">
+                            {{ user.name }}
+                        </a>
+                        <div class="small text-secondary">
+                            <time class="article-comment-created-at"
+                                  datetime="{{ article_comment.created_at | iso_utc }}">
+                                <i class="bi bi-clock me-1"
+                                   aria-hidden="true"></i>{{ (article_comment.created_at / 1000) | unix_to_full_date }}
+                            </time>
+                            {% if article_comment.updated_at and article_comment.updated_at - article_comment.created_at > 86_400_000 %}
+                                <span class="article-comment-updated-at ms-2">· edited</span>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <blockquote class="blockquote fs-6 mb-3">
-                <p class="mb-0 text-body text-break">“{{ article_comment.text }}”</p>
-            </blockquote>
+                <blockquote class="blockquote fs-6 mb-3">
+                    <p class="mb-0 text-body text-break">“{{ article_comment.text }}”</p>
+                </blockquote>
 
-            <div class="border-top pt-2">
-                <div class="small text-secondary mb-1">Commented on</div>
-                <a class="link-body-emphasis fw-semibold text-decoration-none d-block text-truncate"
-                   href="{{ article_url(article) }}">
-                    <i class="bi bi-journal-text me-1" aria-hidden="true"></i>{{ article.title }}
-                </a>
+                <div class="border-top pt-2">
+                    <div class="small text-secondary mb-1">Commented on</div>
+                    <a class="link-body-emphasis fw-semibold text-decoration-none d-block text-truncate"
+                       href="{{ article_url(article) }}">
+                        <i class="bi bi-journal-text me-1" aria-hidden="true"></i>{{ article.title }}
+                    </a>
+                </div>
             </div>
         </div>
     </article>

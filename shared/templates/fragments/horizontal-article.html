@@ -3,7 +3,7 @@
 {% set vert_gap = vert_gap | default(1) %}
 {% set h_tag_size = h_tag_size | default(3) %}
 {% set h_display_size = h_display_size | default(4) %}
-{% set image_column_size = image_column_size | default({"def": 12, "md": 3}) if image else 0 %}
+{% set image_column_size = image_column_size | default({"def": 12, "sm": 3}) if image else 0 %}
 {% set article_user = article.get_user() %}
 {% set article_img_sizes = article_img_sizes | default({"768px": "25vw", "default": "100vw"}) %}
 
@@ -11,10 +11,10 @@
     <div class="card">
         {% if image %}
             <div class="row g-0">
-                <div class="{{ image_column_size | column_classes }} d-flex align-items-center">
+                <div class="{{ image_column_size | col_classes }} d-flex align-items-center">
                     {% include "fragments/article-link-image.html" %}
                 </div>
-                <div class="{{ image_column_size | column_classes(inverse=True) }}">
+                <div class="{{ image_column_size | col_classes(inverse=True) }}">
                     {% include "fragments/article-body.html" %}
                 </div>
             </div>

@@ -37,24 +37,24 @@
     <p class="small text-secondary">Contact us</p>
 
     <div class="row g-5">
-        <div class="col col-12 {% if show_details %}col-lg-6 col-xl-8{% endif %} d-flex flex-column gap-4">
+        <div class="{{ ({"def": 12, "lg": 6, "xl": 8} if show_details else {"def": 12}) | col_classes }} d-flex flex-column gap-4">
             <form class="row g-3" id="contact-form" novalidate>
-                <label class="col col-12">
+                <label class="{{ {"def": 12} | col_classes }}">
                     <input type="text" class="form-control" id="name" name="name" placeholder="Your Name"
                            value="{{ cur_user.name if cur_user else '' }}" required>
                 </label>
 
-                <label class="col col-12">
+                <label class="{{ {"def": 12} | col_classes }}">
                     <input type="email" class="form-control" id="email" name="email" placeholder="Your Email"
                            value="{{ cur_user.email if cur_user else '' }}" required>
                 </label>
 
-                <label class="col col-12">
+                <label class="{{ {"def": 12} | col_classes }}">
                     <textarea class="form-control" id="message" name="message" placeholder="Your Message" rows="10"
                               required></textarea>
                 </label>
 
-                <div class="col col-12">
+                <div class="{{ {"def": 12} | col_classes }}">
                     <button type="submit" class="btn btn-light">
                         Send message
                         <i class="bi bi-chevron-right"></i>
@@ -63,7 +63,7 @@
             </form>
         </div>
         {% if show_details %}
-            <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-4">
+            <div class="{{ {"def": 12, "lg": 6, "xl": 4} | col_classes }} d-flex flex-column gap-4">
                 <h2 class="mb-0 text-decoration-underline"> Contact details</h2>
                 <div class="d-flex flex-column gap-3">
                     {% if contact_phone %}

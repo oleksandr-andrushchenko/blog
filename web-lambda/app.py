@@ -193,7 +193,7 @@ async def tag_redirect_exception_handler(request: Request, exc: TagByOldSlugRequ
 @route("get", "index", response_class=HTMLResponse)
 async def index(cur_user: OptCurUserDep) -> str:
     latest_articles_query = ArticleQueryDTO()
-    latest_article_comments_query = ArticleCommentQueryDTO(limit=5)
+    latest_article_comments_query = ArticleCommentQueryDTO(limit=3)
     (
         popular_tags,
         latest_articles,
@@ -204,7 +204,7 @@ async def index(cur_user: OptCurUserDep) -> str:
         to_thread(get_popular_tags, TagQueryDTO(limit=40)),
         to_thread(get_latest_published_articles, limit=latest_articles_query.limit),
         to_thread(get_popular_published_articles, limit=5),
-        to_thread(get_latest_article_comments, limit=latest_article_comments_query.limit),
+        to_thread(get_latest_article_comments, latest_article_comments_query),
         to_thread(get_popular_active_users, limit=5),
     )
     return get_html_content("index.html", {

@@ -1,19 +1,19 @@
 <form class="row" id="article-form" novalidate>
-    <div class="col col-12 col-lg-6 col-xl-8">
+    <div class="{{ {"def": 12, "lg": 6, "xl": 8} | col_classes }}">
         <label class="w-100">
             <textarea class="form-control h1 border-0" id="title" name="title" placeholder="Title"
                       required rows="1" autofocus>{{ article.title if article else "" }}</textarea>
         </label>
     </div>
 
-    <div class="col col-12 col-lg-6 col-xl-8 d-flex flex-column gap-2">
+    <div class="{{ {"def": 12, "lg": 6, "xl": 8} | col_classes }} d-flex flex-column gap-2">
         <label class="w-100">
             <textarea class="form-control editor" id="content" name="content" placeholder="Content" rows="12"
                       required minlength="1000" maxlength="10000">{{ article.content if article else "" }}</textarea>
         </label>
     </div>
 
-    <div class="col col-12 col-lg-6 col-xl-4 d-flex flex-column gap-2">
+    <div class="{{ {"def": 12, "lg": 6, "xl": 4} | col_classes }} d-flex flex-column gap-2">
         <small class="text-secondary bi bi-tags"> Tags:</small>
         {% with url=url("get-tags", absolute=True), value=article.tags if article else [] %}
             {% include "fragments/tags-input.html" %}

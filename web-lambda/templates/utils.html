@@ -16,7 +16,7 @@
 
     <div class="row">
         {% if check_auth(cur_user, Permission.GENERATE_SITEMAP) %}
-            <div class="col col-4">
+            <div class="{{ {"def": 4} | col_classes }}">
                 <section class="border rounded p-4 mb-4 bg-light">
                     <h2 class="h4 mb-2">Generate Sitemap</h2>
 
@@ -42,7 +42,7 @@
         {% endif %}
 
         {% if check_auth(cur_user, Permission.DROP_CDN_CACHE) %}
-            <div class="col col-4">
+            <div class="{{ {"def": 4} | col_classes }}">
                 <section class="border rounded p-4 mb-4 bg-light">
                     <h2 class="h4 mb-2">Drop CDN Cache</h2>
 

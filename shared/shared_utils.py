@@ -26,10 +26,10 @@ from jinja2 import Environment, FileSystemLoader, pass_context, select_autoescap
 
 from api_route_metadata import API_URL_ROUTES
 from article_dtos import (ArticleCommentImpressionAction, ArticleImpressionAction)
-from tag_subscription_dtos import TagSubscription
 from basic_dtos import UserTokenDTO
 from query_dtos import (BaseQueryDTO, ArticleCommentQueryDTO, ArticleQueryDTO, ArticleQueryType, ArticleStatus,
                         TagQueryDTO, TagQueryType, UserQueryDTO, UserQueryType, UserStatus)
+from tag_subscription_dtos import TagSubscription
 from user_dtos import UserImpressionAction
 
 
@@ -553,8 +553,9 @@ def tag_subscription_key(tags: list[str]) -> str:
 
 
 def tag_subscription_from_dynamodb(item: dict[str, Any]) -> TagSubscription:
-    return TagSubscription(item.get("tag_subscription_id") or item["article_tag_subscription_id"], item["user_id"], item["tags"],
-                                  item["created_at"])
+    return TagSubscription(item.get("tag_subscription_id") or item["article_tag_subscription_id"], item["user_id"],
+                           item["tags"],
+                           item["created_at"])
 
 
 def get_user_tag_subscriptions(user: User) -> list[TagSubscription]:
@@ -995,16 +996,32 @@ def jinja2_build_responsive_classes(
     return " ".join(classes)
 
 
-def jinja2_column_classes(sizes, inverse: bool = False) -> str:
+def jinja2_col_classes(sizes, inverse: bool = False) -> str:
     prefixes = {
         "def": "col-",
         "sm": "col-sm-",
         "md": "col-md-",
         "lg": "col-lg-",
         "xl": "col-xl-",
+        "xxl": "col-xxl-",
     }
 
-    return jinja2_build_responsive_classes(sizes, prefixes, inverse)
+    responsive_classes = jinja2_build_responsive_classes(sizes, prefixes, inverse)
+    return " ".join(filter(None, ("col", responsive_classes)))
+
+
+def jinja2_row_classes(sizes) -> str:
+    prefixes = {
+        "def": "row-cols-",
+        "sm": "row-cols-sm-",
+        "md": "row-cols-md-",
+        "lg": "row-cols-lg-",
+        "xl": "row-cols-xl-",
+        "xxl": "row-cols-xxl-",
+    }
+
+    responsive_classes = jinja2_build_responsive_classes(sizes, prefixes)
+    return " ".join(filter(None, ("row", responsive_classes)))
 
 
 def jinja2_order_classes(orders, inverse: bool = False) -> str:
@@ -1014,6 +1031,7 @@ def jinja2_order_classes(orders, inverse: bool = False) -> str:
         "md": "order-md-",
         "lg": "order-lg-",
         "xl": "order-xl-",
+        "xxl": "order-xxl-",
     }
 
     return jinja2_build_responsive_classes(orders, prefixes, inverse)
@@ -1063,7 +1081,8 @@ def get_jinja2_env():
         "unix_to_month_year": unix_to_month_year,
         "unix_to_full_date": unix_to_full_date,
         "iso_utc": jinja2_iso_utc,
-        "column_classes": jinja2_column_classes,
+        "col_classes": jinja2_col_classes,
+        "row_classes": jinja2_row_classes,
         "order_classes": jinja2_order_classes,
     })
     jinja2_env.globals.update(get_config())
@@ -1456,7 +1475,7 @@ def add_put_tag_combos_transact(transacts: list, article: Article, slug: str | N
         for combo in combinations(sorted(article.tags), r):
             if slug is None or slug in combo:
                 tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo),
-                                         f"POST#{article.created_at}#{article.id}")
+                                 f"POST#{article.created_at}#{article.id}")
                 add_dynamodb_put_transact(transacts, tag_combo_key, {"post_id": article.id})
 
 
@@ -1466,7 +1485,7 @@ def add_delete_tag_combos_transact(transacts: list, article: Article, slug: str 
         for combo in combinations(sorted(article.tags), r):
             if slug is None or slug in combo:
                 tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo),
-                                         f"POST#{article.created_at}#{article.id}")
+                                 f"POST#{article.created_at}#{article.id}")
                 add_dynamodb_delete_transact(transacts, tag_combo_key)
 
 
@@ -1819,8 +1838,8 @@ def add_dynamodb_article_update_transact(transacts: list, article: Article, chan
 
 
 def add_dynamodb_tag_update_transact(transacts: list, tag: Tag,
-                                             changes: dict[str, Any] | None = None,
-                                             deltas: dict[str, Any] | None = None) -> None:
+                                     changes: dict[str, Any] | None = None,
+                                     deltas: dict[str, Any] | None = None) -> None:
     return add_dynamodb_obj_update_transact(transacts, tag, (f"POST_TAG#{tag.slug}", "META"),
                                             changes=changes,
                                             deltas=deltas)

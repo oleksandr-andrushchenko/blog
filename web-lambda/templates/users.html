@@ -118,7 +118,7 @@
     </form>
 
     {% if users %}
-        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3" id="users"
+        <div class="{{ {"def": 1, "sm": 2, "lg": 3, "xl": 4} | row_classes }} g-3" id="users"
              data-masonry='{"percentPosition": true }'>
             {% with user_avatar_img_sizes={"1200px": "127px", "992px": "80px", "768px": "120px", "default": "25vw"} %}
                 {% include "fragments/users.html" %}

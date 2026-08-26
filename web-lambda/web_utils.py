@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from urllib.parse import quote, urlparse
 
 from shared_utils import *
@@ -218,8 +218,9 @@ def get_article_related_articles(article: Article, limit: int = 10) -> list[Arti
     )[:limit]
 
 
-def get_latest_article_comments(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[ArticleComment]:
-    query_dto = ArticleCommentQueryDTO(limit=limit)
+def get_latest_article_comments(query_dto: ArticleCommentQueryDTO = None) -> list[ArticleComment]:
+    if query_dto is None:
+        query_dto = ArticleCommentQueryDTO()
 
     return query_dynamodb_items(
         query_dto=query_dto,

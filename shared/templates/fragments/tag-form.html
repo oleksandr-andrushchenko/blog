@@ -1,6 +1,6 @@
 <form class="d-flex flex-column gap-2" id="tag-form" novalidate>
     <div class="form-group row align-items-center">
-        <div class="col col-2">
+        <div class="{{ {"def": 2} | col_classes }}">
             {% if tag and tag.image_filename %}
                 <img src="{{ static_url(tag.image_filename) }}"
                      alt="{{ tag.name }}" class="w-100 h-100 object-fit-cover rounded">
@@ -11,9 +11,9 @@
                 </div>
             {% endif %}
         </div>
-        <div class="col-10">
+        <div class="{{ {"def": 10} | col_classes }}">
             <div class="row align-items-center g-3">
-                <div class="col col-6 col-lg-4 col-xl-2">
+                <div class="{{ {"def": 6, "lg": 4, "xl": 2} | col_classes }}">
                     <div class="form-check text-decoration-underline">
                         Cover image action
                     </div>
@@ -39,7 +39,7 @@
                     </div>
                 </div>
 
-                <div class="col col-6 col-lg-8 col-xl-10" id="upload-image" style="display:none">
+                <div class="{{ {"def": 6, "lg": 8, "xl": 10} | col_classes }}" id="upload-image" style="display:none">
                     <input type="file" class="form-control" id="image_file" name="image_file"
                            placeholder="Cover image" data-public-file>
                 </div>
@@ -48,15 +48,15 @@
     </div>
 
     <div class="form-group row">
-        <label for="name" class="col-form-label col-2 label-required">Name</label>
-        <div class="col-10">
+        <label for="name" class="col-form-label {{ {"def": 2} | col_classes }} label-required">Name</label>
+        <div class="{{ {"def": 10} | col_classes }}">
             <input type="text" class="form-control" id="name" name="name" placeholder="Name"
                    value="{{ tag.name if tag and tag.name else "" }}">
         </div>
     </div>
 
     <div class="form-group row">
-        <div class="col col-10 offset-2">
+        <div class="{{ {"def": 10} | col_classes }} offset-2">
             <button type="submit" class="btn btn-light">
                 <i class="bi {% if tag %}bi-arrow-clockwise{% else %}bi-plus-lg{% endif %}"></i>
                 {% if tag %}Update{% else %}Create{% endif %} tag

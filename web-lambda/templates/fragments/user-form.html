@@ -1,11 +1,11 @@
 <form class="d-flex flex-column gap-2" id="user-form" novalidate>
     <div class="form-group row align-items-center">
-        <div class="col col-2 px-lg-5">
+        <div class="{{ {"def": 2} | col_classes }} px-lg-5">
             {% include "fragments/user-avatar.html" %}
         </div>
-        <div class="col-10">
+        <div class="{{ {"def": 10} | col_classes }}">
             <div class="row align-items-center g-3">
-                <div class="col col-6 col-lg-4 col-xl-2">
+                <div class="{{ {"def": 6, "lg": 4, "xl": 2} | col_classes }}">
                     <div class="form-check text-decoration-underline">
                         Avatar action
                     </div>
@@ -31,7 +31,7 @@
                     </div>
                 </div>
 
-                <div class="col col-6 col-lg-8 col-xl-10" id="upload-avatar" style="display:none">
+                <div class="{{ {"def": 6, "lg": 8, "xl": 10} | col_classes }}" id="upload-avatar" style="display:none">
                     <input type="file" class="form-control" id="avatar_file" name="avatar_file"
                            placeholder="Avatar" data-public-file>
                 </div>
@@ -40,8 +40,8 @@
     </div>
 
     <div class="form-group row">
-        <label for="name" class="col-form-label col-2 label-required">Name</label>
-        <div class="col-10">
+        <label for="name" class="col-form-label {{ {"def": 2} | col_classes }} label-required">Name</label>
+        <div class="{{ {"def": 10} | col_classes }}">
             <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-person-circle"></i></span>
                 <input type="text" class="form-control" id="name" name="name" placeholder="Name"
@@ -51,8 +51,8 @@
     </div>
 
     <div class="form-group row">
-        <label for="username" class="col-form-label col-2">Username</label>
-        <div class="col-10">
+        <label for="username" class="col-form-label {{ {"def": 2} | col_classes }}">Username</label>
+        <div class="{{ {"def": 10} | col_classes }}">
             <div class="input-group">
                 <span class="input-group-text">{{ web_base_url.replace('https://', '').replace('http://', '') }}/</span>
                 <input type="text" class="form-control" id="username" name="username" placeholder="your-username"
@@ -62,8 +62,8 @@
     </div>
 
     <div class="form-group row">
-        <label for="github_username" class="col-form-label col-2">GitHub</label>
-        <div class="col-10">
+        <label for="github_username" class="col-form-label {{ {"def": 2} | col_classes }}">GitHub</label>
+        <div class="{{ {"def": 10} | col_classes }}">
             <div class="input-group">
                 <span class="input-group-text">github.com/</span>
                 <input type="text" class="form-control" id="github_username" name="github_username"
@@ -75,10 +75,10 @@
     </div>
 
     <div class="form-group row">
-        <label for="bmc_username" class="col-form-label col-2">
+        <label for="bmc_username" class="col-form-label {{ {"def": 2} | col_classes }}">
             <i class="bi bi-currency-dollar"></i> Buy Me a Coffee
         </label>
-        <div class="col-10">
+        <div class="{{ {"def": 10} | col_classes }}">
             <div class="input-group">
                 <span class="input-group-text">buymeacoffee.com/</span>
                 <input type="text"
@@ -98,24 +98,24 @@
     </div>
 
     <div class="form-group row">
-        <label for="headline" class="col-form-label col-2">Headline</label>
-        <div class="col-10">
+        <label for="headline" class="col-form-label {{ {"def": 2} | col_classes }}">Headline</label>
+        <div class="{{ {"def": 10} | col_classes }}">
             <input type="text" class="form-control" id="headline" name="headline" placeholder="Headline"
                    value="{{ user.headline if user and user.headline else "" }}">
         </div>
     </div>
 
     <div class="form-group row">
-        <label for="about" class="col-form-label col-2">About</label>
-        <div class="col-10">
+        <label for="about" class="col-form-label {{ {"def": 2} | col_classes }}">About</label>
+        <div class="{{ {"def": 10} | col_classes }}">
             <textarea class="form-control" id="about" name="about" placeholder="About"
                       rows="6">{{ user.about if user and user.about else "" }}</textarea>
         </div>
     </div>
 
     <div class="form-group row">
-        <label for="website" class="col-form-label col-2">Website</label>
-        <div class="col-10">
+        <label for="website" class="col-form-label {{ {"def": 2} | col_classes }}">Website</label>
+        <div class="{{ {"def": 10} | col_classes }}">
             <div class="input-group">
                 <input type="text" class="form-control" id="website" name="website" placeholder="Website"
                        value="{{ user.website if user and user.website else "" }}">
@@ -125,8 +125,8 @@
     </div>
 
     <div class="form-group row">
-        <label for="address" class="col-form-label col-2">Location</label>
-        <div class="col-10">
+        <label for="address" class="col-form-label {{ {"def": 2} | col_classes }}">Location</label>
+        <div class="{{ {"def": 10} | col_classes }}">
             <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-geo"></i></span>
                 <input type="text" class="form-control" id="address" name="address" placeholder="Address"
@@ -136,7 +136,7 @@
     </div>
 
     <div class="form-group row">
-        <div class="col col-10 offset-2">
+        <div class="{{ {"def": 10} | col_classes }} offset-2">
             <button type="submit" class="btn btn-light">
                 <i class="bi {% if user %}bi-arrow-clockwise{% else %}bi-plus-lg{% endif %}"></i>
                 {% if user %}Update{% else %}Create{% endif %} profile

@@ -68,117 +68,115 @@
 {% endblock %}
 
 {% block content %}
-    <section class="text-bg-light mb-4">
+    <section class="py-5 text-bg-light overflow-hidden mb-4">
         <div class="container">
-            <div class="p-3 p-lg-4">
-                <div class="row align-items-center g-4">
-                    <div class="col-12 col-sm-3 col-lg-2">
-                        {% include "fragments/user-avatar.html" %}
-                    </div>
+            <div class="row align-items-center g-4">
+                <div class="{{ {"def": 12, "sm": 3, "lg": 2} | col_classes }}">
+                    {% include "fragments/user-avatar.html" %}
+                </div>
 
-                    <div class="col-12 col-sm-9 col-lg-10">
-                        <h1 class="mb-0">{{ user.name }}</h1>
+                <div class="{{ {"def": 12, "sm": 9, "lg": 10} | col_classes }}">
+                    <h1 class="mb-0">{{ user.name }}</h1>
 
-                        {% if user.username %}
-                            <div class="mb-2">
-                                @{{ user.username }}
-                            </div>
-                        {% endif %}
-
-                        {% if user.headline %}
-                            <h2 class="h6">{{ user.headline }}</h2>
-                        {% endif %}
-
-                        <div class="d-flex gap-3 flex-wrap mb-2">
-                            {% if user.website %}
-                                <div>
-                                    <small class="bi bi-link-45deg"> Website:</small>
-                                    <a class="text-decoration-none link-body-emphasis d-inline-block me-2"
-                                       href="{{ user.website }}"
-                                       target="_blank" rel="noopener noreferrer">
-                                        {{ user.website | replace("https://", "", 1) | replace("http://", "", 1) }}
-                                        <i class="bi bi-box-arrow-up-right"></i>
-                                    </a>
-                                </div>
-                            {% endif %}
-
-                            {% if user.github_username %}
-                                <div>
-                                    <small class="bi bi-github"> GitHub:</small>
-                                    <a class="text-decoration-none link-body-emphasis d-inline-block me-2"
-                                       href="https://github.com/{{ user.github_username }}" target="_blank"
-                                       rel="noopener noreferrer">
-                                        {{ user.github_username }}
-                                        <i class="bi bi-box-arrow-up-right"></i>
-                                    </a>
-                                </div>
-                            {% endif %}
-
-                            {% if user.bmc_username and user.published_articles_count %}
-                                <div>
-                                    <small class="bi bi-currency-dollar"> Buy Me a Coffee:</small>
-                                    <a class="text-decoration-none link-body-emphasis d-inline-block me-2"
-                                       href="https://buymeacoffee.com/{{ user.bmc_username }}" target="_blank"
-                                       rel="noopener noreferrer">
-                                        {{ user.bmc_username }}
-                                        <i class="bi bi-box-arrow-up-right"></i>
-                                    </a>
-                                </div>
-                            {% endif %}
-
-                            {% if user.address %}
-                                <div>
-                                    <small class="bi bi-geo"> Location:</small>
-                                    {{ user.address }}
-                                </div>
-                            {% endif %}
+                    {% if user.username %}
+                        <div class="mb-2">
+                            @{{ user.username }}
                         </div>
+                    {% endif %}
 
-                        <div class="d-flex gap-3 flex-wrap mb-2">
+                    {% if user.headline %}
+                        <h2 class="h6">{{ user.headline }}</h2>
+                    {% endif %}
+
+                    <div class="d-flex gap-3 flex-wrap mb-2">
+                        {% if user.website %}
                             <div>
-                                <small class="bi bi-calendar2"> Joined:</small>
-                                {{ (user.created_at / 1000) | unix_to_full_date() }}
+                                <small class="bi bi-link-45deg"> Website:</small>
+                                <a class="text-decoration-none link-body-emphasis d-inline-block me-2"
+                                   href="{{ user.website }}"
+                                   target="_blank" rel="noopener noreferrer">
+                                    {{ user.website | replace("https://", "", 1) | replace("http://", "", 1) }}
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                </a>
                             </div>
+                        {% endif %}
 
-                            <div class="d-flex align-items-center gap-1">
-                                <span class="bi bi-heart"> {{ user.followers_count }}</span>
-                                Followers
+                        {% if user.github_username %}
+                            <div>
+                                <small class="bi bi-github"> GitHub:</small>
+                                <a class="text-decoration-none link-body-emphasis d-inline-block me-2"
+                                   href="https://github.com/{{ user.github_username }}" target="_blank"
+                                   rel="noopener noreferrer">
+                                    {{ user.github_username }}
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                </a>
                             </div>
+                        {% endif %}
 
-                            <div class="d-flex align-items-center gap-1">
-                                <span class="bi bi-person-heart"> {{ user.following_count }}</span>
-                                Following
+                        {% if user.bmc_username and user.published_articles_count %}
+                            <div>
+                                <small class="bi bi-currency-dollar"> Buy Me a Coffee:</small>
+                                <a class="text-decoration-none link-body-emphasis d-inline-block me-2"
+                                   href="https://buymeacoffee.com/{{ user.bmc_username }}" target="_blank"
+                                   rel="noopener noreferrer">
+                                    {{ user.bmc_username }}
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                </a>
                             </div>
+                        {% endif %}
 
-                            <div class="d-flex align-items-center gap-1">
-                                <span class="bi bi-pencil"> {{ user.published_articles_count }}</span>
-                                Articles
+                        {% if user.address %}
+                            <div>
+                                <small class="bi bi-geo"> Location:</small>
+                                {{ user.address }}
                             </div>
-
-                            <div class="d-flex align-items-center gap-1">
-                                <span class="bi bi-chat"> {{ user.article_comments_count }}</span>
-                                Comments
-                            </div>
-                        </div>
-
-                        {% include "fragments/user-status.html" %}
-                        {% include "fragments/user-impressions.html" %}
-
-                        {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
-                            <a href="{{ url("edit-user", user_id=user.id) }}"
-                               class="btn btn-light btn-sm bi bi-pencil">
-                                Edit profile
-                            </a>
                         {% endif %}
                     </div>
+
+                    <div class="d-flex gap-3 flex-wrap mb-2">
+                        <div>
+                            <small class="bi bi-calendar2"> Joined:</small>
+                            {{ (user.created_at / 1000) | unix_to_full_date() }}
+                        </div>
+
+                        <div class="d-flex align-items-center gap-1">
+                            <i class="bi bi-heart"> {{ user.followers_count }}</i>
+                            Followers
+                        </div>
+
+                        <div class="d-flex align-items-center gap-1">
+                            <i class="bi bi-person-heart"> {{ user.following_count }}</i>
+                            Following
+                        </div>
+
+                        <div class="d-flex align-items-center gap-1">
+                            <i class="bi bi-pencil"> {{ user.published_articles_count }}</i>
+                            Articles
+                        </div>
+
+                        <div class="d-flex align-items-center gap-1">
+                            <i class="bi bi-chat"> {{ user.article_comments_count }}</i>
+                            Comments
+                        </div>
+                    </div>
+
+                    {% include "fragments/user-status.html" %}
+                    {% include "fragments/user-impressions.html" %}
+
+                    {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
+                        <a href="{{ url("edit-user", user_id=user.id) }}"
+                           class="btn btn-light btn-sm bi bi-pencil">
+                            Edit profile
+                        </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </section>
 
     <div class="container">
-        <div class="row mb-4">
-            <div class="col col-12 col-lg-6 col-xl-8">
+        <div class="row g-5">
+            <div class="{{ {"def": 12, "lg": 8} | col_classes }}">
                 {% if user.about %}
                     <div class="mb-4">
                         <h2 class="h5 mb-2 text-decoration-underline">About</h2>
@@ -189,7 +187,7 @@
                 {% include "fragments/user-activities.html" %}
             </div>
 
-            <div class="col col-12 col-lg-6 col-xl-4 border-start">
+            <div class="{{ {"def": 12, "lg": 4} | col_classes }} border-start">
                 {% if user.published_articles_count %}
                     {% with header="Enjoy this author’s work?" %}
                         {% include "fragments/bmc-donate.html" %}
@@ -201,7 +199,9 @@
         </div>
 
         <section>
-            <h2 class="h5 mb-2 text-decoration-underline">{{ articles_title }}</h2>
+            <h2 class="h5 mb-2 text-decoration-underline">
+                {{ articles_title }}
+            </h2>
 
             {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE, user) %}
                 <div class="d-flex justify-content-start align-items-center gap-1 mb-2">
@@ -234,7 +234,7 @@
             {% endif %}
 
             {% if articles %}
-                <div id="articles" class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-2"
+                <div id="articles" class="{{ {"def": 1, "sm": 2, "lg": 3, "xl": 4} | row_classes }} g-3"
                      data-masonry='{"percentPosition": true }'>
                     {% with article_img_sizes={"1400px": "196px", "1200px": "166px", "992px": "96px", "768px": "156px", "default": "100vw"} %}
                         {% include "fragments/articles.html" %}

@@ -398,7 +398,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
 // Tags input
 (() => {
   const input = document.getElementById("tags-input")
-  if (!input) return
+  if (!input || typeof Tagify === "undefined") return
   const url = input.dataset.url
   const injectHidden = input.dataset.hasOwnProperty("injectHidden")
   const autoSubmit = input.dataset.hasOwnProperty("autoSubmit")
@@ -849,8 +849,10 @@ if (window.CONFIG.init_tinymce) {
   })
 }
 
-Prism.plugins.autoloader.languages_path = "https://cdn.jsdelivr.net/npm/prismjs@1.x/components/"
-Prism.highlightAll()
+if (typeof Prism !== "undefined") {
+  Prism.plugins.autoloader.languages_path = "https://cdn.jsdelivr.net/npm/prismjs@1.x/components/"
+  Prism.highlightAll()
+}
 
 $(function () {
   const $cookieAlert = $("#cookie-alert")

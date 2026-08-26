@@ -32,11 +32,11 @@
     {% if article.likes_count or article.dislikes_count %}
         <small class="text-secondary me-2">
             {% if article.likes_count %}
-                <span class="bi bi-hand-thumbs-up" title="Likes"> {{ article.likes_count }}</span>
+                <i class="bi bi-hand-thumbs-up" title="Likes"> {{ article.likes_count }}</i>
             {% endif %}
 
             {% if article.dislikes_count %}
-                <span class="bi bi-hand-thumbs-down" title="Dislikes"> {{ article.dislikes_count }}</span>
+                <i class="bi bi-hand-thumbs-down" title="Dislikes"> {{ article.dislikes_count }}</i>
             {% endif %}
         </small>
     {% endif %}
