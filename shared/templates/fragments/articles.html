@@ -1,3 +1,7 @@
 {% for article in articles %}
-    {% include "fragments/article.html" %}
+    {% if horizontal | default(False) %}
+        {% include "fragments/horizontal-article.html" %}
+    {% else %}
+        {% include "fragments/article.html" %}
+    {% endif %}
 {% endfor %}

@@ -17,8 +17,10 @@
                 {% include "fragments/image.html" %}
             {% endwith %}
         {% endif %}
-        <div class="card-body d-flex flex-column gap-2">
-            <h{{ h_tag_size }} class="h{{ h_display_size }} mb-0">{{ tag.name }} ({{ tag.articles_count }})</h{{ h_tag_size }}>
+        <div class="card-body">
+            <h{{ h_tag_size }} class="h{{ h_display_size }} mb-0 card-title">
+                {{ tag.name }} ({{ tag.articles_count }})
+            </h{{ h_tag_size }}>
         </div>
     </a>
 </div>

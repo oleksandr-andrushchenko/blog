@@ -1,4 +1,6 @@
 {% extends "layout.html" %}
+{% set layout_assets = {"validation": true, "tagify": true, "editor": true} %}
+
 
 {% set title = ("Edit " ~ article.title) | trim %}
 {% set meta_robots = "noindex, nofollow" %}

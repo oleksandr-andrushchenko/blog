@@ -1,4 +1,6 @@
 {% extends "layout.html" %}
+{% set layout_assets = {"masonry": true} %}
+
 {% set main_class = "" %}
 {% set user_canonical_url = user_url(user, absolute=True) %}
 {% set user_alternate_url = url("user", user_id=user.id, absolute=True) %}

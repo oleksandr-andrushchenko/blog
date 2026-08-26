@@ -1,4 +1,6 @@
 {% extends "layout.html" %}
+{% set layout_assets = {"prism": true} %}
+
 {% set article_canonical_url = article_url(article, absolute=True) %}
 {% set article_alternate_url = url("article", article_id=article.id, absolute=True) %}
 {% set author_canonical_url = user_url(author, absolute=True) %}

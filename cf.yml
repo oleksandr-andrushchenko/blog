@@ -752,7 +752,7 @@ Resources:
         CustomHeadersConfig:
           Items:
             - Header: Cache-Control
-              Value: public, max-age=2592000, immutable # 1 month
+              Value: public, max-age=31536000, immutable # 1 year
               Override: true
 
   CloudFrontDistribution:

@@ -1,5 +1,6 @@
 {% set index_url = url("index") %}
 {% set current_route = request.scope.get("route_name") %}
+{% set layout_assets = layout_assets | default({}) %}
 {% set articles_active = current_route in ["articles", "article", "edit-article", "articles-by-slugs", "article-by-slugs", "edit-tag"] %}
 {% set users_active = current_route in ["users", "users-by-slugs", "user", "edit-user", "user-by-slug"] %}
 {% set css_filenames = [
@@ -259,30 +260,39 @@
     </div>
 </footer>
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css"
+      as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css"></noscript>
 <!--bs-->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q"
-        crossorigin="anonymous"></script>
+        crossorigin="anonymous" defer></script>
 <!--form validation-->
-<script src="https://unpkg.com/just-validate@latest/dist/just-validate.production.min.js"></script>
-<!--tags input-->
-{#<script src="https://unpkg.com/@yaireo/tagify@3.1.0"></script>#}
-<script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
-<script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.polyfills.min.js"></script>
-<link href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css" rel="stylesheet" type="text/css"/>
+{% if layout_assets.validation | default(false) %}
+    <script src="https://unpkg.com/just-validate@latest/dist/just-validate.production.min.js" defer></script>
+{% endif %}
+{% if layout_assets.tagify | default(false) %}
+    <!-- tags input -->
+    <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.polyfills.min.js" defer></script>
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css" as="style"
+          onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css" rel="stylesheet" type="text/css"></noscript>
+{% endif %}
 <!--jquery-->
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"
-        integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+        integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous" defer></script>
 <!--editor-->
-{% if tinymce_api_key %}
+{% if tinymce_api_key and layout_assets.editor | default(false) %}
     <script src="https://cdn.tiny.cloud/1/{{ tinymce_api_key }}/tinymce/8/tinymce.min.js" referrerpolicy="origin"
-            crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tinymce/tinymce-jquery/dist/tinymce-jquery.min.js"></script>
+            crossorigin="anonymous" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tinymce/tinymce-jquery/dist/tinymce-jquery.min.js" defer></script>
 {% endif %}
 <!-- Code samples highlight -->
-<script src="https://cdn.jsdelivr.net/npm/prismjs@1.x/components/prism-core.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/prismjs@1.x/plugins/autoloader/prism-autoloader.min.js"></script>
+{% if layout_assets.prism | default(false) %}
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.x/components/prism-core.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.x/plugins/autoloader/prism-autoloader.min.js" defer></script>
+{% endif %}
 <!--custom-->
 <script>
   window.CONFIG = {
@@ -293,17 +303,23 @@
     update_user_impression_url: {{ url("update-user-impression", user_id="{user_id}", absolute=True) | tojson }},
     create_tag_subscription_url: {{ url("create-tag-subscription", absolute=True) | tojson }},
     delete_tag_subscription_url: {{ url("delete-tag-subscription", tag_subscription_id="{tag_subscription_id}", absolute=True) | tojson }},
-    init_tinymce: {% if tinymce_api_key %}true{% else %}false{% endif %},
+    init_tinymce: {% if tinymce_api_key and layout_assets.editor | default(false) %}true{% else %}false{% endif %},
     css_filenames: {{ css_filenames | tojson | safe }},
     static_relative_url: {{ static_url("{filename}") | tojson }},
     upload_public_file_url: {{ url("upload-public-file", absolute=True) | tojson }}
   }
 </script>
-<script src="{{ static_url('scripts.js', _=js_cache_counter) }}"></script>
 <!-- Code samples highlight -->
-<link href="https://cdn.jsdelivr.net/npm/prismjs@1.x/themes/prism.css" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js"
-        integrity="sha384-GNFwBvfVxBkLMJpYMOABq3c+d3KnQxudP/mGPkzpZSTYykLBNsZEnG2D9G/X/+7D"
-        crossorigin="anonymous"></script>
+{% if layout_assets.prism | default(false) %}
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/prismjs@1.x/themes/prism.css" as="style"
+          onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link href="https://cdn.jsdelivr.net/npm/prismjs@1.x/themes/prism.css" rel="stylesheet"></noscript>
+{% endif %}
+{% if layout_assets.masonry | default(false) %}
+    <script src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js"
+            integrity="sha384-GNFwBvfVxBkLMJpYMOABq3c+d3KnQxudP/mGPkzpZSTYykLBNsZEnG2D9G/X/+7D"
+            crossorigin="anonymous" defer></script>
+{% endif %}
+<script src="{{ static_url('scripts.js', _=js_cache_counter) }}" defer></script>
 </body>
 </html>

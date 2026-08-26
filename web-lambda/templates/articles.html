@@ -1,4 +1,6 @@
 {% extends "layout.html" %}
+{% set layout_assets = {"masonry": true} %}
+
 
 {% set val_map = {
     (ArticleQueryType.LATEST): {"title": "Latest", "subtitle": "Recently added"},
@@ -190,11 +192,9 @@
     {% endif %}
 
     {% if articles %}
-        <section id="articles" class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-2"
+        <section id="articles" class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-3"
                  data-masonry='{"percentPosition": true }'>
-            <div class="col">
-                {% include "fragments/tag-subscription.html" %}
-            </div>
+            {% include "fragments/tag-subscription.html" %}
 
             {% with h_tag_size=2,
                 article_img_sizes={"1400px": "196px", "1200px": "166px", "992px": "96px", "768px": "156px", "default": "100vw"} %}

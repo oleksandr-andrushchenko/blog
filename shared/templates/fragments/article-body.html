@@ -1,57 +1,51 @@
-<div class="card-body d-flex flex-column gap-{{ vert_gap }}">
-    <a class="link-body-emphasis text-decoration-none d-flex flex-column gap-{{ vert_gap }}"
-       href="{{ article_url(article) }}">
-        <h{{ h_tag_size }}
-                class="h{{ h_display_size | default(3) }} mb-0">{{ article.title }}</h{{ h_tag_size }}>
+<div class="card-body">
+    <a class="link-body-emphasis text-decoration-none" href="{{ article_url(article) }}">
+        <h{{ h_tag_size }} class="h{{ h_display_size | default(3) }} mb-1 card-title">
+            {{ article.title }}
+        </h{{ h_tag_size }}>
 
         {% if preview %}
-            <div class="text-secondary two-line-ellipsis">
+            <div class="card-text mb-1 text-secondary two-line-ellipsis">
                 {{ article.preview }}
             </div>
         {% endif %}
     </a>
 
-    <div>
-        {% include "fragments/article-rating.html" %}
-        <br>
+    {% include "fragments/article-rating.html" %}
 
-        {% if article_user %}
-            <small class="text-secondary bi bi-person" title="Author">
-                <a href="{{ user_url(article_user) }}" class="link-secondary">{{ article_user.name }}</a>
-            </small>
-        {% endif %}
+    {% if article_user %}
+        <a href="{{ user_url(article_user) }}" class="small link-secondary bi bi-person me-2" title="Article">
+            {{ article_user.name }}
+        </a>
+    {% endif %}
 
-        <small class="text-secondary bi bi-calendar2" title="Created at">
-            {{ (article.created_at / 1000) | unix_to_full_date }}
+    <small class="text-secondary bi bi-calendar2 me-2" title="Created at">
+        {{ (article.created_at / 1000) | unix_to_full_date }}
+    </small>
+
+    {% if article.status == ArticleStatus.REJECTED %}
+        <span class="badge text-bg-danger fs-6 me-2" title="{{ article.comment }}">Rejected</span>
+    {% elif article.status == ArticleStatus.UNPUBLISHED %}
+        <span class="badge text-bg-warning fs-6 me-2" title="Pending">Unpublished</span>
+    {% endif %}
+
+    {% if article.likes_count or article.dislikes_count %}
+        <small class="text-secondary me-2">
+            {% if article.likes_count %}
+                <span class="bi bi-hand-thumbs-up" title="Likes"> {{ article.likes_count }}</span>
+            {% endif %}
+
+            {% if article.dislikes_count %}
+                <span class="bi bi-hand-thumbs-down" title="Dislikes"> {{ article.dislikes_count }}</span>
+            {% endif %}
         </small>
+    {% endif %}
 
-        {% if article.status == ArticleStatus.REJECTED %}
-            <span class="badge text-bg-danger fs-6" title="{{ article.comment }}">Rejected</span>
-        {% elif article.status == ArticleStatus.UNPUBLISHED %}
-            <span class="badge text-bg-warning fs-6" title="Pending">Unpublished</span>
-        {% endif %}
-
-        {% if article.likes_count or article.dislikes_count %}
-            <small class="text-secondary">
-                {% if article.likes_count %}
-                    <span class="bi bi-hand-thumbs-up" title="Likes"> {{ article.likes_count }}</span>
-                {% endif %}
-
-                {% if article.dislikes_count %}
-                    <span class="bi bi-hand-thumbs-down"
-                          title="Dislikes"> {{ article.dislikes_count }}</span>
-                {% endif %}
-            </small>
-        {% endif %}
-
-        {% if article.tags %}
-            <div class="small text-secondary">
-                <i class="bi bi-tags"></i>
-                {% for tag in article.tags %}
-                    <a href="{{ articles_url(tags=[tag]) }}"
-                       class="link-secondary text-decoration-none"> {{ tag }}</a>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </div>
+    {% if article.tags %}
+        <div class="small d-inline-block text-secondary bi bi-tags">
+            {% for tag in article.tags %}
+                <a href="{{ articles_url(tags=[tag]) }}" class="link-secondary text-decoration-none"> {{ tag }}</a>
+            {% endfor %}
+        </div>
+    {% endif %}
 </div>

@@ -1,4 +1,6 @@
 {% extends "layout.html" %}
+{% set layout_assets = {"masonry": true} %}
+
 
 {% set meta_title = site_name ~ " - " ~ site_short_desc %}
 {% set main_class = "" %}
@@ -23,18 +25,18 @@
         {% endwith %}
     {% endif %}
 
-    <section class="p-5 text-bg-warning overflow-hidden mb-4">
+    <section class="p-5 text-bg-light overflow-hidden mb-4">
         <div class="container">
             <h1 class="d-inline">{{ site_name }} <i class="bi bi-{{ site_icon }}"></i></h1>
-            <span class="mt-2 fw-bold">&mdash; {{ site_short_desc }}</span>
-            <p class="mt-3">{{ site_desc }}</p>
-            <div class="mt-4">
+            <span class="mt-2 fw-bold mb-3">&mdash; {{ site_short_desc }}</span>
+            <p class="mt-3 mb-4">{{ site_desc }}</p>
+            <div class="d-flex flex-wrap align-items-center gap-1">
                 <a href="{{ articles_url() }}" class="btn btn-dark">
-                    <i class="bi bi-compass me-1" aria-hidden="true"></i>
+                    <i class="bi bi-compass" aria-hidden="true"></i>
                     Explore articles
                 </a>
                 <a href="{{ users_url() }}" class="btn btn-dark btn-sm">
-                    <i class="bi bi-people me-1" aria-hidden="true"></i>
+                    <i class="bi bi-people" aria-hidden="true"></i>
                     Meet the community
                 </a>
             </div>
@@ -42,7 +44,7 @@
     </section>
 
     <div class="container">
-        <div class="row">
+        <div class="row g-5">
             <div class="col col-12 col-lg-6 col-xl-8">
                 <section class="mb-4">
                     <h2 class="h5 mb-2 text-decoration-underline">Popular tags</h2>
@@ -133,15 +135,17 @@
 
                 <section class="d-flex flex-column gap-2 mb-4">
                     <h2 class="h5 mb-0 text-decoration-underline">
-                        <a href="{{ users_url(type=UserQueryType.POPULAR) }}" class="link-body-emphasis">Popular
-                            users</a>
+                        <a href="{{ users_url(type=UserQueryType.POPULAR) }}" class="link-body-emphasis">
+                            Popular
+                            users
+                        </a>
                     </h2>
                     {% if popular_users %}
                         <div id="popular-users" class="d-flex flex-column gap-2">
                             {% with users=popular_users,
                             vert_gap=0,
                             h_tag_size=3,
-                            h_display_size=6,
+                            h_display_size=5,
                             image_column_size={"def":3,"md":2},
                             user_avatar_img_sizes={"1400px": "49px", "1200px": "40px", "992px": "56px", "768px": "96px", "default": "120px"} %}
                                 {% include "fragments/users.html" %}
