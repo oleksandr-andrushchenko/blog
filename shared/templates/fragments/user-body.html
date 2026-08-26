@@ -1,6 +1,6 @@
 <div class="card-body py-0 pe-0">
     <a class="link-body-emphasis text-decoration-none" href="{{ user_url(user) }}">
-        <h{{ h_tag_size }} class="h{{ h_display_size }} mb-1 card-title">
+        <h{{ h_tag_size }} class="h{{ h_display_size }} mb-1 card-title text-truncate w-75">
             {{ user.name }}
         </h{{ h_tag_size }}>
 
@@ -11,22 +11,22 @@
         {% endif %}
     </a>
 
-    <small class="text-secondary bi bi-calendar2" title="Joined at">
+    <small class="text-secondary bi bi-calendar2 me-2" title="Joined at">
         {{ (user.created_at / 1000) | unix_to_full_date }}
     </small>
 
     {% if user.status == UserStatus.BANNED %}
-        <span class="badge text-bg-danger fs-6" title="{{ user.comment }}">Banned</span>
+        <span class="badge text-bg-danger fs-6 me-2" title="{{ user.comment }}">Banned</span>
     {% endif %}
 
     {% if user.followers_count %}
-        <small class="text-secondary bi bi-heart" title="Followers">
+        <small class="text-secondary bi bi-heart me-2" title="Followers">
             {{ user.followers_count }}
         </small>
     {% endif %}
 
     {% if user.published_articles_count %}
-        <small class="text-secondary bi bi-pencil" title="Articles written">
+        <small class="text-secondary bi bi-pencil me-2" title="Articles written">
             {{ user.published_articles_count }}
         </small>
     {% endif %}
