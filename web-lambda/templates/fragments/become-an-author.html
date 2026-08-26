@@ -11,7 +11,7 @@
             </p>
 
             <a href="{{ url('new-article') if cur_user else url('login', redirect_url=url('new-article')) }}"
-               class="btn btn-success bi bi-pencil-fill">
+               class="btn btn-dark bi bi-pencil-fill">
                 Write an article
             </a>
             <a href="{{ url("earn") }}" class="btn btn-dark btn-sm bi bi-currency-dollar">

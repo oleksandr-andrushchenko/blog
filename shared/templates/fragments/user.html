@@ -4,8 +4,8 @@
 {% set user_avatar_img_sizes = user_avatar_img_sizes | default({"default": "120px"}) %}
 
 <div class="user col"{% if user.offset %} data-offset="{{ user.offset }}"{% endif %}>
-    <div class="card overflow-hidden d-flex flex-row align-items-center p-2">
-        <a class="d-flex h-100 w-100 flex-shrink-0 justify-content-center"
+    <div class="card overflow-hidden d-flex flex-row align-items-center">
+        <a class="card-body pe-0 d-flex h-100 w-100 flex-shrink-0 justify-content-center"
            style="flex:0 0 20%; max-width:20%;" href="{{ user_url(user) }}">
             {% with avatar_img_class="img-fluid d-block rounded-circle",
                     avatar_wrapper_style="height:100%; width:100%; aspect-ratio:1 / 1; max-width:100%; align-self:center; flex-shrink:0; overflow:hidden; border-radius:50%;",
