@@ -26,11 +26,11 @@
     {% endif %}
 
     <section class="py-5 text-bg-light overflow-hidden mb-4">
-        <div class="container">
+        <div class="container text-center">
             <h1 class="d-inline">{{ site_name }} <i class="bi bi-{{ site_icon }}"></i></h1>
             <span class="mt-2 fw-bold mb-3">&mdash; {{ site_short_desc }}</span>
             <p class="mt-3 mb-4">{{ site_desc }}</p>
-            <div class="d-flex flex-wrap align-items-center gap-1">
+            <div class="d-flex flex-wrap align-items-center justify-content-center gap-1">
                 <a href="{{ articles_url() }}" class="btn btn-dark">
                     <i class="bi bi-compass" aria-hidden="true"></i>
                     Explore articles
@@ -73,6 +73,8 @@
                     {% endif %}
                 </section>
 
+                {% set should_show_become_an_author = (cur_user and cur_user.published_articles_count==0) or not cur_user %}
+
                 <section class="mb-4">
                     <h2 class="h5 mb-2">
                         <a href="{{ users_url(type=UserQueryType.POPULAR) }}" class="link-body-emphasis">
@@ -80,7 +82,8 @@
                         </a>
                     </h2>
                     {% if popular_users %}
-                        <div id="popular-users" class="{{ {"def": 1, "sm": 2} | row_classes }} g-2 mb-2">
+                        <div id="popular-users" class="{{ {"def": 1, "sm": 2} | row_classes }} g-2 mb-2"
+                             data-masonry='{"percentPosition": true }'>
                             {% with users=popular_users,
                             vert_gap=0,
                             h_tag_size=3,
@@ -89,6 +92,12 @@
                             user_avatar_img_sizes={"1400px": "49px", "1200px": "40px", "992px": "56px", "768px": "96px", "default": "120px"} %}
                                 {% include "fragments/users.html" %}
                             {% endwith %}
+
+                            {% if should_show_become_an_author %}
+                                <div class="col">
+                                    {% include "fragments/become-an-author.html" %}
+                                </div>
+                            {% endif %}
                         </div>
 
                         <a href="{{ users_url(type=UserQueryType.POPULAR) }}" class="btn btn-light btn-sm bi bi-heart">
@@ -99,7 +108,9 @@
                     {% endif %}
                 </section>
 
-                {% include "fragments/become-an-author.html" %}
+                {% if should_show_become_an_author and not popular_users %}
+                    {% include "fragments/become-an-author.html" %}
+                {% endif %}
             </div>
 
             <div class="{{ {"def": 12, "lg": 4} | col_classes }} border-start">
