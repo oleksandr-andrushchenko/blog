@@ -194,6 +194,7 @@ async def tag_redirect_exception_handler(request: Request, exc: TagByOldSlugRequ
 async def index(cur_user: OptCurUserDep) -> str:
     latest_articles_query = ArticleQueryDTO()
     latest_article_comments_query = ArticleCommentQueryDTO(limit=3)
+    should_show_become_an_author = (cur_user and cur_user.published_articles_count == 0) or not cur_user
     (
         popular_tags,
         latest_articles,
@@ -203,20 +204,20 @@ async def index(cur_user: OptCurUserDep) -> str:
     ) = await asyncio.gather(
         to_thread(get_popular_tags, TagQueryDTO(limit=40)),
         to_thread(get_latest_published_articles, limit=latest_articles_query.limit),
-        to_thread(get_popular_published_articles, limit=5),
+        to_thread(get_popular_published_articles, limit=9),
         to_thread(get_latest_article_comments, latest_article_comments_query),
-        to_thread(get_popular_active_users, limit=5),
+        to_thread(get_popular_active_users, limit=5 if should_show_become_an_author else 4),
     )
     return get_html_content("index.html", {
         "cur_user": cur_user,
-        "featured_tags": popular_tags[:20],
-        "popular_tags": popular_tags[20:],
+        "popular_tags": popular_tags,
         "latest_articles_query": latest_articles_query,
         "latest_articles": latest_articles,
         "popular_articles": popular_articles,
         "show_popular_articles": should_show_popular_articles(latest_articles, popular_articles),
         "latest_article_comments": latest_article_comments,
         "popular_users": popular_users,
+        "should_show_become_an_author": should_show_become_an_author
     })
 
 

@@ -182,19 +182,12 @@
         {% endif %}
     </form>
 
-    {% if tag and tag.image_filename %}
-        {% with filename=tag.image_filename,
-            alt=title,
-            figure=True,
-            img_sizes={"1200px": "760px", "992px": "480px", "default": "100vw"} %}
-            {% include "fragments/image.html" %}
-        {% endwith %}
-    {% endif %}
-
     {% if articles %}
         <section id="articles" class="{{ {"def": 1, "sm": 2, "lg": 3, "xl": 4} | row_classes }} g-3"
                  data-masonry='{"percentPosition": true }'>
-            {% include "fragments/tag-subscription.html" %}
+            {% with tags=article_query.tags %}
+                {% include "fragments/tag-subscription.html" %}
+            {% endwith %}
 
             {% with h_tag_size=2,
                 article_img_sizes={"1400px": "196px", "1200px": "166px", "992px": "96px", "768px": "156px", "default": "100vw"} %}

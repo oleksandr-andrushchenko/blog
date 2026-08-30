@@ -6,7 +6,6 @@ from api_utils import (
     to_thread,
     ContactMessageDTO,
     ArticleDTO,
-    ArticleQueryDTO,
     ArticleCommentDTO,
     Tag,
     SlugDuplicationError,
@@ -72,7 +71,10 @@ from deps import (
     UpdateTagDTODep,
     TagSubscriptionDTODep,
 )
-from shared_utils import get_tags
+from shared_utils import (
+    find_tag,
+    get_tags
+)
 from web import Application, Request, HTTPException, HTMLResponse, JSONResponse, RedirectResponse, \
     RequestValidationError, CORSMiddleware
 
@@ -291,10 +293,22 @@ async def _get_tag_subscriptions(cur_user: CurUserDep):
 @route("post", "create-tag-subscription", response_class=HTMLResponse)
 async def _create_tag_subscription(dto: TagSubscriptionDTODep, cur_user: CurUserDep):
     try:
-        tag_subscription = create_tag_subscription(dto, cur_user)
+        async def get_tag():
+            if len(dto.tags) == 1:
+                return await to_thread(find_tag, dto.tags[0])
+            return None
+
+        (
+            tag,
+            tag_subscription,
+        ) = await asyncio.gather(
+            get_tag(),
+            to_thread(create_tag_subscription, dto, cur_user),
+        )
         return get_html_content("fragments/tag-subscription.html", {
             "cur_user": cur_user,
-            "article_query": ArticleQueryDTO(tags=tag_subscription.tags),
+            "tag": tag,
+            "tags": tag_subscription.tags,
             "tag_subscription": tag_subscription,
         })
     except SlugDuplicationError as exc:
@@ -306,9 +320,11 @@ async def _create_tag_subscription(dto: TagSubscriptionDTODep, cur_user: CurUser
 async def _delete_tag_subscription(tag_subscription_id: str, cur_user: CurUserDep):
     try:
         tag_subscription = delete_tag_subscription(tag_subscription_id, cur_user)
+        tag = find_tag(tag_subscription.tags[0]) if len(tag_subscription.tags) == 1 else None
         return get_html_content("fragments/tag-subscription.html", {
             "cur_user": cur_user,
-            "article_query": ArticleQueryDTO(tags=tag_subscription.tags),
+            "tag": tag,
+            "tags": tag_subscription.tags,
             "tag_subscription": None,
         })
     except UserNotFoundError as exc:

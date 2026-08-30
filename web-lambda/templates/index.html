@@ -48,17 +48,17 @@
             <div class="{{ {"def": 12, "lg": 8} | col_classes }}">
                 <section class="mb-4">
                     <h2 class="h5 mb-2 text-decoration-underline">Popular tags</h2>
-                    {% if featured_tags %}
+                    {% if popular_tags %}
                         <div class="{{ {"def": 2, "sm": 3, "md": 4} | row_classes }} g-2 mb-2"
                              data-masonry='{"percentPosition": true }'>
-                            {% for tag in featured_tags %}
+                            {% for tag in popular_tags[:20] %}
                                 {% include "fragments/tag.html" %}
                             {% endfor %}
                         </div>
 
-                        {% for tag in popular_tags %}
+                        {% for tag in popular_tags[20:] %}
                             <a href="{{ articles_url(tags=[tag.slug]) }}" class="btn btn-light btn-sm tag mb-1">
-                                <h3 class="h6 fw-normal mb-0">{{ tag.name }} ({{ tag.articles_count }})</h3>
+                                <h3 class="h6 fw-normal mb-0">{{ tag.name }} &mdash; {{ tag.articles_count }}</h3>
                             </a>
                         {% endfor %}
 
@@ -73,12 +73,10 @@
                     {% endif %}
                 </section>
 
-                {% set should_show_become_an_author = (cur_user and cur_user.published_articles_count==0) or not cur_user %}
-
                 <section class="mb-4">
                     <h2 class="h5 mb-2">
                         <a href="{{ users_url(type=UserQueryType.POPULAR) }}" class="link-body-emphasis">
-                            Popular users
+                            Popular authors
                         </a>
                     </h2>
                     {% if popular_users %}
