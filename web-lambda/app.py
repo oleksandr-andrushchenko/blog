@@ -204,7 +204,7 @@ async def index(cur_user: OptCurUserDep) -> str:
     ) = await asyncio.gather(
         to_thread(get_popular_tags, TagQueryDTO(limit=40)),
         to_thread(get_latest_published_articles, limit=latest_articles_query.limit),
-        to_thread(get_popular_published_articles, limit=9),
+        to_thread(get_popular_published_articles, limit=8),
         to_thread(get_latest_article_comments, latest_article_comments_query),
         to_thread(get_popular_active_users, limit=5 if should_show_become_an_author else 4),
     )
