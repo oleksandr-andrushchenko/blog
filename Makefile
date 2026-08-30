@@ -314,8 +314,8 @@ login-scripts: scripts-up ## Open shell in scripts Docker container
 	$(SCRIPTS_DC) exec -it $(SCRIPTS_CONTAINER) bash
 
 .PHONY: logs
-logs: ## Show logs of Docker container
-	$(DC) logs -f $(WEB_LAMBDA_CONTAINER)
+logs: ## Show logs of Docker containers
+	$(DC) logs -f
 
 .PHONY: generate-site-files
 generate-site-files: scripts-up ## Run content generator inside Docker container
