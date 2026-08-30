@@ -90,6 +90,7 @@ API endpoints are exposed through the dedicated API Gateway execute-api URL, wit
 - article page: similar articles section shows no the all articles
 - article page: auto append/generate "More Articles to Read" paragraph
 - add tags_url function
+- file uploader with preview + tinymcs image upload with URL
 
 ## Links
 
