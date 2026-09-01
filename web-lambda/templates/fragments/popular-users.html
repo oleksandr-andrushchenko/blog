@@ -1,0 +1,9 @@
+{% with vert_gap=0,
+    h_tag_size=3,
+    h_display_size=5,
+    image_column_size={"def":3,"md":2},
+    user_avatar_img_sizes={"1400px": "49px", "1200px": "40px", "992px": "56px", "768px": "96px", "default": "120px"} %}
+    {% for user in users %}
+        {% include "fragments/user.html" %}
+    {% endfor %}
+{% endwith %}
