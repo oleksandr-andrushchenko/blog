@@ -43,19 +43,20 @@ print("🎉 Copied static files successfully (skipped UUID-prefixed ones)")
 # --- Update robots.txt if it exists ---
 robots_file = output_dir / "robots.txt"
 if robots_file.exists():
-    lines_to_append = []
+    lines = []
 
     base_url = os.getenv("WEB_BASE_URL")
-    lines_to_append.append(f"Sitemap: {base_url.rstrip('/')}/sitemap.xml" if base_url else "Sitemap: /sitemap.xml")
+
+    if (output_dir / "sitemap.xml").exists():
+        lines.append(f"Sitemap: {base_url}/sitemap.xml")
 
     if (output_dir / "license.xml").exists():
-        lines_to_append.append("License: /license.xml")
+        lines.append(f"License: {base_url}/license.xml")
 
-    if lines_to_append:
+    if lines:
         with robots_file.open("a") as f:
             f.write("\n")
-            f.write("\n")
-            f.write("\n".join(lines_to_append))
-        print(f"📝 Updated robots.txt with {', '.join(lines_to_append)}")
+            f.write("\n".join(lines))
+        print(f"📝 Updated robots.txt with {', '.join(lines)}")
 else:
     print("⚠️  No robots.txt found in output, skipping update")
