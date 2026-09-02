@@ -16,7 +16,7 @@ def _validate_tags(values):
 
 
 def _validate_title(value):
-    if not 10 <= len(value) <= 500:
+    if not 2 <= len(value) <= 500:
         raise ValueError("title must contain between 10 and 500 characters")
 
 
