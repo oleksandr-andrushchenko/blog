@@ -14,9 +14,9 @@
 {% block content %}
     <h1>{{ title }}</h1>
 
-    <div class="row">
+    <div class="{{ {"def": 1, "sm": 2, "md": 3} | row_classes }}">
         {% if check_auth(cur_user, Permission.GENERATE_SITEMAP) %}
-            <div class="{{ {"def": 4} | col_classes }}">
+            <div class="col">
                 <section class="border rounded p-4 mb-4 bg-light">
                     <h2 class="h4 mb-2">Generate Sitemap</h2>
 
@@ -28,22 +28,22 @@
                     <form id="generate-sitemap-form" novalidate>
                         <button class="btn btn-primary" type="submit">Generate & Notify</button>
                     </form>
-                </section>
 
-                <script>
-                  document.addEventListener("DOMContentLoaded", () => {
-                    handleFormSubmit("#generate-sitemap-form", {{ url("generate-sitemap", absolute=True) | tojson }}, {
-                      method: "POST",
-                      onSuccess: (res) => `Sitemap generated!<br>URLs count: ${res.urls_count}, Sitemap URL: <a href="${res.sitemap_url}" target="_blank">${res.sitemap_url}</a>`,
-                    })
-                  })
-                </script>
+                    <script>
+                      document.addEventListener("DOMContentLoaded", () => {
+                        handleFormSubmit("#generate-sitemap-form", {{ url("generate-sitemap", absolute=True) | tojson }}, {
+                          method: "POST",
+                          onSuccess: (res) => `Sitemap generated!<br>URLs count: ${res.urls_count}, Sitemap URL: <a href="${res.sitemap_url}" target="_blank">${res.sitemap_url}</a>`,
+                        })
+                      })
+                    </script>
+                </section>
             </div>
         {% endif %}
 
         {% if check_auth(cur_user, Permission.DROP_CDN_CACHE) %}
-            <div class="{{ {"def": 4} | col_classes }}">
-                <section class="border rounded p-4 mb-4 bg-light">
+            <div class="col">
+                <section class="col border rounded p-4 mb-4 bg-light">
                     <h2 class="h4 mb-2">Drop CDN Cache</h2>
 
                     <p class="small text-muted mb-3">
@@ -53,16 +53,16 @@
                     <form id="drop-cdn-cache-form" novalidate>
                         <button class="btn btn-primary" type="submit">Drop</button>
                     </form>
-                </section>
 
-                <script>
-                  document.addEventListener("DOMContentLoaded", () => {
-                    handleFormSubmit("#drop-cdn-cache-form", {{ url("drop-cdn-cache", absolute=True) | tojson }}, {
-                      method: "POST",
-                      onSuccess: (res) => `CDN cache dropped!<br>Items count: ${res.items_count}`,
-                    })
-                  })
-                </script>
+                    <script>
+                      document.addEventListener("DOMContentLoaded", () => {
+                        handleFormSubmit("#drop-cdn-cache-form", {{ url("drop-cdn-cache", absolute=True) | tojson }}, {
+                          method: "POST",
+                          onSuccess: (res) => `CDN cache dropped!<br>Items count: ${res.items_count}`,
+                        })
+                      })
+                    </script>
+                </section>
             </div>
         {% endif %}
     </div>
