@@ -2,19 +2,19 @@ from article_dtos import (
     ArticleCommentDTO, ArticleDTO, UpdateArticleCommentDTO, UpdateArticleDTO, UpdateArticleImpressionDTO,
     UpdateArticleStatusDTO, UpdateTagDTO,
 )
-from tag_subscription_dtos import TagSubscriptionDTO
 from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO
 from shared_utils import *
 from shared_utils import get_tags
+from tag_subscription_dtos import TagSubscriptionDTO
 from user_dtos import (
     UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO,
     UserImpressionAction,
 )
 
 
-def drop_cdn_cache(user: User) -> tuple[bool, int]:
+def drop_cdn_cache(user: User, paths: list[str] | None = None) -> tuple[bool, int]:
     verify_authorization(user, Permission.DROP_CDN_CACHE)
-    res = _drop_cdn_cache()
+    res = _drop_cdn_cache(paths or [])
     return res.get("success"), res.get("items_count")
 
 
@@ -177,8 +177,6 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
     return len(urls), sitemap_url
 
 
-
-
 def create_tag_subscription(dto: TagSubscriptionDTO, user: User) -> TagSubscription:
     tag_subscription_id, now, key = str(uuid.uuid4()), utc_now(), tag_subscription_key(dto.tags)
     transacts = []
@@ -219,7 +217,7 @@ def delete_tag_subscription(tag_subscription_id: str, user: User) -> TagSubscrip
 
 
 def update_tag(tag: Tag, update_tag_dto: UpdateTagDTO, cur_user: User,
-                       req) -> None:
+               req) -> None:
     verify_authorization(cur_user, Permission.UPDATE_TAG, tag)
 
     if cur_user.status == UserStatus.BANNED:

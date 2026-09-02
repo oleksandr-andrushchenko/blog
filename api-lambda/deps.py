@@ -7,11 +7,11 @@ upload and mutation request parsing belongs to the API lambda.
 from article_dtos import UpdateArticleCommentDTO, UpdateArticleCommentImpressionDTO, UpdateArticleDTO, \
     UpdateArticleImpressionDTO, UpdateArticleStatusDTO, UpdateTagDTO
 from basic_dtos import ImageFileDTO
-from query_dtos import TagQueryDTO
+from cdn_cache_dtos import DropCDNCacheDTO
 from shared_deps import *
 from shared_utils import ArticleComment, ArticleCommentNotFoundError, get_article_comment
 from tag_subscription_dtos import TagSubscriptionDTO
-from user_dtos import UpdateUserDTO, UpdateUserActivitySettingsDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO
+from user_dtos import UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO
 from web import Body, HTTPException, Request
 
 
@@ -31,6 +31,10 @@ def get_update_user_dto(value: UpdateUserDTO = Body(...)) -> UpdateUserDTO:
 
 
 def get_tag_subscription_dto(value: TagSubscriptionDTO = Body(...)) -> TagSubscriptionDTO:
+    return value
+
+
+def get_drop_cdn_cache_dto(value: DropCDNCacheDTO = Body(...)) -> DropCDNCacheDTO:
     return value
 
 
@@ -87,5 +91,6 @@ TagQueryDep = Annotated[TagQueryDTO, Depends()]
 TagDep = Annotated[Tag, Depends(get_tag_by_slug)]
 UpdateTagDTODep = Annotated[UpdateTagDTO, Depends(get_update_tag_dto)]
 TagSubscriptionDTODep = Annotated[TagSubscriptionDTO, Depends(get_tag_subscription_dto)]
+DropCDNCacheDTODep = Annotated[DropCDNCacheDTO, Depends(get_drop_cdn_cache_dto)]
 ImageFileDTODep = Annotated[ImageFileDTO, Depends(get_image_file)]
 UpdateUserImpressionDTODep = Annotated[UpdateUserImpressionDTO, Depends(get_update_user_impression_dto)]

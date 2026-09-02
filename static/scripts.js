@@ -92,6 +92,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
     errorMessage = "Something went wrong. Please try again.",
     validationFailedMessage = "Please fix the highlighted fields.",
     rules = {},
+    prepareData = data => data,
     onSuccess = () => {
     },
     loadingText = "Submitting...",
@@ -180,6 +181,8 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
       const values = JSON.parse(form.tags.value)
       data.tags = values.map(item => toKebabCase(item.value)).filter(Boolean)
     }
+
+    data = prepareData(data)
 
     let msgClass = "danger"
     let msgIcon = "exclamation-triangle-fill"

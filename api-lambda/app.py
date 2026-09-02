@@ -70,6 +70,7 @@ from deps import (
     TagDep,
     UpdateTagDTODep,
     TagSubscriptionDTODep,
+    DropCDNCacheDTODep,
 )
 from shared_utils import (
     find_tag,
@@ -408,8 +409,8 @@ async def _generate_sitemap(cur_user: CurUserDep, request: Request) -> dict:
 
 
 @route("post", "drop-cdn-cache")
-async def _drop_cdn_cache(cur_user: CurUserDep) -> dict:
+async def _drop_cdn_cache(cur_user: CurUserDep, drop_cache_dto: DropCDNCacheDTODep) -> dict:
     from api_utils import drop_cdn_cache
 
-    success, items_count = drop_cdn_cache(cur_user)
+    success, items_count = drop_cdn_cache(cur_user, drop_cache_dto.paths)
     return {"success": success, "items_count": items_count}

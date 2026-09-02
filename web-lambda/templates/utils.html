@@ -4,6 +4,7 @@
 {% set meta_robots = "noindex, nofollow" %}
 {% set meta_title = title ~ " | " ~ site_name %}
 {% set meta_canonical_url = url("utils", absolute=True) %}
+{% set layout_assets = {"tagify": true} %}
 
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), (title): None} %}
@@ -51,13 +52,36 @@
                     </p>
 
                     <form id="drop-cdn-cache-form" novalidate>
+                        <label class="form-label" for="cdn-cache-paths">Paths</label>
+                        <input id="cdn-cache-paths" class="form-control mb-3" name="paths" type="text"
+                               value="/robots.txt,/sitemap.xml,/license.xml,/scripts.js,/styles.css"
+                               placeholder="Add cache path" autocomplete="off">
                         <button class="btn btn-primary" type="submit">Drop</button>
                     </form>
 
                     <script>
                       document.addEventListener("DOMContentLoaded", () => {
+                        const pathInput = document.querySelector("#cdn-cache-paths")
+                        const pathTagify = new Tagify(pathInput, {
+                          duplicates: false,
+                          dropdown: {enabled: 0},
+                          transformTag(tagData) {
+                            tagData.value = tagData.value.trim()
+                            tagData.name = tagData.value
+                          }
+                        })
+
+                        pathTagify.on("remove", () => {
+                          setTimeout(() => {
+                            if (!pathTagify.value.length) pathTagify.addTags(["/robots.txt"])
+                          }, 0)
+                        })
+
                         handleFormSubmit("#drop-cdn-cache-form", {{ url("drop-cdn-cache", absolute=True) | tojson }}, {
                           method: "POST",
+                          prepareData: () => ({
+                            paths: pathTagify.value.map(path => path.value)
+                          }),
                           onSuccess: (res) => `CDN cache dropped!<br>Items count: ${res.items_count}`,
                         })
                       })

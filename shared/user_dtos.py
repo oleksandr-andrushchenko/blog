@@ -50,12 +50,6 @@ class UpdateUserDTO(BaseDTO):
             self.bmc_username = value
 
 
-@dataclass(slots=True)
-class UpdateUserActivitySettingsDTO(BaseDTO):
-    show_activity_calendar: bool | object = UNSET
-    show_recent_activity: bool | object = UNSET
-
-
 class UserImpressionAction(StrEnum):
     FOLLOW = "follow"
     BLOCK = "block"
