@@ -142,11 +142,20 @@ def get_user_activities(user: User, year: int | None = None, recent_limit: int =
         start, end, calendar_year = datetime(year, 1, 1, tzinfo=timezone.utc), datetime(year + 1, 1, 1,
                                                                                         tzinfo=timezone.utc), year
     start_ms, end_ms = int(start.timestamp() * 1000), int(end.timestamp() * 1000)
-    resp = query_dynamodb_table(
-        key_condition_expr=Key("pk").eq(f"USER_ACTIVITY#{user.id}") & Key("sk").between(f"ACTIVITY#{start_ms}",
-                                                                                        f"ACTIVITY#{end_ms}#~"),
-        scan_index_forward=False, limit=1000)
-    activities = [user_activity_from_dynamodb(item) for item in resp.get("Items", []) if item.get("profile_visible")]
+    activities = []
+    if user.published_articles_count or user.article_comments_count:
+        resp = query_dynamodb_table(
+            key_condition_expr=Key("pk").eq(f"USER_ACTIVITY#{user.id}") & Key("sk").between(
+                f"ACTIVITY#{start_ms}", f"ACTIVITY#{end_ms}#~"
+            ),
+            scan_index_forward=False,
+            limit=1000,
+        )
+        activities = [
+            user_activity_from_dynamodb(item)
+            for item in resp.get("Items", [])
+            if item.get("profile_visible")
+        ]
     counts = {}
     for activity in activities:
         day = datetime.fromtimestamp(float(activity.created_at) / 1000, tz=timezone.utc).date().isoformat()
@@ -176,8 +185,15 @@ def get_user_activities(user: User, year: int | None = None, recent_limit: int =
         month["week_count"] = len(month["weeks"])
         while len(month["weeks"]) < 6:
             month["weeks"].append([{"date": None, "count": 0} for _ in range(7)])
-    return {"year": calendar_year, "current_year": now.year, "total": len(activities),
-            "days": counts, "calendar_days": calendar_days, "months": months, "recent": activities[:recent_limit]}
+    return {
+        "year": calendar_year,
+        "current_year": now.year,
+        "total": len(activities),
+        "days": counts,
+        "calendar_days": calendar_days,
+        "months": months,
+        "recent": activities[:recent_limit]
+    }
 
 
 def get_latest_published_articles(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[Article]:
