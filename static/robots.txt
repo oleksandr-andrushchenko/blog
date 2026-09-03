@@ -1,7 +1,4 @@
 User-agent: *
-
-# --- ALLOW ALL BY DEFAULT ---
+Content-Signal: search=yes, ai-input=yes, ai-train=no
 Allow: /
-
-# --- BLOCK QUERY PARAMETERS (duplicates, filters, tracking) ---
-Disallow: /*?
+Disallow: /*?*

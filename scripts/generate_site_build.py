@@ -50,9 +50,6 @@ if robots_file.exists():
     if (output_dir / "sitemap.xml").exists():
         lines.append(f"Sitemap: {base_url}/sitemap.xml")
 
-    if (output_dir / "license.xml").exists():
-        lines.append(f"License: {base_url}/license.xml")
-
     if lines:
         with robots_file.open("a") as f:
             f.write("\n")
