@@ -35,7 +35,8 @@
     <article>
         <header>
             <h1>{{ site_name }} {{ title }}</h1>
-            <p class="text-secondary"><b>Last updated:</b> {{ (utc_now / 1000) | unix_to_full_date }}</p>
+            <p class="text-secondary"><b>Last updated:</b> <time datetime="2026-09-04">September 4, 2026</time></p>
+            <p class="small text-secondary">Updated to explain public profiles and interests, tag notification emails, uploads, service providers, and privacy request options.</p>
             <p>Welcome to <b>{{ site_name }}</b> (“we,” “our,” or “us”). This Privacy Policy explains how we
                 collect, use, disclose, and protect your personal information when you visit <a
                         href="{{ url("index") }}" class="link-body-emphasis">{{ site_name }}</a>.</p>
@@ -43,118 +44,173 @@
 
         <section>
             <h2>1. Information We Collect</h2>
-            <p>We may collect the following categories of information:</p>
             <ul>
-                <li><b>Personal Information:</b> Information you voluntarily provide, such as your name, email
-                    address, or other information submitted through contact forms, comments, or subscription forms.
-                </li>
-                <li><b>Usage Data:</b> Information automatically collected when you visit the site, including
-                    IP address, browser type, operating system, referring URLs, pages visited, and interaction data.
-                </li>
-                <li><b>Cookies and Tracking Technologies:</b> We use cookies and similar technologies to
-                    remember preferences, analyze site traffic, and improve the user experience.
-                </li>
+                <li><b>Account information:</b> Sign-in provides an account identifier, email address, and, when
+                    available, a name through our authentication provider. We use this information to create or
+                    recognize your account. Sign-in credentials are handled through the authentication service.</li>
+                <li><b>Profile information:</b> Your display name, username, avatar, headline, biography, location,
+                    website, GitHub username, and Buy Me a Coffee username, when you provide them.</li>
+                <li><b>Contributions and preferences:</b> Articles (including unpublished submissions), images,
+                    comments, article likes and dislikes, author follows and blocks, tag subscriptions, and
+                    records of account activity and moderation decisions.</li>
+                <li><b>Contact messages:</b> Your name, email address, message, submission time, and your account
+                    identifier if you are signed in. Messages are stored and can be forwarded to site operators
+                    through our notification service.</li>
+                <li><b>Technical information:</b> Requests to the Website and its providers expose information such
+                    as IP address, browser details, requested URLs, and referring pages. Hosting and error logs
+                    may record request information. Analytics and browser storage are described below.</li>
             </ul>
+            <p>You can read public pages without an account. Signing in is required for publishing, commenting,
+                voting, following or blocking authors, and managing tag subscriptions. The contact form is also
+                available without signing in.</p>
         </section>
 
         <section>
             <h2>2. How We Use Information</h2>
-            <p>We use personal information to:</p>
+            <p>We use account and contribution information to authenticate users, save and publish contributions,
+                display profiles, organize articles by tags, calculate ratings and counts, and provide community
+                features. We use activity and moderation records to operate the site and investigate misuse.</p>
+            <p><b>Article notification emails:</b> Subscribing to a tag or a combination of tags stores your interests
+                and enables emails to your account address when matching articles are published. Remove a
+                subscription using the subscribed button or the Interests section of your profile while signed in.
+                Removing every subscription stops future matching notifications; a message already being processed
+                may still arrive. Signing out does not unsubscribe you.</p>
+            <p>We use contact details to respond to questions and requests, and technical information to deliver,
+                troubleshoot, secure, and understand use of the Website. We do not sell or rent your personal
+                information.</p>
+        </section>
+
+        <section>
+            <h2>3. Grounds for Processing</h2>
+            <p>Where applicable data protection law requires a lawful basis, the purpose determines the basis:</p>
             <ul>
-                <li>Operate, maintain, and improve {{ site_name }};</li>
-                <li>Respond to messages, comments, and inquiries;</li>
-                <li>Send newsletters or updates if you subscribe (you may opt out at any time);</li>
-                <li>Prevent spam, fraud, and abuse; and</li>
-                <li>Comply with legal obligations.</li>
+                <li><b>Providing requested services:</b> Account access, saving contributions, and related features
+                    where processing is necessary to perform our agreement with you.</li>
+                <li><b>Consent:</b> Optional subscription emails you request and other processing for which consent
+                    is required. You can withdraw subscription consent by unsubscribing.</li>
+                <li><b>Legitimate interests:</b> Maintaining a functioning community, responding to inquiries,
+                    preventing abuse, and diagnosing faults, subject to your rights and interests.</li>
+                <li><b>Legal obligations:</b> Handling requests and retaining or disclosing information when law
+                    requires it.</li>
             </ul>
-            <p>We do not sell or rent your personal information.</p>
+            <p>The cookie notice described below is not an analytics consent control. These Terms and this Policy
+                do not substitute for consent where it is legally required.</p>
         </section>
 
         <section>
-            <h2>3. Legal Bases for Processing (GDPR)</h2>
-            <p>If you are located in the European Economic Area (EEA), the United Kingdom, or Switzerland, we process
-                personal data under one or more of these legal bases:</p>
-            <ul>
-                <li><b>Consent:</b> when you opt in (e.g., subscribing to a newsletter);</li>
-                <li><b>Performance of a contract:</b> when necessary to provide requested services;</li>
-                <li><b>Legitimate interests:</b> for site maintenance, analytics, and fraud prevention; and
-                </li>
-                <li><b>Legal obligation:</b> when required to comply with the law.</li>
-            </ul>
+            <h2>4. Your Choices &amp; Privacy Requests</h2>
+            <p>You can edit profile fields and manage tag subscriptions while signed in. Profile editing does not
+                change credentials held by your sign-in provider. There is currently no self-service account deletion
+                or full data export button; use our <a href="{{ url('contacts') }}"
+                class="link-body-emphasis">Contacts</a> page to request account deletion, content removal, access,
+                or a copy of your personal information.</p>
+            <p>Depending on the law that applies to you, you may also have rights to correction, portability,
+                restriction, objection, withdrawal of consent, and complaints to your local data protection
+                authority. Rights and exceptions depend on the processing involved. Withdrawing consent does not
+                affect processing that was lawful before withdrawal.</p>
+            <p>Include your profile URL and the request you want us to handle. We may ask for information needed to
+                verify your identity and protect your account. Do not send passwords, authentication tokens, payment
+                details, or identity documents in your initial message. We will handle requests within applicable
+                legal deadlines and explain any applicable limits or reasons we cannot fulfill a request.</p>
         </section>
 
         <section>
-            <h2>4. Your Rights (GDPR, CCPA, and Canadian Law)</h2>
-            <p>Depending on where you live, you may have rights including:</p>
-            <ul>
-                <li>The right to access and receive a copy of your personal data;</li>
-                <li>The right to request correction or deletion of your data;</li>
-                <li>The right to withdraw consent (where processing is based on consent);</li>
-                <li>The right to restrict or object to certain processing activities;</li>
-                <li>The right to opt-out of the sale or sharing of personal information (California residents); and</li>
-                <li>The right to lodge a complaint with a supervisory authority in your jurisdiction.</li>
-            </ul>
-            <p>To exercise these rights, please contact us via the <a href="{{ url("contacts") }}"
-                                                                      class="link-body-emphasis">Contacts</a>
-                section below.</p>
+            <h2>5. Retention &amp; Removal</h2>
+            <p>Account records, contributions, activity records, and contact messages do not have a single automatic
+                expiry period. Retention depends on whether the account or content is still in use, whether a request
+                or dispute remains open, and any security or legal need to keep a record. Unsubscribing removes the
+                active tag subscription; signing out only ends your session.</p>
+            <p>Request deletion through Contacts. Account closure, removal of public contributions, and deletion of
+                records held by an external sign-in provider are distinct actions; describe which you want.
+                Information may need to be retained for legal obligations or resolving disputes, and cached or backup
+                copies may remain until their normal replacement or deletion. We do not promise instant deletion
+                from every system or from independent websites that have copied public content.</p>
+        </section>
+
+        <section id="cookies">
+            <h2>6. Cookies &amp; Browser Storage</h2>
+            <p>We use the following browser storage. You can remove it through your browser settings;
+                removing essential cookies may sign you out or interrupt sign-in.</p>
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead><tr><th scope="col">Name</th><th scope="col">Purpose</th><th scope="col">Duration</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>token</code></td><td>Authentication cookie used to keep you signed in.
+                            It may contain account identifiers; it does not contain your password.</td>
+                            <td>Seven days by default, subject to the configured session lifetime; removed on logout.</td></tr>
+                        <tr><td><code>redirect_url</code></td><td>Cookie used to return you to a page after
+                            sign-in or sign-out.</td><td>Browser session.</td></tr>
+                        <tr><td><code>cookiesAccepted</code></td><td>Local storage remembering that you dismissed
+                            the cookie notice.</td><td>Until you clear this site's browser storage.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p>When Google Analytics is enabled, it receives usage information and may set analytics cookies.
+                Cookie names and lifetimes depend on its configuration. See
+                <a href="https://policies.google.com/technologies/cookies" class="link-body-emphasis">Google's cookie information</a>.
+                The Website's current cookie notice remembers dismissal only; it does not enable, disable, or
+                provide granular controls for analytics. Browser privacy settings can restrict cookies and tracking.</p>
         </section>
 
         <section>
-            <h2>5. Data Retention</h2>
-            <p>We retain personal data only as long as necessary to fulfill the purposes described in this Policy or to
-                meet legal or accounting obligations. If you request deletion, we will take reasonable steps to remove
-                your data unless we are required to retain it by law.</p>
+            <h2>7. What Is Public &amp; Who Receives Information</h2>
+            <p><b>Public profiles:</b> Your name, username, avatar, biography, headline, location and external links
+                can appear publicly, together with join date, contribution and follower counts, selected activity
+                history, and your subscribed tags under Interests. Your account email is not displayed as a normal
+                profile field. Do not put a home address or other private details in public profile fields.</p>
+            <p><b>Contributions:</b> Published articles and comments are public. Unpublished and rejected article pages
+                require appropriate account permissions, but uploaded images are public files accessible by URL,
+                including images uploaded before an article is published. Do not upload confidential files.
+                Some account moderation information, including a banned status and its explanation, may be shown
+                on profiles.</p>
+            <p>Search engines can index public pages, and others can reuse content under our
+                <a href="{{ url('terms') }}#content-reuse" class="link-body-emphasis">content reuse policy</a>.
+                Removing a page here does not remove independent copies elsewhere.</p>
+            <p><b>Providers:</b> Amazon Web Services provides hosting, storage, authentication through Cognito,
+                publication email delivery through SES, and contact notifications through SNS. Google Analytics
+                receives usage information when configured. Google Fonts, jsDelivr, unpkg, jQuery's CDN, and Tiny
+                Cloud supply fonts, scripts, styles, or editor resources on relevant pages. Your browser contacts
+                these providers directly and can disclose IP address, browser details, and referring information.</p>
+            <p>External images or media included in articles can cause requests to their hosts. GitHub, author
+                websites, external sign-in providers, and Buy Me a Coffee apply their own policies when you use
+                their services. Donation payment details are handled by the payment provider, not our contact form.</p>
+            <p>Site operators and authorized administrators can access information needed to run the service and
+                handle reports. Information may also be disclosed when legally required or necessary to investigate
+                abuse and protect users' rights. For provider details, see
+                <a href="https://aws.amazon.com/privacy/" class="link-body-emphasis">AWS Privacy</a> and
+                <a href="https://policies.google.com/privacy" class="link-body-emphasis">Google Privacy</a>.</p>
         </section>
 
         <section>
-            <h2>6. Cookies &amp; Tracking</h2>
-            <p>We use cookies and similar technologies for functional, analytical, and optional advertising purposes.
-                You can manage cookies through your browser settings. Disabling cookies may reduce functionality on the
-                site.</p>
-            <p>If you would like a more detailed cookie disclosure (cookie categories, duration, third-party cookies),
-                let us know and we will provide a matching Cookie Policy section.</p>
-            <p>
-                We use essential cookies to maintain your session when you log in. These cookies store a secure
-                authentication token that allows you to remain signed in as you navigate between pages.
-                They do not contain your password or personal data and are automatically deleted when you log out or
-                when the session expires.
-            </p>
+            <h2>8. International Processing</h2>
+            <p>Our infrastructure and external providers may process information outside your country. The location
+                depends on the hosting service and provider involved. Contact us for information about the processing
+                relevant to your account and any applicable transfer safeguards. The use of a provider does not by
+                itself mean every country offers the same legal protection.</p>
         </section>
 
         <section>
-            <h2>7. Third-Party Services</h2>
-            <p>We may use third-party service providers for analytics, hosting, email delivery, and embedded content
-                (e.g., video or social embeds). These providers may collect or receive information about your use of the
-                site and have their own privacy policies. We recommend reviewing their privacy notices.</p>
+            <h2>9. Security</h2>
+            <p>The Website uses HTTPS and account permissions to protect access to features and non-public article
+                pages. The session cookie is configured to restrict access by browser scripts. These measures do not
+                make the service risk-free. Protect your sign-in account, sign out on shared devices, and do not
+                share session tokens.</p>
+            <p>Report suspected account misuse or exposed personal information through Contacts. We will assess
+                reported incidents and provide notifications where required by applicable law.</p>
         </section>
 
         <section>
-            <h2>8. International Data Transfers</h2>
-            <p>Your data may be transferred to, stored, or processed in countries other than your own. When transfers
-                occur, we take steps to ensure an adequate level of protection, such as using standard contractual
-                clauses, where appropriate.</p>
-        </section>
-
-        <section>
-            <h2>9. Data Security</h2>
-            <p>We employ reasonable administrative, technical, and organizational safeguards to protect your personal
-                data. However, no system is entirely secure. If a data breach affecting your information occurs, we will
-                follow applicable legal requirements for notification.</p>
-        </section>
-
-        <section>
-            <h2>10. Children’s Privacy</h2>
-            <p>{{ site_name }} is not intended for children under the age of 13 (or under 16 where the higher age
-                applies). We do not knowingly collect personal information from children. If you believe we have
-                collected personal information from a child, please <a href="{{ url("contacts") }}"
-                                                                       class="link-body-emphasis">contact</a> us and
-                we will delete the data.</p>
+            <h2>10. Age Requirements</h2>
+            <p>The service is intended for users aged 13 or older, and aged 16 or older in the European Union under
+                our site rules. Do not create an account or submit personal information if you do not meet those
+                requirements. We do not currently verify age during sign-in. If you believe a child has submitted
+                information in breach of these rules, contact us so we can investigate and arrange appropriate removal.</p>
         </section>
 
         <section>
             <h2>11. Changes to This Policy</h2>
             <p>We may update this Privacy Policy from time to time. We will post the updated Policy on this page and
-                update the “Last updated” date. Significant changes will be made clear.</p>
+                update the “Last updated” date. Material changes will be identified on this page; additional notice or consent will be provided where required by law.</p>
         </section>
 
         <footer>

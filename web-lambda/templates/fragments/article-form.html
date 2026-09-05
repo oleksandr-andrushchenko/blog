@@ -20,6 +20,10 @@
         {% endwith %}
 
         <div>
+            <p class="small text-body-secondary mb-2">
+                By submitting an article, you agree to our
+                <a href="{{ url('terms') }}" class="link-body-emphasis" target="_blank" rel="noopener noreferrer">Terms of Service <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i><span class="visually-hidden"> (opens in a new tab)</span></a>.
+            </p>
             <button type="submit" class="btn btn-light">
                 <i class="bi {% if article %}bi-arrow-clockwise{% else %}bi-plus-lg{% endif %}"></i>
                 {% if article %}Update{% else %}Create{% endif %} article

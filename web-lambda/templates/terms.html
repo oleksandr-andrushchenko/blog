@@ -35,7 +35,8 @@
     <article>
         <header>
             <h1>{{ site_name }} {{ title }}</h1>
-            <p class="text-secondary"><b>Last updated:</b> {{ (utc_now / 1000) | unix_to_full_date }}</p>
+            <p class="text-secondary"><b>Last updated:</b> <time datetime="2026-09-04">September 4, 2026</time></p>
+            <p class="small text-secondary">Updated to explain publishing, subscriptions, donations, moderation, and reuse with source credit, including AI adaptations.</p>
             <p>
                 Welcome to <b>{{ site_name }}</b> (the “Website”). By accessing or using this Website, you
                 agree to be bound by these Terms of Service (“Terms”).
@@ -44,70 +45,110 @@
         </header>
 
         <section>
-            <h2>1. Acceptance of Terms</h2>
-            <p>
-                By accessing or using <a href="{{ url('index') }}" class="link-body-emphasis">{{ site_name }}</a>, you
-                confirm that you have read,
-                understood, and agree to be bound by these Terms and our
-                <a href="{{ url('policy') }}" class="link-body-emphasis">Privacy Policy</a>. You must be at least 13
-                years old (or 16 in
-                the EU) to use this Website.
-            </p>
+            <h2>1. The Service &amp; Your Account</h2>
+            <p>{{ site_name }} is a software system design publishing community. Visitors can read public articles
+                and profiles. Signed-in users can submit articles, comment, rate articles, follow or block authors,
+                and subscribe to tags, subject to account permissions and these
+                <a href="{{ url('rules') }}" class="link-body-emphasis">Community Rules</a>. Our
+                <a href="{{ url('policy') }}" class="link-body-emphasis">Privacy Policy</a> explains data handling.</p>
+            <p>You must be at least 13 years old, or 16 in the European Union. If you are below the age of legal
+                adulthood where you live, use the service only with any parent or guardian permission required by law.
+                Keep your sign-in account secure, provide accurate account information, and do not impersonate others.</p>
+            <p>Profiles and selected activity and interest information are public. Follow and block actions are
+                community preferences, not a guarantee that another person cannot access your public content.
+                Keep a separate copy of work you want to preserve.</p>
         </section>
 
         <section>
-            <h2>2. Changes to the Terms</h2>
-            <p>
-                We may modify these Terms at any time. Updates will be posted on this page with a new “Last updated”
-                date.
-                Continued use of the Website after any changes constitutes your acceptance of the updated Terms.
-            </p>
+            <h2>2. Changes to These Terms</h2>
+            <p>We will post revisions with a fixed “Last updated” date and identify material changes on this page.
+                Changes apply prospectively; changing these Terms does not by itself grant new rights over earlier
+                contributions. Where law requires additional notice or agreement, we will obtain it. If you do not
+                accept revised terms, stop submitting content and contact us about closing your account.</p>
         </section>
 
         <section>
-            <h2>3. Use of the Website</h2>
-            <p>You agree to use the Website only for lawful purposes and in a manner that does not:</p>
-            <ul>
-                <li>Violate any applicable laws or regulations;</li>
-                <li>Infringe the rights of others, including intellectual property rights;</li>
-                <li>Disrupt or interfere with the security or operation of the Website; or</li>
-                <li>Involve the use of automated systems (such as bots or scrapers) without permission.</li>
-            </ul>
+            <h2>3. Publishing &amp; Acceptable Use</h2>
+            <p>New articles start unpublished. Publication and rejection are controlled by account permissions.
+                Significant edits to a published title or article, or changes to its tags, can return it to unpublished
+                status. Publication is not guaranteed, and approval is not a certification that every claim is correct.</p>
+            <p>Use accurate titles and relevant tags. Do not publish unlawful material, malware, stolen content,
+                confidential information, spam, or deceptive promotions. Do not manipulate ratings or followers,
+                evade account restrictions, bypass access controls, or interfere with the Website.</p>
+            <p>Search indexing is allowed within our published crawler instructions. Automated access must respect
+                those instructions and must not overload the service or access restricted material. Contact us about
+                bulk collection. Permission to reuse content under section 4 does not grant permission to bypass
+                technical restrictions or collect users' personal information.</p>
+        </section>
+
+        <section id="content-reuse">
+            <h2>4. Content Ownership, Reuse &amp; Republication</h2>
+            <div class="alert alert-info">
+                <b>You may reuse or republish our content. Credit {{ site_name }} and include a visible link
+                    to the original page on {{ site_name }}.</b> No separate permission is needed for content
+                covered by this policy.
+            </div>
+            <p>Authors retain ownership of their work. For content owned by {{ site_name }} or authorized by its
+                creators for this policy, we grant a non-exclusive, worldwide, royalty-free permission to copy,
+                share, republish, translate, and adapt the content, in whole or in part, for personal or commercial
+                purposes, provided you credit {{ site_name }} as the source and link to the original page.</p>
+            <p>Place the credit with the reused content so readers can easily find it. Online, the source link must
+                be clickable; in print or other formats without clickable links, include the original page's full URL.
+                For example: <b>Source: {{ site_name }} — [link to the original article]</b>.</p>
+            <p>Please also credit the named author and identify translations or other changes. Do not present
+                someone else's work as your own or imply that {{ site_name }} or the author endorses your use.</p>
+            <h3>AI Rewriting Does Not Remove the Source Credit Requirement</h3>
+            <p>If you reuse or adapt our content under this permission, you must credit {{ site_name }} and link
+                to the original page even if you use AI or another tool to rewrite, paraphrase, summarize,
+                translate, restructure, or combine it with other material. Changing the wording, headings,
+                examples, or format does not waive these conditions. The same rule applies to manual rewrites.</p>
+            <p>Do not use these techniques to conceal the source or present adapted content as independently
+                created work. An AI tool's output is not a substitute for permission from the rights holder.
+                Reuse under this policy without the required source credit and link is not authorized.</p>
+            <p>This requirement applies to reuse of our protected content; it does not claim ownership of facts,
+                general ideas, or independently created explanations of the same topic. The exceptions for uses
+                permitted by applicable law below still apply.</p>
+            <p>This permission covers articles and their original illustrations and code examples where we have the
+                necessary rights. Third-party images, quotations, embedded media, and material carrying a separate
+                license remain subject to their owners' terms. It does not grant rights to use our name or logo as
+                your own branding. Content submitted before this policy took effect is covered only where its rights
+                holder has authorized this reuse; if that is unclear, contact us before republishing it.</p>
+            <p>Nothing in this policy limits uses allowed by applicable law, including fair use, fair dealing,
+                or use of public-domain material. For questions about coverage or uses without source attribution,
+                contact us through our <a href="{{ url('contacts') }}" class="link-body-emphasis">Contacts</a> page.</p>
         </section>
 
         <section>
-            <h2>4. Intellectual Property</h2>
-            <p>
-                Unless otherwise stated, all content on {{ site_name }} — including text, graphics, code, and logos — is
-                the property of {{ site_name }} or its content creators
-                and is protected by copyright and other intellectual property laws.
-            </p>
-            <p>
-                You may not reproduce, distribute, or modify any part of this Website without prior written consent
-                from {{ site_name }}.
-            </p>
+            <h2>5. Your Content &amp; Copyright Reports</h2>
+            <p>You retain ownership of content you submit. By submitting content under these Terms, you grant
+                {{ site_name }} a non-exclusive, royalty-free, worldwide license to store, display, format, and
+                distribute it to operate the Website. For public content you submit under these Terms, you also
+                authorize the reuse and republication described in section 4. Private contact messages are not
+                covered by that public reuse permission.</p>
+            <p>Submit only content you own or have permission to publish and license in this way. Clearly identify
+                any third-party material and its applicable license. Updating these Terms does not by itself
+                relicense content submitted under earlier terms.</p>
+            <p>You can request removal of your content through our Contacts page. Removal from the Website does
+                not automatically remove copies already lawfully republished by others.</p>
+            <p>To report a copyright concern, use our <a href="{{ url('contacts') }}"
+                class="link-body-emphasis">Contacts</a> page. Identify the original work, the URL of the disputed
+                content, your relationship to the rights holder, and how we can contact you. Explain why you believe
+                the use is unauthorized. We may request further information and remove or restrict disputed content
+                while reviewing a report. Do not include sensitive identity documents in the initial message.</p>
         </section>
 
         <section>
-            <h2>5. User Content</h2>
-            <p>
-                If you post or submit content to the Website (such as comments or messages), you grant {{ site_name }} a
-                non-exclusive, royalty-free, worldwide license
-                to display and distribute that content for the purpose of operating the Website.
-            </p>
-            <p>
-                You are responsible for ensuring your content does not infringe on the rights of others or violate any
-                laws.
-            </p>
-        </section>
-
-        <section>
-            <h2>6. Third-Party Links</h2>
-            <p>
-                {{ site_name }} may contain links to third-party websites or services. We are not responsible for the
-                content, privacy practices, or terms of those sites.
-                Accessing third-party websites is at your own risk.
-            </p>
+            <h2>6. Subscriptions, Donations &amp; External Services</h2>
+            <p>Tag subscriptions can send publication notifications to your account email. Manage or remove them
+                with the subscription controls or the Interests section of your profile. We do not guarantee email
+                delivery or notification timing.</p>
+            <p>Authors can add an optional Buy Me a Coffee username to display donation links. Donations are handled
+                by the external provider and go to the author; {{ site_name }} does not process those payments or
+                currently take a commission. Provider fees and terms may apply. A donation does not buy ownership of
+                content, publication approval, or preferential moderation. No earnings are guaranteed.</p>
+            <p>For payment problems or refunds, contact the recipient or payment provider. Authors are responsible
+                for their own donation account and applicable tax obligations. Third-party websites, sign-in services,
+                and linked resources have their own terms and privacy policies.</p>
         </section>
 
         <section>
@@ -115,6 +156,7 @@
             <p>
                 The Website is provided “as is” and “as available” without warranties of any kind, express or implied.
                 We do not guarantee that the Website will be error-free, uninterrupted, or free from viruses.
+                Articles are educational material; verify examples and technical advice before using them in production.
             </p>
         </section>
 
@@ -128,29 +170,33 @@
         </section>
 
         <section>
-            <h2>9. Indemnification</h2>
-            <p>
-                You agree to indemnify and hold harmless {{ site_name }} and its affiliates from any claims, damages, or
-                expenses resulting from your use of the Website
-                or your violation of these Terms.
-            </p>
+            <h2>9. Responsibility for Contributions</h2>
+            <p>You are responsible for what you submit, the rights needed to publish it, and the accuracy of claims
+                you make. If a report concerns your contribution, we may request an explanation or evidence of your
+                rights. Responsibility for losses or third-party claims is determined by applicable law; these Terms
+                do not impose an unlimited indemnity on ordinary users.</p>
         </section>
 
         <section>
             <h2>10. Governing Law</h2>
             <p>
-                These Terms shall be governed by and interpreted in accordance with the laws of your country or region
-                of residence,
-                without regard to conflict of law principles.
+                Applicable law determines the governing law and courts with jurisdiction over a dispute.
+                Nothing in these Terms excludes mandatory consumer protections or other rights that cannot lawfully
+                be waived. You may contact us to try to resolve a concern before bringing a claim; doing so is not
+                a condition for exercising your legal rights.
             </p>
         </section>
 
         <section>
-            <h2>11. Termination</h2>
-            <p>
-                We reserve the right to suspend or terminate your access to the Website at any time, without notice, if
-                you violate these Terms or use the Website in a harmful or unlawful way.
-            </p>
+            <h2>11. Moderation &amp; Account Closure</h2>
+            <p>We may reject submissions, restrict content, or ban accounts for violations, abuse, or legal reasons.
+                Restrictions may be applied immediately where needed to protect the service or other people. Decisions
+                can involve human review and account permissions; we do not promise to review every contribution
+                before it appears.</p>
+            <p>To report a problem or request review of a moderation decision, use Contacts with the relevant profile
+                or article URL and a concise explanation. Do not include private details in public comments. There is
+                no separate automated appeal or account deletion tool; you can request account closure and content
+                removal through Contacts, subject to applicable rights and retention requirements.</p>
         </section>
 
         <section>

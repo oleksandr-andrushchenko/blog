@@ -35,7 +35,8 @@
     <article>
         <header>
             <h1>{{ site_name }} {{ title }}</h1>
-            <p class="text-secondary"><b>Last updated:</b> {{ (utc_now / 1000) | unix_to_full_date }}</p>
+            <p class="text-secondary"><b>Last updated:</b> <time datetime="2026-09-04">September 4, 2026</time></p>
+            <p class="small text-secondary">Updated with technical publishing standards, AI assistance, responsible security discussion, reporting, and moderation review.</p>
             <p>Welcome to <b>{{ site_name }}</b>! These guidelines describe how we expect users to behave when
                 interacting on our site. By participating (commenting, posting, sharing), you agree to follow these
                 rules.</p>
@@ -49,9 +50,18 @@
         </section>
 
         <section>
-            <h2>2. Use Appropriate Language and Content</h2>
-            <p>Avoid profanity, obscenity, or content that is sexually explicit, violent, or otherwise inappropriate for
-                a general audience. If you share images or media, they must be appropriate for public viewing.</p>
+            <h2>2. Publish Useful, Accurate Technical Content</h2>
+            <p>Keep articles and comments relevant to software architecture, system design, and related engineering
+                topics. Use clear titles, relevant tags, readable explanations, and examples you have checked.
+                Distinguish facts, opinions, estimates, and assumptions. Link to supporting sources for factual claims
+                where practical, and correct material errors when you discover them.</p>
+            <p>AI assistance is allowed, but you remain responsible for accuracy, originality, and rights. Review
+                generated text and code; do not invent citations, benchmarks, credentials, or claims of personal
+                experience. Disclose substantial AI-generated material when omitting that information would mislead
+                readers. Do not flood the site with repetitive or unreviewed generated articles.</p>
+            <p>Submissions begin unpublished, and publication depends on permissions and review. Major edits or tag
+                changes can return an article to unpublished status. Do not use edits to replace approved content
+                with spam or unrelated material.</p>
         </section>
 
         <section>
@@ -61,39 +71,67 @@
         </section>
 
         <section>
-            <h2>4. No Illegal or Dangerous Behavior</h2>
-            <p>Do not post or promote content that is unlawful, or encourages illegal or harmful behavior (including
-                self-harm, violence, or exploitation).</p>
+            <h2>4. Share Security Knowledge Responsibly</h2>
+            <p>Technical discussion of security is welcome. Do not distribute malware, steal credentials, encourage
+                unauthorized access, or publish secrets, access tokens, or private customer data. Use synthetic or
+                properly anonymized examples and environments you are authorized to test. Report vulnerabilities in
+                this Website privately through Contacts with enough detail to investigate; do not exploit them.</p>
+            <p>Do not post unlawful threats, sexual exploitation, or content that promotes violence or self-harm.</p>
         </section>
 
         <section>
-            <h2>5. No Spam, Fake Engagement or Misleading Behavior</h2>
-            <p>Do not post unsolicited promotions, repetitive content, or try to manipulate user engagement (e.g., fake
-                comments, bots, excessive linking). Be honest and transparent.</p>
+            <h2>5. No Spam, Manipulation, or Hidden Promotions</h2>
+            <p>Do not use duplicate accounts, bots, coordinated voting, fake follows, or repeated comments to
+                manipulate ratings or visibility. Do not impersonate another author or evade a ban. Critique ideas
+                constructively; do not harass authors over ratings or moderation decisions.</p>
+            <p>Relevant links and your profile's donation option are welcome. Disclose sponsorships, affiliate
+                relationships, and other financial interests when discussing a product. Do not use misleading
+                donation links, unsolicited advertisements, or payment promises to influence reviews or moderation.</p>
         </section>
 
         <section>
             <h2>6. Respect Intellectual Property</h2>
-            <p>Only share content you have rights to. Do not repost someone else’s work without permission. If you use
-                copyrighted material, provide proper attribution or ensure you have the right to use it.</p>
+            <p>Only share content you own, have permission to use, or may use under applicable law.
+                Attribution alone does not grant permission to use third-party work.</p>
+            <p>You may reuse or republish content covered by our
+                <a href="{{ url('terms') }}#content-reuse" class="link-body-emphasis">content reuse policy</a>
+                by crediting {{ site_name }} and linking to the original page. Check that policy for third-party
+                material and earlier contributor content. When publishing here, you must have the rights needed
+                to grant the permissions in our Terms of Service.</p>
+            <p>AI rewriting is not a way around the source credit requirement. If you reuse or adapt content
+                under our policy, including by paraphrasing, summarizing, translating, or restructuring it with
+                AI or manually, credit {{ site_name }} and link to the original page. Do not conceal the source
+                or present someone else's adapted work as independently created content. The scope and legal
+                exceptions in our content reuse policy still apply.</p>
         </section>
 
         <section>
-            <h2>7. Privacy &amp; Personal Information</h2>
-            <p>Do not share private or sensitive personal information about others (e.g., precise location, financial
-                data, medical details) without consent. Respect people’s privacy.</p>
+            <h2>7. Protect Personal &amp; Confidential Information</h2>
+            <p>Do not publish another person's private information without an appropriate right to do so. Do not
+                upload passwords, private keys, customer records, confidential employer documents, or identifying
+                screenshots. Uploaded images are accessible by URL even before an article is published.</p>
+            <p>Your profile location, external links, subscribed interests, and selected activity history may be public.
+                Share only what you want visitors to see. Use Contacts for private reports and privacy requests rather
+                than posting sensitive information in comments.</p>
         </section>
 
         <section>
-            <h2>8. Enforcement</h2>
-            <p>Violations of these guidelines may result in actions such as comment removal, account suspension, or
-                content deletion, at our discretion. Repeated or severe violations may result in permanent bans.</p>
+            <h2>8. Reports, Moderation &amp; Review</h2>
+            <p>Report rule violations through our <a href="{{ url('contacts') }}"
+                class="link-body-emphasis">Contacts</a> page. Include the relevant URL, a short description, and
+                supporting information that you have a right to share. For copyright reports, follow
+                <a href="{{ url('terms') }}" class="link-body-emphasis">Terms section 5</a>.</p>
+            <p>We may reject articles, restrict content, or ban accounts based on the circumstances and severity of
+                the issue. If you believe a decision was mistaken, request review through Contacts and explain why.
+                We do not guarantee a particular outcome or continuous monitoring of all content. Do not retaliate
+                against someone for reporting a concern.</p>
         </section>
 
         <section>
             <h2>9. Changes to These Guidelines</h2>
-            <p>We may update these guidelines at any time. The latest version will always be available at this page, and
-                your continued participation constitutes acceptance of the revised rules.</p>
+            <p>We may update these guidelines as the community and features change. Revisions will appear here with
+                a fixed update date, and material changes will be identified. These Rules work together with our
+                <a href="{{ url('terms') }}" class="link-body-emphasis">Terms of Service</a>.</p>
         </section>
 
         <footer>
