@@ -17,6 +17,7 @@
   delete-cert-infra    Delete cert CF stack
   delete-code-infra    Delete code CF stack
   delete-infra         Delete CF stack
+  deploy               Deploy certificates, code bucket, Lambdas, application, and static files
   deploy-cert-infra    Deploy ACM certificate for the domain
   deploy-code-files    Zip and upload Lambda code to S3
   deploy-web-lambda    Build, upload, and deploy only the Web Lambda
@@ -34,7 +35,7 @@
   generate-img-lambda-code-files  Build the Image Lambda zip
   # Individual deploy-* targets also upload the selected artifact and update only that Lambda
   generate-site-files  Run content generator inside Docker container
-  get-cert-arn         Fetch the ACM Certificate ARN and save to .env
+  get-cert-arn         Show the CloudFront ACM certificate ARN
   get-cert-infra       Show cert CF stack events
   get-code-infra       Show code CF stack events
   get-infra            Show CF stack events
@@ -52,6 +53,25 @@
   up                   Start local Docker containers
 ```
 
+## AWS deployment
+
+Configure `.env` from `.env.example`, including the existing public Route 53 hosted
+zone, domain, application settings, and AWS profile/region. Authenticate the AWS
+CLI first (`make aws-login` when needed), then run:
+
+```sh
+make deploy
+```
+
+The command runs these steps sequentially, including with `make -j`:
+
+1. Deploy `cf-cert.yml` in `us-east-1` and wait for the CloudFront certificate.
+2. Deploy `cf-code.yml` in `AWS_REGION` to create the Lambda artifact bucket.
+3. Build and upload all three Lambda ZIPs.
+4. Read the CloudFront certificate ARN from its stack output and deploy `cf.yml`
+   in `AWS_REGION`, including the API certificate and application resources.
+5. Build and upload static files after the application creates the site bucket.
+
 ## Lambda layout
 
 - `shared/` — shared backend code and templates
@@ -59,6 +79,7 @@
 - `api-lambda/` — API Lambda
 
 API endpoints are exposed through the dedicated API Gateway execute-api URL, with no `/api` path prefix.
+
 - `img-lambda/` — S3 image variant Lambda
 
 ## TODO

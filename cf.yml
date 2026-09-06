@@ -33,9 +33,6 @@ Parameters:
   CertificateArn:
     Type: String
     Description: ARN of the ACM certificate in us-east-1 for CloudFront
-  ApiCertificateArn:
-    Type: String
-    Description: ARN of the ACM certificate in the API region for api.<domain>
 
   NotificationEmail:
     Type: String
@@ -614,12 +611,30 @@ Resources:
         Owner: !Ref Owner
         Region: !Ref AWS::Region
 
+  ApiCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Sub "api.${DomainName}"
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Sub "api.${DomainName}"
+          HostedZoneId: !Ref HostedZoneId
+      Tags:
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Region
+          Value: !Ref AWS::Region
+
   ApiGatewayApiDomainName:
     Type: AWS::ApiGatewayV2::DomainName
     Properties:
       DomainName: !Sub "api.${DomainName}"
       DomainNameConfigurations:
-        - CertificateArn: !Ref ApiCertificateArn
+        - CertificateArn: !Ref ApiCertificate
           EndpointType: REGIONAL
           SecurityPolicy: TLS_1_2
 
@@ -664,6 +679,7 @@ Resources:
 
   CognitoUserPoolClient:
     Type: AWS::Cognito::UserPoolClient
+    DependsOn: GoogleIdentityProvider
     Properties:
       ClientName: !Sub "${AWS::StackName}-user-pool-client"
       UserPoolId: !Ref CognitoUserPoolV2
@@ -913,6 +929,9 @@ Resources:
           Value: !Ref AWS::Region
 
 Outputs:
+  ApiCertificateArn:
+    Value: !Ref ApiCertificate
+    Description: ARN of the regional API Gateway certificate
   SesIdentityArn:
     Value: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${DomainName}"
     Description: ARN of the verified SES sending identity

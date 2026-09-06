@@ -23,7 +23,6 @@ WEB_LAMBDA_CONTAINER = web-lambda
 SCRIPTS_CONTAINER = scripts
 CODE_STACK_NAME = $(AWS_STACK)-code
 CERT_STACK_NAME = $(AWS_STACK)-cert
-API_CERT_STACK_NAME = $(AWS_STACK)-api-cert
 SITE_BUILD_DIR=.site-build
 CODE_BUILD_DIR=.code-build
 
@@ -83,42 +82,20 @@ get-cert-infra: check-env check-aws ## Show cert CF stack events
 	aws cloudformation describe-stack-events \
 		--stack-name $(CERT_STACK_NAME) \
 		--profile $(AWS_PROJECT) \
-		--region $(AWS_REGION)
+		--region us-east-1
 
 .PHONY: delete-cert-infra
 delete-cert-infra: check-env check-aws ## Delete cert CF stack
 	aws cloudformation delete-stack \
 		--stack-name $(CERT_STACK_NAME) \
-		--region $(AWS_REGION) \
+		--region us-east-1 \
 		--profile $(AWS_PROJECT)
 	@echo "🧼 Waiting for stack to be fully deleted..."
 	aws cloudformation wait stack-delete-complete \
 		--stack-name $(CERT_STACK_NAME) \
-		--region $(AWS_REGION) \
+		--region us-east-1 \
 		--profile $(AWS_PROJECT)
 	@echo "✅ Stack $(CERT_STACK_NAME) deleted."
-
-.PHONY: get-cert-arn
-get-cert-arn: check-env check-aws ## Fetch the ACM Certificate ARN and save to .env
-	@echo "🔍 Fetching ACM Certificate ARN for $(DOMAIN_NAME) in us-east-1..."
-	@ARN=$$(aws cloudformation describe-stacks \
-		--stack-name $(CERT_STACK_NAME) \
-		--region us-east-1 \
-		--profile $(AWS_PROJECT) \
-		--query "Stacks[0].Outputs[?OutputKey=='CertificateArn'].OutputValue" \
-		--output text); \
-	if [ -z "$$ARN" ]; then \
-		echo "❌ Certificate ARN not found. Make sure the certificate stack was deployed successfully."; \
-	else \
-		echo "✅ Certificate ARN for $(DOMAIN_NAME): $$ARN"; \
-		if grep -q "^CLOUDFRONT_CERTIFICATE_ARN=" .env; then \
-			sed -i.bak "s|^CLOUDFRONT_CERTIFICATE_ARN=.*|CLOUDFRONT_CERTIFICATE_ARN=$$ARN|" .env; \
-			rm -f .env.bak; \
-		else \
-			echo "\nCLOUDFRONT_CERTIFICATE_ARN=$$ARN" >> .env; \
-		fi; \
-		echo "📝 Updated .env with CLOUDFRONT_CERTIFICATE_ARN"; \
-	fi
 
 .PHONY: deploy-code-infra
 deploy-code-infra: check-env check-aws ## Deploy S3 bucket for Lambda / CloudFront code
@@ -164,14 +141,16 @@ delete-code-infra: check-env check-aws ## Delete code CF stack
 .PHONY: deploy-infra
 deploy-infra: check-env check-aws ## Deploy CF stack for the site
 	@echo "🚀 Deploying CloudFormation stack for $(DOMAIN_NAME)..."
-	@if [ -z "$(CLOUDFRONT_CERTIFICATE_ARN)" ]; then \
-		echo "❌ CLOUDFRONT_CERTIFICATE_ARN is not defined. Run \`make get-cert-arn\` or export it in .env"; \
-		exit 1; \
-	fi
-	@if [ -z "$(API_CERTIFICATE_ARN)" ]; then \
-		echo "❌ API_CERTIFICATE_ARN is not defined. Run make deploy-api-cert-infra and make get-api-cert-arn"; \
-		exit 1; \
-	fi
+	@CERTIFICATE_ARN=$$(aws cloudformation describe-stacks \
+		--stack-name $(CERT_STACK_NAME) \
+		--region us-east-1 \
+		--profile $(AWS_PROJECT) \
+		--query "Stacks[0].Outputs[?OutputKey=='CertificateArn'].OutputValue | [0]" \
+		--output text) || exit $$?; \
+	case "$$CERTIFICATE_ARN" in \
+		arn:*:acm:us-east-1:*:certificate/*) ;; \
+		*) echo "❌ CloudFront certificate ARN not found. Run make deploy-cert-infra first."; exit 1 ;; \
+	esac; \
 	aws cloudformation deploy \
 		--profile $(AWS_PROJECT) \
 		--region $(AWS_REGION) \
@@ -188,8 +167,7 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 			Secret="$(APP_SECRET)" \
 			DomainName="$(DOMAIN_NAME)" \
 			HostedZoneId="$(HOSTED_ZONE_ID)" \
-			ApiCertificateArn="$(API_CERTIFICATE_ARN)" \
-			CertificateArn="$(CLOUDFRONT_CERTIFICATE_ARN)" \
+			CertificateArn="$$CERTIFICATE_ARN" \
 			NotificationEmail="$(NOTIFICATION_EMAIL)" \
 			NotificationPhone="$(NOTIFICATION_PHONE)" \
 			GoogleAnalyticsId="$(GOOGLE_ANALYTICS_ID)" \
@@ -240,7 +218,6 @@ delete-infra: check-env check-aws ## Delete CF stack
 deploy-code-files: check-env check-aws generate-code-files ## Zip and upload Lambda code to S3
 	@echo "📤 Uploading Lambda code to s3://$(CODE_STACK_NAME)..."
 	aws s3 sync ./$(CODE_BUILD_DIR) s3://$(CODE_STACK_NAME) \
-		--delete \
 		--profile $(AWS_PROJECT) \
 		--region $(AWS_REGION)
 	@echo "✅ Lambda code uploaded successfully"
@@ -455,35 +432,9 @@ tail-scripts-logs: scripts-up ## Tail scripts logs
 	$(SCRIPTS_DC) logs -f $(SCRIPTS_CONTAINER)
 
 .PHONY: deploy
-deploy: aws-login restart deploy-site-files deploy-code-files deploy-infra ## Deploy static and code files
-.PHONY: deploy-api-cert-infra
-deploy-api-cert-infra: check-env check-aws ## Deploy ACM certificate for api.<domain>
-	@echo "🔐 Deploying API certificate for api.$(DOMAIN_NAME) in us-west-2..."
-	aws cloudformation deploy \
-		--profile $(AWS_PROJECT) \
-		--region us-west-2 \
-		--template-file cf-api-cert.yml \
-		--stack-name $(API_CERT_STACK_NAME) \
-		--capabilities CAPABILITY_NAMED_IAM \
-		--no-fail-on-empty-changeset \
-		--parameter-overrides \
-			DomainName="$(DOMAIN_NAME)" \
-			HostedZoneId="$(HOSTED_ZONE_ID)" \
-			Project="$(AWS_PROJECT)" \
-			Owner="$(AWS_OWNER)" \
-			Stage="$(APP_STAGE)" \
-		--tags \
-			Project="$(AWS_PROJECT)" \
-			Owner="$(AWS_OWNER)" \
-			Stage="$(APP_STAGE)" \
-			Region="us-west-2"
-	@echo "✅ API certificate deployment triggered. Waiting for DNS validation..."
-
-.PHONY: get-api-cert-arn
-get-api-cert-arn: check-env check-aws ## Fetch the API ACM certificate ARN and save to .env
-	@echo "🔍 Fetching the API certificate ARN for api.$(DOMAIN_NAME) in us-west-2..."
-	@ARN=$$(aws cloudformation describe-stacks --stack-name $(API_CERT_STACK_NAME) --region us-west-2 --profile $(AWS_PROJECT) --query "Stacks[0].Outputs[?OutputKey=='CertificateArn'].OutputValue" --output text); \
-	if [ -z "$$ARN" ]; then echo "❌ API certificate ARN not found. Run make deploy-api-cert-infra first."; else \
-		if grep -q "^API_CERTIFICATE_ARN=" .env; then sed -i.bak "s|^API_CERTIFICATE_ARN=.*|API_CERTIFICATE_ARN=$$ARN|" .env; rm -f .env.bak; else echo "API_CERTIFICATE_ARN=$$ARN" >> .env; fi; \
-		echo "📝 Updated .env with API_CERTIFICATE_ARN"; \
-	fi
+deploy: check-env check-aws ## Deploy certificates, code bucket, Lambdas, application, and static files
+	$(MAKE) --no-print-directory deploy-cert-infra
+	$(MAKE) --no-print-directory deploy-code-infra
+	$(MAKE) --no-print-directory deploy-code-files
+	$(MAKE) --no-print-directory deploy-infra
+	$(MAKE) --no-print-directory deploy-site-files
