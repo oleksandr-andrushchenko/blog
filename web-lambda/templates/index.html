@@ -3,6 +3,7 @@
 
 
 {% set meta_title = site_name ~ " - " ~ site_short_desc %}
+{% set meta_desc = meta_desc or site_desc %}
 {% set main_class = "" %}
 {% set meta_robots = "index, follow" %}
 {% set meta_canonical_url = url("index", absolute=True) %}
@@ -13,7 +14,7 @@
         "@id": meta_canonical_url,
         "url": meta_canonical_url,
         "name": site_name,
-        "description": site_desc,
+        "description": meta_desc,
         "inLanguage": "en"
     } | tojson | safe -}}
 {% endblock %}

@@ -2,7 +2,8 @@
 
 {% set title = "Rules" %}
 
-{% set meta_title = title ~ " ~ " ~ site_name %}
+{% set meta_title = "Community Rules & Content Publishing Guidelines ~ " ~ site_name %}
+{% set meta_desc = "Read the " ~ site_name ~ " community rules for technical articles and discussions, including accuracy, AI use, source credit, privacy, reporting, and moderation." %}
 {% set meta_robots = "index, follow" %}
 {% set meta_canonical_url = url("rules", absolute=True) %}
 
@@ -13,7 +14,7 @@
         "@id": meta_canonical_url,
         "url": meta_canonical_url,
         "name": title,
-        "description": meta_desc or site_desc,
+        "description": meta_desc,
         "inLanguage": "en",
         "breadcrumb": {
             "@type": "BreadcrumbList",
