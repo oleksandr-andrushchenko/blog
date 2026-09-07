@@ -480,7 +480,6 @@ Resources:
           GOOGLE_ANALYTICS_ID: !Ref GoogleAnalyticsId
           TINYMCE_API_KEY: !Ref TinyMceApiKey
           CONTACT_TOPIC_ARN: !Ref ContactFormTopic
-          SES_FROM_EMAIL: !Sub "no-reply@${DomainName}"
           ALLOWED_ORIGIN: !Sub "https://${DomainName}"
           COGNITO_DOMAIN: !Sub "${CognitoUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
           COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient
@@ -528,6 +527,7 @@ Resources:
           DYNAMODB_TABLE: !Ref DynamoDBTable
           ALLOWED_ORIGIN: !Sub "https://${DomainName}"
           CONTACT_TOPIC_ARN: !Ref ContactFormTopic
+          SES_FROM_EMAIL: !Sub "no-reply@${DomainName}"
           STATIC_S3_BUCKET: !Ref SiteBucket
           AUTH_JWT_SECRET: !Ref AuthJwtSecret
           CLOUDFRONT_DISTRIBUTION_ID: !Ref CloudFrontDistribution
