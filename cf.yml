@@ -33,7 +33,17 @@ Parameters:
   CertificateArn:
     Type: String
     Description: ARN of the ACM certificate in us-east-1 for CloudFront
-
+  TelegramBotToken:
+    Type: String
+    Default: ''
+    NoEcho: true
+  TelegramChatId:
+    Type: String
+    Default: ''
+  TelegramLogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues: [ 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL', 'OFF' ]
   NotificationEmail:
     Type: String
     Description: Email for contact form notifications
@@ -457,6 +467,9 @@ Resources:
       MemorySize: 512
       Environment:
         Variables:
+          TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
+          TELEGRAM_CHAT_ID: !Ref TelegramChatId
+          TELEGRAM_LOG_LEVEL: !Ref TelegramLogLevel
           APP_STAGE: !Ref Stage
           APP_ENV: !Ref Env
           APP_DEBUG: !Ref Debug
@@ -503,6 +516,9 @@ Resources:
       MemorySize: 512
       Environment:
         Variables:
+          TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
+          TELEGRAM_CHAT_ID: !Ref TelegramChatId
+          TELEGRAM_LOG_LEVEL: !Ref TelegramLogLevel
           APP_STAGE: !Ref Stage
           APP_ENV: !Ref Env
           APP_DEBUG: !Ref Debug

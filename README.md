@@ -116,3 +116,75 @@ API endpoints are exposed through the dedicated API Gateway execute-api URL, wit
 ## Links
 
 - favicon - https://realfavicongenerator.net
+
+## Telegram administrator notifications
+
+The application uses standard Python logging with a console handler and an optional
+`TelegramHandler`. Business events use `logger.info(..., extra={...})`; failures
+use `logger.error()` or `logger.exception()`. Application code does not call
+Telegram directly. The handler attaches once to the `app` logger; child loggers
+propagate to it. Third-party library logs are excluded.
+This follows Python's [logger/handler model](https://docs.python.org/3/howto/logging.html#advanced-logging-tutorial).
+
+Create a bot with [BotFather](https://t.me/BotFather), start a private chat with
+it (or add it to your administrator group), and send it a message. Use the Bot
+API's [getUpdates](https://core.telegram.org/bots/api#getupdates) method to find
+that message's `chat.id`. Keep the token private; do not commit it.
+
+Set these values in your local `.env`:
+
+```dotenv
+TELEGRAM_BOT_TOKEN=your-bot-token
+TELEGRAM_CHAT_ID=your-chat-id
+TELEGRAM_LOG_LEVEL=INFO
+```
+
+`TELEGRAM_LOG_LEVEL` controls Telegram independently of the console threshold:
+
+| Level | Records delivered |
+| --- | --- |
+| DEBUG | All application logs, including request diagnostics |
+| INFO (default) | Activity, other informational logs, warnings and errors |
+| WARNING | Warnings, errors and critical failures |
+| ERROR | Errors and critical failures |
+| CRITICAL | Critical failures only |
+| OFF | None |
+
+Missing credentials disable the handler. Invalid levels disable it with a console
+diagnostic. This replaces `TELEGRAM_EVENTS_ENABLED` / `TELEGRAM_ERRORS_ENABLED`.
+Recreate Docker Compose web/API containers after changing configuration. For AWS,
+build/upload both Lambdas and run `make deploy-infra` (or use `make deploy`).
+The CloudFormation bot-token parameter uses `NoEcho`.
+
+Activity records cover newly saved users, articles, comments, contact messages,
+and article status changes. Existing-user logins do not log registration events.
+Web/API exception handlers log unexpected exceptions and HTTP 5xx exceptions at
+ERROR, and handled HTTP 4xx exceptions at INFO. Returning a 5xx response directly
+does not trigger an exception handler; log the failure where it occurs. Existing logged failures, including publication email failures, also
+reach Telegram at the configured level. Handled HTTP 4xx diagnostics use INFO.
+
+The Telegram formatter includes stage, severity, logger name, message, exception
+class, and supported record IDs/request context. HTTP errors include the method,
+path, client IP, user agent, service and request ID. Query strings, cookies and
+authorization headers are excluded. The client IP comes from the ASGI connection
+(API Gateway `requestContext.http.sourceIp` in Lambda), not arbitrary forwarded
+headers; behind a proxy it may identify the proxy. Full tracebacks remain in server
+logs. Event messages exclude content bodies and contact details; keep credentials
+and private data out of log messages. The handler redacts its bot token and does
+not forward exception text, stack traces or arbitrary extra fields.
+
+Delivery uses [sendMessage](https://core.telegram.org/bots/api#sendmessage), is
+best effort, and runs synchronously with a two-second network timeout. It can add
+latency per record. There is no background thread, retry queue, or guaranteed
+delivery; outages and Telegram rate limits can drop alerts. Delivery errors write
+a fixed diagnostic to stderr without re-entering logging or failing the request.
+For high-volume durable delivery, use a separate worker/queue or CloudWatch log
+subscription rather than an in-process background logging thread.
+
+Image Lambda failures, startup failures and hard timeouts are outside these
+web/API application logging hooks.
+
+Run offline logging checks with:
+`python3 -m unittest discover -s tests -p test_notifications.py`.
+Exception-handler routing checks are in `tests/test_exception_handlers.py` and
+run with the normal test suite (they require the application dependencies).

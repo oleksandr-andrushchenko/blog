@@ -1,7 +1,12 @@
 import asyncio
 
+from notifications import request_log_context
+
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from api_deps import (
+    get_error_response,
+)
 from api_utils import (
     to_thread,
     ContactMessageDTO,
@@ -58,7 +63,6 @@ from deps import (
     UserQueryDep,
     UserDep,
     UpdateUserDTODep,
-    get_error_response,
     UpdateArticleDTODep,
     UpdateArticleStatusDTODep,
     UpdateArticleImpressionDTODep,
@@ -145,35 +149,45 @@ async def cache_control_middleware(request: Request, call_next):
 
 @app.exception_handler(StarletteHTTPException)
 async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
-    logger.error(f"HTTP exception: {str(exc)}")
-    return get_error_response(request, exc.status_code, exc.detail)
+    log = logger.error if exc.status_code >= 500 else logger.info
+    log("HTTP exception", exc_info=exc, extra=request_log_context(request, "api", exc.status_code))
+    return get_error_response(exc.status_code, exc.detail)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.error("Unhandled request exception", exc_info=exc,
+                 extra=request_log_context(request, "api", 500))
+    response = get_error_response(500)
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.error(f"Validation failed: {str(exc)}")
+async def validation_exception_handler(_request: Request, exc: RequestValidationError):
+    logger.info("Request validation failed", exc_info=exc)
     details = {}
     for error in exc.errors():
         field = error["loc"][-1] if len(error["loc"]) > 1 else error["loc"][0]
         details[field] = error["msg"]
-    return get_error_response(request, 422, details)
+    return get_error_response(422, details)
 
 
 @app.exception_handler(NotAuthenticatedError)
-async def not_authenticated_error_handler(request: Request, exc: NotAuthenticatedError):
-    logger.error(f"Not authenticated: {str(exc)}")
-    return get_error_response(request, 401)
+async def not_authenticated_error_handler(_request: Request, exc: NotAuthenticatedError):
+    logger.info("Not authenticated", exc_info=exc)
+    return get_error_response(401)
 
 
 @app.exception_handler(UserBannedError)
-async def user_banned_error_handler(request: Request, exc: UserBannedError):
+async def user_banned_error_handler(_request: Request, _exc: UserBannedError):
     raise NotAuthorizedError("BANNED")
 
 
 @app.exception_handler(NotAuthorizedError)
-async def not_authorized_error_handler(request: Request, exc: NotAuthorizedError):
-    logger.error(f"Not authorized: {str(exc)}")
-    return get_error_response(request, 403, {"permission": exc.permission})
+async def not_authorized_error_handler(_request: Request, exc: NotAuthorizedError):
+    logger.info("Not authorized", exc_info=exc)
+    return get_error_response(403, {"permission": exc.permission})
 
 
 @app.exception_handler(ArticleByOldSlugRequestedError)
@@ -292,7 +306,7 @@ async def _create_contact_message(message_dto: ContactMessageDTO, cur_user: OptC
     create_contact_message(message_dto, cur_user)
 
 
-@route("get", "get-tag-subscriptions", response_class=JSONResponse)
+@route("get", "tag-subscriptions", response_class=JSONResponse)
 async def _get_tag_subscriptions(cur_user: CurUserDep):
     return get_user_tag_subscriptions(cur_user)
 
@@ -346,7 +360,7 @@ async def _update_tag(update_tag_dto: UpdateTagDTODep, tag: TagDep,
     return get_tag_url(request, tag)
 
 
-@route("get", "get-tags", response_class=JSONResponse)
+@route("get", "tags", response_class=JSONResponse)
 async def _get_tags(query_dto: TagQueryDep) -> list[Tag]:
     return get_tags(query_dto)
 

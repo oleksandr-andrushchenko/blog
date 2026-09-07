@@ -1,5 +1,7 @@
 import asyncio
 
+from notifications import request_log_context
+
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from query_dtos import (
@@ -12,7 +14,6 @@ from shared_deps import (
     ArticleDep,
     UserQueryDep,
     UserDep,
-    get_error_response,
     UserBySlugDep,
     ArticleBySlugsDep,
     ArticleQueryBySlugsDep,
@@ -23,8 +24,20 @@ from shared_deps import (
     TagQueryDep,
 )
 from shared_utils import get_tags
-from web import Application, Request, HTTPException, HTMLResponse, JSONResponse, RedirectResponse, \
-    RequestValidationError, CORSMiddleware, FileResponse
+from web import (
+    Application,
+    Request,
+    HTTPException,
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    RequestValidationError,
+    CORSMiddleware,
+    FileResponse,
+)
+from web_deps import (
+    get_error_response,
+)
 from web_utils import (
     to_thread,
     ArticleQueryDTO,
@@ -59,7 +72,6 @@ from web_utils import (
     get_static_files_dir,
     UserStatus,
     UserBannedError,
-    utc_now,
     get_allowed_origins,
     get_redirect_url,
     should_show_popular_articles,
@@ -135,35 +147,45 @@ async def inject_template_global_vars(request: Request, call_next):
 
 @app.exception_handler(StarletteHTTPException)
 async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
-    logger.error(f"HTTP exception: {str(exc)}")
-    return get_error_response(request, exc.status_code, exc.detail)
+    log = logger.error if exc.status_code >= 500 else logger.info
+    log("HTTP exception", exc_info=exc, extra=request_log_context(request, "web", exc.status_code))
+    return get_error_response(exc.status_code, exc.detail)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.error("Unhandled request exception", exc_info=exc,
+                 extra=request_log_context(request, "web", 500))
+    response = get_error_response(500)
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.error(f"Validation failed: {str(exc)}")
+async def validation_exception_handler(_request: Request, exc: RequestValidationError):
+    logger.info("Request validation failed", exc_info=exc)
     details = {}
     for error in exc.errors():
         field = error["loc"][-1] if len(error["loc"]) > 1 else error["loc"][0]
         details[field] = error["msg"]
-    return get_error_response(request, 422, details)
+    return get_error_response(422, details)
 
 
 @app.exception_handler(NotAuthenticatedError)
-async def not_authenticated_error_handler(request: Request, exc: NotAuthenticatedError):
-    logger.error(f"Not authenticated: {str(exc)}")
-    return get_error_response(request, 401)
+async def not_authenticated_error_handler(_request: Request, exc: NotAuthenticatedError):
+    logger.info("Not authenticated", exc_info=exc)
+    return get_error_response(401)
 
 
 @app.exception_handler(UserBannedError)
-async def user_banned_error_handler(request: Request, exc: UserBannedError):
+async def user_banned_error_handler(_request: Request, _exc: UserBannedError):
     raise NotAuthorizedError("BANNED")
 
 
 @app.exception_handler(NotAuthorizedError)
-async def not_authorized_error_handler(request: Request, exc: NotAuthorizedError):
-    logger.error(f"Not authorized: {str(exc)}")
-    return get_error_response(request, 403, {"permission": exc.permission})
+async def not_authorized_error_handler(_request: Request, exc: NotAuthorizedError):
+    logger.info("Not authorized", exc_info=exc)
+    return get_error_response(403, {"permission": exc.permission})
 
 
 @app.exception_handler(ArticleByOldSlugRequestedError)

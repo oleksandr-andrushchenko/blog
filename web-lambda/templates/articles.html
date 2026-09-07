@@ -131,7 +131,7 @@
 
         <div class="d-flex flex-wrap align-items-center gap-2">
             <small class="text-secondary bi bi-tags"> Filter by tags:</small>
-            {% with url=url("get-tags", absolute=True),
+            {% with url=url("tags", absolute=True),
                             value=article_query.tags,
                             tag_items=article_query_tag_items,
                             class_name="w-auto",

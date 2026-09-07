@@ -15,7 +15,7 @@
 
     <div class="{{ {"def": 12, "lg": 6, "xl": 4} | col_classes }} d-flex flex-column gap-2">
         <small class="text-secondary bi bi-tags"> Tags:</small>
-        {% with url=url("get-tags", absolute=True), value=article.tags if article else [] %}
+        {% with url=url("tags", absolute=True), value=article.tags if article else [] %}
             {% include "fragments/tags-input.html" %}
         {% endwith %}
 

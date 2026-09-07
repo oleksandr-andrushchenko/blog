@@ -35,7 +35,7 @@ def _scope(event: dict) -> dict:
     }
 
 
-async def _invoke(app, event: dict) -> dict:
+async def _invoke(app, event: dict, request_id=None) -> dict:
     body = event.get("body") or ""
     body_bytes = base64.b64decode(body) if event.get("isBase64Encoded") else body.encode()
     request_sent = False
@@ -58,7 +58,9 @@ async def _invoke(app, event: dict) -> dict:
         elif message["type"] == "http.response.body":
             response_body.extend(message.get("body", b""))
 
-    await app(_scope(event), receive, send)
+    scope = _scope(event)
+    scope["aws_request_id"] = request_id
+    await app(scope, receive, send)
 
     headers: dict[str, str] = {}
     cookies: list[str] = []
@@ -90,6 +92,6 @@ async def _invoke(app, event: dict) -> dict:
 
 def make_handler(app):
     def handler(event, context):
-        return asyncio.run(_invoke(app, event))
+        return asyncio.run(_invoke(app, event, getattr(context, "aws_request_id", None)))
 
     return handler

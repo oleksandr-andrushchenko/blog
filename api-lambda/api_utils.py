@@ -4,7 +4,7 @@ from article_dtos import (
 )
 from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO
 from shared_utils import *
-from shared_utils import get_tags
+from shared_utils import get_tags, logger
 from tag_subscription_dtos import TagSubscriptionDTO
 from user_dtos import (
     UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO,
@@ -398,6 +398,7 @@ def create_article(article_dto: ArticleDTO, cur_user: User) -> Article:
             raise SlugDuplicationError(field="title")
         raise
 
+    logger.info("New article created", extra={"article_id": article_id})
     return article_from_dynamodb(article_item)
 
 
@@ -551,6 +552,7 @@ def create_article_comment(article: Article, article_comment_dto: ArticleComment
             raise SlugDuplicationError(field="title")
         raise
 
+    logger.info("New comment added", extra={"article_id": article.id, "comment_id": comment_id})
     return article_comment_from_dynamodb(article_comment_item)
 
 
@@ -769,6 +771,7 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
 
     dynamodb_transact_write(transacts)
 
+    logger.info("Article status changed", extra={"article_id": article.id, "status": status})
     if status == ArticleStatus.PUBLISHED:
         try:
             dispatch_article_published_event(article)
@@ -813,6 +816,7 @@ def create_contact_message(message_dto: ContactMessageDTO, user: User = None) ->
         message_item["user_id"] = user.id
 
     get_dynamodb_table().put_item(Item=message_item)
+    logger.info("New contact message", extra={"message_id": message_id})
 
     return ContactMessage(
         id=message_id,

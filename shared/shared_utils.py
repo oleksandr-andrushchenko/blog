@@ -27,6 +27,7 @@ from jinja2 import Environment, FileSystemLoader, pass_context, select_autoescap
 from api_route_metadata import API_URL_ROUTES
 from article_dtos import (ArticleCommentImpressionAction, ArticleImpressionAction)
 from basic_dtos import UserTokenDTO
+from notifications import configure_telegram_logging
 from query_dtos import (BaseQueryDTO, ArticleCommentQueryDTO, ArticleQueryDTO, ArticleQueryType, ArticleStatus,
                         TagQueryDTO, TagQueryType, UserQueryDTO, UserQueryType, UserStatus)
 from tag_subscription_dtos import TagSubscription
@@ -728,14 +729,16 @@ def dynamodb_transact_write(transacts: list[dict[str, Any]]):
 
 def get_logger():
     lg = logging.getLogger("app")
-    lg.setLevel(logging.INFO if is_prod() else logging.DEBUG)
     if not lg.handlers:
+        lg.setLevel(logging.INFO if is_prod() else logging.DEBUG)
         handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(
             "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
         )
         handler.setFormatter(formatter)
+        handler.setLevel(lg.level)
         lg.addHandler(handler)
+    configure_telegram_logging(lg)
     return lg
 
 
@@ -1230,6 +1233,7 @@ def upsert_user_by_user_token(token: UserTokenDTO, status: UserStatus = UserStat
     now = utc_now()
 
     user = get_user_by_user_token(token)
+    is_new_user = user is None
     if user:
         user_id = user.id
         providers = user.providers
@@ -1278,6 +1282,8 @@ def upsert_user_by_user_token(token: UserTokenDTO, status: UserStatus = UserStat
             raise SlugDuplicationError(field="username")
         raise
 
+    if is_new_user:
+        logger.info("New user registered", extra={"user_id": user.id})
     return user
 
 
