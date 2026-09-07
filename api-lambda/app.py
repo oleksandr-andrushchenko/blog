@@ -17,7 +17,6 @@ from api_utils import (
     logger,
     get_html_content,
     get_url,
-    get_article_url,
     create_article,
     create_contact_message,
     update_article_status,
@@ -74,6 +73,7 @@ from deps import (
 )
 from shared_utils import (
     find_tag,
+    get_article_url,
     get_tags
 )
 from web import Application, Request, HTTPException, HTMLResponse, JSONResponse, RedirectResponse, \
@@ -221,6 +221,12 @@ async def articles_fragment(query_dto: ArticleQueryDep, cur_user: OptCurUserDep)
     return get_html_content("fragments/articles.html", {
         "articles": get_articles(query_dto, cur_user)
     })
+
+
+@route("get", "articles", response_class=JSONResponse)
+async def _articles(query_dto: ArticleQueryDep, cur_user: OptCurUserDep, request: Request) -> list[dict[str, str]]:
+    articles = get_articles(query_dto, cur_user)
+    return [{"title": article.title, "url": get_article_url(request, article)} for article in articles]
 
 
 @route("get", "article-comments-fragment", response_class=HTMLResponse)

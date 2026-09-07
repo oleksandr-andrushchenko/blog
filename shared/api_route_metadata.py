@@ -3,6 +3,7 @@
 API_URL_ROUTES = {
     "upload-public-file": "/public-file",
     "create-article": "/articles",
+    "articles": "/articles",
     "articles-fragment": "/articles-fragment",
     "article-comments-fragment": "/articles/{article_id}/comments-fragment",
     "update-article": "/articles/{article_id}",
