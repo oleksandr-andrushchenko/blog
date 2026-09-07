@@ -808,7 +808,7 @@ def test_article_create_and_new_page_endpoints_success_and_failure(guest_client)
     assert "picture" not in article_item["content"]
 
     create_failure = post(root_client, "/articles", json={
-        "title": "short",
+        "title": "a",
         "content": ARTICLE_CONTENT,
         "tags": ["functional-tag"],
     })
@@ -894,7 +894,7 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     assert update_success.status_code == 200, update_success.text
     functional_state["article_slug"] = "updated-functional-endpoint-coverage-article"
     update_failure = patch(root_client, f"/articles/{article_id}", json={
-        "title": "bad",
+        "title": "a",
         "content": ARTICLE_CONTENT,
         "tags": ["functional-tag"],
     })
