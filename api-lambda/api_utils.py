@@ -1,15 +1,50 @@
+from dataclasses import replace
+from html.parser import HTMLParser
+
 from article_dtos import (
     ArticleCommentDTO, ArticleDTO, UpdateArticleCommentDTO, UpdateArticleDTO, UpdateArticleImpressionDTO,
     UpdateArticleStatusDTO, UpdateTagDTO,
 )
 from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO
 from shared_utils import *
-from shared_utils import get_tags, logger
+from shared_utils import User, get_articles, get_tags, logger
+from query_dtos import ArticleQueryDTO
 from tag_subscription_dtos import TagSubscriptionDTO
 from user_dtos import (
     UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO,
     UserImpressionAction,
 )
+
+
+class ArticleHrefExtractor(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.hrefs: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        for name, value in attrs:
+            if name == "href" and value is not None:
+                self.hrefs.append(value)
+
+
+def get_article_hrefs(query_dto: ArticleQueryDTO, cur_user: User | None = None) -> dict[str, list[str]]:
+    """Collect content hrefs across all pages matching the article query."""
+    # Traverse the status index so tag filtering cannot discard a page cursor.
+    query = replace(query_dto, tags=[])
+    wanted_tags = set(query_dto.tags)
+    result = {}
+    while articles := get_articles(query, cur_user):
+        for article in articles:
+            if not wanted_tags.issubset(article.tags):
+                continue
+            parser = ArticleHrefExtractor()
+            parser.feed(article.content)
+            parser.close()
+            result[article.id] = parser.hrefs
+        query = replace(query, offset=articles[-1].offset)
+        if not query.offset:
+            break
+    return result
 
 
 def drop_cdn_cache(user: User, paths: list[str] | None = None) -> tuple[bool, int]:
