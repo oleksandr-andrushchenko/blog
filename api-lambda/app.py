@@ -3,6 +3,7 @@ import asyncio
 from notifications import request_log_context
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.responses import PlainTextResponse
 
 from api_deps import (
     get_error_response,
@@ -84,6 +85,12 @@ from web import Application, Request, HTTPException, HTMLResponse, JSONResponse,
     RequestValidationError, CORSMiddleware
 
 app = Application()
+
+
+@app.get("/robots.txt", name="api-robots")
+async def robots_txt():
+    return PlainTextResponse("User-agent: *\nDisallow: /\n")
+
 
 from api_route_metadata import API_URL_ROUTES
 

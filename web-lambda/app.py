@@ -1,9 +1,8 @@
 import asyncio
 
-from notifications import request_log_context
-
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from notifications import request_log_context
 from query_dtos import (
     TagQueryDTO,
 )
