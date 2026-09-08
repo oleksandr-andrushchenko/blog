@@ -15,6 +15,7 @@ def request_log_context(request, service, status):
         "status": status,
         "route": request.scope.get("route_name", "unresolved"),
         "method": request.method,
+        "hostname": (request.url.hostname or "")[:512],
         "path": request.url.path[:2048],
         "client_ip": request.client.host if request.client else None,
         "user_agent": request.headers.get("user-agent", "")[:512],
@@ -31,7 +32,7 @@ class TelegramFormatter(logging.Formatter):
         record.stack_info = None
         text = super().format(record)
         for key in ("user_id", "article_id", "comment_id", "message_id",
-                    "service", "route", "method", "path", "status", "client_ip",
+                    "service", "route", "method", "hostname", "path", "status", "client_ip",
                     "user_agent", "request_id"):
             value = getattr(record, key, None)
             if value is not None:

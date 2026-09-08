@@ -52,6 +52,7 @@ class ExceptionHandlerTests(unittest.TestCase):
                      "server": ("testserver", 80),
                      "client": ("192.0.2.10", 12345),
                      "headers": [(b"content-type", b"application/json"),
+                                 (b"host", b"example.execute-api.amazonaws.com"),
                                  (b"user-agent", b"ExampleBrowser/1.0"),
                                  (b"authorization", b"Bearer private-token"),
                                  (b"x-forwarded-for", b"spoofed-ip")],
@@ -120,6 +121,7 @@ class ExceptionHandlerTests(unittest.TestCase):
                 self.assertEqual(context["path"], "/missing-endpoint")
                 self.assertEqual(context["route"], "unresolved")
                 self.assertEqual(context["method"], "GET")
+                self.assertEqual(context["hostname"], "example.execute-api.amazonaws.com")
                 self.assertEqual(context["status"], 404)
                 self.assertEqual(context["client_ip"], "192.0.2.10")
                 self.assertEqual(context["user_agent"], "ExampleBrowser/1.0")

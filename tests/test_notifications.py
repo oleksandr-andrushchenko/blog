@@ -113,9 +113,11 @@ class NotificationTests(unittest.TestCase):
         notifications.configure_telegram_logging(self.logger)
         self.logger.info("HTTP exception", extra={
             "method": "GET", "path": "/missing", "status": 404,
+            "hostname": "example.execute-api.amazonaws.com",
             "client_ip": "192.0.2.10", "user_agent": "ExampleBrowser/1.0\nforged line",
         })
         text = json.loads(send.call_args.args[0].data)["text"]
         for field in ("method: GET", "path: /missing", "status: 404", "client_ip: 192.0.2.10",
+                      "hostname: example.execute-api.amazonaws.com",
                       "user_agent: ExampleBrowser/1.0 forged line"):
             self.assertIn(field, text)
