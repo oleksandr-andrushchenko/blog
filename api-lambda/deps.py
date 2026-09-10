@@ -12,7 +12,7 @@ from shared_deps import *
 from shared_utils import ArticleComment, ArticleCommentNotFoundError, get_article_comment
 from tag_subscription_dtos import TagSubscriptionDTO
 from user_dtos import UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO
-from web import Body, HTTPException, Request
+from web import Body, HTTPException, Request, RequestValidationError
 
 
 async def get_image_file(request: Request):

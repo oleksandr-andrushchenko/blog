@@ -1198,3 +1198,23 @@ def test_legacy_slug_urls_redirect(guest_client, legacy_path, canonical_path):
     response = get(guest_client, f"{legacy_path}?limit=5&offset=2", allow_redirects=False)
     assert response.status_code == 301
     assert response.headers["Location"].endswith(f"{canonical_path}?limit=5&offset=2")
+
+
+@pytest.mark.parametrize("path", [
+    "/articles", "/articles-fragment", "/latest/articles",
+    "/users", "/latest/users", "/users-fragment", "/tags",
+    "/@root-functional",
+])
+def test_query_endpoints_ignore_undeclared_parameters(guest_client, path):
+    response = get(guest_client, f"{path}?asdasd=13sd&limit=5")
+    assert response.status_code == 200, (path, response.status_code, response.text)
+
+
+@pytest.mark.parametrize("path", [
+    "/articles", "/articles-fragment", "/latest/articles",
+    "/users", "/latest/users", "/users-fragment", "/tags",
+    "/@root-functional",
+])
+def test_query_endpoints_validate_declared_parameters_with_unknown_parameters(guest_client, path):
+    response = get(guest_client, f"{path}?asdasd=13sd&limit=invalid")
+    assert response.status_code == 422, (path, response.status_code, response.text)

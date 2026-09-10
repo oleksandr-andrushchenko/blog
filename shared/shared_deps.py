@@ -29,7 +29,7 @@ from web import (
     HTTPException,
     Query,
     Request,
-    RequestValidationError
+    parse_dto,
 )
 
 
@@ -88,30 +88,19 @@ def get_user_by_id(user_id: str, cur_user: OptCurUserDep = None) -> User:
 def get_user_query_by_slugs(request: Request, type: str) -> UserQueryDTO:
     data = dict(request.query_params)
     data.update({"type": type})
-    try:
-        return UserQueryDTO(**data)
-    except ValueError as e:
-        raise RequestValidationError({"query": str(e)})
+    return parse_dto(UserQueryDTO, data)
 
 
 def get_article_query(request: Request, tags: list[str] = Query([])) -> ArticleQueryDTO:
     data = dict(request.query_params)
-    data.pop("activities_year", None)
     data.update({"tags": tags})
-    try:
-        return ArticleQueryDTO(**data)
-    except ValueError as e:
-        raise RequestValidationError({"query": str(e)})
+    return parse_dto(ArticleQueryDTO, data)
 
 
 def get_article_query_by_slugs(request: Request, slugs_path: str) -> ArticleQueryDTO:
     data = dict(request.query_params)
-    data.pop("activities_year", None)
     data.update(parse_articles_url_slugs_path(slugs_path))
-    try:
-        return ArticleQueryDTO(**data)
-    except ValueError as e:
-        raise RequestValidationError({"query": str(e)})
+    return parse_dto(ArticleQueryDTO, data)
 
 
 def _get_user_by_slug(slug: str, cur_user: OptCurUserDep = None) -> User:
