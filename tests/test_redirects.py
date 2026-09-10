@@ -10,6 +10,7 @@ import httpx
 project_root = Path(os.environ.get("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(project_root / "shared"))
 from web import Application, TrailingSlashMiddleware, Request, Response
+from lambda_adapter import _invoke
 
 
 class TrailingSlashRedirectTests(unittest.TestCase):
@@ -21,6 +22,7 @@ class TrailingSlashRedirectTests(unittest.TestCase):
         @self.app.get("/", name="home")
         @self.app.get("/articles", name="articles")
         @self.app.get("/@{slug}", name="profile")
+        @self.app.get("/@{slug}/{article_slug}", name="article")
         async def page(request: Request):
             self.calls.append(request.url.path)
             return Response("OK")
@@ -95,3 +97,13 @@ class TrailingSlashRedirectTests(unittest.TestCase):
             "x-forwarded-host": "attacker.example", "x-forwarded-proto": "http",
         })
         self.assertEqual(response.headers["location"], "/articles")
+
+    def test_lambda_trailing_slash_redirect_preserves_profile_marker(self):
+        response = asyncio.run(_invoke(self.app, {
+            "rawPath": "/@j-doe/article/",
+            "headers": {"host": "example.com"},
+            "requestContext": {"http": {"method": "GET"}},
+        }))
+
+        self.assertEqual(response["statusCode"], 308)
+        self.assertEqual(response["headers"]["location"], "/@j-doe/article")

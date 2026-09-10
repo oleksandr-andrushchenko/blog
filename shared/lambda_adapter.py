@@ -26,7 +26,7 @@ def _scope(event: dict) -> dict:
         "method": http.get("method", event.get("httpMethod", "GET")),
         "scheme": headers and event_headers.get("x-forwarded-proto", "https") or "https",
         "path": event.get("rawPath", "/"),
-        "raw_path": quote(event.get("rawPath", "/"), safe="/").encode(),
+        "raw_path": quote(event.get("rawPath", "/"), safe="/@").encode(),
         "query_string": event.get("rawQueryString", "").encode(),
         "headers": headers,
         "server": (event_headers.get("host", "lambda"), 443),
