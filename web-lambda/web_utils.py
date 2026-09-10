@@ -2,6 +2,13 @@ from datetime import timedelta
 from urllib.parse import quote, urlparse
 
 from shared_utils import *
+from shared_utils import (
+    Article, ArticleStatus, ArticleQueryType, ArticleNotFoundError,
+    ArticleByOldSlugRequestedError, User, UserStatus, UserNotFoundError,
+    UserByOldSlugRequestedError, NotAuthenticatedError, Permission,
+    find_article_by_slug_follow_redirects, find_user_by_username_follow_redirects,
+    verify_authorization, get_web_base_url, is_prod, get_auth_token_max_age,
+)
 
 
 def get_login_redirect_url(callback_url: str) -> str:
@@ -249,3 +256,79 @@ def get_latest_article_comments(query_dto: ArticleCommentQueryDTO = None) -> lis
 def get_popular_active_users(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[User]:
     query_dto = UserQueryDTO(limit=limit)
     return get_popular_users(query_dto)
+
+
+def parse_articles_url_slugs_path(slugs_path: str) -> dict:
+    data = {}
+    slugs = [p for p in slugs_path.split("/") if p]
+
+    if not slugs:
+        return {}
+
+    try:
+        data["type"] = ArticleQueryType(slugs[0])
+        slugs = slugs[1:]
+    except ValueError:
+        pass
+
+    data["tags"] = slugs
+
+    return data
+
+
+
+def get_article_by_slugs(user_slug: str, article_slug: str, cur_user: User = None) -> Article:
+    article = find_article_by_slug_follow_redirects(article_slug)
+    if article is None:
+        raise ArticleNotFoundError(f"Post '{article_slug}' not found")
+    if article.user_slug != user_slug:
+        raise UserNotFoundError(f"User '{user_slug}' not found")
+    if article.status != ArticleStatus.PUBLISHED:
+        if not cur_user:
+            raise NotAuthenticatedError()
+        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE, article)
+    if article.slug != article_slug:
+        raise ArticleByOldSlugRequestedError(article_slug, article)
+    return article
+
+
+
+def get_user_by_slug(username: str, cur_user: User = None) -> User:
+    user = find_user_by_username_follow_redirects(username)
+    if user is None:
+        raise UserNotFoundError(f"User '{username}' not found")
+    if user.status != UserStatus.ACTIVE:
+        if not cur_user:
+            raise NotAuthenticatedError()
+        verify_authorization(cur_user, Permission.READ_NON_ACTIVE_USER, user)
+    if user.username != username:
+        raise UserByOldSlugRequestedError(username, user)
+    return user
+
+
+
+def _auth_cookie_domain() -> str | None:
+    hostname = urlparse(get_web_base_url()).hostname
+    if not hostname or hostname in {"localhost", "127.0.0.1"} or "." not in hostname:
+        return None
+    return f".{hostname}"
+
+
+
+def set_token_cookie(token, response):
+    response.delete_cookie("token")
+    response.set_cookie(
+        key="token",
+        value=token,
+        httponly=True,
+        secure=is_prod(),
+        domain=_auth_cookie_domain(),
+        samesite="lax",
+        max_age=get_auth_token_max_age(),
+    )
+
+
+
+def drop_token_cookie(response):
+    response.delete_cookie("token")
+    response.delete_cookie("token", domain=_auth_cookie_domain())

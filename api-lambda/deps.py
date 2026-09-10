@@ -4,15 +4,17 @@ The web lambda keeps the shared read/query dependencies in ``shared``;
 upload and mutation request parsing belongs to the API lambda.
 """
 
+from typing import Annotated
+
 from article_dtos import UpdateArticleCommentDTO, UpdateArticleCommentImpressionDTO, UpdateArticleDTO, \
     UpdateArticleImpressionDTO, UpdateArticleStatusDTO, UpdateTagDTO
 from basic_dtos import ImageFileDTO
 from cdn_cache_dtos import DropCDNCacheDTO
-from shared_deps import *
+from query_dtos import ArticleCommentQueryDTO
 from shared_utils import ArticleComment, ArticleCommentNotFoundError, get_article_comment
 from tag_subscription_dtos import TagSubscriptionDTO
 from user_dtos import UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO
-from web import Body, HTTPException, Request, RequestValidationError
+from web import Depends, Body, HTTPException, Request, RequestValidationError
 
 
 async def get_image_file(request: Request):
@@ -87,10 +89,10 @@ ArticleCommentDep = Annotated[ArticleComment, Depends(get_article_comment_by_id)
 UpdateArticleCommentDTODep = Annotated[UpdateArticleCommentDTO, Depends(get_update_article_comment_dto)]
 UpdateArticleCommentImpressionDTODep = Annotated[
     UpdateArticleCommentImpressionDTO, Depends(get_update_article_comment_impression_dto)]
-TagQueryDep = Annotated[TagQueryDTO, Depends()]
-TagDep = Annotated[Tag, Depends(get_tag_by_slug)]
 UpdateTagDTODep = Annotated[UpdateTagDTO, Depends(get_update_tag_dto)]
 TagSubscriptionDTODep = Annotated[TagSubscriptionDTO, Depends(get_tag_subscription_dto)]
 DropCDNCacheDTODep = Annotated[DropCDNCacheDTO, Depends(get_drop_cdn_cache_dto)]
 ImageFileDTODep = Annotated[ImageFileDTO, Depends(get_image_file)]
 UpdateUserImpressionDTODep = Annotated[UpdateUserImpressionDTO, Depends(get_update_user_impression_dto)]
+
+ArticleCommentQueryDep = Annotated[ArticleCommentQueryDTO, Depends()]

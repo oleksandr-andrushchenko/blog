@@ -13,12 +13,6 @@ from shared_deps import (
     ArticleDep,
     UserQueryDep,
     UserDep,
-    UserBySlugDep,
-    ArticleBySlugsDep,
-    ArticleQueryBySlugsDep,
-    UserQueryBySlugsDep,
-    set_token_cookie,
-    drop_token_cookie,
     TagDep,
     TagQueryDep,
 )
@@ -35,9 +29,15 @@ from web import (
     FileResponse,
 )
 from web_deps import (
+    UserBySlugDep,
+    UserQueryBySlugsDep,
+    ArticleBySlugsDep,
+    ArticleQueryBySlugsDep,
     get_error_response,
 )
 from web_utils import (
+    set_token_cookie,
+    drop_token_cookie,
     to_thread,
     ArticleQueryDTO,
     ArticleCommentQueryDTO,

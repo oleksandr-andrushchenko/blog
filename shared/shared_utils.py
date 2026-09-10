@@ -845,24 +845,6 @@ def get_tag_url(req, tag: Tag) -> str:
     return get_articles_url(req, tags=[tag.slug])
 
 
-def parse_articles_url_slugs_path(slugs_path: str) -> dict:
-    data = {}
-    slugs = [p for p in slugs_path.split("/") if p]
-
-    if not slugs:
-        return {}
-
-    try:
-        data["type"] = ArticleQueryType(slugs[0])
-        slugs = slugs[1:]
-    except ValueError:
-        pass
-
-    data["tags"] = slugs
-
-    return data
-
-
 @pass_context
 def jinja2_users_url(ctx, query: UserQueryDTO | None = None, **params) -> str:
     return get_users_url(ctx.get("request"), query=query, **params)
@@ -1618,21 +1600,6 @@ def find_article_by_slug_follow_redirects(slug: str) -> Article | None:
         return article_from_dynamodb(item)
 
 
-def get_article_by_slugs(user_slug: str, article_slug: str, cur_user: User = None) -> Article:
-    article = find_article_by_slug_follow_redirects(article_slug)
-    if article is None:
-        raise ArticleNotFoundError(f"Post '{article_slug}' not found")
-    if article.user_slug != user_slug:
-        raise UserNotFoundError(f"User '{user_slug}' not found")
-    if article.status != ArticleStatus.PUBLISHED:
-        if not cur_user:
-            raise NotAuthenticatedError()
-        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE, article)
-    if article.slug != article_slug:
-        raise ArticleByOldSlugRequestedError(article_slug, article)
-    return article
-
-
 def find_article_comment(article_id: str, article_comment_id: str) -> ArticleComment | None:
     item = get_dynamodb_item(f"POST#{article_id}", f"COMMENT#{article_comment_id}")
     return article_comment_from_dynamodb(item) if item else None
@@ -1931,19 +1898,6 @@ def find_user_by_username_follow_redirects(slug: str) -> User | None:
             continue
 
         return user_from_dynamodb(item)
-
-
-def get_user_by_slug(username: str, cur_user: User = None) -> User:
-    user = find_user_by_username_follow_redirects(username)
-    if user is None:
-        raise UserNotFoundError(f"User '{username}' not found")
-    if user.status != UserStatus.ACTIVE:
-        if not cur_user:
-            raise NotAuthenticatedError()
-        verify_authorization(cur_user, Permission.READ_NON_ACTIVE_USER, user)
-    if user.username != username:
-        raise UserByOldSlugRequestedError(username, user)
-    return user
 
 
 class DecimalEncoder(json.JSONEncoder):

@@ -53,15 +53,8 @@ from api_utils import (
     delete_tag_subscription,
 )
 from deps import (
-    OptCurUserDep,
     ImageFileDTODep,
-    CurUserDep,
-    ArticleQueryDep,
     ArticleCommentQueryDep,
-    ArticleDep,
-    TagQueryDep,
-    UserQueryDep,
-    UserDep,
     UpdateUserDTODep,
     UpdateArticleDTODep,
     UpdateArticleStatusDTODep,
@@ -70,12 +63,21 @@ from deps import (
     UpdateUserStatusDTODep,
     ArticleCommentDep,
     UpdateArticleCommentDTODep,
-    TagDep,
     UpdateTagDTODep,
     TagSubscriptionDTODep,
     DropCDNCacheDTODep,
 )
 from notifications import get_access_log_message
+from shared_deps import (
+    OptCurUserDep,
+    CurUserDep,
+    ArticleQueryDep,
+    ArticleDep,
+    TagQueryDep,
+    UserQueryDep,
+    UserDep,
+    TagDep,
+)
 from shared_utils import (
     find_tag,
     get_article_url,
