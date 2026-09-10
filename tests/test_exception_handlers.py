@@ -118,13 +118,13 @@ class ExceptionHandlerTests(unittest.TestCase):
                 self.assertEqual(messages[0]["status"], 404)
                 logger.info.assert_called_once()
                 context = logger.info.call_args.kwargs["extra"]
-                self.assertEqual(context["path"], "/missing-endpoint")
                 self.assertEqual(context["route"], "unresolved")
-                self.assertEqual(context["method"], "GET")
-                self.assertEqual(context["hostname"], "example.execute-api.amazonaws.com")
-                self.assertEqual(context["status"], 404)
-                self.assertEqual(context["client_ip"], "192.0.2.10")
-                self.assertEqual(context["user_agent"], "ExampleBrowser/1.0")
+                self.assertEqual(context["service"], module.__name__.split("_")[0])
                 self.assertEqual(context["request_id"], "request-123")
-                self.assertNotIn("private", str(context))
+                self.assertRegex(context["access_log"],
+                                 r'^192\.0\.2\.10 - - \[\d{2}/[A-Za-z]{3}/\d{4}:\d{2}:\d{2}:\d{2} \+0000\] ')
+                self.assertIn(
+                    '"GET http://example.execute-api.amazonaws.com/missing-endpoint?token=private-query HTTP/1.1" '
+                    '404 - "-" "ExampleBrowser/1.0"', context["access_log"])
+                self.assertNotIn("private-token", str(context))
                 self.assertNotIn("spoofed", str(context))

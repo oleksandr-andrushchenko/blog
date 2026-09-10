@@ -89,7 +89,8 @@ class NotificationTests(unittest.TestCase):
         text = json.loads(send.call_args.args[0].data)["text"]
         self.assertIn("article_id: 123", text)
         self.assertIn("Exception: ValueError", text)
-        self.assertNotIn("private", text)
+        self.assertIn("password: private", text)
+        self.assertIn("private exception text", text)
         self.assertNotIn("bot-secret", text)
         self.assertIn("private exception text", console.getvalue())
 

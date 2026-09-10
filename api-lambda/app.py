@@ -1,7 +1,5 @@
 import asyncio
 
-from notifications import request_log_context
-
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import PlainTextResponse
 
@@ -77,6 +75,7 @@ from deps import (
     TagSubscriptionDTODep,
     DropCDNCacheDTODep,
 )
+from notifications import request_log_context
 from shared_utils import (
     find_tag,
     get_article_url,
@@ -200,21 +199,21 @@ async def not_authorized_error_handler(_request: Request, exc: NotAuthorizedErro
 
 @app.exception_handler(ArticleByOldSlugRequestedError)
 async def article_redirect_exception_handler(request: Request, exc: ArticleByOldSlugRequestedError):
-    logger.info(f"Redirect: {str(exc.slug)} -> {exc.article.slug}")
+    logger.info(f"Redirect", exc_info=exc, extra={"from": str(exc.slug), "to": exc.article.slug})
     url = get_article_url(request, exc.article)
     return RedirectResponse(url=url, status_code=301)
 
 
 @app.exception_handler(UserByOldSlugRequestedError)
 async def article_redirect_exception_handler(request: Request, exc: UserByOldSlugRequestedError):
-    logger.info(f"Redirect: {str(exc.slug)} -> {exc.user.username}")
+    logger.info(f"Redirect", exc_info=exc, extra={"from": str(exc.slug), "to": exc.user.username})
     url = get_user_url(request, exc.user)
     return RedirectResponse(url=url, status_code=301)
 
 
 @app.exception_handler(TagByOldSlugRequestedError)
 async def tag_redirect_exception_handler(request: Request, exc: TagByOldSlugRequestedError):
-    logger.info(f"Redirect: {str(exc.slug)} -> {exc.tag.slug}")
+    logger.info(f"Redirect", exc_info=exc, extra={"from": str(exc.slug), "to": exc.tag.slug})
     if request.url.path.startswith("/tags/"):
         url = get_url(request, "edit-tag", slug=exc.tag.slug)
     else:

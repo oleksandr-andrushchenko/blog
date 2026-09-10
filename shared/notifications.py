@@ -5,39 +5,46 @@ import json
 import logging
 import os
 import sys
+from datetime import datetime, timezone
 from urllib.request import Request, urlopen
 
 
 def request_log_context(request, service, status):
-    """Request metadata for both Lambdas; omit query strings and credentials."""
+    """Request metadata for both Lambdas, including the complete request URL."""
+    client_ip = request.client.host if request.client else None
+    timestamp = datetime.now(timezone.utc).strftime("%d/%b/%Y:%H:%M:%S %z")
+    protocol = f"HTTP/{request.scope.get('http_version', '1.1')}"
+    # Combined-style entry: timestamp is log time; identity and response size
+    # are unavailable here. Preserve the full URL in the request line.
+    access_log = (
+        f"{client_ip or '-'} - - [{timestamp}] "
+        f"{json.dumps(f'{request.method} {request.url} {protocol}', ensure_ascii=False)} {status} - "
+        f"{json.dumps(request.headers.get('referer') or '-', ensure_ascii=False)} "
+        f"{json.dumps(request.headers.get('user-agent') or '-', ensure_ascii=False)}"
+    )
     return {
+        "access_log": access_log,
         "service": service,
-        "status": status,
         "route": request.scope.get("route_name", "unresolved"),
-        "method": request.method,
-        "hostname": (request.url.hostname or "")[:512],
-        "path": request.url.path[:2048],
-        "client_ip": request.client.host if request.client else None,
-        "user_agent": request.headers.get("user-agent", "")[:512],
         "request_id": request.scope.get("aws_request_id"),
     }
 
 
 class TelegramFormatter(logging.Formatter):
-    """Keep tracebacks in server logs; send exception type and useful IDs."""
+    """Include every log record attribute in Telegram messages."""
 
     def format(self, record):
+        # shared_utils imports this module to configure its logger.
+        from shared_utils import config
+
+        attributes = vars(record)
         record = copy.copy(record)
         record.exc_text = None  # Another handler may already have formatted it.
         record.stack_info = None
         text = super().format(record)
-        for key in ("user_id", "article_id", "comment_id", "message_id",
-                    "service", "route", "method", "hostname", "path", "status", "client_ip",
-                    "user_agent", "request_id"):
-            value = getattr(record, key, None)
-            if value is not None:
-                text += f"\n{key}: {str(value).replace(chr(13), ' ').replace(chr(10), ' ')}"
-        return f"[{os.environ.get('APP_STAGE', 'local')}] {text}"
+        for key, value in attributes.items():
+            text += f"\n{key}: {str(value).replace(chr(13), ' ').replace(chr(10), ' ')}"
+        return f"[{config.get('app_stage')}] {text}"
 
     def formatException(self, exc_info):
         return f"Exception: {exc_info[0].__name__}"
