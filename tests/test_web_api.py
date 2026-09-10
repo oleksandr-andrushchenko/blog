@@ -562,7 +562,7 @@ def test_index_shows_latest_article_comments(guest_client):
 ])
 def test_legacy_article_page_urls_redirect_to_articles(guest_client, legacy_path, article_path):
     response = get(guest_client, f"{legacy_path}?limit=5", allow_redirects=False)
-    assert response.status_code == 301
+    assert response.status_code == 308
     assert response.headers["location"] == f"{article_path}?limit=5"
 
 
@@ -942,7 +942,7 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
         "/articles?type=latest&status=published&tags=coverage-tag",
         allow_redirects=False,
     )
-    assert renamed_old_tag_page.status_code == 301
+    assert renamed_old_tag_page.status_code == 308
     assert "coverage-tag-updated" in renamed_old_tag_page.headers["location"]
     renamed_current_tag_page = get(guest_client, "/articles?type=latest&status=published&tags=coverage-tag-updated")
     assert renamed_current_tag_page.status_code == 200
@@ -1190,14 +1190,24 @@ def test_logout_endpoint_wrong_method_failure(guest_client):
     assert failure.status_code == 405
 
 
-@pytest.mark.parametrize("legacy_path, canonical_path", [
-    ("/example-user", "/@example-user"),
-    ("/example-user/example-article", "/@example-user/example-article"),
-])
-def test_legacy_slug_urls_redirect(guest_client, legacy_path, canonical_path):
-    response = get(guest_client, f"{legacy_path}?limit=5&offset=2", allow_redirects=False)
-    assert response.status_code == 301
-    assert response.headers["Location"].endswith(f"{canonical_path}?limit=5&offset=2")
+def test_legacy_slug_urls_redirect_only_for_existing_entities(guest_client):
+    article_slug = functional_state["article_slug"]
+    for legacy_path, canonical_path in [
+        ("/root-functional", "/@root-functional"),
+        (f"/root-functional/{article_slug}", f"/@root-functional/{article_slug}"),
+    ]:
+        response = get(guest_client, f"{legacy_path}?limit=5&offset=2", allow_redirects=False)
+        assert response.status_code == 308
+        assert response.headers["Location"].endswith(f"{canonical_path}?limit=5&offset=2")
+
+    for path in [
+        "/missing-functional-user",
+        "/root-functional/missing-functional-article",
+        f"/missing-functional-user/{article_slug}",
+    ]:
+        response = get(guest_client, path, allow_redirects=False)
+        assert response.status_code == 404
+        assert "Location" not in response.headers
 
 
 @pytest.mark.parametrize("path", [

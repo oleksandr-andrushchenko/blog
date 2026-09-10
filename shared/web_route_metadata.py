@@ -35,6 +35,4 @@ WEB_URL_ROUTES = {
     "utils": "/utils",
     "user-by-slug": "/@{slug}",
     "article-by-slugs": "/@{user_slug}/{article_slug}",
-    "legacy-user-by-slug": "/{slug}",
-    "legacy-article-by-slugs": "/{user_slug}/{article_slug}",
 }

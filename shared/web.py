@@ -1,8 +1,10 @@
 import inspect
+import re
 from dataclasses import asdict, fields, is_dataclass
 from decimal import Decimal
 from enum import Enum
 from typing import Annotated, get_args, get_origin, get_type_hints
+from urllib.parse import quote
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
@@ -10,7 +12,33 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
-from starlette.routing import Route
+from starlette.routing import Match, Route
+
+
+class TrailingSlashMiddleware(BaseHTTPMiddleware):
+    """Remove trailing slashes only when the target route supports the method."""
+
+    async def dispatch(self, request, call_next):
+        path = request.scope["path"]
+        target_path = path.rstrip("/") or "/"
+        strip_slash = False
+        if path != target_path:
+            target_scope = {**request.scope, "path": target_path}
+            strip_slash = any(route.matches(target_scope)[0] == Match.FULL
+                              for route in request.app.routes)
+
+        if strip_slash:
+            raw_path = request.scope.get("raw_path", quote(path, safe="/@").encode()).decode("ascii")
+            raw_path = re.sub(r"(?:/|%2[fF])+$", "", raw_path) or "/"
+            # A relative Location beginning with // would redirect to another host.
+            if raw_path.startswith("//"):
+                raw_path = "/%2F" + raw_path[2:]
+            target = raw_path
+            query = request.scope.get("query_string", b"").decode("ascii")
+            if query:
+                target += "?" + query
+            return RedirectResponse(target, status_code=308)
+        return await call_next(request)
 
 
 class RequestValidationError(ValueError):
@@ -96,6 +124,7 @@ async def resolve(function, request):
 class Application(Starlette):
     def __init__(self, **kwargs):
         super().__init__()
+        self.router.redirect_slashes = False
         self.url_routes = []
 
     def add_url_route(self, path, name):

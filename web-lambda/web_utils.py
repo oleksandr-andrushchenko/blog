@@ -306,6 +306,19 @@ def get_user_by_slug(username: str, cur_user: User = None) -> User:
     return user
 
 
+def get_legacy_user_redirect_url(req, slug: str) -> str | None:
+    user = find_user_by_username_follow_redirects(slug)
+    return get_user_url(req, user) if user else None
+
+
+def get_legacy_article_redirect_url(req, user_slug: str, article_slug: str) -> str | None:
+    user = find_user_by_username_follow_redirects(user_slug)
+    article = find_article_by_slug_follow_redirects(article_slug)
+    if not user or not article or article.user_slug != user.username:
+        return None
+    return get_article_url(req, article)
+
+
 
 def _auth_cookie_domain() -> str | None:
     hostname = urlparse(get_web_base_url()).hostname
