@@ -91,6 +91,9 @@ from api_route_metadata import API_URL_ROUTES
 from web_route_metadata import WEB_URL_ROUTES
 
 
+app.add_url_route(WEB_URL_ROUTES["static-file"], "static-file")
+
+
 def route(method, name, **kwargs):
     return getattr(app, method)(WEB_URL_ROUTES[name], name=name, **kwargs)
 
@@ -344,6 +347,17 @@ async def edit_article(article: ArticleDep, cur_user: CurUserDep) -> str:
     })
 
 
+@route("get", "user-by-slug", response_class=HTMLResponse)
+async def user_page_by_slug(user: UserBySlugDep, articles_query_dto: ArticleQueryDep,
+                            cur_user: OptCurUserDep, request: Request) -> HTMLResponse:
+    return await _user_page(user, articles_query_dto, cur_user, request)
+
+
+@route("get", "article-by-slugs", response_class=HTMLResponse)
+async def article_page_by_slugs(article: ArticleBySlugsDep, cur_user: OptCurUserDep) -> HTMLResponse:
+    return await _article_page(article, cur_user)
+
+
 @route("get", "articles-by-slugs", response_class=HTMLResponse)
 async def articles_page_by_slugs(query_dto: ArticleQueryBySlugsDep, cur_user: OptCurUserDep) -> HTMLResponse:
     return await _articles_page(query_dto, cur_user)
@@ -544,12 +558,17 @@ async def utils(cur_user: CurUserDep) -> str:
     })
 
 
-@route("get", "user-by-slug", response_class=HTMLResponse)
-async def user_page_by_slug(user: UserBySlugDep, articles_query_dto: ArticleQueryDep,
-                            cur_user: OptCurUserDep, request: Request) -> HTMLResponse:
-    return await _user_page(user, articles_query_dto, cur_user, request)
+@route("get", "legacy-user-by-slug", response_class=RedirectResponse)
+async def legacy_user_by_slug(request: Request, slug: str) -> RedirectResponse:
+    url = get_url(request, "user-by-slug", slug=slug)
+    if request.url.query:
+        url += f"?{request.url.query}"
+    return RedirectResponse(url=url, status_code=301)
 
 
-@route("get", "article-by-slugs", response_class=HTMLResponse)
-async def article_page_by_slugs(article: ArticleBySlugsDep, cur_user: OptCurUserDep) -> HTMLResponse:
-    return await _article_page(article, cur_user)
+@route("get", "legacy-article-by-slugs", response_class=RedirectResponse)
+async def legacy_article_by_slugs(request: Request, user_slug: str, article_slug: str) -> RedirectResponse:
+    url = get_url(request, "article-by-slugs", user_slug=user_slug, article_slug=article_slug)
+    if request.url.query:
+        url += f"?{request.url.query}"
+    return RedirectResponse(url=url, status_code=301)

@@ -2,6 +2,7 @@
 
 WEB_URL_ROUTES = {
     "index": "/",
+    "static-file": "/{filename:path}",
     "new-article": "/articles/new",
     "articles": "/articles",
     "tags": "/tags",
@@ -32,6 +33,8 @@ WEB_URL_ROUTES = {
     "terms": "/terms-of-service",
     "earn": "/earn-with-us",
     "utils": "/utils",
-    "user-by-slug": "/{slug}",
-    "article-by-slugs": "/{user_slug}/{article_slug}",
+    "user-by-slug": "/@{slug}",
+    "article-by-slugs": "/@{user_slug}/{article_slug}",
+    "legacy-user-by-slug": "/{slug}",
+    "legacy-article-by-slugs": "/{user_slug}/{article_slug}",
 }

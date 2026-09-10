@@ -952,7 +952,7 @@ def get_url(req, name: str, absolute: bool = False, **params) -> str:
 
 
 def get_static_url(req, filename, **params) -> str:
-    return get_url(req, "user-by-slug", slug=filename, **params)
+    return get_url(req, "static-file", filename=filename, **params)
 
 
 @pass_context

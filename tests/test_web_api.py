@@ -95,7 +95,7 @@ def get_user_by_id(client, user):
 
 
 def get_user_by_slug(client, user):
-    resp = get(client, f"/{user['username']}")
+    resp = get(client, f"/@{user['username']}")
     assert resp.status_code == 200
     return pq(resp.text)
 
@@ -122,7 +122,7 @@ def get_article_by_id(client, article):
 
 
 def get_article_by_slug(client, article):
-    resp = get(client, f"/{article['user_slug']}/{article['slug']}")
+    resp = get(client, f"/@{article['user_slug']}/{article['slug']}")
     assert resp.status_code == 200
     return pq(resp.text)
 
@@ -140,13 +140,13 @@ def get_contacts(client):
 
 def get_user_href(user: dict) -> str:
     if username := user.get("username"):
-        return f"/{username}"
+        return f"/@{username}"
     return f"/users/{user['id']}"
 
 
 def get_article_href(article: dict, user: dict | None = None) -> str:
     if username := user.get("username"):
-        return f"/{username}"
+        return f"/@{username}"
     return f"/users/{user['id']}"
 
 
@@ -749,9 +749,9 @@ def test_user_edit_update_and_fragment_endpoints_success_and_failure(root_user_c
     fragment_failure = get(guest_client, "/users/missing-user/articles-fragment")
     assert fragment_failure.status_code == 404
 
-    slug_success = get(guest_client, "/root-functional")
+    slug_success = get(guest_client, "/@root-functional")
     assert slug_success.status_code == 200
-    slug_failure = get(guest_client, "/missing-functional-user")
+    slug_failure = get(guest_client, "/@missing-functional-user")
     assert slug_failure.status_code == 404
 
 
@@ -837,10 +837,10 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     article_schema = json.loads(read_doc('script[type="application/ld+json"]').text())
     assert article_schema["@type"] == "Article"
     assert article_schema["inLanguage"] == "en"
-    assert article_schema["author"]["url"].endswith("/root-functional")
+    assert article_schema["author"]["url"].endswith("/@root-functional")
     assert read_doc('meta[property="og:type"]').attr("content") == "article"
     assert read_doc('meta[property="og:url"]').attr("content").endswith(
-        f"/root-functional/{functional_state['article_slug']}")
+        f"/@root-functional/{functional_state['article_slug']}")
     assert not read_doc('meta[name="keywords"]')
     assert "aggregateRating" not in article_schema
     assert article_schema["commentCount"] == 0
@@ -951,9 +951,9 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     status_failure = post(root_client, f"/articles/{article_id}/status", json={"status": "invalid"})
     assert status_failure.status_code == 422
 
-    slug_success = get(guest_client, f"/root-functional/{functional_state["article_slug"]}")
+    slug_success = get(guest_client, f"/@root-functional/{functional_state["article_slug"]}")
     assert slug_success.status_code == 200, slug_success.text
-    slug_failure = get(guest_client, "/root-functional/missing-article")
+    slug_failure = get(guest_client, "/@root-functional/missing-article")
     assert slug_failure.status_code == 404
 
     articles_by_slug_success = get(guest_client, "/root-functional/articles")
@@ -1188,3 +1188,13 @@ def test_article_published_dispatch_matches_combinations_excludes_author_and_ren
 def test_logout_endpoint_wrong_method_failure(guest_client):
     failure = post(guest_client, "/logout", json={})
     assert failure.status_code == 405
+
+
+@pytest.mark.parametrize("legacy_path, canonical_path", [
+    ("/example-user", "/@example-user"),
+    ("/example-user/example-article", "/@example-user/example-article"),
+])
+def test_legacy_slug_urls_redirect(guest_client, legacy_path, canonical_path):
+    response = get(guest_client, f"{legacy_path}?limit=5&offset=2", allow_redirects=False)
+    assert response.status_code == 301
+    assert response.headers["Location"].endswith(f"{canonical_path}?limit=5&offset=2")
