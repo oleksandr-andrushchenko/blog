@@ -90,7 +90,6 @@ app = Application()
 from api_route_metadata import API_URL_ROUTES
 from web_route_metadata import WEB_URL_ROUTES
 
-
 app.add_url_route(WEB_URL_ROUTES["static-file"], "static-file")
 
 
@@ -155,8 +154,7 @@ async def access_log_middleware(request: Request, call_next):
         status = response.status_code
         return response
     finally:
-        if status >= 400:
-            logger.error(get_access_log_message(request, status))
+        logger.info(get_access_log_message(request, status))
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -176,7 +174,6 @@ async def validation_exception_handler(_request: Request, exc: RequestValidation
     for error in exc.errors():
         field = error["loc"][-1] if len(error["loc"]) > 1 else error["loc"][0]
         details[field] = error["msg"]
-    logger.info("Request validation failed", extra={"details": details})
     return get_error_response(422, details)
 
 
@@ -197,21 +194,18 @@ async def not_authorized_error_handler(_request: Request, exc: NotAuthorizedErro
 
 @app.exception_handler(ArticleByOldSlugRequestedError)
 async def article_redirect_exception_handler(request: Request, exc: ArticleByOldSlugRequestedError):
-    logger.info(f"Redirect", exc_info=exc, extra={"from": str(exc.slug), "to": exc.article.slug})
     url = get_article_url(request, exc.article)
     return RedirectResponse(url=url, status_code=301)
 
 
 @app.exception_handler(UserByOldSlugRequestedError)
 async def article_redirect_exception_handler(request: Request, exc: UserByOldSlugRequestedError):
-    logger.info(f"Redirect", exc_info=exc, extra={"from": str(exc.slug), "to": exc.user.username})
     url = get_user_url(request, exc.user)
     return RedirectResponse(url=url, status_code=301)
 
 
 @app.exception_handler(TagByOldSlugRequestedError)
 async def tag_redirect_exception_handler(request: Request, exc: TagByOldSlugRequestedError):
-    logger.info(f"Redirect", exc_info=exc, extra={"from": str(exc.slug), "to": exc.tag.slug})
     if request.url.path.startswith("/tags/"):
         url = get_url(request, "edit-tag", slug=exc.tag.slug)
     else:

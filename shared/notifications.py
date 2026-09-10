@@ -22,23 +22,18 @@ def get_access_log_message(request, status) -> str:
 
 
 class TelegramFormatter(logging.Formatter):
-    """Include every log record attribute in Telegram messages."""
+    """Include only the log record's context as JSON alongside the message."""
 
     def format(self, record):
         # shared_utils imports this module to configure its logger.
         from shared_utils import config
 
-        attributes = vars(record)
         record = copy.copy(record)
         record.exc_text = None  # Another handler may already have formatted it.
         record.stack_info = None
         text = super().format(record)
-        for key, value in attributes.items():
-            text += f"\n{key}: {str(value).replace(chr(13), ' ').replace(chr(10), ' ')}"
-        return f"[{config.get('app_stage')}] {text}"
-
-    def formatException(self, exc_info):
-        return f"Exception: {exc_info[0].__name__}"
+        context = json.dumps(getattr(record, "context", {}), ensure_ascii=False, default=str)
+        return f"[{config.get('app_stage')}] {text} {context}"
 
 
 class TelegramHandler(logging.Handler):

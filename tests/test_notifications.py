@@ -87,12 +87,16 @@ class NotificationTests(unittest.TestCase):
         except ValueError:
             self.logger.exception("Failed bot-secret", extra={"article_id": "123", "password": "private"})
         text = json.loads(send.call_args.args[0].data)["text"]
-        self.assertIn("article_id: 123", text)
-        self.assertIn("Exception: ValueError", text)
-        self.assertIn("password: private", text)
+        self.assertNotIn("article_id", text)
+        self.assertNotIn("password", text)
+        self.assertIn("Traceback (most recent call last):", text)
+        self.assertIn("ValueError: private exception text", text)
+        self.assertTrue(text.endswith(" {}"))
         self.assertIn("private exception text", text)
         self.assertNotIn("bot-secret", text)
         self.assertIn("private exception text", console.getvalue())
+        self.assertIn("Traceback (most recent call last):", console.getvalue())
+        self.assertIn("Failed bot-secret", console.getvalue())
 
     @patch("notifications.urlopen")
     def test_child_logger_and_console_threshold(self, send):
@@ -109,16 +113,28 @@ class NotificationTests(unittest.TestCase):
         self.assertEqual(console.getvalue(), "")
 
     @patch("notifications.urlopen")
-    def test_request_details_are_sent(self, send):
+    def test_only_context_is_sent_as_json(self, send):
         send.return_value = io.BytesIO(b'{"ok":true}')
         notifications.configure_telegram_logging(self.logger)
-        self.logger.info("HTTP exception", extra={
+        context = {
             "method": "GET", "path": "/missing", "status": 404,
             "hostname": "example.execute-api.amazonaws.com",
             "client_ip": "192.0.2.10", "user_agent": "ExampleBrowser/1.0\nforged line",
-        })
+            "enabled": True, "value": None, "name": "Привіт",
+        }
+        self.logger.info("HTTP exception", extra={"context": context, "ignored": "excluded-value"})
         text = json.loads(send.call_args.args[0].data)["text"]
-        for field in ("method: GET", "path: /missing", "status: 404", "client_ip: 192.0.2.10",
-                      "hostname: example.execute-api.amazonaws.com",
-                      "user_agent: ExampleBrowser/1.0 forged line"):
-            self.assertIn(field, text)
+        serialized_context = text.split("HTTP exception ", 1)[1]
+        self.assertEqual(json.loads(serialized_context), context)
+        self.assertIn("Привіт", serialized_context)
+        self.assertNotIn("\n", serialized_context)
+        self.assertNotIn("excluded-value", text)
+
+    @patch("notifications.urlopen")
+    def test_exception_context_is_serialized_as_a_json_string(self, send):
+        send.return_value = io.BytesIO(b'{"ok":true}')
+        notifications.configure_telegram_logging(self.logger)
+        self.logger.error("Failed", extra={"context": ValueError("Invalid value")})
+        text = json.loads(send.call_args.args[0].data)["text"]
+        self.assertEqual(json.loads(text.split("Failed ", 1)[1]), "Invalid value")
+        self.assertNotIn("Traceback (most recent call last):", text)

@@ -1283,7 +1283,7 @@ def upsert_user_by_user_token(token: UserTokenDTO, status: UserStatus = UserStat
         raise
 
     if is_new_user:
-        logger.info("New user registered", extra={"user_id": user.id})
+        logger.info("New user registered", extra={"context": {"user_id": user.id}})
     return user
 
 

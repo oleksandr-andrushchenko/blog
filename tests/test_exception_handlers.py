@@ -94,16 +94,16 @@ class ExceptionHandlerTests(unittest.TestCase):
             self.assertIn(f"<h1>{status} - ".encode(), body)
             self.assertIn(b"Back home", body)
 
-    def test_http_exceptions_log_once_at_correct_level(self):
+    def test_http_exceptions_log_access_once_at_info_level(self):
         for module in self.modules:
             for status in (400, 404, 500, 503):
                 with self.subTest(module=module.__name__, status=status), patch.object(module, "logger") as logger:
                     messages = self.invoke(module, HTTPException(status, "detail"))
                     self.assertEqual(messages[0]["status"], status)
                     self.assert_response_format(module, messages, status)
-                    logger.error.assert_called_once()
-                    logger.info.assert_not_called()
-                    self.assertIn(f'HTTP/1.1" {status} ', logger.error.call_args.args[0])
+                    logger.info.assert_called_once()
+                    logger.error.assert_not_called()
+                    self.assertIn(f'HTTP/1.1" {status} ', logger.info.call_args.args[0])
                     self.assertEqual(len(logger.mock_calls), 1)
 
     def test_unhandled_exception_logs_access_and_traceback_and_hides_details(self):
@@ -115,9 +115,10 @@ class ExceptionHandlerTests(unittest.TestCase):
                 self.assert_response_format(module, messages, 500)
                 body = b"".join(message.get("body", b"") for message in messages)
                 self.assertNotIn(b"private failure details", body)
-                self.assertEqual(logger.error.call_count, 2)
+                logger.error.assert_called_once()
+                logger.info.assert_called_once()
                 self.assertEqual(len(logger.mock_calls), 2)
-                self.assertIn('HTTP/1.1" 500 ', logger.error.call_args_list[0].args[0])
+                self.assertIn('HTTP/1.1" 500 ', logger.info.call_args.args[0])
                 self.assertEqual(logger.error.call_args.args, ("Unhandled request exception",))
                 self.assertIs(logger.error.call_args.kwargs["exc_info"], exc)
 
@@ -126,8 +127,9 @@ class ExceptionHandlerTests(unittest.TestCase):
             with self.subTest(module=module.__name__), patch.object(module, "logger") as logger:
                 messages = self.invoke(module, None, path="/missing-endpoint")
                 self.assertEqual(messages[0]["status"], 404)
-                logger.error.assert_called_once()
-                access_log = logger.error.call_args.args[0]
+                logger.info.assert_called_once()
+                logger.error.assert_not_called()
+                access_log = logger.info.call_args.args[0]
                 self.assertRegex(access_log,
                                  r'^192\.0\.2\.10 - - \[\d{2}/[A-Za-z]{3}/\d{4}:\d{2}:\d{2}:\d{2} \+0000\] ')
                 self.assertIn(
@@ -136,10 +138,13 @@ class ExceptionHandlerTests(unittest.TestCase):
                 self.assertNotIn("private-token", access_log)
                 self.assertNotIn("spoofed", access_log)
 
-    def test_success_and_redirect_responses_do_not_log(self):
+    def test_success_and_redirect_responses_log_access_at_info_level(self):
         for module in self.modules:
             for status in (200, 204, 301, 308):
                 with self.subTest(module=module.__name__, status=status), patch.object(module, "logger") as logger:
                     messages = self.invoke(module, None, status=status)
                     self.assertEqual(messages[0]["status"], status)
-                    self.assertEqual(logger.mock_calls, [])
+                    logger.info.assert_called_once()
+                    logger.error.assert_not_called()
+                    self.assertIn(f'HTTP/1.1" {status} ', logger.info.call_args.args[0])
+                    self.assertEqual(len(logger.mock_calls), 1)
