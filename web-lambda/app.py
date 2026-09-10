@@ -2,7 +2,7 @@ import asyncio
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from notifications import request_log_context
+from notifications import get_access_log_message
 from query_dtos import (
     TagQueryDTO,
 )
@@ -144,35 +144,41 @@ async def inject_template_global_vars(request: Request, call_next):
     return await call_next(request)
 
 
+@app.middleware("http")
+async def access_log_middleware(request: Request, call_next):
+    status = 500
+    try:
+        response = await call_next(request)
+        status = response.status_code
+        return response
+    finally:
+        if status >= 400:
+            logger.error(get_access_log_message(request, status))
+
+
 @app.exception_handler(StarletteHTTPException)
-async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
-    log = logger.error if exc.status_code >= 500 else logger.info
-    log("HTTP exception", exc_info=exc, extra=request_log_context(request, "web", exc.status_code))
+async def custom_http_exception_handler(_request: Request, exc: StarletteHTTPException):
     return get_error_response(exc.status_code, exc.detail)
 
 
 @app.exception_handler(Exception)
-async def unhandled_exception_handler(request: Request, exc: Exception):
-    logger.error("Unhandled request exception", exc_info=exc,
-                 extra=request_log_context(request, "web", 500))
-    response = get_error_response(500)
-    response.headers["Cache-Control"] = "no-store"
-    return response
+async def unhandled_exception_handler(_request: Request, exc: Exception):
+    logger.error("Unhandled request exception", exc_info=exc)
+    return get_error_response(500)
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(_request: Request, exc: RequestValidationError):
-    logger.info("Request validation failed", exc_info=exc)
     details = {}
     for error in exc.errors():
         field = error["loc"][-1] if len(error["loc"]) > 1 else error["loc"][0]
         details[field] = error["msg"]
+    logger.info("Request validation failed", extra={"details": details})
     return get_error_response(422, details)
 
 
 @app.exception_handler(NotAuthenticatedError)
-async def not_authenticated_error_handler(_request: Request, exc: NotAuthenticatedError):
-    logger.info("Not authenticated", exc_info=exc)
+async def not_authenticated_error_handler(_request: Request, _exc: NotAuthenticatedError):
     return get_error_response(401)
 
 
@@ -183,7 +189,6 @@ async def user_banned_error_handler(_request: Request, _exc: UserBannedError):
 
 @app.exception_handler(NotAuthorizedError)
 async def not_authorized_error_handler(_request: Request, exc: NotAuthorizedError):
-    logger.info("Not authorized", exc_info=exc)
     return get_error_response(403, {"permission": exc.permission})
 
 
@@ -499,11 +504,7 @@ async def logout(request: Request) -> RedirectResponse:
 @route("get", "logout-callback", response_class=RedirectResponse)
 async def logout_callback(request: Request):
     response = RedirectResponse(request.cookies.get("redirect_url") or get_url(request, "index"))
-
     drop_token_cookie(response)
-
-    response.headers["Cache-Control"] = "no-store"
-
     return response
 
 

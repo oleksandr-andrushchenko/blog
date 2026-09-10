@@ -9,25 +9,16 @@ from datetime import datetime, timezone
 from urllib.request import Request, urlopen
 
 
-def request_log_context(request, service, status):
-    """Request metadata for both Lambdas, including the complete request URL."""
+def get_access_log_message(request, status) -> str:
     client_ip = request.client.host if request.client else None
     timestamp = datetime.now(timezone.utc).strftime("%d/%b/%Y:%H:%M:%S %z")
     protocol = f"HTTP/{request.scope.get('http_version', '1.1')}"
-    # Combined-style entry: timestamp is log time; identity and response size
-    # are unavailable here. Preserve the full URL in the request line.
-    access_log = (
+    return (
         f"{client_ip or '-'} - - [{timestamp}] "
         f"{json.dumps(f'{request.method} {request.url} {protocol}', ensure_ascii=False)} {status} - "
         f"{json.dumps(request.headers.get('referer') or '-', ensure_ascii=False)} "
         f"{json.dumps(request.headers.get('user-agent') or '-', ensure_ascii=False)}"
     )
-    return {
-        "access_log": access_log,
-        "service": service,
-        "route": request.scope.get("route_name", "unresolved"),
-        "request_id": request.scope.get("aws_request_id"),
-    }
 
 
 class TelegramFormatter(logging.Formatter):

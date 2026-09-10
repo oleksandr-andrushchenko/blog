@@ -13,7 +13,7 @@ for directory in ("shared", "api-lambda", "web-lambda"):
     sys.path.insert(0, str(project_root / directory))
 
 from starlette.exceptions import HTTPException
-from web import Application, Request
+from web import Application, Request, Response
 import shared_utils
 
 
@@ -29,20 +29,29 @@ class ExceptionHandlerTests(unittest.TestCase):
                 spec.loader.exec_module(module)
                 cls.modules.append(module)
 
-    def invoke(self, module, exception, path="/failure"):
+    def invoke(self, module, exception, path="/failure", status=200):
         app = Application()
         app.exception_handlers.update(module.app.exception_handlers)
+        app.middleware("http")(module.access_log_middleware)
         app.url_routes = [*module.app.routes, *module.app.url_routes]
 
         @app.get("/failure", name="failure")
         async def failure():
-            raise exception
+            if exception is not None:
+                raise exception
+            return Response(status_code=status)
 
         async def run():
             messages = []
 
+            request_sent = False
+
             async def receive():
-                return {"type": "http.request", "body": b""}
+                nonlocal request_sent
+                if request_sent:
+                    await asyncio.Event().wait()
+                request_sent = True
+                return {"type": "http.request", "body": b"", "more_body": False}
 
             async def send(message):
                 messages.append(message)
@@ -57,7 +66,7 @@ class ExceptionHandlerTests(unittest.TestCase):
                                  (b"authorization", b"Bearer private-token"),
                                  (b"x-forwarded-for", b"spoofed-ip")],
                      "aws_request_id": "request-123"}
-            # The harness bypasses middleware, so supply the real renderer with
+            # The harness includes only access logging middleware; supply the renderer with
             # the template paths and request context normally set by the web app.
             with patch.dict(os.environ, {
                 "FUNCTION_TEMPLATES_DIR": str(project_root / "web-lambda/templates"),
@@ -92,39 +101,45 @@ class ExceptionHandlerTests(unittest.TestCase):
                     messages = self.invoke(module, HTTPException(status, "detail"))
                     self.assertEqual(messages[0]["status"], status)
                     self.assert_response_format(module, messages, status)
-                    self.assertEqual(logger.error.call_count, int(status >= 500))
-                    self.assertEqual(logger.info.call_count, int(status < 500))
+                    logger.error.assert_called_once()
+                    logger.info.assert_not_called()
+                    self.assertIn(f'HTTP/1.1" {status} ', logger.error.call_args.args[0])
                     self.assertEqual(len(logger.mock_calls), 1)
 
-    def test_unhandled_exception_logs_once_and_hides_details(self):
+    def test_unhandled_exception_logs_access_and_traceback_and_hides_details(self):
         for module in self.modules:
             with self.subTest(module=module.__name__), patch.object(module, "logger") as logger:
                 exc = ValueError("private failure details")
                 messages = self.invoke(module, exc)
                 self.assertEqual(messages[0]["status"], 500)
                 self.assert_response_format(module, messages, 500)
-                self.assertIn((b"cache-control", b"no-store"), messages[0]["headers"])
                 body = b"".join(message.get("body", b"") for message in messages)
                 self.assertNotIn(b"private failure details", body)
-                logger.error.assert_called_once()
-                self.assertEqual(len(logger.mock_calls), 1)
+                self.assertEqual(logger.error.call_count, 2)
+                self.assertEqual(len(logger.mock_calls), 2)
+                self.assertIn('HTTP/1.1" 500 ', logger.error.call_args_list[0].args[0])
+                self.assertEqual(logger.error.call_args.args, ("Unhandled request exception",))
                 self.assertIs(logger.error.call_args.kwargs["exc_info"], exc)
-                self.assertEqual(logger.error.call_args.kwargs["extra"]["request_id"], "request-123")
 
     def test_missing_endpoint_includes_request_context(self):
         for module in self.modules:
             with self.subTest(module=module.__name__), patch.object(module, "logger") as logger:
                 messages = self.invoke(module, None, path="/missing-endpoint")
                 self.assertEqual(messages[0]["status"], 404)
-                logger.info.assert_called_once()
-                context = logger.info.call_args.kwargs["extra"]
-                self.assertEqual(context["route"], "unresolved")
-                self.assertEqual(context["service"], module.__name__.split("_")[0])
-                self.assertEqual(context["request_id"], "request-123")
-                self.assertRegex(context["access_log"],
+                logger.error.assert_called_once()
+                access_log = logger.error.call_args.args[0]
+                self.assertRegex(access_log,
                                  r'^192\.0\.2\.10 - - \[\d{2}/[A-Za-z]{3}/\d{4}:\d{2}:\d{2}:\d{2} \+0000\] ')
                 self.assertIn(
                     '"GET http://example.execute-api.amazonaws.com/missing-endpoint?token=private-query HTTP/1.1" '
-                    '404 - "-" "ExampleBrowser/1.0"', context["access_log"])
-                self.assertNotIn("private-token", str(context))
-                self.assertNotIn("spoofed", str(context))
+                    '404 - "-" "ExampleBrowser/1.0"', access_log)
+                self.assertNotIn("private-token", access_log)
+                self.assertNotIn("spoofed", access_log)
+
+    def test_success_and_redirect_responses_do_not_log(self):
+        for module in self.modules:
+            for status in (200, 204, 301, 308):
+                with self.subTest(module=module.__name__, status=status), patch.object(module, "logger") as logger:
+                    messages = self.invoke(module, None, status=status)
+                    self.assertEqual(messages[0]["status"], status)
+                    self.assertEqual(logger.mock_calls, [])
