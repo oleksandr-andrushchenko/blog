@@ -814,6 +814,21 @@ def test_article_create_and_new_page_endpoints_success_and_failure(guest_client)
     assert "figure" not in article_item["content"]
     assert "picture" not in article_item["content"]
 
+    invalid_links_content = (
+        ARTICLE_CONTENT
+        + '<a href="/@root-functional/missing-article">Missing article</a>'
+        + '<a href="http://web-lambda:5000/@root-functional/missing-article">Missing article again</a>'
+    )
+    invalid_links = post(root_client, "/articles", json={
+        "title": "Article with invalid links",
+        "content": invalid_links_content,
+        "tags": ["functional-tag"],
+    })
+    assert invalid_links.status_code == 422
+    content_error = invalid_links.json()["details"]["content"]
+    assert "duplicate links" in content_error
+    assert "non-existent internal links" in content_error
+
     create_failure = post(root_client, "/articles", json={
         "title": "a",
         "content": ARTICLE_CONTENT,
@@ -892,6 +907,18 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     assert "<picture>" not in raw_editor_content
     edit_failure = get(regular_client, f"/articles/{article_id}/edit")
     assert edit_failure.status_code == 403
+
+    invalid_links_content = (
+        ARTICLE_CONTENT
+        + '<a href="/rules">Rules one</a>'
+        + '<a href="http://web-lambda:5000/rules">Rules two</a>'
+        + '<a href="/root-functional/missing-article">Missing article</a>'
+    )
+    invalid_links = patch(root_client, f"/articles/{article_id}", json={"content": invalid_links_content})
+    assert invalid_links.status_code == 422
+    content_error = invalid_links.json()["details"]["content"]
+    assert "duplicate links" in content_error
+    assert "non-existent internal links" in content_error
 
     update_success = patch(root_client, f"/articles/{article_id}", json={
         "title": "Updated functional endpoint coverage article",

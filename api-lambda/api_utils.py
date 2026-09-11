@@ -1,5 +1,6 @@
 from dataclasses import replace
 from html.parser import HTMLParser
+from urllib.parse import unquote, urlparse
 
 from article_dtos import (
     ArticleCommentDTO, ArticleDTO, UpdateArticleCommentDTO, UpdateArticleDTO, UpdateArticleImpressionDTO,
@@ -7,12 +8,16 @@ from article_dtos import (
 )
 from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO
 from shared_utils import *
-from shared_utils import User, get_articles, get_tags, logger
+from shared_utils import (
+    User, find_article, find_article_by_slug_follow_redirects, find_user_by_username_follow_redirects,
+    get_articles, get_tags, get_web_base_url, logger,
+)
 from tag_subscription_dtos import TagSubscriptionDTO
 from user_dtos import (
     UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO,
     UserImpressionAction,
 )
+from web import RequestValidationError
 
 
 class ArticleHrefExtractor(HTMLParser):
@@ -24,6 +29,89 @@ class ArticleHrefExtractor(HTMLParser):
         for name, value in attrs:
             if name == "href" and value is not None:
                 self.hrefs.append(value)
+
+
+def _get_internal_article_link(href: str) -> tuple[str, str | None, str] | None:
+    """Return the lookup type, optional username, and article identifier for an internal article URL."""
+    parsed = urlparse(href)
+    if parsed.netloc:
+        site = urlparse(get_web_base_url())
+        if not site.netloc or parsed.netloc.lower() != site.netloc.lower():
+            return None
+    elif parsed.scheme:
+        return None
+
+    path = unquote(parsed.path).rstrip("/")
+    parts = path.split("/")
+    if len(parts) != 3 or parts[0]:
+        return None
+
+    user_slug, article_identifier = parts[1:]
+    if user_slug == "articles":
+        return "id", None, article_identifier
+    if user_slug.startswith("@"):
+        user_slug = user_slug[1:]
+    if not user_slug or not article_identifier:
+        return None
+    return "slug", user_slug, article_identifier
+
+
+def _internal_article_link_exists(link: tuple[str, str | None, str]) -> bool:
+    lookup_type, user_slug, article_identifier = link
+    if lookup_type == "id":
+        return find_article(article_identifier) is not None
+
+    article = find_article_by_slug_follow_redirects(article_identifier)
+    user = find_user_by_username_follow_redirects(user_slug)
+    return article is not None and user is not None and article.owner_id == user.id
+
+
+def _normalize_href_for_duplicates(href: str) -> str:
+    """Make absolute and root-relative same-site URLs comparable."""
+    parsed = urlparse(href)
+    if parsed.netloc:
+        site = urlparse(get_web_base_url())
+        if not site.netloc or parsed.netloc.lower() != site.netloc.lower():
+            return href
+    elif parsed.scheme or not parsed.path.startswith("/"):
+        return href
+
+    path = unquote(parsed.path).rstrip("/") or "/"
+    query = f"?{parsed.query}" if parsed.query else ""
+    fragment = f"#{parsed.fragment}" if parsed.fragment else ""
+    return f"{path}{query}{fragment}"
+
+
+def validate_article_content_links(content: str) -> None:
+    parser = ArticleHrefExtractor()
+    parser.feed(content)
+    parser.close()
+
+    seen = set()
+    duplicate_hrefs = []
+    for href in parser.hrefs:
+        normalized_href = _normalize_href_for_duplicates(href)
+        if normalized_href in seen and href not in duplicate_hrefs:
+            duplicate_hrefs.append(href)
+        seen.add(normalized_href)
+
+    missing_hrefs = []
+    checked_internal_links = set()
+    for href in parser.hrefs:
+        link = _get_internal_article_link(href)
+        if link is None or link in checked_internal_links:
+            continue
+        checked_internal_links.add(link)
+        if not _internal_article_link_exists(link):
+            missing_hrefs.append(href)
+
+    errors = []
+    if duplicate_hrefs:
+        errors.append(f"duplicate links: {', '.join(duplicate_hrefs)}")
+    if missing_hrefs:
+        errors.append(f"non-existent internal links: {', '.join(missing_hrefs)}")
+    if errors:
+        raise RequestValidationError({"content": "; ".join(errors)})
 
 
 def get_article_hrefs(query_dto: ArticleQueryDTO, cur_user: User | None = None) -> dict[str, list[str]]:
@@ -388,6 +476,7 @@ def create_article(article_dto: ArticleDTO, cur_user: User) -> Article:
     article_id = str(uuid.uuid4())
     title = article_dto.title
     content = sanitize_forbidden_html(article_dto.content)
+    validate_article_content_links(content)
     preview = find_preview(content)
     image_filename = find_static_image_filename(content)
     tags = sanitize_tags(article_dto.tags)
@@ -448,6 +537,7 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
 
     if "content" in changes:
         changes["content"] = sanitize_forbidden_html(changes["content"])
+    validate_article_content_links(changes.get("content", article.content))
     if "tags" in changes:
         changes["tags"] = sanitize_tags(changes["tags"])
     old_status = article.status
