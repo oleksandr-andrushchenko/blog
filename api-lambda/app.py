@@ -67,7 +67,7 @@ from deps import (
     TagSubscriptionDTODep,
     DropCDNCacheDTODep,
 )
-from notifications import get_access_log_message
+from notifications import get_access_log
 from shared_deps import (
     OptCurUserDep,
     CurUserDep,
@@ -159,7 +159,7 @@ async def access_log_middleware(request: Request, call_next):
         status = response.status_code
         return response
     finally:
-        logger.info(get_access_log_message(request, status))
+        logger.log(*get_access_log(request, status))
 
 
 @app.exception_handler(StarletteHTTPException)

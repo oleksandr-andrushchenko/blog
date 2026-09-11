@@ -3,7 +3,7 @@ import asyncio
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.routing import Match
 
-from notifications import get_access_log_message
+from notifications import get_access_log
 from query_dtos import (
     TagQueryDTO,
 )
@@ -181,7 +181,7 @@ async def access_log_middleware(request: Request, call_next):
         status = response.status_code
         return response
     finally:
-        logger.info(get_access_log_message(request, status))
+        logger.log(*get_access_log(request, status))
 
 
 @app.exception_handler(StarletteHTTPException)

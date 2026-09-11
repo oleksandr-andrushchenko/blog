@@ -8,15 +8,25 @@ import sys
 from urllib.request import Request, urlopen
 
 
-def get_access_log_message(request, status) -> str:
+def get_access_log(request, status: int) -> tuple[int, str]:
+    if status >= 500:
+        level = logging.ERROR
+    elif status >= 400:
+        level = logging.WARNING
+    elif status >= 300:
+        level = logging.INFO
+    else:
+        level = logging.DEBUG
+
     client_ip = request.client.host if request.client else None
     protocol = f"HTTP/{request.scope.get('http_version', '1.1')}"
-    return (
+    message = (
         f"{client_ip or '-'} - "
         f"{json.dumps(f'{request.method} {request.url} {protocol}', ensure_ascii=False)} {status} - "
         f"{json.dumps(request.headers.get('referer') or '-', ensure_ascii=False)} "
         f"{json.dumps(request.headers.get('user-agent') or '-', ensure_ascii=False)}"
     )
+    return level, message
 
 
 class TelegramFormatter(logging.Formatter):
@@ -31,7 +41,15 @@ class TelegramFormatter(logging.Formatter):
         record.stack_info = None
         text = super().format(record)
         context = json.dumps(getattr(record, "context", {}), ensure_ascii=False, default=str)
-        return f"[{config.get('app_stage')}] {text} {context}"
+        if record.levelno >= logging.ERROR:
+            bullet = "🔴"
+        elif record.levelno >= logging.WARNING:
+            bullet = "🟠"
+        elif record.levelno >= logging.INFO:
+            bullet = "🔵"
+        else:
+            bullet = "⚪"
+        return f"{bullet} [{config.get('app_stage')}] {text} {context}"
 
 
 class TelegramHandler(logging.Handler):

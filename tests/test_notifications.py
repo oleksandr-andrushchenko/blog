@@ -63,6 +63,25 @@ class NotificationTests(unittest.TestCase):
         self.assertEqual(send.call_args.kwargs["timeout"], 2)
 
     @patch("notifications.urlopen")
+    def test_payload_bullet_matches_log_level(self, send):
+        send.side_effect = lambda *a, **k: io.BytesIO(b'{"ok":true}')
+        with patch.dict(os.environ, {"TELEGRAM_LOG_LEVEL": "DEBUG"}):
+            notifications.configure_telegram_logging(self.logger)
+
+        for level, bullet in [
+            (logging.DEBUG, "⚪"),
+            (logging.INFO, "🔵"),
+            (logging.WARNING, "🟠"),
+            (logging.ERROR, "🔴"),
+            (logging.CRITICAL, "🔴"),
+        ]:
+            with self.subTest(level=level):
+                send.reset_mock()
+                self.logger.log(level, "Event")
+                text = json.loads(send.call_args.args[0].data)["text"]
+                self.assertTrue(text.startswith(f"{bullet} "))
+
+    @patch("notifications.urlopen")
     def test_failures_do_not_recurse_or_escape(self, send):
         notifications.configure_telegram_logging(self.logger)
         for result in [OSError("bot-secret"), io.BytesIO(b'{"ok":false}'), io.BytesIO(b'invalid')]:
