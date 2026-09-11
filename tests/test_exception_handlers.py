@@ -130,8 +130,7 @@ class ExceptionHandlerTests(unittest.TestCase):
                 logger.info.assert_called_once()
                 logger.error.assert_not_called()
                 access_log = logger.info.call_args.args[0]
-                self.assertRegex(access_log,
-                                 r'^192\.0\.2\.10 - - \[\d{2}/[A-Za-z]{3}/\d{4}:\d{2}:\d{2}:\d{2} \+0000\] ')
+                self.assertRegex(access_log, r'^192\.0\.2\.10 - ')
                 self.assertIn(
                     '"GET http://example.execute-api.amazonaws.com/missing-endpoint?token=private-query HTTP/1.1" '
                     '404 - "-" "ExampleBrowser/1.0"', access_log)

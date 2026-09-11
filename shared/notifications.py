@@ -5,16 +5,14 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timezone
 from urllib.request import Request, urlopen
 
 
 def get_access_log_message(request, status) -> str:
     client_ip = request.client.host if request.client else None
-    timestamp = datetime.now(timezone.utc).strftime("%d/%b/%Y:%H:%M:%S %z")
     protocol = f"HTTP/{request.scope.get('http_version', '1.1')}"
     return (
-        f"{client_ip or '-'} - - [{timestamp}] "
+        f"{client_ip or '-'} - "
         f"{json.dumps(f'{request.method} {request.url} {protocol}', ensure_ascii=False)} {status} - "
         f"{json.dumps(request.headers.get('referer') or '-', ensure_ascii=False)} "
         f"{json.dumps(request.headers.get('user-agent') or '-', ensure_ascii=False)}"
