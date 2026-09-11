@@ -13,5 +13,7 @@ services:
       DYNAMODB_TABLE: app
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"
       FUNCTION_TEMPLATES_DIR: "/app/api-lambda/templates"
+      TELEGRAM_BOT_TOKEN: ""
+      TELEGRAM_CHAT_ID: ""
     volumes:
       - ./:/app
