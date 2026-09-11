@@ -94,7 +94,7 @@ app = Application()
 app.add_middleware(TrailingSlashMiddleware)
 
 from api_route_metadata import API_URL_ROUTES
-from web_route_metadata import WEB_URL_ROUTES
+from web_route_metadata import WEB_AUTH_URL_ROUTES, WEB_URL_ROUTES
 
 app.add_url_route(WEB_URL_ROUTES["static-file"], "static-file")
 
@@ -129,6 +129,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def add_no_robots_to_auth_endpoints(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.rstrip("/") in WEB_AUTH_URL_ROUTES.values():
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return response
 
 
 @app.middleware("http")

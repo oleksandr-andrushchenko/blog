@@ -457,6 +457,7 @@ def test_logout(request, user_alias):
     resp = get(client, "/logout", allow_redirects=False)
     assert resp.status_code in (302, 307)
     assert resp.headers["location"].endswith("/logout-callback")
+    assert resp.headers["X-Robots-Tag"] == "noindex, nofollow"
 
 
 def test_regular_user_can_create_article_comment():
@@ -688,6 +689,7 @@ def test_tags_endpoint_supports_tag_types(guest_client, tag_type):
     response = get(guest_client, f"/tags?type={tag_type}&limit=6")
 
     assert response.status_code == 200
+    assert response.headers["X-Robots-Tag"] == "noindex, nofollow"
     assert isinstance(response.json(), list)
 
 
@@ -695,9 +697,11 @@ def test_login_endpoint_success_and_wrong_method_failure(guest_client):
     success = get(guest_client, "/login", allow_redirects=False)
     assert success.status_code in (302, 307)
     assert "location" in success.headers
+    assert success.headers["X-Robots-Tag"] == "noindex, nofollow"
 
     failure = post(guest_client, "/login", json={})
     assert failure.status_code == 405
+    assert failure.headers["X-Robots-Tag"] == "noindex, nofollow"
 
 
 def test_login_callback_success_and_invalid_code_failure():
@@ -710,14 +714,17 @@ def test_login_callback_success_and_invalid_code_failure():
 
     failure = get(get_guest_client(), "/login-callback?code=invalid", allow_redirects=False)
     assert failure.status_code == 400
+    assert failure.headers["X-Robots-Tag"] == "noindex, nofollow"
 
 
 def test_logout_callback_success_and_wrong_method_failure(guest_client):
     success = get(guest_client, "/logout-callback", allow_redirects=False)
     assert success.status_code in (302, 307)
+    assert success.headers["X-Robots-Tag"] == "noindex, nofollow"
 
     failure = post(guest_client, "/logout-callback", json={})
     assert failure.status_code == 405
+    assert failure.headers["X-Robots-Tag"] == "noindex, nofollow"
 
 
 functional_state = {}

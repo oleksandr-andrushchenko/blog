@@ -1,6 +1,13 @@
 """Canonical web route names and path templates."""
 
-WEB_URL_ROUTES = {
+WEB_AUTH_URL_ROUTES = {
+    "login": "/login",
+    "login-callback": "/login-callback",
+    "logout": "/logout",
+    "logout-callback": "/logout-callback",
+}
+
+WEB_URL_ROUTES = WEB_AUTH_URL_ROUTES | {
     "index": "/",
     "static-file": "/{filename:path}",
     "new-article": "/articles/new",
@@ -24,10 +31,6 @@ WEB_URL_ROUTES = {
     "users-by-slugs": "/{type}/users",
     "user": "/users/{user_id}",
     "edit-user": "/users/{user_id}/edit",
-    "login": "/login",
-    "login-callback": "/login-callback",
-    "logout": "/logout",
-    "logout-callback": "/logout-callback",
     "policy": "/privacy-policy",
     "rules": "/rules",
     "terms": "/terms-of-service",
