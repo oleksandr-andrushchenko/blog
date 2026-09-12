@@ -13,6 +13,7 @@ services:
       APP_DEBUG: 1
       WEB_BASE_URL: "http://localhost:${WEB_LAMBDA_PORT}"
       API_BASE_URL: "http://localhost:${API_LAMBDA_PORT}"
+      STATIC_BASE_URL: ""
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"
@@ -46,6 +47,7 @@ services:
       APP_DEBUG: 1
       API_BASE_URL: "http://localhost:${API_LAMBDA_PORT}"
       WEB_BASE_URL: "http://localhost:${WEB_LAMBDA_PORT}"
+      STATIC_BASE_URL: ""
       ALLOWED_ORIGIN: "http://localhost:${WEB_LAMBDA_PORT}"
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy

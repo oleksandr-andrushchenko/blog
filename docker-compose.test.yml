@@ -16,6 +16,7 @@ services:
       APP_DEBUG: 1
       WEB_BASE_URL: "http://web-lambda:5000"
       API_BASE_URL: "http://api-lambda:5000"
+      STATIC_BASE_URL: ""
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"
@@ -52,6 +53,7 @@ services:
       APP_DEBUG: 1
       API_BASE_URL: "http://api-lambda:5000"
       WEB_BASE_URL: "http://web-lambda:5000"
+      STATIC_BASE_URL: ""
       ALLOWED_ORIGIN: "http://web-lambda:5000"
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy

@@ -228,17 +228,17 @@ deploy-code-files: check-env check-aws generate-code-files ## Zip and upload Lam
 .PHONY: deploy-web-lambda
 deploy-web-lambda: check-env check-aws generate-web-lambda-code-files ## Build, upload, and deploy only the Web Lambda
 	aws s3 cp $(CODE_BUILD_DIR)/web-function-$$(sed -n 's/^WEB_LAMBDA_CODE_TIMESTAMP=//p' .env).zip s3://$(CODE_STACK_NAME)/web-function-$$(sed -n 's/^WEB_LAMBDA_CODE_TIMESTAMP=//p' .env).zip --profile $(AWS_PROJECT) --region $(AWS_REGION)
-	$(MAKE) --no-print-directory deploy-infra
+	$(MAKE) deploy-infra
 
 .PHONY: deploy-api-lambda
 deploy-api-lambda: check-env check-aws generate-api-lambda-code-files ## Build, upload, and deploy only the API Lambda
 	aws s3 cp $(CODE_BUILD_DIR)/api-function-$$(sed -n 's/^API_LAMBDA_CODE_TIMESTAMP=//p' .env).zip s3://$(CODE_STACK_NAME)/api-function-$$(sed -n 's/^API_LAMBDA_CODE_TIMESTAMP=//p' .env).zip --profile $(AWS_PROJECT) --region $(AWS_REGION)
-	$(MAKE) --no-print-directory deploy-infra
+	$(MAKE) deploy-infra
 
 .PHONY: deploy-img-lambda
 deploy-img-lambda: check-env check-aws generate-img-lambda-code-files ## Build, upload, and deploy only the Image Lambda
 	aws s3 cp $(CODE_BUILD_DIR)/img-function-$$(sed -n 's/^IMG_LAMBDA_CODE_TIMESTAMP=//p' .env).zip s3://$(CODE_STACK_NAME)/img-function-$$(sed -n 's/^IMG_LAMBDA_CODE_TIMESTAMP=//p' .env).zip --profile $(AWS_PROJECT) --region $(AWS_REGION)
-	$(MAKE) --no-print-directory deploy-infra
+	$(MAKE) deploy-infra
 
 .PHONY: deploy-site-files
 deploy-site-files: check-env check-aws generate-site-files ## Sync local site files to S3
@@ -250,11 +250,11 @@ deploy-site-files: check-env check-aws generate-site-files ## Sync local site fi
 
 .PHONY: drop-cdn-cache
 drop-cdn-cache: check-env check-aws ## Invalidate CloudFront cache for the site
-	@echo "🔎 Finding CloudFront distribution for $(DOMAIN_NAME)..."
+	@echo "🔎 Finding CloudFront distribution for static.$(DOMAIN_NAME)..."
 	@DISTRIBUTION_ID=$$(aws cloudfront list-distributions \
 		--profile $(AWS_PROJECT) \
 		--region $(AWS_REGION) \
-		--query "DistributionList.Items[?Aliases.Items[?contains(@, '$(DOMAIN_NAME)')]].Id" \
+		--query "DistributionList.Items[?Aliases.Items[?contains(@, 'static.$(DOMAIN_NAME)')]].Id" \
 		--output text); \
 	if [ -n "$$DISTRIBUTION_ID" ]; then \
 		echo "⚡ Invalidating CloudFront cache for distribution $$DISTRIBUTION_ID..."; \
@@ -264,7 +264,7 @@ drop-cdn-cache: check-env check-aws ## Invalidate CloudFront cache for the site
 			--distribution-id "$$DISTRIBUTION_ID" \
 			--paths "/*"; \
 	else \
-		echo "⚠️  CloudFront distribution not found for $(DOMAIN_NAME) — skipping invalidation."; \
+		echo "⚠️  CloudFront distribution not found for static.$(DOMAIN_NAME) — skipping invalidation."; \
 	fi
 
 .PHONY: up
@@ -439,5 +439,5 @@ deploy: check-env check-aws ## Deploy certificates, code bucket, Lambdas, applic
 	$(MAKE) --no-print-directory deploy-cert-infra
 	$(MAKE) --no-print-directory deploy-code-infra
 	$(MAKE) --no-print-directory deploy-code-files
-	$(MAKE) --no-print-directory deploy-infra
+	$(MAKE) deploy-infra
 	$(MAKE) --no-print-directory deploy-site-files

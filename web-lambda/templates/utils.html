@@ -45,10 +45,10 @@
         {% if check_auth(cur_user, Permission.DROP_CDN_CACHE) %}
             <div class="col">
                 <section class="col border rounded p-4 mb-4 bg-light">
-                    <h2 class="h4 mb-2">Drop CDN Cache</h2>
+                    <h2 class="h4 mb-2">Drop Static CDN Cache</h2>
 
                     <p class="small text-muted mb-3">
-                        Invalidate CloudFront Cache.
+                        Invalidate files cached by static asset CloudFront.
                     </p>
 
                     <form id="drop-cdn-cache-form" novalidate>

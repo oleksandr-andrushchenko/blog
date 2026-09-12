@@ -1,5 +1,6 @@
 from dataclasses import replace
 from html.parser import HTMLParser
+import os
 from urllib.parse import unquote, urlparse
 
 from article_dtos import (
@@ -1091,7 +1092,7 @@ def get_email_files_dir() -> str:
 
 
 def get_static_s3_bucket() -> str:
-    return config.get("static_s3_bucket")
+    return os.getenv("STATIC_S3_BUCKET")
 
 
 def get_contact_topic_arn():
@@ -1212,7 +1213,7 @@ def handle_article_published_event(event: ArticlePublishedEvent) -> None:
 
 
 def get_cf_distribution_id() -> str:
-    return get_config().get("cf_distribution_id")
+    return os.getenv("CLOUDFRONT_DISTRIBUTION_ID")
 
 
 @lru_cache

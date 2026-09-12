@@ -20,13 +20,15 @@ Parameters:
     Description: The Route53 Hosted Zone ID for the domain
 
 Resources:
-  Certificate:
+  StaticCertificate:
     Type: AWS::CertificateManager::Certificate
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
-      DomainName: !Ref DomainName
+      DomainName: !Sub "static.${DomainName}"
       ValidationMethod: DNS
       DomainValidationOptions:
-        - DomainName: !Ref DomainName
+        - DomainName: !Sub "static.${DomainName}"
           HostedZoneId: !Ref HostedZoneId
       Tags:
         - Key: Stage
@@ -40,5 +42,5 @@ Resources:
 
 Outputs:
   CertificateArn:
-    Description: ARN of the ACM certificate to use in CloudFront
-    Value: !Ref Certificate
+    Description: ARN of the static domain ACM certificate to use in CloudFront
+    Value: !Ref StaticCertificate

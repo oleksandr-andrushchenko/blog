@@ -449,6 +449,7 @@ def get_live_config():
         "app_secret": os.getenv("APP_SECRET"),
         "web_base_url": os.getenv("WEB_BASE_URL"),
         "api_base_url": os.getenv("API_BASE_URL"),
+        "static_base_url": os.getenv("STATIC_BASE_URL"),
         "aws_region": os.getenv("AWS_REGION"),
         "dynamodb_endpoint": os.getenv("DYNAMODB_ENDPOINT"),
         "dynamodb_table": os.getenv("DYNAMODB_TABLE"),
@@ -461,14 +462,12 @@ def get_live_config():
         "cognito_client_id": os.getenv("COGNITO_CLIENT_ID"),
         "cognito_client_secret": os.getenv("COGNITO_CLIENT_SECRET"),
         "cognito_user_pool_id": os.getenv("COGNITO_USER_POOL_ID"),
-        "static_s3_bucket": os.getenv("STATIC_S3_BUCKET"),
         "email_files_dir": os.getenv("EMAIL_FILES_DIR", "/app-emails"),
         "static_files_dir": os.getenv("STATIC_FILES_DIR", "/app-static"),
         "css_cache_counter": os.getenv("CSS_CACHE_COUNTER", 0),
         "js_cache_counter": os.getenv("JS_CACHE_COUNTER", 0),
         "auth_token_max_age": os.getenv("AUTH_TOKEN_MAX_AGE", 86_400 * 7),
         "auth_jwt_secret": os.getenv("AUTH_JWT_SECRET"),
-        "cf_distribution_id": os.getenv("CLOUDFRONT_DISTRIBUTION_ID"),
         "permission_hierarchy": {
             Permission.REGULAR: [
                 Permission.UPDATE_USER_IMPRESSION,
@@ -535,6 +534,10 @@ def get_web_base_url() -> str:
 
 def get_api_base_url() -> str:
     return get_config().get("api_base_url") or ""
+
+
+def get_static_base_url() -> str:
+    return get_config().get("static_base_url") or ""
 
 
 def get_aws_region():
@@ -934,7 +937,12 @@ def get_url(req, name: str, absolute: bool = False, **params) -> str:
 
 
 def get_static_url(req, filename, **params) -> str:
-    return get_url(req, "static-file", filename=filename, **params)
+    absolute = params.pop("absolute", False)
+    static_base_url = get_static_base_url()
+    if static_base_url:
+        url_path = get_url(req, "static-file", filename=filename, **params)
+        return f"{static_base_url.rstrip('/')}{url_path}"
+    return get_url(req, "static-file", filename=filename, absolute=absolute, **params)
 
 
 @pass_context

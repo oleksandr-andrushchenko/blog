@@ -65,12 +65,19 @@ make deploy
 
 The command runs these steps sequentially, including with `make -j`:
 
-1. Deploy `cf-cert.yml` in `us-east-1` and wait for the CloudFront certificate.
+1. Deploy `cf-cert.yml` in `us-east-1` and wait for the `static.${DOMAIN_NAME}` CloudFront certificate.
 2. Deploy `cf-code.yml` in `AWS_REGION` to create the Lambda artifact bucket.
 3. Build and upload all three Lambda ZIPs.
 4. Read the CloudFront certificate ARN from its stack output and deploy `cf.yml`
    in `AWS_REGION`, including the API certificate and application resources.
-5. Build and upload static files after the application creates the site bucket.
+5. Build and upload static files after the application creates the site bucket. The
+   website is served directly by API Gateway at `${DOMAIN_NAME}`, while CloudFront
+   serves S3 assets from `static.${DOMAIN_NAME}`.
+
+During the first migration from the root-domain CloudFront distribution, the old
+`us-east-1` root-domain certificate is retained so CloudFormation can finish the
+alias cutover. After the deployment succeeds and CloudFront reports `Deployed`,
+that unused certificate can be deleted manually from ACM.
 
 ## Lambda layout
 
@@ -78,7 +85,8 @@ The command runs these steps sequentially, including with `make -j`:
 - `web-lambda/` — website Lambda handler and dependencies
 - `api-lambda/` — API Lambda
 
-API endpoints are exposed through the dedicated API Gateway execute-api URL, with no `/api` path prefix.
+API endpoints are exposed through the dedicated `api.${DOMAIN_NAME}` API Gateway
+custom domain, with no `/api` path prefix.
 
 - `img-lambda/` — S3 image variant Lambda
 

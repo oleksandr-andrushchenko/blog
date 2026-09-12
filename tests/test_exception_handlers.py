@@ -155,3 +155,35 @@ class ExceptionHandlerTests(unittest.TestCase):
                     self.assertEqual(level, logging.DEBUG if status < 300 else logging.INFO)
                     self.assertIn(f'HTTP/1.1" {status} ', access_log)
                     self.assertEqual(len(logger.mock_calls), 1)
+
+    def test_web_legacy_static_files_redirect_to_static_domain(self):
+        module = next(module for module in self.modules if module.__name__.startswith("web_"))
+
+        async def invoke(path, query_string=b""):
+            request = Request({
+                "type": "http", "method": "GET", "path": path, "root_path": "",
+                "query_string": query_string, "scheme": "https", "server": ("example.com", 443),
+                "client": ("192.0.2.10", 12345), "headers": [(b"host", b"example.com")],
+            })
+
+            async def call_next(_request):
+                return Response("OK")
+
+            return await module.redirect_legacy_static_files(request, call_next)
+
+        with patch.object(module, "get_static_base_url", return_value="https://static.example.com"):
+            response = asyncio.run(invoke("/styles.css", b"_=42"))
+            self.assertEqual(response.status_code, 308)
+            self.assertEqual(response.headers["location"], "https://static.example.com/styles.css?_=42")
+            self.assertEqual(asyncio.run(invoke("/robots.txt")).status_code, 200)
+            sitemap = asyncio.run(invoke("/sitemap.xml"))
+            self.assertEqual(sitemap.status_code, 308)
+            self.assertEqual(sitemap.headers["location"], "https://static.example.com/sitemap.xml")
+
+    def test_web_robots_and_sitemap_are_served_for_the_main_domain(self):
+        module = next(module for module in self.modules if module.__name__.startswith("web_"))
+
+        with patch.object(module, "get_static_base_url", return_value="https://static.example.com"):
+            robots = asyncio.run(module.robots_txt())
+        self.assertIn(b"Allow: /", robots.body)
+        self.assertIn(b"Sitemap: https://static.example.com/sitemap.xml", robots.body)

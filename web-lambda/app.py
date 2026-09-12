@@ -18,7 +18,7 @@ from shared_deps import (
     TagDep,
     TagQueryDep,
 )
-from shared_utils import get_tags
+from shared_utils import get_static_base_url, get_tags, get_web_base_url
 from web import (
     Application,
     Request,
@@ -94,9 +94,17 @@ app = Application()
 app.add_middleware(TrailingSlashMiddleware)
 
 
-@app.get("/robots.txt", name="api-robots")
+@app.get("/robots.txt", name="web-robots")
 async def robots_txt():
-    return PlainTextResponse("User-agent: *\nDisallow: /\n")
+    sitemap_base_url = get_static_base_url() or get_web_base_url()
+    return PlainTextResponse(
+        "User-agent: *\n"
+        "Content-Signal: search=yes, ai-input=yes, ai-train=no\n"
+        "Allow: /\n"
+        "Disallow: /login\n"
+        "Disallow: /logout\n"
+        f"Sitemap: {sitemap_base_url.rstrip('/')}/sitemap.xml\n"
+    )
 
 
 from api_route_metadata import API_URL_ROUTES
@@ -127,6 +135,24 @@ if not is_prod():
             if os.path.isfile(file_path):
                 return FileResponse(file_path)
         return await call_next(request)
+
+
+@app.middleware("http")
+async def redirect_legacy_static_files(request: Request, call_next):
+    path = request.url.path
+    static_base_url = get_static_base_url()
+    if (
+            static_base_url
+            and request.method in {"GET", "HEAD"}
+            and "." in path
+            and path != "/robots.txt"
+    ):
+        url = f"{static_base_url.rstrip('/')}{path}"
+        if request.url.query:
+            url += f"?{request.url.query}"
+        return RedirectResponse(url, status_code=308)
+    return await call_next(request)
+
 
 app.add_middleware(
     CORSMiddleware,

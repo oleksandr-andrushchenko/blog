@@ -32,7 +32,7 @@ Parameters:
     Description: Route 53 Hosted Zone ID for your domain
   CertificateArn:
     Type: String
-    Description: ARN of the ACM certificate in us-east-1 for CloudFront
+    Description: ARN of the ACM certificate in us-east-1 for the static CloudFront domain
   TelegramBotToken:
     Type: String
     Default: ''
@@ -88,6 +88,7 @@ Parameters:
 Resources:
   SiteBucket:
     Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
     Properties:
       BucketName: !Sub "${AWS::StackName}-site"
       NotificationConfiguration:
@@ -98,6 +99,13 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: [ "*" ]
+            AllowedMethods: [ GET, HEAD ]
+            AllowedOrigins:
+              - !Sub "https://${DomainName}"
+            MaxAge: 86400
       Tags:
         - Key: Stage
           Value: !Ref Stage
@@ -115,12 +123,19 @@ Resources:
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
-          - Sid: AllowCloudFrontOAI
+          - Sid: AllowCloudFrontOAIGetObject
             Effect: Allow
             Principal:
               CanonicalUser: !GetAtt CloudFrontOAI.S3CanonicalUserId
             Action: s3:GetObject
             Resource: !Sub "arn:aws:s3:::${SiteBucket}/*"
+
+          - Sid: AllowCloudFrontOAIListBucket
+            Effect: Allow
+            Principal:
+              CanonicalUser: !GetAtt CloudFrontOAI.S3CanonicalUserId
+            Action: s3:ListBucket
+            Resource: !Sub "arn:aws:s3:::${SiteBucket}"
 
   CloudFrontOAI:
     Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
@@ -130,6 +145,7 @@ Resources:
 
   DynamoDBTable:
     Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
     Properties:
       TableName: !Sub "${AWS::StackName}-${Stage}"
       BillingMode: PAY_PER_REQUEST
@@ -476,6 +492,7 @@ Resources:
           APP_SECRET: !Ref Secret
           WEB_BASE_URL: !Sub "https://${DomainName}"
           API_BASE_URL: !Sub "https://api.${DomainName}"
+          STATIC_BASE_URL: !Sub "https://static.${DomainName}"
           DYNAMODB_TABLE: !Ref DynamoDBTable
           GOOGLE_ANALYTICS_ID: !Ref GoogleAnalyticsId
           TINYMCE_API_KEY: !Ref TinyMceApiKey
@@ -485,11 +502,9 @@ Resources:
           COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient
           COGNITO_CLIENT_SECRET: !GetAtt CognitoUserPoolClient.ClientSecret
           COGNITO_USER_POOL_ID: !Ref CognitoUserPoolV2
-          STATIC_S3_BUCKET: !Ref SiteBucket
           CSS_CACHE_COUNTER: !Ref CssCacheCounter
           JS_CACHE_COUNTER: !Ref JsCacheCounter
           AUTH_JWT_SECRET: !Ref AuthJwtSecret
-          CLOUDFRONT_DISTRIBUTION_ID: !Ref CloudFrontDistribution
       Code:
         S3Bucket: !Sub "${AWS::StackName}-code"
         S3Key: !Ref WebFuncS3Key
@@ -524,6 +539,7 @@ Resources:
           APP_SECRET: !Ref Secret
           API_BASE_URL: !Sub "https://api.${DomainName}"
           WEB_BASE_URL: !Sub "https://${DomainName}"
+          STATIC_BASE_URL: !Sub "https://static.${DomainName}"
           DYNAMODB_TABLE: !Ref DynamoDBTable
           ALLOWED_ORIGIN: !Sub "https://${DomainName}"
           CONTACT_TOPIC_ARN: !Ref ContactFormTopic
@@ -541,7 +557,7 @@ Resources:
       Action: lambda:InvokeFunction
       FunctionName: !Ref WebFunction
       Principal: apigateway.amazonaws.com
-      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/*/*"
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*"
 
   ApiGatewayApiFunctionPermission:
     Type: AWS::Lambda::Permission
@@ -549,13 +565,14 @@ Resources:
       Action: lambda:InvokeFunction
       FunctionName: !Ref ApiFunction
       Principal: apigateway.amazonaws.com
-      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayApi}/*/*/*"
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayApi}/*"
 
   ApiGateway:
     Type: AWS::ApiGatewayV2::Api
     Properties:
-      Name: !Sub "${AWS::StackName}-api"
+      Name: !Sub "${AWS::StackName}-web"
       ProtocolType: HTTP
+      DisableExecuteApiEndpoint: true
       Tags:
         Stage: !Ref Stage
         Project: !Ref Project
@@ -574,7 +591,7 @@ Resources:
     Type: AWS::ApiGatewayV2::Route
     Properties:
       ApiId: !Ref ApiGateway
-      RouteKey: "ANY /{proxy+}"
+      RouteKey: "$default"
       Target: !Sub "integrations/${ApiGatewayLambdaIntegration}"
 
   ApiGatewayDefaultStage:
@@ -589,11 +606,46 @@ Resources:
         Owner: !Ref Owner
         Region: !Ref AWS::Region
 
+  WebCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref DomainName
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZoneId
+      Tags:
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Region
+          Value: !Ref AWS::Region
+
+  WebGatewayDomainName:
+    Type: AWS::ApiGatewayV2::DomainName
+    Properties:
+      DomainName: !Ref DomainName
+      DomainNameConfigurations:
+        - CertificateArn: !Ref WebCertificate
+          EndpointType: REGIONAL
+          SecurityPolicy: TLS_1_2
+
+  WebGatewayMapping:
+    Type: AWS::ApiGatewayV2::ApiMapping
+    Properties:
+      ApiId: !Ref ApiGateway
+      DomainName: !Ref WebGatewayDomainName
+      Stage: !Ref ApiGatewayDefaultStage
+
   ApiGatewayApi:
     Type: AWS::ApiGatewayV2::Api
     Properties:
-      Name: !Sub "${AWS::StackName}-api-lambda"
+      Name: !Sub "${AWS::StackName}-api"
       ProtocolType: HTTP
+      DisableExecuteApiEndpoint: true
       Tags:
         Stage: !Ref Stage
         Project: !Ref Project
@@ -612,7 +664,7 @@ Resources:
     Type: AWS::ApiGatewayV2::Route
     Properties:
       ApiId: !Ref ApiGatewayApi
-      RouteKey: "ANY /{proxy+}"
+      RouteKey: "$default"
       Target: !Sub "integrations/${ApiGatewayApiLambdaIntegration}"
 
   ApiGatewayApiStage:
@@ -670,6 +722,7 @@ Resources:
       AliasTarget:
         DNSName: !GetAtt ApiGatewayApiDomainName.RegionalDomainName
         HostedZoneId: !GetAtt ApiGatewayApiDomainName.RegionalHostedZoneId
+
   CognitoUserPoolV2:
     Type: AWS::Cognito::UserPool
     Properties:
@@ -723,20 +776,6 @@ Resources:
       UserPoolId: !Ref CognitoUserPoolV2
       Domain: !Ref AWS::StackName
 
-  ApiOriginRequestPolicy:
-    Type: AWS::CloudFront::OriginRequestPolicy
-    Properties:
-      OriginRequestPolicyConfig:
-        Name: !Sub "${AWS::StackName}-api-origin-request-policy"
-        QueryStringsConfig:
-          QueryStringBehavior: all
-        HeadersConfig:
-          HeaderBehavior: whitelist
-          Headers:
-            - Referer
-        CookiesConfig:
-          CookieBehavior: all
-
   # S3 static - cache aggressively, forward Origin header only
   S3CachePolicy:
     Type: AWS::CloudFront::CachePolicy
@@ -785,39 +824,27 @@ Resources:
           Items:
             - Header: Cache-Control
               Value: public, max-age=31536000, immutable # 1 year
-              Override: true
+              Override: false
 
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
-        Aliases: [ !Ref DomainName ]
+        Aliases: [ !Sub "static.${DomainName}" ]
         Enabled: true
         Origins:
           - Id: s3Origin
             DomainName: !GetAtt SiteBucket.RegionalDomainName
             S3OriginConfig:
               OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOAI}"
-          - Id: apiOrigin
-            DomainName: !Sub "${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com"
-            CustomOriginConfig:
-              OriginProtocolPolicy: https-only
         DefaultCacheBehavior:
-          TargetOriginId: apiOrigin
+          TargetOriginId: s3Origin
           ViewerProtocolPolicy: redirect-to-https
-          AllowedMethods: [ GET, HEAD, POST, PUT, DELETE, PATCH, OPTIONS ]
+          AllowedMethods: [ GET, HEAD ]
           CachedMethods: [ GET, HEAD ]
-          CachePolicyId: "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
-          OriginRequestPolicyId: !Ref ApiOriginRequestPolicy
-        CacheBehaviors:
-          - PathPattern: "/*.*"
-            TargetOriginId: s3Origin
-            ViewerProtocolPolicy: redirect-to-https
-            AllowedMethods: [ GET, HEAD ]
-            CachedMethods: [ GET, HEAD ]
-            CachePolicyId: !Ref S3CachePolicy
-            OriginRequestPolicyId: !Ref S3OriginRequestPolicy
-            ResponseHeadersPolicyId: !Ref StaticResponseHeadersPolicy
+          CachePolicyId: !Ref S3CachePolicy
+          OriginRequestPolicyId: !Ref S3OriginRequestPolicy
+          ResponseHeadersPolicyId: !Ref StaticResponseHeadersPolicy
         ViewerCertificate:
           AcmCertificateArn: !Ref CertificateArn
           SslSupportMethod: sni-only
@@ -836,6 +863,16 @@ Resources:
     Properties:
       HostedZoneId: !Ref HostedZoneId
       Name: !Ref DomainName
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt WebGatewayDomainName.RegionalDomainName
+        HostedZoneId: !GetAtt WebGatewayDomainName.RegionalHostedZoneId
+
+  StaticDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub "static.${DomainName}"
       Type: A
       AliasTarget:
         DNSName: !GetAtt CloudFrontDistribution.DomainName
@@ -944,7 +981,42 @@ Resources:
         - Key: Region
           Value: !Ref AWS::Region
 
+  ApiLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${Stage}-api"
+      RetentionInDays: 14
+      Tags:
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Region
+          Value: !Ref AWS::Region
+
+  ImageVariantsLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${Stage}-image-variants"
+      RetentionInDays: 14
+      Tags:
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Region
+          Value: !Ref AWS::Region
+
 Outputs:
+  WebCertificateArn:
+    Value: !Ref WebCertificate
+    Description: ARN of the regional Web API Gateway certificate
   ApiCertificateArn:
     Value: !Ref ApiCertificate
     Description: ARN of the regional API Gateway certificate
@@ -954,34 +1026,43 @@ Outputs:
   SesMailFromDomain:
     Value: !Sub "bounce.${DomainName}"
     Description: Custom SES MAIL FROM domain
-  WebsiteURL:
+  WebsiteUrl:
     Value: !Sub "https://${DomainName}"
     Description: URL of the deployed website
   CloudFrontDistributionId:
     Value: !GetAtt CloudFrontDistribution.Id
-    Description: ID of the CloudFront distribution serving the website
-  WebFunctionName:
+    Description: ID of the CloudFront distribution serving static files
+  StaticUrl:
+    Value: !Sub "https://static.${DomainName}"
+    Description: URL of the static file distribution
+  WebLambdaName:
     Value: !Ref WebFunction
     Description: Name of the Web Lambda function
   ContactFormTopicArn:
     Value: !Ref ContactFormTopic
     Description: ARN of the SNS topic used for contact form notifications
-  BackendFunctionRoleName:
+  LambdaRoleName:
     Value: !Ref BackendFunctionRole
     Description: Shared IAM role name for the Web and API Lambdas
-  WebFunctionLogGroupName:
+  WebLambdaLogGroupName:
     Value: !Ref WebFunctionLogGroup
     Description: CloudWatch log group for the Web Lambda
-  ApiGatewayApiId:
+  ApiLambdaLogGroupName:
+    Value: !Ref ApiLambdaLogGroup
+    Description: CloudWatch log group for the API Lambda
+  MediaLambdaLogGroupName:
+    Value: !Ref ImageVariantsLambdaLogGroup
+    Description: CloudWatch log group for the image variants Lambda
+  ApiApiGatewayId:
     Value: !Ref ApiGatewayApi
     Description: ID of the API Gateway dedicated to the API Lambda
-  ApiGatewayApiURL:
+  ApiUrl:
     Value: !Sub "https://api.${DomainName}"
     Description: Custom domain URL of the API Lambda
-  ApiGatewayId:
+  WebApiGatewayId:
     Value: !Ref ApiGateway
     Description: ID of the API Gateway for the Web Lambda
-  DynamoDBTableName:
+  DynamoDbTableName:
     Value: !Ref DynamoDBTable
     Description: Name of the application DynamoDB table
   CognitoUserPoolId:

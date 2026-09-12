@@ -39,21 +39,3 @@ def copy_static_files(src: Path, dst: Path):
 # 📦 Copy static assets except generated UUID-named files
 copy_static_files(assets_dir, output_dir)
 print("🎉 Copied static files successfully (skipped UUID-prefixed ones)")
-
-# --- Update robots.txt if it exists ---
-robots_file = output_dir / "robots.txt"
-if robots_file.exists():
-    lines = []
-
-    base_url = os.getenv("WEB_BASE_URL")
-
-    if (output_dir / "sitemap.xml").exists():
-        lines.append(f"Sitemap: {base_url}/sitemap.xml")
-
-    if lines:
-        with robots_file.open("a") as f:
-            f.write("\n")
-            f.write("\n".join(lines))
-        print(f"📝 Updated robots.txt with {', '.join(lines)}")
-else:
-    print("⚠️  No robots.txt found in output, skipping update")
