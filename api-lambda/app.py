@@ -85,7 +85,6 @@ from shared_utils import (
 )
 from web import Application, Request, HTTPException, HTMLResponse, JSONResponse, RedirectResponse, \
     RequestValidationError, CORSMiddleware
-
 from web import TrailingSlashMiddleware
 
 app = Application()

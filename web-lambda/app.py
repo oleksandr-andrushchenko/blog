@@ -1,6 +1,7 @@
 import asyncio
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.responses import PlainTextResponse
 from starlette.routing import Match
 
 from notifications import get_access_log
@@ -29,6 +30,7 @@ from web import (
     CORSMiddleware,
     FileResponse,
 )
+from web import TrailingSlashMiddleware
 from web_deps import (
     UserBySlugDep,
     UserQueryBySlugsDep,
@@ -88,10 +90,14 @@ from web_utils import (
     get_legacy_article_redirect_url,
 )
 
-from web import TrailingSlashMiddleware
-
 app = Application()
 app.add_middleware(TrailingSlashMiddleware)
+
+
+@app.get("/robots.txt", name="api-robots")
+async def robots_txt():
+    return PlainTextResponse("User-agent: *\nDisallow: /\n")
+
 
 from api_route_metadata import API_URL_ROUTES
 from web_route_metadata import WEB_AUTH_URL_ROUTES, WEB_URL_ROUTES
