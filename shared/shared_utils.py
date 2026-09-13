@@ -2099,25 +2099,44 @@ def get_popular_articles_by_tags(
     if query_dto is None:
         query_dto = ArticleQueryDTO()
 
-    # Increase limit to fetch more posts before filtering
-    query_dto_copy = copy.copy(query_dto)
-    query_dto_copy.limit = max(query_dto.limit * 5, 100)
-
-    articles = get_popular_articles(query_dto_copy, cur_user)
-
     if not query_dto.tags:
-        return articles
+        return get_popular_articles(query_dto, cur_user)
 
-    offset = articles[-1].offset if articles else None
-
-    # Filter by tags
+    # Popular articles are ordered by a global index, so tag filtering has to
+    # happen after each query. Keep following DynamoDB's continuation cursor:
+    # a response can stop at the 1 MB page-size limit before any matching
+    # article is encountered.
+    page_query = copy.copy(query_dto)
+    page_query.limit = max(query_dto.limit * 5, 100)
+    page_query.offset = query_dto.offset
     wanted_tags = set(query_dto.tags)
-    if or_mode:
-        filtered_articles = [article for article in articles if wanted_tags.intersection(article.tags)]
-    else:
-        filtered_articles = [article for article in articles if wanted_tags.issubset(set(article.tags))]
-    if filtered_articles:
-        filtered_articles[-1].offset = offset
+    filtered_articles = []
+
+    while len(filtered_articles) < query_dto.limit:
+        articles = get_popular_articles(page_query, cur_user)
+        if not articles:
+            break
+
+        for article in articles:
+            article_tags = set(article.tags)
+            matches = bool(wanted_tags.intersection(article_tags)) if or_mode \
+                else wanted_tags.issubset(article_tags)
+            if not matches:
+                continue
+
+            filtered_articles.append(article)
+            if len(filtered_articles) == query_dto.limit:
+                article.offset = encode_offset({
+                    "pk": f"POST#{article.id}",
+                    "sk": "META",
+                    "post_status_pk": f"POST#{article.status}",
+                    "rating_sk": article.rating,
+                })
+                return filtered_articles
+
+        page_query.offset = articles[-1].offset
+        if not page_query.offset:
+            break
 
     return filtered_articles
 
