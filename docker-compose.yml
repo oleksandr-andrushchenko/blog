@@ -11,22 +11,19 @@ services:
       APP_STAGE: local
       APP_ENV: dev
       APP_DEBUG: 1
+      APP_SECRET: local-app-secret
+      AUTH_JWT_SECRET: local-auth-jwt-secret
       WEB_BASE_URL: "http://localhost:${WEB_LAMBDA_PORT}"
       API_BASE_URL: "http://localhost:${API_LAMBDA_PORT}"
-      STATIC_BASE_URL: ""
+      AWS_REGION: us-west-2
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"
       DYNAMODB_TABLE: app
-      GOOGLE_ANALYTICS_ID: ""
-      TINYMCE_API_KEY: ""
-      CONTACT_TOPIC_ARN: ""
       EMAIL_FILES_DIR: "/app-emails"
       STATIC_FILES_DIR: "/app-static"
       PYTHONPATH: "/app:/web-lambda"
       FUNCTION_TEMPLATES_DIR: "/web-lambda/templates"
-      TELEGRAM_BOT_TOKEN: ""
-      TELEGRAM_CHAT_ID: ""
     volumes:
       - ./shared:/app
       - ./web-lambda:/web-lambda
@@ -45,23 +42,20 @@ services:
       APP_STAGE: local
       APP_ENV: dev
       APP_DEBUG: 1
+      APP_SECRET: local-app-secret
+      AUTH_JWT_SECRET: local-auth-jwt-secret
       API_BASE_URL: "http://localhost:${API_LAMBDA_PORT}"
       WEB_BASE_URL: "http://localhost:${WEB_LAMBDA_PORT}"
-      STATIC_BASE_URL: ""
       ALLOWED_ORIGIN: "http://localhost:${WEB_LAMBDA_PORT}"
+      AWS_REGION: us-west-2
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"
       DYNAMODB_TABLE: app
-      GOOGLE_ANALYTICS_ID: ""
-      TINYMCE_API_KEY: ""
-      CONTACT_TOPIC_ARN: ""
       EMAIL_FILES_DIR: "/app-emails"
       STATIC_FILES_DIR: "/app-static"
       PYTHONPATH: "/app:/api-lambda"
       FUNCTION_TEMPLATES_DIR: "/api-lambda/templates"
-      TELEGRAM_BOT_TOKEN: ""
-      TELEGRAM_CHAT_ID: ""
     volumes:
       - ./shared:/app
       - ./api-lambda:/api-lambda

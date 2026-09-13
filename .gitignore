@@ -21,6 +21,7 @@ env/
 
 # Environment files
 .env
+.env.prod
 
 # Custom
 info.txt
