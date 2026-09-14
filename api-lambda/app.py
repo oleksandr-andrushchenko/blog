@@ -244,7 +244,7 @@ async def articles_fragment(query_dto: ArticleQueryDep, cur_user: OptCurUserDep)
 @route("get", "articles", response_class=JSONResponse)
 async def _articles(cur_user: OptCurUserDep, request: Request) -> dict[str, str]:
     articles = await asyncio.to_thread(get_all_articles, cur_user)
-    return {article.title: get_article_url(request, article) for article in articles}
+    return {get_article_url(request, article): article.title for article in articles}
 
 
 @route("get", "article-hrefs", response_class=JSONResponse)
