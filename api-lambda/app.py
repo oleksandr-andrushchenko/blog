@@ -27,7 +27,8 @@ from api_utils import (
     get_users,
     get_latest_articles_by_user,
     get_articles,
-    get_article_hrefs,
+    get_all_articles,
+    get_all_article_hrefs,
     find_user,
     jinja2_env,
     update_user,
@@ -241,14 +242,14 @@ async def articles_fragment(query_dto: ArticleQueryDep, cur_user: OptCurUserDep)
 
 
 @route("get", "articles", response_class=JSONResponse)
-async def _articles(query_dto: ArticleQueryDep, cur_user: OptCurUserDep, request: Request) -> list[dict[str, str]]:
-    articles = get_articles(query_dto, cur_user)
-    return [{"title": article.title, "url": get_article_url(request, article)} for article in articles]
+async def _articles(cur_user: OptCurUserDep, request: Request) -> dict[str, str]:
+    articles = await asyncio.to_thread(get_all_articles, cur_user)
+    return {article.title: get_article_url(request, article) for article in articles}
 
 
 @route("get", "article-hrefs", response_class=JSONResponse)
-async def _article_hrefs(query_dto: ArticleQueryDep, cur_user: OptCurUserDep) -> dict[str, list[str]]:
-    return await asyncio.to_thread(get_article_hrefs, query_dto, cur_user)
+async def _article_hrefs(cur_user: OptCurUserDep) -> dict[str, list[str]]:
+    return await asyncio.to_thread(get_all_article_hrefs, cur_user)
 
 
 @route("get", "article-comments-fragment", response_class=HTMLResponse)

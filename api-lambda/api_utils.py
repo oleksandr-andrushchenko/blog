@@ -1,6 +1,5 @@
 from dataclasses import replace
 from html.parser import HTMLParser
-import os
 from urllib.parse import unquote, urlparse
 
 from article_dtos import (
@@ -115,23 +114,44 @@ def validate_article_content_links(content: str) -> None:
         raise RequestValidationError({"content": "; ".join(errors)})
 
 
-def get_article_hrefs(query_dto: ArticleQueryDTO, cur_user: User | None = None) -> dict[str, list[str]]:
-    """Collect content hrefs across all pages matching the article query."""
-    # Traverse the status index so tag filtering cannot discard a page cursor.
-    query = replace(query_dto, tags=[])
-    wanted_tags = set(query_dto.tags)
+def get_all_article_hrefs(cur_user: User | None = None) -> dict[str, list[str]]:
+    query = ArticleQueryDTO()
     result = {}
+
     while articles := get_articles(query, cur_user):
         for article in articles:
-            if not wanted_tags.issubset(article.tags):
-                continue
             parser = ArticleHrefExtractor()
             parser.feed(article.content)
             parser.close()
             result[article.id] = parser.hrefs
-        query = replace(query, offset=articles[-1].offset)
-        if not query.offset:
+
+        offset = articles[-1].offset
+        if not offset:
             break
+
+        query = replace(query, offset=offset)
+
+    return result
+
+
+def get_all_articles(cur_user: User = None) -> list[Article]:
+    query = ArticleQueryDTO()
+    result = []
+
+    while True:
+        articles = get_articles(query, cur_user)
+
+        if not articles:
+            break
+
+        result += articles
+
+        offset = articles[-1].offset
+        if not offset:
+            break
+
+        query = replace(query, offset=offset)
+
     return result
 
 
