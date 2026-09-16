@@ -1066,6 +1066,23 @@ def test_public_file_upload_endpoint_success_and_failure(guest_client):
     assert failure.json()["details"]["file"] == "Invalid image type: None"
 
 
+def test_public_file_upload_adds_jpeg_dimensions_to_filename(guest_client):
+    jpeg_content = (
+        b"\xff\xd8"
+        b"\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"
+        b"\xff\xc0\x00\x11\x08\x00\x13\x00\x25\x03"
+        b"\x01\x11\x00\x02\x11\x00\x03\x11\x00"
+        b"\xff\xd9"
+    )
+    response = post(guest_client, "/public-file", files={
+        "file": ("functional.jpg", jpeg_content, "image/jpeg"),
+    })
+
+    assert response.status_code == 200, response.text
+    assert response.json().endswith("_37x19.jpg")
+    os.remove(os.path.join("/app/static", response.json()))
+
+
 def test_contact_message_endpoint_success_and_validation_failure(guest_client):
     success = post(guest_client, "/contacts/message", json={
         "name": "Functional Contact",

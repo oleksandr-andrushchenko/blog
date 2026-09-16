@@ -1302,12 +1302,13 @@ def get_image_dimensions(data: bytes) -> tuple[int, int]:
                 raise ValueError("Invalid JPEG marker")
             marker = data[offset + 1]
 
-            if 0xC0 <= marker <= 0xC3:
-                # need at least 5 bytes for >xHH
-                segment = data[offset + 5:offset + 10]
+            if marker in {0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7,
+                          0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF}:
+                # SOF payload starts with precision, followed by height and width.
+                segment = data[offset + 4:offset + 9]
                 if len(segment) < 5:
                     raise ValueError("JPEG SOF segment too short")
-                _, height, width = struct.unpack(">xHH", segment)
+                height, width = struct.unpack(">xHH", segment)
                 return width, height
             else:
                 if offset + 4 > len(data):
