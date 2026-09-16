@@ -1,3 +1,4 @@
+import asyncio
 import os
 import sys
 from pathlib import Path
@@ -64,24 +65,61 @@ def test_popular_articles_by_tags_uses_last_match_as_pagination_cursor(monkeypat
     }
 
 
-def test_related_articles_only_requests_enough_candidates(monkeypatch):
+def test_related_articles_query_each_tag_and_batch_load_candidates(monkeypatch):
     current = article("current", ["aws", "python"], 40)
     candidates = [
-        current,
         article("related-1", ["aws"], 30),
         article("related-2", ["aws", "python"], 20),
     ]
-    captured = {}
+    captured_queries = []
+    captured_batch_ids = []
 
-    def get_popular_articles_by_tags(query, or_mode=False):
-        captured["limit"] = query.limit
-        captured["tags"] = query.tags
-        captured["or_mode"] = or_mode
+    def get_article_ids_by_tag(tag, limit):
+        captured_queries.append((tag, limit))
+        return {
+            "aws": ["current", "related-1", "related-2"],
+            "python": ["current", "related-2"],
+        }[tag]
+
+    def get_articles_by_ids(article_ids):
+        captured_batch_ids.extend(article_ids)
         return candidates
 
-    monkeypatch.setattr(web_utils, "get_popular_articles_by_tags", get_popular_articles_by_tags)
+    monkeypatch.setattr(web_utils, "_get_article_ids_by_tag", get_article_ids_by_tag)
+    monkeypatch.setattr(web_utils, "_get_articles_by_ids", get_articles_by_ids)
 
-    result = web_utils.get_article_related_articles(current, limit=2)
+    result = asyncio.run(web_utils.get_article_related_articles(current, limit=2))
 
     assert [item.id for item in result] == ["related-2", "related-1"]
-    assert captured == {"limit": 3, "tags": ["aws", "python"], "or_mode": True}
+    assert sorted(captured_queries) == [("aws", 3), ("python", 3)]
+    assert captured_batch_ids == ["related-1", "related-2"]
+
+
+def test_related_article_batch_read_retries_unprocessed_keys(monkeypatch):
+    unprocessed_key = {"pk": "POST#related-2", "sk": "META"}
+
+    class Client:
+        def __init__(self):
+            self.requests = []
+
+        def batch_get_item(self, RequestItems):
+            self.requests.append(RequestItems)
+            if len(self.requests) == 1:
+                return {
+                    "Responses": {"articles": [{"id": "related-1"}]},
+                    "UnprocessedKeys": {"articles": {"Keys": [unprocessed_key]}},
+                }
+            return {
+                "Responses": {"articles": [{"id": "related-2"}]},
+                "UnprocessedKeys": {},
+            }
+
+    client = Client()
+    table = SimpleNamespace(name="articles", meta=SimpleNamespace(client=client))
+    monkeypatch.setattr(web_utils, "get_dynamodb_table", lambda: table)
+    monkeypatch.setattr(web_utils, "article_from_dynamodb", lambda item: item["id"])
+
+    result = web_utils._get_articles_by_ids(["related-1", "related-2"])
+
+    assert result == ["related-1", "related-2"]
+    assert client.requests[1] == {"articles": {"Keys": [unprocessed_key]}}

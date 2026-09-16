@@ -1,3 +1,4 @@
+import asyncio
 from datetime import timedelta
 from urllib.parse import quote, urlparse
 
@@ -8,6 +9,7 @@ from shared_utils import (
     UserByOldSlugRequestedError, NotAuthenticatedError, Permission,
     find_article_by_slug_follow_redirects, find_user_by_username_follow_redirects,
     verify_authorization, get_web_base_url, is_prod, get_auth_token_max_age,
+    get_dynamodb_table, article_from_dynamodb, query_dynamodb_table, Key, to_thread,
 )
 
 
@@ -225,19 +227,65 @@ def get_popular_published_articles(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> l
     return get_popular_articles(query_dto)
 
 
-def get_article_related_articles(article: Article, limit: int = 10) -> list[Article]:
+def _get_article_ids_by_tag(tag: str, limit: int) -> list[str]:
+    response = query_dynamodb_table(
+        key_condition_expr=Key("pk").eq(f"POST_TAG_COMBO#{tag}"),
+        scan_index_forward=False,
+        limit=limit,
+    )
+    return [item["post_id"] for item in response.get("Items", []) if item.get("post_id")]
+
+
+def _get_articles_by_ids(article_ids: list[str]) -> list[Article]:
+    if not article_ids:
+        return []
+
+    table = get_dynamodb_table()
+    keys = [{"pk": f"POST#{article_id}", "sk": "META"} for article_id in article_ids]
+    items = []
+    batch_size = 100
+    max_attempts = 3
+
+    for start in range(0, len(keys), batch_size):
+        pending_keys = keys[start:start + batch_size]
+        for _ in range(max_attempts):
+            response = table.meta.client.batch_get_item(
+                RequestItems={table.name: {"Keys": pending_keys}}
+            )
+            items.extend(response.get("Responses", {}).get(table.name, []))
+            pending_keys = response.get("UnprocessedKeys", {}).get(table.name, {}).get("Keys", [])
+            if not pending_keys:
+                break
+        if pending_keys:
+            logger.warning("Related article batch read left unprocessed keys")
+
+    return [article_from_dynamodb(item) for item in items]
+
+
+async def get_article_related_articles(article: Article, limit: int = 10) -> list[Article]:
     if not article.tags:
         return []
 
-    # Fetch one extra candidate because the current article can be part of the tag-filtered result set.
-    query_dto = ArticleQueryDTO(limit=min(limit + 1, ArticleQueryDTO.DEFAULT_LIMIT))
-    query_dto.tags = article.tags
-    articles = get_popular_articles_by_tags(query_dto, or_mode=True)
+    # Single-tag partitions contain small article-ID records. Query them in
+    # parallel, then batch-load only this bounded candidate set instead of
+    # scanning the global full-article popularity index.
+    per_tag_limit = limit + 1
+    article_ids_by_tag = await asyncio.gather(*(
+        to_thread(_get_article_ids_by_tag, tag, per_tag_limit)
+        for tag in article.tags
+    ))
+    article_ids = list(dict.fromkeys(
+        article_id
+        for tag_article_ids in article_ids_by_tag
+        for article_id in tag_article_ids
+        if article_id != article.id
+    ))
+    articles = await to_thread(_get_articles_by_ids, article_ids)
     tags = set(article.tags)
-    related_articles = [candidate for candidate in articles if candidate.id != article.id]
     return sorted(
-        related_articles,
-        key=lambda candidate: len(tags.intersection(candidate.tags)),
+        (candidate for candidate in articles
+         if candidate.id != article.id and candidate.status == ArticleStatus.PUBLISHED),
+        key=lambda candidate: (len(tags.intersection(candidate.tags)), candidate.rating),
         reverse=True,
     )[:limit]
 

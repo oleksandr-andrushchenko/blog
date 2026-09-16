@@ -312,7 +312,7 @@ async def _article_page(article: ArticleDep, cur_user: OptCurUserDep) -> HTMLRes
     ) = await asyncio.gather(
         to_thread(find_user, article.user_id),
         to_thread(find_article_impression, article, cur_user) if cur_user else asyncio.sleep(0, result=None),
-        to_thread(get_article_related_articles, article),
+        get_article_related_articles(article),
         to_thread(get_article_comments, article),
     )
 
