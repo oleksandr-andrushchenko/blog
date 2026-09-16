@@ -229,7 +229,8 @@ def get_article_related_articles(article: Article, limit: int = 10) -> list[Arti
     if not article.tags:
         return []
 
-    query_dto = ArticleQueryDTO()
+    # Fetch one extra candidate because the current article can be part of the tag-filtered result set.
+    query_dto = ArticleQueryDTO(limit=min(limit + 1, ArticleQueryDTO.DEFAULT_LIMIT))
     query_dto.tags = article.tags
     articles = get_popular_articles_by_tags(query_dto, or_mode=True)
     tags = set(article.tags)
