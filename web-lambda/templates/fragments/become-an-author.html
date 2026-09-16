@@ -1,7 +1,7 @@
 <section class="card shadow-sm text-bg-warning">
     <div class="card-body">
         <h2 class="h4 card-title">
-            <i class="bi bi-star"></i>
+            <i class="bi bi-star-fill"></i>
             Become an author
         </h2>
 
@@ -10,7 +10,7 @@
         </p>
 
         <a href="{{ url('new-article') if cur_user else url('login', redirect_url=url('new-article')) }}"
-           class="btn btn-dark bi bi-pencil-fill">
+           class="btn btn-dark bi bi-pencil-fill me-1 mb-1">
             Write an article
         </a>
         <a href="{{ url("earn") }}" class="btn btn-dark btn-sm bi bi-currency-dollar">
