@@ -19,6 +19,24 @@ const ajaxResponse = options => new Promise(resolve => {
 })
 const toKebabCase = str => String(str || "").trim().toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-")
 
+function useImageFallback(image) {
+  if (!(image instanceof HTMLImageElement) || !image.dataset.fallbackSrc) return
+
+  const fallbackSrc = image.dataset.fallbackSrc
+  delete image.dataset.fallbackSrc
+  image.parentElement?.querySelector("source[type='image/webp']")?.remove()
+  image.removeAttribute("srcset")
+  image.removeAttribute("sizes")
+  image.src = fallbackSrc
+}
+
+// Image errors do not bubble, so listen during capture. The initial scan also
+// recovers images that failed before this deferred script started executing.
+window.addEventListener("error", event => useImageFallback(event.target), true)
+document.querySelectorAll("img[data-fallback-src]").forEach(image => {
+  if (image.complete && image.naturalWidth === 0) useImageFallback(image)
+})
+
 function getMasonryInstance(container) {
   if (typeof Masonry === "undefined" || !container.matches("[data-masonry]")) return null
 
