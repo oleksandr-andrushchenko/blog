@@ -1087,6 +1087,47 @@ def test_public_file_upload_adds_jpeg_dimensions_to_filename(guest_client):
     os.remove(os.path.join("/app/static", response.json()))
 
 
+def test_public_file_upload_resizes_wide_image_proportionally(guest_client):
+    from io import BytesIO
+
+    from PIL import Image
+
+    original = BytesIO()
+    Image.new("RGB", (1600, 800), "red").save(original, format="PNG")
+
+    response = post(guest_client, "/public-file", files={
+        "file": ("wide.png", original.getvalue(), "image/png"),
+    })
+
+    assert response.status_code == 200, response.text
+    assert response.json().endswith("_1200x600.png")
+    uploaded_path = os.path.join("/app/static", response.json())
+    with Image.open(uploaded_path) as uploaded:
+        assert uploaded.size == (1200, 600)
+    os.remove(uploaded_path)
+
+
+def test_public_file_upload_keeps_smaller_image_unchanged(guest_client):
+    from io import BytesIO
+
+    from PIL import Image
+
+    original = BytesIO()
+    Image.new("RGB", (800, 400), "blue").save(original, format="PNG")
+    original_content = original.getvalue()
+
+    response = post(guest_client, "/public-file", files={
+        "file": ("small.png", original_content, "image/png"),
+    })
+
+    assert response.status_code == 200, response.text
+    assert response.json().endswith("_800x400.png")
+    uploaded_path = os.path.join("/app/static", response.json())
+    with open(uploaded_path, "rb") as uploaded:
+        assert uploaded.read() == original_content
+    os.remove(uploaded_path)
+
+
 def test_contact_message_endpoint_success_and_validation_failure(guest_client):
     success = post(guest_client, "/contacts/message", json={
         "name": "Functional Contact",

@@ -220,9 +220,9 @@ async def tag_redirect_exception_handler(request: Request, exc: TagByOldSlugRequ
 
 @route("post", "upload-public-file", response_class=JSONResponse)
 async def upload_public_file(image_file_dto: ImageFileDTODep) -> str:
-    from api_utils import save_public_file
+    from api_utils import resize_public_image, save_public_file
 
-    return save_public_file(image_file_dto)
+    return save_public_file(resize_public_image(image_file_dto))
 
 
 @route("post", "create-article", response_class=JSONResponse)

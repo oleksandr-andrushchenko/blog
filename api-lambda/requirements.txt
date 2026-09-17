@@ -5,3 +5,4 @@ python-jose
 python-multipart
 filetype
 nh3
+Pillow

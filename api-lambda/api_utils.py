@@ -491,6 +491,24 @@ def save_public_file(file_dto: FileDTO, filename: str = None) -> str:
     return filename
 
 
+def resize_public_image(file_dto: ImageFileDTO, max_width: int = 1200) -> ImageFileDTO:
+    width, height = get_image_dimensions(file_dto.content)
+    if width <= max_width:
+        return file_dto
+
+    from io import BytesIO
+
+    from PIL import Image
+
+    target_height = max(1, round(height * max_width / width))
+    output = BytesIO()
+    with Image.open(BytesIO(file_dto.content)) as image:
+        resized = image.resize((max_width, target_height), Image.Resampling.LANCZOS)
+        resized.save(output, format=image.format)
+
+    return replace(file_dto, content=output.getvalue())
+
+
 def drop_public_file(filename: str) -> None:
     if not is_prod():
         # filepath = os.path.join(get_static_files_dir(), filename)
