@@ -1,6 +1,5 @@
 from dataclasses import replace
 from html.parser import HTMLParser
-import re
 from urllib.parse import unquote, urlparse
 
 from article_dtos import (
