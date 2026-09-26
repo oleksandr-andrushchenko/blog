@@ -187,19 +187,21 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url("logout") }}">
+                            <a class="nav-link" href="{{ url("logout") }}" rel="nofollow">
                                 Sign out <i class="bi bi-box-arrow-right"></i>
                             </a>
                         </li>
                     {% else %}
                         <li class="nav-item">
                             <a class="nav-link bi bi-pencil-fill"
-                               href="{{ url("login", redirect_url=url("new-article")) }}">
+                               href="{{ url("login", redirect_url=url("new-article")) }}" rel="nofollow">
                                 New article
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link bi bi-box-arrow-in-right" href="{{ url('login') }}"> Sign in</a>
+                            <a class="nav-link bi bi-box-arrow-in-right" href="{{ url('login') }}" rel="nofollow">
+                                Sign in
+                            </a>
                         </li>
                     {% endif %}
                 </ul>

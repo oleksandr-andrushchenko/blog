@@ -158,14 +158,22 @@ def check_header(doc, user_alias: str | None):
     assert header_el('a[href$="/contacts"]')
     if user_alias:
         assert header_el('a[href$="/articles/new"]')
-        assert header_el('a[href$="/logout"]')
+        assert header_el('a[href$="/logout"][rel~="nofollow"]')
         user = get_dynamodb_user(user_ids[user_alias])
         assert header_el('a[href$="' + get_user_href(user) + '"]')
     else:
-        assert header_el('a[href$="/login"]')
+        assert header_el('a[href$="/login"][rel~="nofollow"]')
+        assert not header_el('a[href*="/login"]:not([rel~="nofollow"])')
         # todo: "*=" - contains
         user_view_el = header_el('a[href="/users/*"]')
         assert not user_view_el
+
+
+def check_auth_links_are_nofollow(doc):
+    auth_links = doc('a[href*="/login"], a[href*="/logout"]')
+    assert auth_links
+    for link in auth_links.items():
+        assert "nofollow" in (link.attr("rel") or "").split()
 
 
 def check_user_impressions(doc, followers_count: int, following_count: int, follow_control: bool, block_control: bool):
@@ -638,6 +646,7 @@ def test_public_page_seo_schema_and_metadata(guest_client, path, schema_type):
     assert doc('meta[name="description"]').attr("content")
     assert doc('meta[name="robots"]').attr("content") in {"index, follow", "noindex, follow", "noindex, nofollow"}
     assert all(value is not None for value in schema.values())
+    check_auth_links_are_nofollow(doc)
     if schema_type in {"CollectionPage", "ContactPage", "WebPage"}:
         assert schema.get("breadcrumb", {}).get("itemListElement")
 
@@ -796,6 +805,7 @@ def test_article_create_and_new_page_endpoints_success_and_failure(guest_client)
     assert new_success.status_code == 200
     new_failure = get(guest_client, "/articles/new")
     assert new_failure.status_code == 401
+    check_auth_links_are_nofollow(pq(new_failure.text))
 
     create_success = post(root_client, "/articles", json={
         "title": "Functional endpoint coverage article",

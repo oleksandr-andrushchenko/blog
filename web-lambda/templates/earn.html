@@ -68,8 +68,8 @@
                     </li>
                     <li><a href="{{ url("new-article") }}" class="link-body-emphasis">Publish content</a></li>
                 {% else %}
-                    <li><a href="{{ url('login', redirect_url=url("earn")) }}" class="link-body-emphasis">Create an
-                        Account</a></li>
+                    <li><a href="{{ url('login', redirect_url=url("earn")) }}" class="link-body-emphasis"
+                           rel="nofollow">Create an Account</a></li>
                     <li>Add an optional donation username or link</li>
                     <li>Publish content</li>
                 {% endif %}
@@ -132,7 +132,7 @@
                 <p>
                     Ready to contribute?
                 </p>
-                <a href="{{ url('login', redirect_url=url("earn")) }}" class="btn btn-primary">
+                <a href="{{ url('login', redirect_url=url("earn")) }}" class="btn btn-primary" rel="nofollow">
                     Create an Account
                 </a>
             </section>

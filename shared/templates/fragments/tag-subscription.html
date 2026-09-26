@@ -38,7 +38,8 @@
                     {% endif %}
                 {% else %}
                     <a class="btn btn-dark"
-                       href="{{ url('login', redirect_url=request.url.path ~ ("?" ~ request.url.query if request.url.query else "")) }}">
+                       href="{{ url('login', redirect_url=request.url.path ~ ("?" ~ request.url.query if request.url.query else "")) }}"
+                       rel="nofollow">
                         <i class="bi bi-box-arrow-in-right"></i>
                         Sign in to subscribe
                     </a>
