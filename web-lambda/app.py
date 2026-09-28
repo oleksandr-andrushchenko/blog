@@ -88,6 +88,7 @@ from web_utils import (
     get_user_tag_subscriptions,
     get_legacy_user_redirect_url,
     get_legacy_article_redirect_url,
+    get_legacy_article_id_redirect_url,
 )
 
 app = Application()
@@ -192,6 +193,10 @@ async def redirect_legacy_web_endpoints(request: Request, call_next):
             url = get_legacy_user_redirect_url(request, slugs[0])
         elif len(slugs) == 2:
             url = get_legacy_article_redirect_url(request, slugs[0], slugs[1])
+        elif len(slugs) == 3 and slugs[1] == "posts":
+            url = get_legacy_article_id_redirect_url(request, slugs[0], slugs[2])
+        elif len(slugs) == 3 and slugs[0] == slugs[1]:
+            url = get_legacy_article_redirect_url(request, slugs[0], slugs[2])
         if url:
             if request.url.query:
                 url += f"?{request.url.query}"

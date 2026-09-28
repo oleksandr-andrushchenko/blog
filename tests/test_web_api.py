@@ -1298,10 +1298,14 @@ def test_logout_endpoint_wrong_method_failure(guest_client):
 
 
 def test_legacy_slug_urls_redirect_only_for_existing_entities(guest_client):
+    article_id = functional_state["article_id"]
     article_slug = functional_state["article_slug"]
     for legacy_path, canonical_path in [
         ("/root-functional", "/@root-functional"),
         (f"/root-functional/{article_slug}", f"/@root-functional/{article_slug}"),
+        (f"/root-functional/posts/{article_id}", f"/@root-functional/{article_slug}"),
+        (f"/root-functional/root-functional/{article_slug}",
+         f"/@root-functional/{article_slug}"),
     ]:
         response = get(guest_client, f"{legacy_path}?limit=5&offset=2", allow_redirects=False)
         assert response.status_code == 308
@@ -1311,6 +1315,9 @@ def test_legacy_slug_urls_redirect_only_for_existing_entities(guest_client):
         "/missing-functional-user",
         "/root-functional/missing-functional-article",
         f"/missing-functional-user/{article_slug}",
+        "/root-functional/posts/missing-functional-article",
+        f"/missing-functional-user/posts/{article_id}",
+        f"/root-functional/different-user/{article_slug}",
     ]:
         response = get(guest_client, path, allow_redirects=False)
         assert response.status_code == 404

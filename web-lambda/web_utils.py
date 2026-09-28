@@ -7,7 +7,7 @@ from shared_utils import (
     Article, ArticleStatus, ArticleQueryType, ArticleNotFoundError,
     ArticleByOldSlugRequestedError, User, UserStatus, UserNotFoundError,
     UserByOldSlugRequestedError, NotAuthenticatedError, Permission,
-    find_article_by_slug_follow_redirects, find_user_by_username_follow_redirects,
+    find_article, find_article_by_slug_follow_redirects, find_user_by_username_follow_redirects,
     verify_authorization, get_web_base_url, is_prod, get_auth_token_max_age,
     get_dynamodb_table, article_from_dynamodb, query_dynamodb_table, Key, to_thread,
 )
@@ -367,6 +367,13 @@ def get_legacy_article_redirect_url(req, user_slug: str, article_slug: str) -> s
         return None
     return get_article_url(req, article)
 
+
+def get_legacy_article_id_redirect_url(req, user_slug: str, article_id: str) -> str | None:
+    user = find_user_by_username_follow_redirects(user_slug)
+    article = find_article(article_id)
+    if not user or not article or article.user_slug != user.username:
+        return None
+    return get_article_url(req, article)
 
 
 def _auth_cookie_domain() -> str | None:
