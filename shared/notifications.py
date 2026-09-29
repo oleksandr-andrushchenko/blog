@@ -13,8 +13,6 @@ def get_access_log(request, status: int) -> tuple[int, str]:
         level = logging.ERROR
     elif status >= 400:
         level = logging.WARNING
-    elif status >= 300:
-        level = logging.INFO
     else:
         level = logging.DEBUG
 
