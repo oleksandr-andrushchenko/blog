@@ -145,6 +145,12 @@
                         </div>
                     {% endif %}
 
+                    <div>
+                        <small class="text-secondary bi bi-collection"> Category:</small>
+                        <a href="{{ articles_url(category=article.category) }}"
+                           class="btn btn-light btn-sm">{{ category.name }}</a>
+                    </div>
+
                     {% if article.status == ArticleStatus.REJECTED %}
                         <div>
                             <small class="text-secondary">Status:</small>

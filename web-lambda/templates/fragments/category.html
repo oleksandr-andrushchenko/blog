@@ -1,0 +1,37 @@
+<div class="col">
+    <article class="card text-bg-light shadow-sm overflow-hidden h-100">
+        <div class="row g-0 h-100">
+            <a href="{{ articles_url(category=category.slug) }}"
+               class="col-4 text-decoration-none d-flex bg-secondary-subtle">
+                {% if category.image_filename %}
+                    {% with filename=category.image_filename, alt=category.name,
+                            img_class="w-100 h-100 object-fit-cover", img_style="min-height: 10rem;",
+                            img_sizes={"992px": "33vw", "default": "40vw"}, figure=False %}
+                        {% include "fragments/image.html" %}
+                    {% endwith %}
+                {% else %}
+                    <span class="m-auto display-6 text-secondary bi bi-collection"
+                          aria-hidden="true"></span>
+                {% endif %}
+            </a>
+            <div class="col-8 d-flex">
+                <div class="card-body d-flex flex-column">
+                    <h2 class="h5 card-title">
+                        <a href="{{ articles_url(category=category.slug) }}"
+                           class="link-body-emphasis text-decoration-none">{{ category.name }}</a>
+                    </h2>
+                    <p class="card-text small flex-grow-1">{{ category.description }}</p>
+                    <div class="d-flex align-items-center justify-content-between gap-2">
+                        <span class="text-secondary small">
+                            {{ category.published_articles_count }} published article{% if category.published_articles_count != 1 %}s{% endif %}
+                        </span>
+                        {% if cur_user and check_auth(cur_user, Permission.UPDATE_CATEGORY) %}
+                            <a href="{{ url('edit-category', slug=category.slug) }}"
+                               class="btn btn-light btn-sm bi bi-pencil" aria-label="Edit {{ category.name }}"></a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </article>
+</div>

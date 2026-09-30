@@ -15,6 +15,9 @@ from shared_utils import (
     Tag,
     TagNotFoundError,
     get_tag,
+    Category,
+    CategoryNotFoundError,
+    get_category,
 )
 from web import (
     Depends,
@@ -77,6 +80,13 @@ def get_user_by_id(user_id: str, cur_user: OptCurUserDep = None) -> User:
         raise HTTPException(status_code=404, detail=str(e))
 
 
+def get_category_by_slug(slug: str) -> Category:
+    try:
+        return get_category(slug)
+    except CategoryNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
 def get_article_query(request: Request, tags: list[str] = Query([])) -> ArticleQueryDTO:
     data = dict(request.query_params)
     data.update({"tags": tags})
@@ -89,3 +99,4 @@ ArticleDep = Annotated[Article, Depends(get_article_by_id)]
 ArticleQueryDep = Annotated[ArticleQueryDTO, Depends(get_article_query)]
 TagQueryDep = Annotated[TagQueryDTO, Depends()]
 TagDep = Annotated[Tag, Depends(get_tag_by_slug)]
+CategoryDep = Annotated[Category, Depends(get_category_by_slug)]

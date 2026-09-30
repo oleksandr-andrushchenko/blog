@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+{% set layout_assets = {"validation": true} %}
+{% set title = "Edit " ~ category.name %}
+{% set meta_title = title ~ " | " ~ site_name %}
+{% set meta_robots = "noindex, nofollow" %}
+
+{% block breadcrumbs %}
+    {% with breadcrumbs = {"Home": url("index"), "Categories": url("categories"), category.name: None} %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
+{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    {% include "fragments/category-form.html" %}
+{% endblock %}

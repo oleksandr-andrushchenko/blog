@@ -3,6 +3,7 @@ from enum import StrEnum
 
 from basic_dtos import BaseDTO, UNSET
 from query_dtos import ArticleStatus
+from validation import validate_category_slug
 
 
 def _validate_tags(values):
@@ -25,6 +26,13 @@ def _validate_content(value):
         raise ValueError("content must contain between 5000 and 50000 characters")
 
 
+def _validate_category(value):
+    try:
+        return validate_category_slug(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"unsupported article category: {value}") from None
+
+
 def _validate_comment_text(value):
     if not 1 <= len(value) <= 5_000:
         raise ValueError("text must contain between 1 and 5000 characters")
@@ -35,11 +43,13 @@ class ArticleDTO(BaseDTO):
     title: str
     content: str
     tags: list[str]
+    category: str
 
     def __post_init__(self):
         _validate_title(self.title)
         _validate_content(self.content)
         self.tags = _validate_tags(self.tags)
+        self.category = _validate_category(self.category)
 
 
 @dataclass(slots=True)
@@ -47,6 +57,7 @@ class UpdateArticleDTO(BaseDTO):
     title: str | None | object = UNSET
     content: str | None | object = UNSET
     tags: list[str] | None | object = UNSET
+    category: str | None | object = UNSET
 
     def __post_init__(self):
         if self.title is not UNSET:
@@ -59,18 +70,28 @@ class UpdateArticleDTO(BaseDTO):
             _validate_content(self.content)
         if self.tags is not UNSET:
             self.tags = _validate_tags(self.tags)
+        if self.category is not UNSET:
+            if self.category is None:
+                raise ValueError("category is required")
+            self.category = _validate_category(self.category)
 
 
 @dataclass(slots=True)
 class UpdateTagDTO(BaseDTO):
-    name: str | None | object = UNSET
+    name: str | object = UNSET
+    slug: str | object = UNSET
     image_action: str | None | object = UNSET
     image_filename: str | None | object = UNSET
 
     def __post_init__(self):
         if self.name is not UNSET:
-            if self.name is None or not 2 <= len(self.name) <= 40:
+            if self.name is None:
                 raise ValueError("name must contain between 2 and 40 characters")
+            self.name = self.name.strip()
+            if not 2 <= len(self.name) <= 40:
+                raise ValueError("name must contain between 2 and 40 characters")
+        if self.slug is not UNSET:
+            raise ValueError("tag slug is immutable")
         if self.image_action is not UNSET and self.image_action not in (None, "delete", "replace", "keep"):
             raise ValueError("invalid image action")
 

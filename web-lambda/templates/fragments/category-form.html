@@ -1,0 +1,55 @@
+<form class="d-flex flex-column gap-3" id="category-form" novalidate>
+    <div>
+        <label for="name" class="form-label label-required">Name</label>
+        <input type="text" class="form-control" id="name" name="name" value="{{ category.name }}">
+        <div class="form-text">Slug: <code>{{ category.slug }}</code></div>
+    </div>
+    <div class="row align-items-center g-3">
+        <div class="col-4 col-md-2">
+            {% if category.image_filename %}
+                <img src="{{ static_url(category.image_filename) }}" alt="{{ category.name }}"
+                     class="img-fluid rounded">
+            {% else %}
+                <div class="ratio ratio-4x3 rounded bg-light"><i class="bi bi-collection m-auto fs-2"></i></div>
+            {% endif %}
+        </div>
+        <div class="col-8 col-md-10">
+            <label class="form-label">Cover image action</label>
+            <div class="d-flex flex-wrap gap-3">
+                <div class="form-check"><input class="form-check-input" type="radio" name="image_action" value="keep" id="category-image-keep" checked><label class="form-check-label" for="category-image-keep">Keep current</label></div>
+                {% if category.image_filename %}<div class="form-check"><input class="form-check-input" type="radio" name="image_action" value="delete" id="category-image-delete"><label class="form-check-label" for="category-image-delete">Delete current</label></div>{% endif %}
+                <div class="form-check"><input class="form-check-input" type="radio" name="image_action" value="replace" id="category-image-replace"><label class="form-check-label" for="category-image-replace">Upload new</label></div>
+            </div>
+            <div id="category-upload-image" class="mt-2 d-none">
+                <input type="file" class="form-control" id="image_file" name="image_file" data-public-file>
+            </div>
+        </div>
+    </div>
+    <div>
+        <label for="description" class="form-label label-required">Description</label>
+        <textarea class="form-control" id="description" name="description" rows="4">{{ category.description }}</textarea>
+    </div>
+    <button type="submit" class="btn btn-light align-self-start bi bi-arrow-clockwise"> Update category</button>
+</form>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const upload = document.getElementById("category-upload-image")
+  document.querySelectorAll('input[name="image_action"]').forEach((radio) => {
+    radio.addEventListener("change", () => upload.classList.toggle("d-none", radio.value !== "replace"))
+  })
+  handleFormSubmit("#category-form", {{ url('update-category', slug=category.slug, absolute=True)|tojson }}, {
+    method: "PATCH",
+    rules: {
+      name: [{rule: "required"}, {rule: "minLength", value: 2}, {rule: "maxLength", value: 80}],
+      description: [{rule: "required"}, {rule: "minLength", value: 10}, {rule: "maxLength", value: 500}],
+      image_file: [
+        {rule: "required", errorMessage: "Cover image is required"},
+        {rule: "files", value: {files: {extensions: ["jpeg", "jpg", "png"], maxSize: 10000000, minSize: 1000, types: ["image/jpeg", "image/jpg", "image/png"]}}}
+      ]
+    },
+    onSuccess: (res) => { if (res) window.location.href = res },
+    successMessage: "Category updated!"
+  })
+})
+</script>

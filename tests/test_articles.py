@@ -12,8 +12,27 @@ previous_cwd = os.getcwd()
 os.chdir(project_root / "shared")
 import shared_utils
 import web_utils
+from article_dtos import ArticleDTO, UpdateArticleDTO
 from query_dtos import ArticleQueryDTO
 os.chdir(previous_cwd)
+
+
+def test_article_category_uses_valid_slug():
+    content = "x" * 5_000
+    article_dto = ArticleDTO(
+        title="Example",
+        content=content,
+        tags=["example"],
+        category="distributed-systems",
+    )
+    assert article_dto.category == "distributed-systems"
+
+    try:
+        UpdateArticleDTO(category="Invalid category")
+    except ValueError as exc:
+        assert "unsupported article category" in str(exc)
+    else:
+        raise AssertionError("invalid categories must be rejected")
 
 
 def article(article_id, tags, rating, offset=None):

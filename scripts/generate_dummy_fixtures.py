@@ -13,6 +13,7 @@ from api_utils import (
     UserImpressionAction,
     create_article,
     create_article_comment,
+    create_category,
     create_tag_subscription,
     find_tag,
     get_dummy_user_token,
@@ -56,6 +57,25 @@ def create_dummy_fixtures(req=None) -> None:
         "containers", "kubernetes", "serverless", "messaging", "networking",
         "data-engineering", "machine-learning", "open-source", "teamwork",
     ]
+    fixture_categories = [
+        ("system-design-fundamentals", "System Design Fundamentals", "Core system design concepts and foundational engineering principles."),
+        ("architecture-patterns", "Architecture Patterns", "Reusable architectural approaches for structuring software systems."),
+        ("distributed-systems", "Distributed Systems", "Coordination, consistency, and failure handling across distributed services."),
+        ("databases-data", "Databases & Data", "Data modeling, persistence engines, indexing, and data platform trade-offs."),
+        ("caching", "Caching", "Caching strategies, invalidation, and performance-oriented data access."),
+        ("messaging-event-streaming", "Messaging & Event Streaming", "Queues, event streams, brokers, and asynchronous processing."),
+        ("cloud-infrastructure", "Cloud & Infrastructure", "Cloud platforms, infrastructure design, and deployment foundations."),
+        ("reliability-resilience", "Reliability & Resilience", "Fault tolerance, graceful degradation, recovery, and dependable system operation."),
+        ("performance-scalability", "Performance & Scalability", "Capacity planning, latency reduction, and scaling techniques."),
+        ("apis-communication", "APIs & Communication", "API design, service communication, protocols, and integration contracts."),
+        ("security", "Security", "Identity, access control, threat modeling, and secure system architecture."),
+        ("observability", "Observability", "Monitoring, logging, tracing, alerting, and production diagnostics."),
+        ("system-design-examples", "System Design Examples", "Practical system design analyses and lessons from real implementations."),
+        ("system-design-interviews", "System Design Interviews", "Interview frameworks, exercises, and techniques for communicating design decisions."),
+        ("ai-llm-systems", "AI & LLM Systems", "Architecture for machine learning, generative AI, and large language model systems."),
+        ("other", "Other", "System design topics that do not fit another category."),
+    ]
+    category_slugs = [slug for slug, _, _ in fixture_categories]
     unused_fixture_tags = fixture_tag_names.copy()
     content_openers = ["A useful starting point is", "The practical challenge is", "In a production system", "A resilient design keeps", "The simplest approach begins with", "Over time, teams discover that"]
     content_subjects = ["clear ownership", "small feedback loops", "explicit boundaries", "measurable failure modes", "repeatable deployments", "well-defined contracts", "careful capacity planning"]
@@ -110,6 +130,8 @@ def create_dummy_fixtures(req=None) -> None:
     created_users.append(root_user)
     update_dynamodb_item((f"USER#{root_user.id}", "META"), {"permissions": [Permission.ROOT]})
     root_user.permissions = [Permission.ROOT]
+    for slug, name, description in fixture_categories:
+        create_category(slug, name, description, root_user)
     update_user_dto = UpdateUserDTO(
         name="John Doe",
         avatar_action="replace",
@@ -150,17 +172,20 @@ def create_dummy_fixtures(req=None) -> None:
         ArticleDTO(
             title=unique_article_title(),
             content=random_article_content("Message Queues Explained: Producers, Consumers, and Brokers"),
-            tags=random_article_tags()
+            tags=random_article_tags(),
+            category=random.choice(category_slugs),
         ),
         ArticleDTO(
             title=unique_article_title(),
             content=random_article_content("Event-Driven Architecture: Connecting Services with Events"),
-            tags=random_article_tags()
+            tags=random_article_tags(),
+            category=random.choice(category_slugs),
         ),
         ArticleDTO(
             title=unique_article_title(),
             content=random_article_content("Designing Reliable Distributed Systems"),
-            tags=random_article_tags()
+            tags=random_article_tags(),
+            category=random.choice(category_slugs),
         ),
     ]
     for article in articles:
@@ -178,17 +203,20 @@ def create_dummy_fixtures(req=None) -> None:
         ArticleDTO(
             title=unique_article_title(),
             content=random_article_content("Scaling Systems: From a Single Service to a Platform"),
-            tags=random_article_tags()
+            tags=random_article_tags(),
+            category=random.choice(category_slugs),
         ),
         ArticleDTO(
             title=unique_article_title(),
             content=random_article_content("Distributed systems fixture article"),
-            tags=random_article_tags()
+            tags=random_article_tags(),
+            category=random.choice(category_slugs),
         ),
         ArticleDTO(
             title=unique_article_title(),
             content=random_article_content("Platform architecture fixture article"),
-            tags=random_article_tags()
+            tags=random_article_tags(),
+            category=random.choice(category_slugs),
         ),
     ]
     for article in articles:
@@ -202,6 +230,7 @@ def create_dummy_fixtures(req=None) -> None:
             title=unique_article_title(),
             content=random_article_content("Generated fixture article"),
             tags=random_article_tags(),
+            category=random.choice(category_slugs),
         ), root_user)
         update_article_status(
             generated_article,
@@ -254,17 +283,20 @@ def create_dummy_fixtures(req=None) -> None:
         ArticleDTO(
             title=unique_article_title(),
             content=random_article_content("Unpublished fixture article"),
-            tags=random_article_tags()
+            tags=random_article_tags(),
+            category=random.choice(category_slugs),
         ),
         ArticleDTO(
             title=unique_article_title(),
             content=random_article_content("Unpublished fixture article"),
-            tags=random_article_tags()
+            tags=random_article_tags(),
+            category=random.choice(category_slugs),
         ),
         ArticleDTO(
             title=unique_article_title(),
             content=random_article_content("Unpublished fixture article"),
-            tags=random_article_tags()
+            tags=random_article_tags(),
+            category=random.choice(category_slugs),
         ),
     ]
     for article in unpublished_articles:
@@ -273,17 +305,20 @@ def create_dummy_fixtures(req=None) -> None:
         ArticleDTO(
             title=unique_article_title(),
             content=random_article_content("Rejected fixture article"),
-            tags=random_article_tags()
+            tags=random_article_tags(),
+            category=random.choice(category_slugs),
         ),
         ArticleDTO(
             title=unique_article_title(),
             content=random_article_content("Rejected fixture article"),
-            tags=random_article_tags()
+            tags=random_article_tags(),
+            category=random.choice(category_slugs),
         ),
         ArticleDTO(
             title=unique_article_title(),
             content=random_article_content("Rejected fixture article"),
-            tags=random_article_tags()
+            tags=random_article_tags(),
+            category=random.choice(category_slugs),
         ),
     ]
     for article in rejected_articles:

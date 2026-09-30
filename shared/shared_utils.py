@@ -212,6 +212,15 @@ class Tag:
 
 
 @dataclass(slots=True)
+class Category:
+    name: str
+    slug: str
+    description: str
+    published_articles_count: int
+    image_filename: str | None
+
+
+@dataclass(slots=True)
 class ArticleImpression:
     owner_id: str
     article_id: str
@@ -242,6 +251,7 @@ class Article:
         return None
 
     content: str
+    category: str
     preview: str | None
     tags: list[str]
     status: ArticleStatus
@@ -257,7 +267,6 @@ class Article:
     published_at: int | None
     is_premium: bool | None
     offset: str | None
-
 
 @dataclass(slots=True)
 class ArticlePublishedEvent:
@@ -339,6 +348,7 @@ class Permission(StrEnum):
 
     READ_TAG = "read_post_tag"
     UPDATE_TAG = "update_post_tag"
+    UPDATE_CATEGORY = "update-category"
 
     CREATE_ARTICLE_COMMENT = "create_post_comment"
     UPDATE_ARTICLE_COMMENT = "update_post_comment"
@@ -399,6 +409,10 @@ class ArticleByOldSlugRequestedError(Exception):
 
 
 class TagNotFoundError(BaseError):
+    pass
+
+
+class CategoryNotFoundError(BaseError):
     pass
 
 
@@ -1384,6 +1398,7 @@ def article_from_dynamodb(d_item: dict[str, Any]) -> Article:
         user_slug=d_item.get("user_slug"),
         user_name=d_item.get("user_name"),
         content=content,
+        category=d_item.get("category", "other"),
         preview=d_item.get("preview"),
         tags=d_item.get("tags", []),
         status=d_item["status"],
@@ -1551,6 +1566,32 @@ def add_decrease_tags_rating_transact(transacts: list, tags: list, now):
                 }
             }
         })
+
+
+def add_update_category_published_count_transact(transacts: list, category_slug: str,
+                                                 delta: int, now: int) -> None:
+    default_count = 0 if delta > 0 else 1
+    transacts.append({
+        "Update": {
+            "TableName": get_dynamodb_table_name(),
+            "Key": {"pk": "CATEGORY", "sk": category_slug},
+            "UpdateExpression": (
+                "SET #published_articles_count = "
+                "if_not_exists(#published_articles_count, :default_count) + :delta, "
+                "#created_at = if_not_exists(#created_at, :now), #updated_at = :now"
+            ),
+            "ExpressionAttributeNames": {
+                "#published_articles_count": "published_articles_count",
+                "#created_at": "created_at",
+                "#updated_at": "updated_at",
+            },
+            "ExpressionAttributeValues": {
+                ":default_count": default_count,
+                ":delta": delta,
+                ":now": now,
+            },
+        }
+    })
 
 
 def find_article(article_id: str) -> Article | None:
@@ -1937,6 +1978,14 @@ def decode_offset(token: str) -> dict | None:
 def get_articles(query_dto: ArticleQueryDTO = None, cur_user: User = None) -> list[Article]:
     if query_dto is None:
         query_dto = ArticleQueryDTO()
+    if query_dto.category:
+        articles = (get_popular_articles(query_dto, cur_user)
+                    if query_dto.type == ArticleQueryType.POPULAR
+                    else get_latest_articles(query_dto, cur_user))
+        if query_dto.tags:
+            wanted_tags = set(query_dto.tags)
+            articles = [article for article in articles if wanted_tags.issubset(set(article.tags))]
+        return articles
     if query_dto.type == ArticleQueryType.POPULAR:
         if query_dto.tags:
             return get_popular_articles_by_tags(query_dto, cur_user)
@@ -2017,10 +2066,14 @@ def get_latest_articles(query_dto: ArticleQueryDTO = None, cur_user: User = None
             raise NotAuthenticatedError()
         verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE)
 
+    category_key = (f"POST#{query_dto.category}#{query_dto.status}"
+                    if query_dto.category else None)
     return query_dynamodb_items(
         query_dto=query_dto,
-        index_name="POSTS_BY_STATUS_CREATED_AT_2",
-        key_condition_expr=Key("post_status_pk").eq(f"POST#{query_dto.status}"),
+        index_name=("POSTS_BY_CATEGORY_STATUS_CREATED_AT" if category_key
+                    else "POSTS_BY_STATUS_CREATED_AT_2"),
+        key_condition_expr=(Key("post_category_status_pk").eq(category_key) if category_key
+                            else Key("post_status_pk").eq(f"POST#{query_dto.status}")),
         map_fn=article_from_dynamodb,
     )
 
@@ -2034,10 +2087,14 @@ def get_popular_articles(query_dto: ArticleQueryDTO = None, cur_user: User = Non
             raise NotAuthenticatedError()
         verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE)
 
+    category_key = (f"POST#{query_dto.category}#{query_dto.status}"
+                    if query_dto.category else None)
     return query_dynamodb_items(
         query_dto=query_dto,
-        index_name="POSTS_BY_STATUS_RATING",
-        key_condition_expr=Key("post_status_pk").eq(f"POST#{query_dto.status}"),
+        index_name=("POSTS_BY_CATEGORY_STATUS_RATING" if category_key
+                    else "POSTS_BY_STATUS_RATING"),
+        key_condition_expr=(Key("post_category_status_pk").eq(category_key) if category_key
+                            else Key("post_status_pk").eq(f"POST#{query_dto.status}")),
         map_fn=article_from_dynamodb,
     )
 
@@ -2151,6 +2208,36 @@ def tag_from_dynamodb(d_item: dict[str, Any]) -> Tag:
         articles_count=d_item.get("posts_count", 0),
         image_filename=d_item.get("image_filename"),
         offset=None,
+    )
+
+
+def category_from_dynamodb(slug: str, d_item: dict[str, Any]) -> Category:
+    return Category(
+        name=d_item["name"],
+        slug=d_item.get("category_slug", slug),
+        description=d_item.get("description", ""),
+        published_articles_count=d_item.get("published_articles_count", 0),
+        image_filename=d_item.get("image_filename"),
+    )
+
+
+def find_category(slug: str) -> Category | None:
+    item = get_dynamodb_item("CATEGORY", slug)
+    return category_from_dynamodb(slug, item) if item else None
+
+
+def get_category(slug: str) -> Category:
+    category = find_category(slug)
+    if category is None:
+        raise CategoryNotFoundError(f"Category '{slug}' not found")
+    return category
+
+
+def get_categories() -> list[Category]:
+    items = query_dynamodb_table(key_condition_expr=Key("pk").eq("CATEGORY")).get("Items", [])
+    return sorted(
+        (category_from_dynamodb(item["sk"], item) for item in items),
+        key=lambda category: category.name.lower(),
     )
 
 

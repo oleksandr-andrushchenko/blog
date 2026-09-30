@@ -52,6 +52,7 @@
         <div class="{{ {"def": 10} | col_classes }}">
             <input type="text" class="form-control" id="name" name="name" placeholder="Name"
                    value="{{ tag.name if tag and tag.name else "" }}">
+            {% if tag %}<div class="form-text">Slug: <code>{{ tag.slug }}</code></div>{% endif %}
         </div>
     </div>
 

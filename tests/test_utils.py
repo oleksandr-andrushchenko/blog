@@ -129,7 +129,7 @@ def _is_api_request(method: str, url: str) -> bool:
             re.fullmatch(r"/users/[^/]+/(status|impression)", path)
         )
     if method == "PATCH":
-        return path.startswith(("/articles/", "/users/", "/tags/"))
+        return path.startswith(("/articles/", "/users/", "/tags/", "/categories/"))
     return method == "DELETE" and path.startswith("/tag-subscriptions/")
 
 

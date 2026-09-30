@@ -1,6 +1,8 @@
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 
+from validation import validate_category_slug
+
 
 @dataclass(slots=True)
 class BaseQueryDTO:
@@ -98,6 +100,7 @@ class ArticleQueryDTO(BaseQueryDTO):
     DEFAULT_STATUS = ArticleStatus.PUBLISHED
 
     tags: list[str] = field(default_factory=list)
+    category: str | None = None
     type: ArticleQueryType = ArticleQueryType.LATEST
     status: ArticleStatus = ArticleStatus.PUBLISHED
 
@@ -105,10 +108,12 @@ class ArticleQueryDTO(BaseQueryDTO):
         BaseQueryDTO.__post_init__(self)
         self.type = ArticleQueryType(self.type)
         self.status = ArticleStatus(self.status)
+        if self.category is not None:
+            self.category = validate_category_slug(self.category)
 
     def has_params(self):
         return BaseQueryDTO.has_params(self) or bool(
-            self.tags) or self.type != self.DEFAULT_TYPE or self.status != self.DEFAULT_STATUS
+            self.tags) or self.category is not None or self.type != self.DEFAULT_TYPE or self.status != self.DEFAULT_STATUS
 
 
 @dataclass(slots=True)

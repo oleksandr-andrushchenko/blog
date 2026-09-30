@@ -14,6 +14,22 @@
     </div>
 
     <div class="{{ {"def": 12, "lg": 6, "xl": 4} | col_classes }} d-flex flex-column gap-2">
+        <fieldset class="mb-2">
+            <legend class="col-form-label text-secondary">Category:</legend>
+            <div class="d-flex flex-wrap gap-3">
+                {% for category in categories %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="category"
+                               id="category-{{ loop.index }}" value="{{ category.slug }}"
+                               {% if article and article.category == category.slug %}checked{% endif %}>
+                        <label class="form-check-label" for="category-{{ loop.index }}">
+                            {{ category.name }}
+                        </label>
+                    </div>
+                {% endfor %}
+            </div>
+        </fieldset>
+
         <small class="text-secondary bi bi-tags"> Tags:</small>
         {% with url=url("tags", absolute=True), value=article.tags if article else [] %}
             {% include "fragments/tags-input.html" %}
@@ -47,6 +63,10 @@
           {rule: "minLength", value: 5_000},
           {rule: "maxLength", value: 100_000}
         ],
+        category: [{
+          validator: () => document.querySelectorAll('#article-form input[name="category"]:checked').length > 0,
+          errorMessage: "Select a category"
+        }],
         tags: [
           {rule: "required"},
           {rule: "tags", minCnt: 1, maxCnt: 3, minLen: 2, maxLen: 40}

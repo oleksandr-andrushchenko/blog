@@ -49,6 +49,7 @@ from api_utils import (
     get_article_comment_url,
     get_tag_url,
     update_tag,
+    update_category,
     get_user_tag_subscriptions,
     create_tag_subscription,
     delete_tag_subscription,
@@ -65,6 +66,7 @@ from deps import (
     ArticleCommentDep,
     UpdateArticleCommentDTODep,
     UpdateTagDTODep,
+    UpdateCategoryDTODep,
     TagSubscriptionDTODep,
     DropCDNCacheDTODep,
 )
@@ -78,9 +80,11 @@ from shared_deps import (
     UserQueryDep,
     UserDep,
     TagDep,
+    CategoryDep,
 )
 from shared_utils import (
     find_tag,
+    get_categories,
     get_article_url,
     get_tags
 )
@@ -372,6 +376,19 @@ async def _update_tag(update_tag_dto: UpdateTagDTODep, tag: TagDep,
 @route("get", "tags", response_class=JSONResponse)
 async def _get_tags(query_dto: TagQueryDep) -> list[Tag]:
     return get_tags(query_dto)
+
+
+@route("get", "get-categories", response_class=JSONResponse)
+async def _get_categories():
+    return get_categories()
+
+
+@route("patch", "update-category", response_class=JSONResponse)
+async def _update_category(update_category_dto: UpdateCategoryDTODep,
+                           category: CategoryDep, cur_user: CurUserDep,
+                           request: Request) -> str:
+    update_category(category, update_category_dto, cur_user)
+    return get_url(request, "categories", True)
 
 
 @route("get", "tags-fragment", response_class=HTMLResponse)

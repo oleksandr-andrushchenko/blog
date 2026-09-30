@@ -10,9 +10,14 @@
     (ArticleStatus.REJECTED): {"title": "Rejected", "subtitle": "Rejected"}
 } %}
 
-{% set title = ([val_map[article_query.type]["title"]] + (article_query.tags if article_query.tags else [site_about]) + [val_map[article_query.status]["title"]] + ["Articles"]) | select | join(" ") | title %}
+{% set tag_label = article_query_tag_names | join(" + ") %}
+{% set subject_label = tag_label or (category.name if category else site_about) %}
+{% set title = ([val_map[article_query.type]["title"], subject_label, val_map[article_query.status]["title"], "Articles"]) | select | join(" ") | title %}
+{% if category and tag_label %}
+    {% set title = title ~ " in " ~ category.name %}
+{% endif %}
 {% set meta_robots = "noindex, follow" if article_query.status != ArticleStatus.PUBLISHED else "index, follow" %}
-{% set subtitle = ([val_map[article_query.type]["subtitle"]]  + article_query.tags + [val_map[article_query.status]["subtitle"]] + ["Articles"]) | select | join(" ") | title %}
+{% set subtitle = category.description if category else ([val_map[article_query.type]["subtitle"], tag_label, val_map[article_query.status]["subtitle"], "Articles"]) | select | join(" ") | title %}
 {% set meta_title = title ~ " | " ~ site_name %}
 {% set meta_canonical_url = articles_url(query=article_query, tags=article_query.tags|sort, absolute=True) %}
 {% set meta_desc = [title, subtitle, site_desc] | select | join('. ') | truncate(155, True, '...') %}
@@ -38,6 +43,16 @@
             "position": breadcrumb_position,
             "name": article_query.type | title,
             "item": articles_url(type=article_query.type, absolute=True)
+        }] %}
+    {% endif %}
+
+    {% if category %}
+        {% set breadcrumb_position = breadcrumb_position + 1 %}
+        {% set breadcrumb_items.values = breadcrumb_items.values + [{
+            "@type": "ListItem",
+            "position": breadcrumb_position,
+            "name": category.name,
+            "item": articles_url(category=category.slug, absolute=True)
         }] %}
     {% endif %}
     {% set tag_path = namespace(values=[]) %}
@@ -87,6 +102,10 @@
         {% set breadcrumbs = breadcrumbs.update({article_query.type | title: articles_url(type=article_query.type)}) or breadcrumbs %}
     {% endif %}
 
+    {% if category %}
+        {% set breadcrumbs = breadcrumbs.update({category.name: articles_url(category=category.slug)}) or breadcrumbs %}
+    {% endif %}
+
     {% set ns = namespace(path_tags=[]) %}
     {% for tag in article_query.tags %}
         {% set ns.path_tags = ns.path_tags + [tag] %}
@@ -112,6 +131,7 @@
 
         <input type="hidden" name="type" value="{{ article_query.type }}">
         <input type="hidden" name="status" value="{{ article_query.status }}">
+        {% if article_query.category %}<input type="hidden" name="category" value="{{ article_query.category }}">{% endif %}
 
         <div class="d-flex align-items-center gap-2">
             <small class="text-secondary bi bi-sort-down"> Show:</small>
@@ -179,6 +199,11 @@
                class="btn btn-light btn-sm bi bi-pencil">
                 Edit tag
             </a>
+        {% endif %}
+
+        {% if category and cur_user and check_auth(cur_user, Permission.UPDATE_CATEGORY) %}
+            <a href="{{ url('edit-category', slug=category.slug) }}"
+               class="btn btn-light btn-sm bi bi-pencil"> Edit category</a>
         {% endif %}
     </form>
 

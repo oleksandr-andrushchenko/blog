@@ -10,6 +10,7 @@ from article_dtos import UpdateArticleCommentDTO, UpdateArticleCommentImpression
     UpdateArticleImpressionDTO, UpdateArticleStatusDTO, UpdateTagDTO
 from basic_dtos import ImageFileDTO
 from cdn_cache_dtos import DropCDNCacheDTO
+from category_dtos import UpdateCategoryDTO
 from query_dtos import ArticleCommentQueryDTO
 from shared_utils import ArticleComment, ArticleCommentNotFoundError, get_article_comment
 from tag_subscription_dtos import TagSubscriptionDTO
@@ -80,6 +81,10 @@ def get_update_tag_dto(value: UpdateTagDTO = Body(...)) -> UpdateTagDTO:
     return value
 
 
+def get_update_category_dto(value: UpdateCategoryDTO = Body(...)) -> UpdateCategoryDTO:
+    return value
+
+
 UpdateUserDTODep = Annotated[UpdateUserDTO, Depends(get_update_user_dto)]
 UpdateUserStatusDTODep = Annotated[UpdateUserStatusDTO, Depends(get_update_user_status_dto)]
 UpdateArticleDTODep = Annotated[UpdateArticleDTO, Depends(get_update_article_dto)]
@@ -90,6 +95,7 @@ UpdateArticleCommentDTODep = Annotated[UpdateArticleCommentDTO, Depends(get_upda
 UpdateArticleCommentImpressionDTODep = Annotated[
     UpdateArticleCommentImpressionDTO, Depends(get_update_article_comment_impression_dto)]
 UpdateTagDTODep = Annotated[UpdateTagDTO, Depends(get_update_tag_dto)]
+UpdateCategoryDTODep = Annotated[UpdateCategoryDTO, Depends(get_update_category_dto)]
 TagSubscriptionDTODep = Annotated[TagSubscriptionDTO, Depends(get_tag_subscription_dto)]
 DropCDNCacheDTODep = Annotated[DropCDNCacheDTO, Depends(get_drop_cdn_cache_dto)]
 ImageFileDTODep = Annotated[ImageFileDTO, Depends(get_image_file)]

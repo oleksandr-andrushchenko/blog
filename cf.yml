@@ -172,6 +172,8 @@ Resources:
           AttributeType: S
         - AttributeName: post_user_status_pk
           AttributeType: S
+        - AttributeName: post_category_status_pk
+          AttributeType: S
         - AttributeName: post_comment_pk
           AttributeType: S
         - AttributeName: post_comment_user_pk
@@ -263,6 +265,22 @@ Resources:
             - AttributeName: post_user_status_pk # e.g. "POST#1#published"
               KeyType: HASH
             - AttributeName: created_at # e.g. 1759086095241
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: POSTS_BY_CATEGORY_STATUS_CREATED_AT
+          KeySchema:
+            - AttributeName: post_category_status_pk # e.g. "POST#distributed-systems#published"
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: POSTS_BY_CATEGORY_STATUS_RATING
+          KeySchema:
+            - AttributeName: post_category_status_pk
+              KeyType: HASH
+            - AttributeName: rating_sk
               KeyType: RANGE
           Projection:
             ProjectionType: ALL

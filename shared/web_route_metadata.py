@@ -13,6 +13,8 @@ WEB_URL_ROUTES = WEB_AUTH_URL_ROUTES | {
     "new-article": "/articles/new",
     "articles": "/articles",
     "tags": "/tags",
+    "categories": "/categories",
+    "edit-category": "/categories/{slug}/edit",
     "article": "/articles/{article_id}",
     "edit-article": "/articles/{article_id}/edit",
     "articles-by-slugs": "/{slugs_path:path}/articles",

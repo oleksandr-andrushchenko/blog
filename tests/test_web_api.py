@@ -318,6 +318,20 @@ def check_index(doc):
 @pytest.fixture(scope="session", autouse=True)
 def setup_dynamodb():
     recreate_dynamodb_table()
+    for slug, name, description in [
+        ("caching", "Caching", "Caching strategies, invalidation, and data access."),
+        ("distributed-systems", "Distributed Systems", "Coordination, consistency, and distributed failure handling."),
+        ("other", "Other", "System design topics that do not fit another category."),
+    ]:
+        dynamodb_table.put_item(Item={
+            "pk": "CATEGORY",
+            "sk": slug,
+            "category_slug": slug,
+            "name": name,
+            "description": description,
+            "published_articles_count": 0,
+            "created_at": int(time.time() * 1000),
+        })
 
 
 @pytest.fixture(scope="session")
@@ -675,6 +689,7 @@ def test_public_pages_render_main_content(guest_client, path, heading, selector)
 
 @pytest.mark.parametrize("path", [
     "/articles?limit=invalid",
+    "/articles?category=Invalid category",
     "/articles-fragment?limit=0",
     "/users?type=invalid",
     "/invalid/users",
@@ -811,6 +826,7 @@ def test_article_create_and_new_page_endpoints_success_and_failure(guest_client)
         "title": "Functional endpoint coverage article",
         "content": ARTICLE_CONTENT,
         "tags": ["functional-tag", "coverage-tag"],
+        "category": "distributed-systems",
     })
     assert create_success.status_code == 200, create_success.text
     article_item = next(
@@ -823,6 +839,8 @@ def test_article_create_and_new_page_endpoints_success_and_failure(guest_client)
         f'<img src="/{ARTICLE_IMAGE_FILENAME}" alt="{ARTICLE_IMAGE_ALT}">')
     assert "figure" not in article_item["content"]
     assert "picture" not in article_item["content"]
+    assert article_item["category"] == "distributed-systems"
+    assert article_item["post_category_status_pk"] == "POST#distributed-systems#unpublished"
 
     invalid_links_content = (
         ARTICLE_CONTENT
@@ -833,6 +851,7 @@ def test_article_create_and_new_page_endpoints_success_and_failure(guest_client)
         "title": "Article with invalid links",
         "content": invalid_links_content,
         "tags": ["functional-tag"],
+        "category": "distributed-systems",
     })
     assert invalid_links.status_code == 422
     content_error = invalid_links.json()["details"]["content"]
@@ -843,6 +862,7 @@ def test_article_create_and_new_page_endpoints_success_and_failure(guest_client)
         "title": "a",
         "content": ARTICLE_CONTENT,
         "tags": ["functional-tag"],
+        "category": "distributed-systems",
     })
     assert create_failure.status_code == 422
 
@@ -990,11 +1010,27 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
         "/articles?type=latest&status=published&tags=coverage-tag",
         allow_redirects=False,
     )
-    assert renamed_old_tag_page.status_code == 308
-    assert "coverage-tag-updated" in renamed_old_tag_page.headers["location"]
-    renamed_current_tag_page = get(guest_client, "/articles?type=latest&status=published&tags=coverage-tag-updated")
-    assert renamed_current_tag_page.status_code == 200
-    assert "Updated functional endpoint coverage article" in pq(renamed_current_tag_page.text)("#articles").text()
+    assert renamed_old_tag_page.status_code == 200
+    assert "Updated functional endpoint coverage article" in pq(renamed_old_tag_page.text)("#articles").text()
+    immutable_tag_slug = patch(root_client, "/tags/coverage-tag", json={"slug": "coverage-tag-updated"})
+    assert immutable_tag_slug.status_code == 422
+
+    category_article_page = get(guest_client, "/articles?category=distributed-systems")
+    assert category_article_page.status_code == 200
+    assert "Updated functional endpoint coverage article" in pq(category_article_page.text)("#articles").text()
+    category_tag_article_page = get(
+        guest_client,
+        "/articles?category=distributed-systems&tags=functional-tag",
+    )
+    assert category_tag_article_page.status_code == 200
+    category_tag_doc = pq(category_tag_article_page.text)
+    expected_title = "Latest Functional-Tag Articles in Distributed Systems"
+    assert expected_title in category_tag_doc("head title").text()
+    assert category_tag_doc("main h1").text() == expected_title
+    category_item = dynamodb_table.get_item(
+        Key={"pk": "CATEGORY", "sk": "distributed-systems"}
+    )["Item"]
+    assert category_item["published_articles_count"] == 1
 
     status_failure = post(root_client, f"/articles/{article_id}/status", json={"status": "invalid"})
     assert status_failure.status_code == 422
@@ -1008,6 +1044,48 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     assert articles_by_slug_success.status_code == 200
     articles_by_slug_failure = get(guest_client, "/invalid/latest/articles?limit=0")
     assert articles_by_slug_failure.status_code == 422
+
+
+def test_categories_page_and_admin_update_endpoints(guest_client):
+    root_client = get_logged_in_client(root_user)
+    regular_client = get_logged_in_client(regular_user)
+
+    page = get(guest_client, "/categories")
+    assert page.status_code == 200
+    doc = pq(page.text)
+    schema = json.loads(doc('script[type="application/ld+json"]').text())
+    assert schema["@type"] == "CollectionPage"
+    assert len(doc("#categories .card")) > 1
+    assert doc('a[href="/articles?category=distributed-systems"]')
+
+    edit_success = get(root_client, "/categories/distributed-systems/edit")
+    assert edit_success.status_code == 200
+    edit_failure = get(regular_client, "/categories/distributed-systems/edit")
+    assert edit_failure.status_code == 403
+
+    name = "Distributed Architecture"
+    description = "Design distributed services with explicit consistency and failure trade-offs."
+    update_success = patch(root_client, "/categories/distributed-systems", json={
+        "name": name,
+        "description": description,
+        "image_action": "keep",
+    })
+    assert update_success.status_code == 200, update_success.text
+    assert update_success.json().endswith("/categories")
+    categories_page = get(guest_client, "/categories").text
+    assert name in categories_page
+    assert description in categories_page
+
+    immutable_category_slug = patch(root_client, "/categories/distributed-systems", json={
+        "slug": "distributed-architecture",
+    })
+    assert immutable_category_slug.status_code == 422
+
+    update_failure = patch(regular_client, "/categories/distributed-systems", json={
+        "description": "Regular users cannot edit category metadata.",
+        "image_action": "keep",
+    })
+    assert update_failure.status_code == 403
 
 
 def test_article_impression_comment_and_comment_update_endpoints_success_and_failure(guest_client):
@@ -1160,6 +1238,7 @@ def test_tag_edit_and_update_endpoints_success_and_failure():
 
     edit_success = get(root_client, "/tags/functional-tag/edit")
     assert edit_success.status_code == 200, edit_success.text
+    assert "Slug: functional-tag" in pq(edit_success.text).text()
     edit_failure = get(regular_client, "/tags/functional-tag/edit")
     assert edit_failure.status_code == 403
 
@@ -1169,11 +1248,15 @@ def test_tag_edit_and_update_endpoints_success_and_failure():
         "image_file": None,
     })
     assert update_success.status_code == 200, update_success.text
-    update_failure = patch(root_client, "/tags/functional-tag-updated", json={
+    update_failure = patch(root_client, "/tags/functional-tag", json={
         "name": "X",
         "image_action": "keep",
     })
     assert update_failure.status_code == 422
+    immutable_slug = patch(root_client, "/tags/functional-tag", json={
+        "slug": "functional-tag-updated",
+    })
+    assert immutable_slug.status_code == 422
 
 
 def test_admin_page_sitemap_and_cache_endpoints_success_and_failure(guest_client):
@@ -1192,8 +1275,8 @@ def test_admin_page_sitemap_and_cache_endpoints_success_and_failure(guest_client
     sitemap = get(guest_client, "/sitemap.xml")
     assert sitemap.status_code == 200
     assert "/tags" in sitemap.text
-    assert "/functional-tag-updated/articles" in sitemap.text
-    assert "/popular/functional-tag-updated/articles" in sitemap.text
+    assert "/functional-tag/articles" in sitemap.text
+    assert "/popular/functional-tag/articles" in sitemap.text
     assert "/Functional Tag Updated/articles" not in sitemap.text
     sitemap_failure = post(regular_client, "/generate-sitemap", json={})
     assert sitemap_failure.status_code == 403
@@ -1259,6 +1342,7 @@ def test_article_published_dispatch_matches_combinations_excludes_author_and_ren
         "title": "Combination notification integration article",
         "content": ARTICLE_CONTENT,
         "tags": ["notification-tag1", "notification-tag2", "notification-tag3"],
+        "category": "distributed-systems",
     })
     assert create_response.status_code == 200, create_response.text
     article_id = create_response.json().rstrip("/").split("/")[-1]

@@ -7,12 +7,16 @@ from article_dtos import (
     UpdateArticleStatusDTO, UpdateTagDTO,
 )
 from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO
+from category_dtos import UpdateCategoryDTO
 from shared_utils import *
 from shared_utils import (
     User, find_article, find_article_by_slug_follow_redirects, find_user_by_username_follow_redirects,
-    get_articles, get_static_base_url, get_tags, get_web_base_url, logger,
+    Category, Permission, UserStatus, add_dynamodb_update_transact,
+    add_update_category_published_count_transact, get_articles, get_dynamodb_item,
+    get_categories, get_static_base_url, get_tags, get_web_base_url, logger,
 )
 from tag_subscription_dtos import TagSubscriptionDTO
+from validation import validate_category_slug
 from user_dtos import (
     UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO,
     UserImpressionAction,
@@ -265,6 +269,7 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
     urls.extend([
         (url("index"), today),
         (url("tags"), today),
+        (url("categories"), today),
         (url("contacts"), today),
         (url("rules"), today),
         (url("terms"), today),
@@ -272,14 +277,26 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
     ])
 
     # Post lists
-    def articles_url(tp: ArticleQueryType, tg: Tag | None = None) -> str:
-        return get_articles_url(req, type=tp, tags=[tg.slug] if tg else [], absolute=True)
+    def articles_url(tp: ArticleQueryType, tg: Tag | None = None,
+                     category: Category | None = None) -> str:
+        return get_articles_url(
+            req,
+            type=tp,
+            tags=[tg.slug] if tg else [],
+            category=category.slug if category else None,
+            absolute=True,
+        )
 
+    sitemap_tags = get_tags(TagQueryDTO(limit=1000))
+    sitemap_categories = get_categories()
     for type_ in ArticleQueryType:
         urls.append((articles_url(type_), today))
-        for tag in get_tags(TagQueryDTO(limit=1000)):
+        for tag in sitemap_tags:
             if tag.articles_count > 0:
                 urls.append((articles_url(type_, tag), today))
+        for category in sitemap_categories:
+            if category.published_articles_count > 0:
+                urls.append((articles_url(type_, category=category), today))
 
     # Posts
     def article_url(article: Article) -> str:
@@ -384,14 +401,6 @@ def update_tag(tag: Tag, update_tag_dto: UpdateTagDTO, cur_user: User,
     if not changes:
         return
 
-    now = utc_now()
-
-    new_name = changes.pop("name", None)
-    if new_name is not None:
-        new_name = new_name.strip()
-        if new_name != tag.name:
-            changes["name"] = new_name
-
     image_action = changes.pop("image_action", "keep")
 
     if image_action == "delete":
@@ -403,56 +412,83 @@ def update_tag(tag: Tag, update_tag_dto: UpdateTagDTO, cur_user: User,
         return
 
     old_image = tag.image_filename
-    old_slug = tag.slug
-    slug = to_kebab_case(changes["name"]) if "name" in changes else old_slug
-    slug_changed = slug != old_slug
     transacts = []
-
-    if slug_changed:
-        old_item = get_dynamodb_item(f"POST_TAG#{old_slug}", "META")
-        if old_item is None:
-            raise TagNotFoundError(f"Tag '{old_slug}' not found")
-
-        new_item = {k: v for k, v in old_item.items() if k not in {"pk", "sk"}}
-        new_item.update(changes)
-        new_item["tag_name_sk"] = slug
-        new_item["updated_at"] = now
-
-        redirect_item = {
-            "tag_name_sk": old_slug,
-            "redirect_to": slug,
-            "created_at": now,
-        }
-        add_dynamodb_put_transact(transacts, (f"POST_TAG_REDIRECT#{old_slug}", "META"), redirect_item, new_pk_only=True)
-        add_dynamodb_put_transact(transacts, (f"POST_TAG#{slug}", "META"), new_item, new_pk_only=True)
-        add_dynamodb_delete_transact(transacts, (f"POST_TAG#{old_slug}", "META"))
-
-        for article in get_latest_articles_by_tags(ArticleQueryDTO(tags=[old_slug], limit=1000)):
-            old_tags = list(article.tags)
-            tags = list(dict.fromkeys(slug if tag == old_slug else tag for tag in old_tags))
-
-            add_delete_tag_combos_transact(transacts, article, old_slug)
-            add_dynamodb_article_update_transact(transacts, article, {"tags": tags})
-            add_put_tag_combos_transact(transacts, article, slug)
-    else:
-        add_dynamodb_tag_update_transact(transacts, tag, changes)
-
-    try:
-        dynamodb_transact_write(transacts)
-    except DynamoDBTransactionError as e:
-        if e.is_conditional():
-            raise SlugDuplicationError(field="name")
-        raise
+    add_dynamodb_tag_update_transact(transacts, tag, changes)
+    dynamodb_transact_write(transacts)
 
     if "name" in changes:
         tag.name = changes["name"]
-    if slug_changed:
-        tag.slug = slug
     if "image_filename" in changes:
         tag.image_filename = changes["image_filename"]
 
     if old_image and image_action in {"delete", "replace"}:
         drop_public_file(old_image)
+
+
+def update_category(category: Category, dto: UpdateCategoryDTO, cur_user: User) -> None:
+    verify_authorization(cur_user, Permission.UPDATE_CATEGORY)
+    if cur_user.status == UserStatus.BANNED:
+        raise UserBannedError()
+
+    changes = dto.get_changes(category)
+    image_action = changes.pop("image_action", "keep")
+    if image_action == "delete":
+        changes["image_filename"] = None
+    elif image_action == "keep":
+        changes.pop("image_filename", None)
+    if not changes:
+        return
+
+    old_image = category.image_filename
+    now = utc_now()
+    existing = get_dynamodb_item("CATEGORY", category.slug)
+    changes = {
+        "category_slug": category.slug,
+        "name": category.name,
+        "description": category.description,
+        "created_at": (existing or {}).get("created_at", now),
+        **({"published_articles_count": category.published_articles_count} if not existing else {}),
+        **changes,
+    }
+    transacts = []
+    add_dynamodb_update_transact(transacts, ("CATEGORY", category.slug), changes)
+    dynamodb_transact_write(transacts)
+    for key, value in changes.items():
+        if hasattr(category, key):
+            setattr(category, key, value)
+    if old_image and image_action in {"delete", "replace"}:
+        drop_public_file(old_image)
+
+
+def create_category(slug: str, name: str, description: str, cur_user: User) -> Category:
+    verify_authorization(cur_user, Permission.UPDATE_CATEGORY)
+    if cur_user.status == UserStatus.BANNED:
+        raise UserBannedError()
+
+    slug = validate_category_slug(slug)
+    name = name.strip()
+    description = description.strip()
+    if not 2 <= len(name) <= 80:
+        raise ValueError("name must contain between 2 and 80 characters")
+    if not 10 <= len(description) <= 500:
+        raise ValueError("description must contain between 10 and 500 characters")
+
+    existing = find_category(slug)
+    if existing:
+        return existing
+
+    now = utc_now()
+    values = {
+        "category_slug": slug,
+        "name": name,
+        "description": description,
+        "published_articles_count": 0,
+        "created_at": now,
+    }
+    transacts = []
+    add_dynamodb_put_transact(transacts, ("CATEGORY", slug), values, new_pk_only=True)
+    dynamodb_transact_write(transacts)
+    return category_from_dynamodb(slug, {**values, "pk": "CATEGORY", "sk": slug})
 
 
 def save_public_file(file_dto: FileDTO, filename: str = None) -> str:
@@ -529,6 +565,8 @@ def create_article(article_dto: ArticleDTO, cur_user: User) -> Article:
     article_id = str(uuid.uuid4())
     title = article_dto.title
     content = sanitize_forbidden_html(article_dto.content)
+    category = article_dto.category
+    get_category(category)
     validate_article_content_links(content)
     preview = find_preview(content)
     image_filename = find_static_image_filename(content)
@@ -544,12 +582,14 @@ def create_article(article_dto: ArticleDTO, cur_user: User) -> Article:
         "user_id": cur_user.id,
         "user_name": cur_user.name,
         "content": content,
+        "category": category,
         "tags": tags,
         "rating_sk": compute_rating_sk(0, now),
         "status": status,
         "created_at": now,
         "post_status_pk": f"POST#{status}",
         "post_user_status_pk": f"POST#{cur_user.id}#{status}",
+        "post_category_status_pk": f"POST#{category}#{status}",
     }
     if preview:
         article_item["preview"] = preview
@@ -587,6 +627,9 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
     changes = update_article_dto.get_changes(article)
     if not changes:
         return
+
+    if "category" in changes:
+        get_category(changes["category"])
 
     if "content" in changes:
         changes["content"] = sanitize_forbidden_html(changes["content"])
@@ -627,6 +670,10 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
         changes["preview"] = find_preview(content)
         changes["image_filename"] = find_static_image_filename(content)
 
+    category_changed = "category" in changes and changes["category"] != article.category
+    if published_already and category_changed:
+        changes["status"] = ArticleStatus.UNPUBLISHED
+
     old_tags = list(article.tags)
     tags_changed = False
     if "tags" in changes:
@@ -659,6 +706,14 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
         # User post counters
         article_owner_deltas[f"{old_status}_posts_count"] = -1
         article_owner_deltas[f"{status}_posts_count"] = 1
+    if status_changed or "category" in changes:
+        changes["post_category_status_pk"] = f"POST#{changes.get('category', article.category)}#{status}"
+
+    crossed_published_boundary = (old_status == ArticleStatus.PUBLISHED) != (status == ArticleStatus.PUBLISHED)
+    if crossed_published_boundary:
+        add_update_category_published_count_transact(
+            transacts, article.category, 1 if status == ArticleStatus.PUBLISHED else -1, now
+        )
 
     add_dynamodb_user_update_transact(transacts, article_owner, deltas=article_owner_deltas)
     add_dynamodb_article_update_transact(transacts, article, changes)
@@ -932,12 +987,15 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
 
         add_increase_tags_rating_transact(transacts, article.tags, now)
         add_put_tag_combos_transact(transacts, article)
+        add_update_category_published_count_transact(transacts, article.category, 1, now)
     elif crossed_published_boundary:
         add_decrease_tags_rating_transact(transacts, article.tags, now)
         add_delete_tag_combos_transact(transacts, article)
+        add_update_category_published_count_transact(transacts, article.category, -1, now)
 
     changes["post_status_pk"] = f"POST#{status}"
     changes["post_user_status_pk"] = f"POST#{article.user_id}#{status}"
+    changes["post_category_status_pk"] = f"POST#{article.category}#{status}"
 
     add_dynamodb_article_update_transact(transacts, article, changes)
 

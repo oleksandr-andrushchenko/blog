@@ -17,6 +17,8 @@ API_URL_ROUTES = {
     "create-tag-subscription": "/tag-subscriptions",
     "delete-tag-subscription": "/tag-subscriptions/{tag_subscription_id}",
     "update-tag": "/tags/{slug}",
+    "update-category": "/categories/{slug}",
+    "get-categories": "/categories",
     "tags": "/tags",
     "tags-fragment": "/tags-fragment",
     "users-fragment": "/users-fragment",

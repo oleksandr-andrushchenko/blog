@@ -17,8 +17,9 @@ from shared_deps import (
     UserDep,
     TagDep,
     TagQueryDep,
+    CategoryDep,
 )
-from shared_utils import get_static_base_url, get_tags, get_web_base_url
+from shared_utils import find_category, get_categories, get_category, get_static_base_url, get_tags, get_web_base_url
 from web import (
     Application,
     Request,
@@ -314,11 +315,13 @@ async def _article_page(article: ArticleDep, cur_user: OptCurUserDep) -> HTMLRes
         article_impression,
         related_articles,
         comments,
+        category,
     ) = await asyncio.gather(
         to_thread(find_user, article.user_id),
         to_thread(find_article_impression, article, cur_user) if cur_user else asyncio.sleep(0, result=None),
         get_article_related_articles(article),
         to_thread(get_article_comments, article),
+        to_thread(get_category, article.category),
     )
 
     html_content = get_html_content("article.html", {
@@ -328,6 +331,7 @@ async def _article_page(article: ArticleDep, cur_user: OptCurUserDep) -> HTMLRes
         "article_impression": article_impression,
         "related_articles": related_articles,
         "comments": comments,
+        "category": category,
         "comments_query": ArticleCommentQueryDTO()
     })
     return HTMLResponse(html_content)
@@ -359,6 +363,7 @@ async def _articles_page(query_dto: ArticleQueryDep, cur_user: OptCurUserDep) ->
         "article_query_tag_items": article_query_tag_items,
         "articles": articles,
         "tag": tag,
+        "category": find_category(query_dto.category) if query_dto.category else None,
         "tag_subscription": get_user_tag_subscription_for_tags(cur_user,
                                                                query_dto.tags) if cur_user and query_dto.tags else None,
     })
@@ -370,7 +375,8 @@ async def new_article(cur_user: CurUserDep) -> str:
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError
     return get_html_content("new-article.html", {
-        "cur_user": cur_user
+        "cur_user": cur_user,
+        "categories": get_categories(),
     })
 
 
@@ -389,6 +395,14 @@ async def tags_page(query_dto: TagQueryDep, cur_user: OptCurUserDep) -> str:
     })
 
 
+@route("get", "categories", response_class=HTMLResponse)
+async def categories_page(cur_user: OptCurUserDep) -> str:
+    return get_html_content("categories.html", {
+        "cur_user": cur_user,
+        "categories": get_categories(),
+    })
+
+
 @route("get", "article")
 async def article_page(article: ArticleDep, cur_user: OptCurUserDep):
     return await _article_page(article, cur_user)
@@ -401,7 +415,8 @@ async def edit_article(article: ArticleDep, cur_user: CurUserDep) -> str:
         raise UserBannedError
     return get_html_content("edit-article.html", {
         "cur_user": cur_user,
-        "article": article
+        "article": article,
+        "categories": get_categories(),
     })
 
 
@@ -459,6 +474,15 @@ async def edit_tag(tag: TagDep, cur_user: CurUserDep) -> str:
     return get_html_content("edit-tag.html", {
         "cur_user": cur_user,
         "tag": tag,
+    })
+
+
+@route("get", "edit-category", response_class=HTMLResponse)
+async def edit_category(category: CategoryDep, cur_user: CurUserDep) -> str:
+    verify_authorization(cur_user, Permission.UPDATE_CATEGORY)
+    return get_html_content("edit-category.html", {
+        "cur_user": cur_user,
+        "category": category,
     })
 
 

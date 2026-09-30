@@ -152,7 +152,7 @@ class ExceptionHandlerTests(unittest.TestCase):
                     logger.log.assert_called_once()
                     logger.error.assert_not_called()
                     level, access_log = logger.log.call_args.args
-                    self.assertEqual(level, logging.DEBUG if status < 300 else logging.INFO)
+                    self.assertEqual(level, logging.DEBUG if status < 400 else logging.INFO)
                     self.assertIn(f'HTTP/1.1" {status} ', access_log)
                     self.assertEqual(len(logger.mock_calls), 1)
 

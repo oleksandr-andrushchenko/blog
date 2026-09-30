@@ -2,6 +2,12 @@ import re
 from urllib.parse import urlparse
 
 
+def validate_category_slug(value: str) -> str:
+    if not isinstance(value, str) or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", value):
+        raise ValueError(f"unsupported article category: {value}")
+    return value
+
+
 def validate_email_address(value: str) -> str:
     value = value.strip()
     if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value):

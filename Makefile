@@ -8,6 +8,7 @@ WEB_LAMBDA_PORT := $(shell sed -n "s/^WEB_LAMBDA_PORT=//p" $(LOCAL_ENV_FILE) 2>/
 API_LAMBDA_PORT := $(shell sed -n "s/^API_LAMBDA_PORT=//p" $(LOCAL_ENV_FILE) 2>/dev/null)
 DYNAMODB_PORT := $(shell sed -n "s/^DYNAMODB_PORT=//p" $(LOCAL_ENV_FILE) 2>/dev/null)
 LOCAL_AWS_REGION := $(shell sed -n "s/^AWS_REGION=//p" $(LOCAL_ENV_FILE) 2>/dev/null)
+LOCAL_AWS_REGION := $(if $(LOCAL_AWS_REGION),$(LOCAL_AWS_REGION),us-west-2)
 
 # Detect docker compose command.
 ifeq (, $(shell command -v docker-compose 2>/dev/null))
@@ -421,7 +422,7 @@ create-local-dynamodb: scripts-up ## Create local DynamoDB table
 			--cli-input-json file:///tmp/dynamodb_schema.json \
 			--table-name app \
 			--endpoint-url http://localhost:$(DYNAMODB_PORT) \
-			--no-cli-pager; \
+			--no-cli-pager || exit $$?; \
 		rm -f /tmp/dynamodb_schema.json; \
 		echo "✅ DynamoDB table app initialized in local DynamoDB"; \
 	fi
@@ -451,7 +452,7 @@ drop-local-dynamodb: ## Drop DynamoDB table in local DynamoDB
 		    --region $(LOCAL_AWS_REGION) \
 			--table-name app \
 			--endpoint-url http://localhost:$(DYNAMODB_PORT) \
-			--no-cli-pager; \
+			--no-cli-pager || exit $$?; \
 		echo "✅ Table app deleted from local DynamoDB"; \
 	else \
 		echo "⚠️ Table app does not exist, skipping deletion."; \
@@ -463,7 +464,10 @@ create-local-dynamodb-dummy-fixtures: scripts-up ## Populate local DynamoDB with
 	$(SCRIPTS_DC) exec $(SCRIPTS_CONTAINER) python3 scripts/generate_dummy_fixtures.py
 
 .PHONY: recreate-local-dynamodb
-recreate-local-dynamodb: drop-local-dynamodb create-local-dynamodb create-local-dynamodb-dummy-fixtures ## Recreate DynamoDB table in local DynamoDB & populate dummy data
+recreate-local-dynamodb: ## Recreate DynamoDB table in local DynamoDB & populate dummy data
+	$(MAKE) drop-local-dynamodb
+	$(MAKE) create-local-dynamodb
+	$(MAKE) create-local-dynamodb-dummy-fixtures
 
 .PHONY: tests
 tests: ## Run the full test suite in the isolated Docker Compose stack
