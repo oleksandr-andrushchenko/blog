@@ -52,7 +52,8 @@
         <div class="{{ {"def": 10} | col_classes }}">
             <input type="text" class="form-control" id="name" name="name" placeholder="Name"
                    value="{{ tag.name if tag and tag.name else "" }}">
-            {% if tag %}<div class="form-text">Slug: <code>{{ tag.slug }}</code></div>{% endif %}
+            {% if tag %}
+                <div class="form-text">Slug: <code>{{ tag.slug }}</code></div>{% endif %}
         </div>
     </div>
 
@@ -88,10 +89,7 @@
       method: "{{ 'PATCH' if tag else 'POST' }}",
       rules: {
         image_file: [
-          {
-            rule: "required",
-            errorMessage: "Cover image is required"
-          },
+          {rule: "required", errorMessage: "Cover image is required"},
           {
             rule: "files",
             value: {
@@ -104,16 +102,9 @@
             }
           }
         ],
-        name: [
-          {rule: "required"},
-          {rule: "minLength", value: 2},
-          {rule: "maxLength", value: 40}
-        ],
+        name: [{rule: "required"}, {rule: "minLength", value: 2}, {rule: "maxLength", value: 40}],
       },
-      onSuccess: (res) => {
-        if (res) window.location.href = res
-      },
-      successMessage: "Tag updated!"
+      onSuccess: (res) => res && (window.location.href = res),
     })
   })
 </script>

@@ -167,10 +167,7 @@
       method: "{{ 'PATCH' if user else 'POST' }}",
       rules: {
         avatar_file: [
-          {
-            rule: "required",
-            errorMessage: "Avatar is required"
-          },
+          {rule: "required", errorMessage: "Avatar is required"},
           {
             rule: "files",
             value: {
@@ -183,11 +180,7 @@
             }
           }
         ],
-        name: [
-          {rule: "required"},
-          {rule: "minLength", value: 1},
-          {rule: "maxLength", value: 100}
-        ],
+        name: [{rule: "required"}, {rule: "minLength", value: 1}, {rule: "maxLength", value: 100}],
         username: [
           {rule: "minLength", value: 3},
           {rule: "maxLength", value: 30},
@@ -257,14 +250,8 @@
             errorMessage: "BMC username cannot contain consecutive dots"
           }
         ],
-        headline: [
-          {rule: "minLength", value: 1},
-          {rule: "maxLength", value: 150}
-        ],
-        about: [
-          {rule: "minLength", value: 1},
-          {rule: "maxLength", value: 2000}
-        ],
+        headline: [{rule: "minLength", value: 1}, {rule: "maxLength", value: 150}],
+        about: [{rule: "minLength", value: 1}, {rule: "maxLength", value: 2000}],
         website: [
           {
             rule: "customRegexp",
@@ -272,16 +259,9 @@
             errorMessage: "Website must be a valid URL"
           }
         ],
-        address: [
-          {rule: "minLength", value: 1},
-          {rule: "maxLength", value: 255}
-        ]
+        address: [{rule: "minLength", value: 1}, {rule: "maxLength", value: 255}]
       },
-      onSuccess: (res) => {
-        if (res) window.location.href = res
-      },
-      successMessage: "Profile updated!"
+      onSuccess: (res) => res && (window.location.href = res),
     })
-
   })
 </script>

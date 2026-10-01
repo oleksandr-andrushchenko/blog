@@ -110,20 +110,9 @@
       document.addEventListener("DOMContentLoaded", () => {
         handleFormSubmit("#contact-form", {{ url('create-contact-message', absolute=True) | tojson }}, {
           rules: {
-            name: [
-              {rule: "required"},
-              {rule: "minLength", value: 2},
-              {rule: "maxLength", value: 100}
-            ],
-            email: [
-              {rule: "required"},
-              {rule: "email"}
-            ],
-            message: [
-              {rule: "required"},
-              {rule: "minLength", value: 5},
-              {rule: "maxLength", value: 1000}
-            ]
+            name: [{rule: "required"}, {rule: "minLength", value: 2}, {rule: "maxLength", value: 100}],
+            email: [{rule: "required"}, {rule: "email"}],
+            message: [{rule: "required"}, {rule: "minLength", value: 5}, {rule: "maxLength", value: 1000}]
           },
           successMessage: "Message sent!",
           authRequired: false

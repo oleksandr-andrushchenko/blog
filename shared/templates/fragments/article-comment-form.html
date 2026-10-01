@@ -8,7 +8,7 @@
 
     <button type="submit" class="btn btn-light btn-sm">
         <i class="bi {% if article_comment %}bi-arrow-clockwise{% else %}bi-plus-lg{% endif %}"></i>
-        {% if article_comment %}Update{% else %}Add{% endif %} article comment
+        {% if article_comment %}Update{% else %}Add{% endif %} comment
     </button>
 </form>
 
@@ -19,16 +19,9 @@
     handleFormSubmit("#article-comment-form", {{ form_url | tojson }}, {
       method: "{{ 'PATCH' if article_comment else 'POST' }}",
       rules: {
-        text: [
-          {rule: "required"},
-          {rule: "minLength", value: 1},
-          {rule: "maxLength", value: 5_000}
-        ],
+        text: [{rule: "required"}, {rule: "minLength", value: 1}, {rule: "maxLength", value: 5_000}],
       },
-      onSuccess: (res) => {
-        if (res) window.location.href = res
-      },
-      successMessage: "Article comment added!"
+      onSuccess: (res) => res && (window.location.href = res),
     })
   })
 </script>

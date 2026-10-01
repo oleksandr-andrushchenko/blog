@@ -31,14 +31,15 @@
         </fieldset>
 
         <small class="text-secondary bi bi-tags"> Tags:</small>
-        {% with url=url("tags", absolute=True), value=article.tags if article else [] %}
+        {% with url=url("api-tags", absolute=True), value=article.tags if article else [] %}
             {% include "fragments/tags-input.html" %}
         {% endwith %}
 
         <div>
             <p class="small text-body-secondary mb-2">
                 By submitting an article, you agree to our
-                <a href="{{ url('terms') }}" class="link-body-emphasis" target="_blank" rel="noopener noreferrer">Terms of Service <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i><span class="visually-hidden"> (opens in a new tab)</span></a>.
+                <a href="{{ url('terms') }}" class="link-body-emphasis" target="_blank" rel="noopener noreferrer">Terms
+                    of Service <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i><span class="visually-hidden"> (opens in a new tab)</span></a>.
             </p>
             <button type="submit" class="btn btn-light">
                 <i class="bi {% if article %}bi-arrow-clockwise{% else %}bi-plus-lg{% endif %}"></i>
@@ -53,29 +54,15 @@
     handleFormSubmit("#article-form", {{ (url('update-article', article_id=article.id, absolute=True) if article else url('create-article', absolute=True)) | tojson }}, {
       method: "{{ 'PATCH' if article else 'POST' }}",
       rules: {
-        title: [
-          {rule: "required"},
-          {rule: "minLength", value: 2},
-          {rule: "maxLength", value: 500}
-        ],
-        content: [
-          {rule: "required"},
-          {rule: "minLength", value: 5_000},
-          {rule: "maxLength", value: 100_000}
-        ],
+        title: [{rule: "required"}, {rule: "minLength", value: 2}, {rule: "maxLength", value: 500}],
+        content: [{rule: "required"}, {rule: "minLength", value: 5_000}, {rule: "maxLength", value: 100_000}],
         category: [{
           validator: () => document.querySelectorAll('#article-form input[name="category"]:checked').length > 0,
           errorMessage: "Select a category"
         }],
-        tags: [
-          {rule: "required"},
-          {rule: "tags", minCnt: 1, maxCnt: 3, minLen: 2, maxLen: 40}
-        ]
+        tags: [{rule: "required"}, {rule: "tags", minCnt: 1, maxCnt: 3, minLen: 2, maxLen: 40}]
       },
-      onSuccess: (res) => {
-        if (res) window.location.href = res
-      },
-      successMessage: "Article created!"
+      onSuccess: (res) => res && (window.location.href = res),
     })
   })
 </script>
