@@ -13,6 +13,7 @@ import pytest
 from pyquery import PyQuery as pq
 
 from test_utils import (
+    WEB_TEST_BASE_URL,
     recreate_dynamodb_table,
     get_guest_client,
     get_logged_in_client,
@@ -706,6 +707,24 @@ def test_tags_fragment_endpoint_success(guest_client):
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
+
+
+@pytest.mark.parametrize(("tag_type", "expected_title", "canonical_suffix"), [
+    ("latest", "Latest Tags", "/tags"),
+    ("popular", "Popular Tags", "/tags?type=popular"),
+])
+def test_tags_page_type_is_in_metadata_and_heading(guest_client, tag_type, expected_title, canonical_suffix):
+    response = guest_client.get(f"{WEB_TEST_BASE_URL}/tags?type={tag_type}", timeout=30)
+
+    assert response.status_code == 200
+    doc = pq(response.text)
+    schema = json.loads(doc('script[type="application/ld+json"]').text())
+    assert expected_title in doc("head title").text()
+    assert doc("main h1").text() == expected_title
+    assert expected_title in doc('meta[name="description"]').attr("content")
+    assert schema["name"] == expected_title
+    assert schema["url"].endswith(canonical_suffix)
+    assert doc('link[rel="canonical"]').attr("href").endswith(canonical_suffix)
 
 
 @pytest.mark.parametrize("tag_type", ["latest", "popular"])

@@ -1112,6 +1112,7 @@ def get_jinja2_env():
         "UserQueryType": UserQueryType,
         "UserStatus": UserStatus,
         "ArticleQueryDTO": ArticleQueryDTO,
+        "TagQueryDTO": TagQueryDTO,
         "UserQueryDTO": UserQueryDTO,
         "article_sentiment_rating": article_sentiment_rating,
         "html_to_text": html_to_text,

@@ -135,11 +135,8 @@ custom domain, with no `/api` path prefix.
 - article page: similar articles section shows no the all articles
 - article page: auto append/generate "More Articles to Read" paragraph
 - add tags_url function
-- file uploader with preview + tinymcs image upload with URL
-- popular pages are empty, for example: aws/articles and popular/aws/articles
 - instead of having article slug uniqueness we should have user_id + article slug uniqueness
 - add categories and categories+ pages into sitemap
-- tags pages should include type in meta-title/h1/etc.
 
 ## Links
 
