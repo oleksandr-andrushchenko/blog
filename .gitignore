@@ -24,6 +24,7 @@ env/
 .env.prod
 
 # Custom
+scripts/import_*
 info.txt
 .site-build/
 .code-build/

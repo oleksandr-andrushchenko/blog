@@ -2,6 +2,7 @@ PyYAML
 pytest
 requests
 boto3
+botocore[crt]
 pyquery
 starlette
 Jinja2>=3.1.3
@@ -10,3 +11,4 @@ python-jose
 python-multipart
 filetype
 nh3
+Pillow
