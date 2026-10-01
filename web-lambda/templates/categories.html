@@ -36,7 +36,7 @@
 {% block content %}
     <h1>{{ title }}</h1>
     <p class="text-secondary">Browse articles by system design area.</p>
-    <div class="row row-cols-1 row-cols-lg-2 g-3" id="categories">
+    <div class="{{ {"def": 1, "lg": 2, "xl": 3} | row_classes }} g-3" id="categories">
         {% for category in categories %}
             {% include "fragments/category.html" %}
         {% endfor %}
