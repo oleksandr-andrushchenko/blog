@@ -3,7 +3,7 @@
 API_URL_ROUTES = {
     "upload-public-file": "/public-file",
     "create-article": "/articles",
-    "articles": "/articles",
+    "api-articles": "/articles",
     "article-hrefs": "/articles/hrefs",
     "articles-fragment": "/articles-fragment",
     "article-comments-fragment": "/articles/{article_id}/comments-fragment",
@@ -19,7 +19,7 @@ API_URL_ROUTES = {
     "update-tag": "/tags/{slug}",
     "update-category": "/categories/{slug}",
     "get-categories": "/categories",
-    "tags": "/tags",
+    "api-tags": "/tags",
     "tags-fragment": "/tags-fragment",
     "users-fragment": "/users-fragment",
     "update-user-status": "/users/{user_id}/status",

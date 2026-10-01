@@ -245,7 +245,7 @@ async def articles_fragment(query_dto: ArticleQueryDep, cur_user: OptCurUserDep)
     })
 
 
-@route("get", "articles", response_class=JSONResponse)
+@route("get", "api-articles", response_class=JSONResponse)
 async def _articles(cur_user: OptCurUserDep, request: Request) -> dict[str, str]:
     articles = await asyncio.to_thread(get_all_articles, cur_user)
     return {get_article_url(request, article): article.title for article in articles}
@@ -373,7 +373,7 @@ async def _update_tag(update_tag_dto: UpdateTagDTODep, tag: TagDep,
     return get_tag_url(request, tag)
 
 
-@route("get", "tags", response_class=JSONResponse)
+@route("get", "api-tags", response_class=JSONResponse)
 async def _get_tags(query_dto: TagQueryDep) -> list[Tag]:
     return get_tags(query_dto)
 
