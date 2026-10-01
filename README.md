@@ -139,6 +139,7 @@ custom domain, with no `/api` path prefix.
 - popular pages are empty, for example: aws/articles and popular/aws/articles
 - instead of having article slug uniqueness we should have user_id + article slug uniqueness
 - add categories and categories+ pages into sitemap
+- tags pages should include type in meta-title/h1/etc.
 
 ## Links
 
