@@ -965,6 +965,16 @@ Resources:
       ResourceRecords:
         - '"v=spf1 include:amazonses.com ~all"'
 
+  SesDmarcRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub "_dmarc.${DomainName}"
+      Type: TXT
+      TTL: 300
+      ResourceRecords:
+        - '"v=DMARC1; p=none;"'
+
   ContactFormTopic:
     Type: AWS::SNS::Topic
     Properties:
