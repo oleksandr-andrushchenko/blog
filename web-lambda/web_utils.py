@@ -325,7 +325,6 @@ def parse_articles_url_slugs_path(slugs_path: str) -> dict:
     return data
 
 
-
 def get_article_by_slugs(user_slug: str, article_slug: str, cur_user: User = None) -> Article:
     article = find_article_by_slug_follow_redirects(article_slug)
     if article is None:
@@ -339,7 +338,6 @@ def get_article_by_slugs(user_slug: str, article_slug: str, cur_user: User = Non
     if article.slug != article_slug:
         raise ArticleByOldSlugRequestedError(article_slug, article)
     return article
-
 
 
 def get_user_by_slug(username: str, cur_user: User = None) -> User:
@@ -383,7 +381,6 @@ def _auth_cookie_domain() -> str | None:
     return f".{hostname}"
 
 
-
 def set_token_cookie(token, response):
     response.delete_cookie("token")
     response.set_cookie(
@@ -395,7 +392,6 @@ def set_token_cookie(token, response):
         samesite="lax",
         max_age=get_auth_token_max_age(),
     )
-
 
 
 def drop_token_cookie(response):
