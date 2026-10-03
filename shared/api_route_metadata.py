@@ -30,4 +30,5 @@ API_URL_ROUTES = {
     "user-articles-fragment": "/users/{user_id}/articles-fragment",
     "generate-sitemap": "/generate-sitemap",
     "drop-cdn-cache": "/drop-cdn-cache",
+    "upsert-redirect": "/redirects",
 }

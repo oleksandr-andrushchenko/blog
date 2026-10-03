@@ -8,10 +8,11 @@ from article_dtos import (
 )
 from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO
 from category_dtos import UpdateCategoryDTO
+from redirect_dtos import UpsertRedirectDTO
 from shared_utils import *
 from shared_utils import (
     User, find_article, find_article_by_slug_follow_redirects, find_user_by_username_follow_redirects,
-    Category, Permission, UserStatus, add_dynamodb_update_transact,
+    Category, Permission, Redirect, UserStatus, add_dynamodb_update_transact,
     add_update_category_published_count_transact, get_articles, get_dynamodb_item,
     get_categories, get_static_base_url, get_tags, get_web_base_url, logger,
 )
@@ -47,6 +48,19 @@ class ArticleImageSourceExtractor(HTMLParser):
             if name.lower() == "src" and value is not None:
                 self.sources.append(value)
                 return
+
+
+def upsert_redirect(dto: UpsertRedirectDTO, cur_user: User) -> Redirect:
+    verify_authorization(cur_user, Permission.UPSERT_REDIRECT)
+    if cur_user.status == UserStatus.BANNED:
+        raise UserBannedError()
+
+    get_dynamodb_table().put_item(Item={
+        "pk": f"REDIRECT#{dto.path}",
+        "sk": "META",
+        "redirect_to": dto.redirect_to,
+    })
+    return Redirect(path=dto.path, redirect_to=dto.redirect_to)
 
 
 def _get_internal_article_link(href: str) -> tuple[str, str | None, str] | None:

@@ -89,5 +89,44 @@
                 </section>
             </div>
         {% endif %}
+
+        {% if check_auth(cur_user, Permission.UPSERT_REDIRECT) %}
+            <div class="col">
+                <section class="border rounded p-4 mb-4 bg-light">
+                    <h2 class="h4 mb-2">Upsert Redirect</h2>
+
+                    <p class="small text-muted mb-3">
+                        Permanently redirect a missing page to its current root-relative URL.
+                    </p>
+
+                    <form id="upsert-redirect-form" novalidate>
+                        <div class="mb-3">
+                            <label class="form-label" for="redirect-path">Missing path</label>
+                            <input id="redirect-path" class="form-control" name="path" type="text"
+                                   placeholder="/old-page" maxlength="2048" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="redirect-to">Redirect to</label>
+                            <input id="redirect-to" class="form-control" name="redirect_to" type="text"
+                                   placeholder="/new-page" maxlength="2048" required>
+                        </div>
+                        <button class="btn btn-primary" type="submit">Upsert</button>
+                    </form>
+
+                    <script>
+                      document.addEventListener("DOMContentLoaded", () => {
+                        handleFormSubmit("#upsert-redirect-form", {{ url("upsert-redirect", absolute=True) | tojson }}, {
+                          method: "POST",
+                          successMessage: "Redirect saved.",
+                          rules: {
+                            path: [{rule: "required"}, {rule: "maxLength", value: 2048}],
+                            redirect_to: [{rule: "required"}, {rule: "maxLength", value: 2048}],
+                          },
+                        })
+                      })
+                    </script>
+                </section>
+            </div>
+        {% endif %}
     </div>
 {% endblock %}

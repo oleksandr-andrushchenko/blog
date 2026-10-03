@@ -53,6 +53,7 @@ from api_utils import (
     get_user_tag_subscriptions,
     create_tag_subscription,
     delete_tag_subscription,
+    upsert_redirect,
 )
 from deps import (
     ImageFileDTODep,
@@ -69,6 +70,7 @@ from deps import (
     UpdateCategoryDTODep,
     TagSubscriptionDTODep,
     DropCDNCacheDTODep,
+    UpsertRedirectDTODep,
 )
 from notifications import get_access_log
 from shared_deps import (
@@ -460,3 +462,8 @@ async def _drop_cdn_cache(cur_user: CurUserDep, drop_cache_dto: DropCDNCacheDTOD
 
     success, items_count = drop_cdn_cache(cur_user, drop_cache_dto.paths)
     return {"success": success, "items_count": items_count}
+
+
+@route("post", "upsert-redirect")
+async def _upsert_redirect(cur_user: CurUserDep, redirect_dto: UpsertRedirectDTODep):
+    return upsert_redirect(redirect_dto, cur_user)

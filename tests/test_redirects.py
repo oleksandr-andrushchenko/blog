@@ -4,13 +4,72 @@ import os
 from pathlib import Path
 import sys
 import unittest
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import httpx
 
 project_root = Path(os.environ.get("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(project_root / "shared"))
+sys.path.insert(0, str(project_root / "api-lambda"))
+sys.path.insert(0, str(project_root / "web-lambda"))
 from web import Application, TrailingSlashMiddleware, Request, Response
 from lambda_adapter import _invoke
+import shared_utils
+import api_utils
+from redirect_dtos import UpsertRedirectDTO
+
+
+class StoredRedirectTests(unittest.TestCase):
+    def test_redirect_dto_normalizes_valid_paths(self):
+        dto = UpsertRedirectDTO(path=" /old-page ", redirect_to=" /articles?source=legacy#current ")
+
+        self.assertEqual(dto.path, "/old-page")
+        self.assertEqual(dto.redirect_to, "/articles?source=legacy#current")
+
+    def test_redirect_dto_rejects_files_and_non_relative_urls(self):
+        invalid_values = (
+            {"path": "/old.html", "redirect_to": "/articles"},
+            {"path": "/old-page?source=legacy", "redirect_to": "/articles"},
+            {"path": "/old-page", "redirect_to": "https://example.com/articles"},
+            {"path": "/old-page", "redirect_to": "//example.com/articles"},
+        )
+        for values in invalid_values:
+            with self.subTest(values=values), self.assertRaises(ValueError):
+                UpsertRedirectDTO(**values)
+
+    def test_find_redirect_uses_the_request_path_as_its_key(self):
+        with patch.object(shared_utils, "get_dynamodb_item", return_value={
+            "pk": "REDIRECT#/old-page",
+            "sk": "META",
+            "redirect_to": "/articles",
+        }) as get_item:
+            redirect = shared_utils.find_redirect("/old-page")
+
+        self.assertEqual(redirect, shared_utils.Redirect(path="/old-page", redirect_to="/articles"))
+        get_item.assert_called_once_with("REDIRECT#/old-page", "META")
+
+    def test_find_redirect_returns_none_for_an_unknown_path(self):
+        with patch.object(shared_utils, "get_dynamodb_item", return_value=None):
+            self.assertIsNone(shared_utils.find_redirect("/missing"))
+
+    def test_upsert_redirect_authorizes_and_writes_the_item(self):
+        table = Mock()
+        user = SimpleNamespace(status=shared_utils.UserStatus.ACTIVE)
+        dto = UpsertRedirectDTO(path="/old-page", redirect_to="/articles")
+        with (
+            patch.object(api_utils, "verify_authorization") as verify_authorization,
+            patch.object(api_utils, "get_dynamodb_table", return_value=table),
+        ):
+            redirect = api_utils.upsert_redirect(dto, user)
+
+        verify_authorization.assert_called_once_with(user, shared_utils.Permission.UPSERT_REDIRECT)
+        table.put_item.assert_called_once_with(Item={
+            "pk": "REDIRECT#/old-page",
+            "sk": "META",
+            "redirect_to": "/articles",
+        })
+        self.assertEqual(redirect, shared_utils.Redirect(path="/old-page", redirect_to="/articles"))
 
 
 class TrailingSlashRedirectTests(unittest.TestCase):

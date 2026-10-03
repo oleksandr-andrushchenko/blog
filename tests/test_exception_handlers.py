@@ -1,5 +1,6 @@
 """Exercise both Lambdas' registered exception handlers through ASGI routing."""
 import asyncio
+from contextlib import nullcontext
 import importlib.util
 import json
 import logging
@@ -16,6 +17,7 @@ for directory in ("shared", "api-lambda", "web-lambda"):
 from starlette.exceptions import HTTPException
 from web import Application, Request, Response
 import shared_utils
+from shared_utils import Redirect
 
 
 class ExceptionHandlerTests(unittest.TestCase):
@@ -30,7 +32,7 @@ class ExceptionHandlerTests(unittest.TestCase):
                 spec.loader.exec_module(module)
                 cls.modules.append(module)
 
-    def invoke(self, module, exception, path="/failure", status=200):
+    def invoke(self, module, exception, path="/failure", status=200, redirect=None):
         app = Application()
         app.exception_handlers.update(module.app.exception_handlers)
         app.middleware("http")(module.access_log_middleware)
@@ -74,7 +76,9 @@ class ExceptionHandlerTests(unittest.TestCase):
             }):
                 templates = shared_utils.get_jinja2_env()
             templates.globals["request"] = Request(scope)
-            with patch.object(shared_utils, "jinja2_env", return_value=templates):
+            redirect_lookup = patch.object(module, "find_redirect", return_value=redirect) \
+                if hasattr(module, "find_redirect") else nullcontext()
+            with patch.object(shared_utils, "jinja2_env", return_value=templates), redirect_lookup:
                 try:
                     await app(scope, receive, send)
                 except Exception as raised:
@@ -83,6 +87,25 @@ class ExceptionHandlerTests(unittest.TestCase):
             return messages
 
         return asyncio.run(run())
+
+    def test_web_404_redirects_matching_paths_permanently(self):
+        module = next(module for module in self.modules if module.__name__.startswith("web_"))
+        redirect = Redirect(path="/old-page", redirect_to="/articles?source=legacy#overview")
+
+        messages = self.invoke(module, None, path="/old-page", redirect=redirect)
+
+        self.assertEqual(messages[0]["status"], 308)
+        self.assertEqual(dict(messages[0]["headers"])[b"location"],
+                         b"/articles?source=legacy&token=private-query#overview")
+
+    def test_web_404_does_not_look_up_redirects_for_files(self):
+        module = next(module for module in self.modules if module.__name__.startswith("web_"))
+        redirect = Redirect(path="/missing.css", redirect_to="/styles.css")
+
+        messages = self.invoke(module, None, path="/missing.css", redirect=redirect)
+
+        self.assertEqual(messages[0]["status"], 404)
+        self.assertNotIn(b"location", dict(messages[0]["headers"]))
 
     def assert_response_format(self, module, messages, status):
         headers = dict(messages[0]["headers"])
@@ -182,8 +205,17 @@ class ExceptionHandlerTests(unittest.TestCase):
 
     def test_web_robots_and_sitemap_are_served_for_the_main_domain(self):
         module = next(module for module in self.modules if module.__name__.startswith("web_"))
+        request = Request({
+            "type": "http", "method": "GET", "path": "/robots.txt", "root_path": "",
+            "query_string": b"", "scheme": "https", "server": ("example.com", 443),
+            "client": ("192.0.2.10", 12345), "headers": [(b"host", b"example.com")],
+            "app": module.app,
+        })
 
-        with patch.object(module, "get_static_base_url", return_value="https://static.example.com"):
-            robots = asyncio.run(module.robots_txt())
+        with patch.object(shared_utils, "get_static_base_url", return_value="https://static.example.com"):
+            robots = asyncio.run(module.robots_txt(request))
+            sitemap = asyncio.run(module.sitemap_xml(request))
         self.assertIn(b"Allow: /", robots.body)
         self.assertIn(b"Sitemap: https://static.example.com/sitemap.xml", robots.body)
+        self.assertEqual(sitemap.status_code, 301)
+        self.assertEqual(sitemap.headers["location"], "https://static.example.com/sitemap.xml")

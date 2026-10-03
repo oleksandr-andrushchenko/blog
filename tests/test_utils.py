@@ -124,7 +124,7 @@ def _is_api_request(method: str, url: str) -> bool:
         return path in {
             "/public-file", "/articles", "/contacts/message",
             "/tag-subscriptions",
-            "/generate-sitemap", "/drop-cdn-cache",
+            "/generate-sitemap", "/drop-cdn-cache", "/redirects",
         } or bool(re.fullmatch(r"/articles/[^/]+/(status|impression|comment)", path)) or bool(
             re.fullmatch(r"/users/[^/]+/(status|impression)", path)
         )

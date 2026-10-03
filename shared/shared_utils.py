@@ -146,6 +146,12 @@ class ContactMessage:
     created_at: int
 
 
+@dataclass(slots=True)
+class Redirect:
+    path: str
+    redirect_to: str
+
+
 def sanitize_forbidden_html(value):
     if not value or not isinstance(value, str):
         return value
@@ -357,6 +363,7 @@ class Permission(StrEnum):
     UTILS = "utils"
     GENERATE_SITEMAP = "generate_sitemap"
     DROP_CDN_CACHE = "drop_cdn_cache"
+    UPSERT_REDIRECT = "upsert_redirect"
 
 
 class BaseError(Exception):
@@ -1894,6 +1901,15 @@ def add_dynamodb_delete_transact(
 def get_dynamodb_item(pk: str, sk: str) -> dict[str, Any] | None:
     resp = get_dynamodb_table().get_item(Key={"pk": pk, "sk": sk})
     return resp.get("Item")
+
+
+def redirect_from_dynamodb(path: str, item: dict[str, Any]) -> Redirect:
+    return Redirect(path=path, redirect_to=item["redirect_to"])
+
+
+def find_redirect(path: str) -> Redirect | None:
+    item = get_dynamodb_item(f"REDIRECT#{path}", "META")
+    return redirect_from_dynamodb(path, item) if item else None
 
 
 def get_user(user_id: str, cur_user: User = None) -> User:

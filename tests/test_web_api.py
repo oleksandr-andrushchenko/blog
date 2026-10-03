@@ -1284,8 +1284,32 @@ def test_admin_page_sitemap_and_cache_endpoints_success_and_failure(guest_client
 
     utils_success = get(root_client, "/utils")
     assert utils_success.status_code == 200
+    assert 'id="upsert-redirect-form"' in utils_success.text
     utils_failure = get(guest_client, "/utils")
     assert utils_failure.status_code == 401
+
+    redirect_success = post(root_client, "/redirects", json={
+        "path": "/legacy-page",
+        "redirect_to": "/articles?source=legacy#current",
+    })
+    assert redirect_success.status_code == 200, redirect_success.text
+    assert redirect_success.json() == {
+        "path": "/legacy-page",
+        "redirect_to": "/articles?source=legacy#current",
+    }
+    redirected = get(guest_client, "/legacy-page?campaign=test", allow_redirects=False)
+    assert redirected.status_code == 308
+    assert redirected.headers["location"] == "/articles?source=legacy&campaign=test#current"
+    redirect_failure = post(regular_client, "/redirects", json={
+        "path": "/another-legacy-page",
+        "redirect_to": "/articles",
+    })
+    assert redirect_failure.status_code == 403
+    invalid_redirect = post(root_client, "/redirects", json={
+        "path": "/legacy.html",
+        "redirect_to": "https://example.com/articles",
+    })
+    assert invalid_redirect.status_code == 422
 
     sitemap_success = post(root_client, "/generate-sitemap", json={})
     assert sitemap_success.status_code == 200, sitemap_success.text

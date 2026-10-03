@@ -1,4 +1,5 @@
 import asyncio
+from urllib.parse import urlsplit, urlunsplit
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import PlainTextResponse
@@ -20,7 +21,7 @@ from shared_deps import (
     CategoryDep,
 )
 from shared_utils import (
-    find_category, get_categories, get_category, get_static_base_url, get_static_url, get_tags
+    find_category, find_redirect, get_categories, get_category, get_static_base_url, get_static_url, get_tags
 )
 from web import (
     Application,
@@ -240,7 +241,14 @@ async def access_log_middleware(request: Request, call_next):
 
 
 @app.exception_handler(StarletteHTTPException)
-async def custom_http_exception_handler(_request: Request, exc: StarletteHTTPException):
+async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    if exc.status_code == 404 and request.method in {"GET", "HEAD"} and "." not in request.url.path:
+        redirect = await to_thread(find_redirect, request.url.path)
+        if redirect:
+            parsed_url = urlsplit(redirect.redirect_to)
+            query = "&".join(filter(None, (parsed_url.query, request.url.query)))
+            url = urlunsplit(parsed_url._replace(query=query))
+            return RedirectResponse(url=url, status_code=308)
     return get_error_response(exc.status_code, exc.detail)
 
 
