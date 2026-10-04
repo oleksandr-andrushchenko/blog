@@ -461,18 +461,6 @@ async def articles_page_by_slugs(query_dto: ArticleQueryBySlugsDep, cur_user: Op
     return await _articles_page(query_dto, cur_user)
 
 
-def _legacy_articles_redirect(request: Request) -> RedirectResponse:
-    path = request.url.path
-    if path == "/posts" or path.startswith("/posts/"):
-        path = "/articles" + path[len("/posts"):]
-    elif path == "/post" or path.startswith("/post/"):
-        path = "/articles" + path[len("/post"):]
-    elif path.endswith("/posts"):
-        path = path[:-len("/posts")] + "/articles"
-    url = path + (f"?{request.url.query}" if request.url.query else "")
-    return RedirectResponse(url=url, status_code=308)
-
-
 @route("get", "legacy-posts")
 @route("get", "legacy-singular-articles")
 @route("get", "legacy-new-article")
@@ -483,7 +471,15 @@ def _legacy_articles_redirect(request: Request) -> RedirectResponse:
 @route("get", "legacy-singular-edit-article")
 @route("get", "legacy-posts-by-slugs")
 async def legacy_articles_redirect(request: Request) -> RedirectResponse:
-    return _legacy_articles_redirect(request)
+    path = request.url.path
+    if path == "/posts" or path.startswith("/posts/"):
+        path = "/articles" + path[len("/posts"):]
+    elif path == "/post" or path.startswith("/post/"):
+        path = "/articles" + path[len("/post"):]
+    elif path.endswith("/posts"):
+        path = path[:-len("/posts")] + "/articles"
+    url = path + (f"?{request.url.query}" if request.url.query else "")
+    return RedirectResponse(url=url, status_code=308)
 
 
 @route("get", "contacts", response_class=HTMLResponse)

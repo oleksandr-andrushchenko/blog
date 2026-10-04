@@ -511,7 +511,7 @@ def test_regular_user_can_create_article_comment():
         "comments_count": 0,
     })
 
-    resp = post(comment_user_client, f"/articles/{article_id}/comment", json={
+    resp = post(comment_user_client, f"/articles/{article_id}/comments", json={
         "text": "Regular users should be allowed to comment."
     })
 
@@ -593,16 +593,8 @@ def test_legacy_article_page_urls_redirect_to_articles(guest_client, legacy_path
 @pytest.mark.parametrize(("method", "legacy_path", "article_path"), [
     ("get", "/posts-fragment", "/articles-fragment"),
     ("get", "/users/example-id/posts-fragment", "/users/example-id/articles-fragment"),
-    ("post", "/posts", "/articles"),
-    ("patch", "/posts/example-id", "/articles/example-id"),
-    ("post", "/posts/example-id/status", "/articles/example-id/status"),
-    ("post", "/posts/example-id/impression", "/articles/example-id/impression"),
-    ("post", "/posts/example-id/comment", "/articles/example-id/comment"),
-    ("patch", "/posts/example-id/comments/example-comment-id",
-     "/articles/example-id/comments/example-comment-id"),
     ("get", "/post-tags/example-tag/edit", "/tags/example-tag/edit"),
     ("get", "/post-tags", "/tags"),
-    ("patch", "/post-tags/example-tag", "/tags/example-tag"),
 ])
 def test_legacy_article_endpoint_urls_preserve_method_and_redirect(
         guest_client, method, legacy_path, article_path):
@@ -862,9 +854,9 @@ def test_article_create_and_new_page_endpoints_success_and_failure(guest_client)
     assert article_item["post_category_status_pk"] == "POST#distributed-systems#unpublished"
 
     invalid_links_content = (
-        ARTICLE_CONTENT
-        + '<a href="/@root-functional/missing-article">Missing article</a>'
-        + '<a href="http://web-lambda:5000/@root-functional/missing-article">Missing article again</a>'
+            ARTICLE_CONTENT
+            + '<a href="/@root-functional/missing-article">Missing article</a>'
+            + '<a href="http://web-lambda:5000/@root-functional/missing-article">Missing article again</a>'
     )
     invalid_links = post(root_client, "/articles", json={
         "title": "Article with invalid links",
@@ -962,10 +954,10 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     assert edit_failure.status_code == 403
 
     invalid_links_content = (
-        ARTICLE_CONTENT
-        + '<a href="/rules">Rules one</a>'
-        + '<a href="http://web-lambda:5000/rules">Rules two</a>'
-        + '<a href="/root-functional/missing-article">Missing article</a>'
+            ARTICLE_CONTENT
+            + '<a href="/rules">Rules one</a>'
+            + '<a href="http://web-lambda:5000/rules">Rules two</a>'
+            + '<a href="/root-functional/missing-article">Missing article</a>'
     )
     invalid_links = patch(root_client, f"/articles/{article_id}", json={"content": invalid_links_content})
     assert invalid_links.status_code == 422
@@ -1122,7 +1114,7 @@ def test_article_impression_comment_and_comment_update_endpoints_success_and_fai
     assert impression_failure.status_code == 401
 
     comment_text = "Functional endpoint comment"
-    comment_success = post(regular_client, f"/articles/{article_id}/comment", json={"text": comment_text})
+    comment_success = post(regular_client, f"/articles/{article_id}/comments", json={"text": comment_text})
     assert comment_success.status_code == 200, comment_success.text
     comment_item = next(
         item for item in dynamodb_table.scan()["Items"]
@@ -1131,7 +1123,7 @@ def test_article_impression_comment_and_comment_update_endpoints_success_and_fai
     comment_id = comment_item["id"]
     encoded_comment_id = quote(comment_id, safe="")
     functional_state["comment_id"] = comment_id
-    comment_failure = post(regular_client, f"/articles/{article_id}/comment", json={"text": ""})
+    comment_failure = post(regular_client, f"/articles/{article_id}/comments", json={"text": ""})
     assert comment_failure.status_code == 422
 
     update_success = patch(regular_client, f"/articles/{article_id}/comments/{encoded_comment_id}", json={

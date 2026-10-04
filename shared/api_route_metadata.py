@@ -10,7 +10,7 @@ API_URL_ROUTES = {
     "update-article": "/articles/{article_id}",
     "update-article-status": "/articles/{article_id}/status",
     "update-article-impression": "/articles/{article_id}/impression",
-    "create-article-comment": "/articles/{article_id}/comment",
+    "create-article-comment": "/articles/{article_id}/comments",
     "update-article-comment": "/articles/{article_id}/comments/{comment_id}",
     "create-contact-message": "/contacts/message",
     "tag-subscriptions": "/tag-subscriptions",

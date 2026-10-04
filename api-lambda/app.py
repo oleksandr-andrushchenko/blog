@@ -125,25 +125,6 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def redirect_legacy_api_endpoints(request: Request, call_next):
-    path = request.url.path
-    replacements = (
-        ("/posts", "/articles"),
-        ("/post-tags", "/tags"),
-    )
-    for old, new in replacements:
-        # In the combined local test app, GET /posts belongs to the web
-        # Lambda; API legacy writes still use the redirect below.
-        if old == "/posts" and request.method == "GET":
-            continue
-        if old in path:
-            path = path.replace(old, new, 1)
-            url = path + (f"?{request.url.query}" if request.url.query else "")
-            return RedirectResponse(url=url, status_code=308)
-    return await call_next(request)
-
-
-@app.middleware("http")
 async def add_no_robots_to_api(request: Request, call_next):
     response = await call_next(request)
 
