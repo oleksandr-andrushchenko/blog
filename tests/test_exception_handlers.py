@@ -15,6 +15,7 @@ for directory in ("shared", "api-lambda", "web-lambda"):
     sys.path.insert(0, str(project_root / directory))
 
 from starlette.exceptions import HTTPException
+from app_config import config as app_config
 from web import Application, Request, Response
 import shared_utils
 from shared_utils import Redirect
@@ -24,7 +25,7 @@ class ExceptionHandlerTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.modules = []
-        with patch.dict(os.environ, {"TELEGRAM_LOG_LEVEL": "OFF"}):
+        with patch.dict(app_config, {"telegram_log_level": "OFF"}):
             for service in ("api", "web"):
                 spec = importlib.util.spec_from_file_location(
                     f"{service}_app_exception_tests", project_root / f"{service}-lambda/app.py")
@@ -71,8 +72,8 @@ class ExceptionHandlerTests(unittest.TestCase):
                      "aws_request_id": "request-123"}
             # The harness includes only access logging middleware; supply the renderer with
             # the template paths and request context normally set by the web app.
-            with patch.dict(os.environ, {
-                "FUNCTION_TEMPLATES_DIR": str(project_root / "web-lambda/templates"),
+            with patch.dict(app_config, {
+                "function_templates_dir": str(project_root / "web-lambda/templates"),
             }):
                 templates = shared_utils.get_jinja2_env()
             templates.globals["request"] = Request(scope)
@@ -212,7 +213,7 @@ class ExceptionHandlerTests(unittest.TestCase):
             "app": module.app,
         })
 
-        with patch.object(shared_utils, "get_static_base_url", return_value="https://static.example.com"):
+        with patch.object(shared_utils.app_config, "get_static_base_url", return_value="https://static.example.com"):
             robots = asyncio.run(module.robots_txt(request))
             sitemap = asyncio.run(module.sitemap_xml(request))
         self.assertIn(b"Allow: /", robots.body)

@@ -1,3 +1,4 @@
+from app_config import is_prod
 from api_utils import (
     ArticleCommentDTO,
     ArticleDTO,
@@ -17,7 +18,6 @@ from api_utils import (
     create_tag_subscription,
     find_tag,
     get_dummy_user_token,
-    is_prod,
     update_article_impression,
     update_article_status,
     update_dynamodb_item,

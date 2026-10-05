@@ -1,6 +1,9 @@
 import asyncio
 from urllib.parse import urlsplit, urlunsplit
 
+from app_config import (
+    get_allowed_origins, get_indexnow_key, get_static_base_url, get_static_files_dir, is_prod,
+)
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import PlainTextResponse
 from starlette.routing import Match
@@ -20,9 +23,7 @@ from shared_deps import (
     TagQueryDep,
     CategoryDep,
 )
-from shared_utils import (
-    find_category, find_redirect, get_categories, get_category, get_static_base_url, get_static_url, get_tags
-)
+from shared_utils import find_category, find_redirect, get_categories, get_category, get_static_url, get_tags
 from web import (
     Application,
     Request,
@@ -48,7 +49,6 @@ from web_utils import (
     to_thread,
     ArticleQueryDTO,
     ArticleCommentQueryDTO,
-    is_prod,
     InvalidTokenError,
     InvalidCodeError,
     CodeExchangeFailedError,
@@ -75,10 +75,8 @@ from web_utils import (
     find_user_impression,
     get_user_url,
     NotAuthenticatedError,
-    get_static_files_dir,
     UserStatus,
     UserBannedError,
-    get_allowed_origins,
     get_redirect_url,
     should_show_popular_articles,
     get_article_related_articles,
@@ -117,6 +115,13 @@ async def sitemap_xml(request: Request):
         url=get_static_url(request, "sitemap.xml"),
         status_code=301,
     )
+
+
+indexnow_key = get_indexnow_key()
+if indexnow_key:
+    @app.get(f"/{indexnow_key}.txt", name="indexnow-key")
+    async def indexnow_key_file():
+        return PlainTextResponse(indexnow_key)
 
 
 @app.get("/favicon.ico", name="web-favicon")
@@ -166,6 +171,7 @@ async def redirect_legacy_static_files(request: Request, call_next):
             and request.method in {"GET", "HEAD"}
             and "." in path
             and path != "/robots.txt"
+            and path != f"/{indexnow_key}.txt"
     ):
         url = f"{static_base_url.rstrip('/')}{path}"
         if request.url.query:

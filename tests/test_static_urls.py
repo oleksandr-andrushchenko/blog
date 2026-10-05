@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import shared_utils
+from app_config import config
 from web import Application, Request
 from web_route_metadata import WEB_URL_ROUTES
 
@@ -24,7 +25,7 @@ def request_with_static_route():
 
 def test_static_base_url_is_used_for_relative_and_absolute_requests():
     request = request_with_static_route()
-    with patch.dict(shared_utils.config, {"static_base_url": "https://static.example.com"}):
+    with patch.dict(config, {"static_base_url": "https://static.example.com"}):
         expected = "https://static.example.com/styles.css?_=42"
         assert shared_utils.get_static_url(request, "styles.css", _=42) == expected
         assert shared_utils.get_static_url(request, "styles.css", absolute=True, _=42) == expected

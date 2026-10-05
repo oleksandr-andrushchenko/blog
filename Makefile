@@ -50,6 +50,12 @@ TELEGRAM_LOG_LEVEL := $(shell sed -n "s/^TELEGRAM_LOG_LEVEL=//p" $(PROD_ENV_FILE
 NOTIFICATION_EMAIL := $(shell sed -n "s/^NOTIFICATION_EMAIL=//p" $(PROD_ENV_FILE) 2>/dev/null)
 NOTIFICATION_PHONE := $(shell sed -n "s/^NOTIFICATION_PHONE=//p" $(PROD_ENV_FILE) 2>/dev/null)
 GOOGLE_ANALYTICS_ID := $(shell sed -n "s/^GOOGLE_ANALYTICS_ID=//p" $(PROD_ENV_FILE) 2>/dev/null)
+INDEXNOW_KEY := $(shell sed -n "s/^INDEXNOW_KEY=//p" $(PROD_ENV_FILE) 2>/dev/null)
+GOOGLE_SEARCH_CONSOLE_SITE_URL := $(shell sed -n "s/^GOOGLE_SEARCH_CONSOLE_SITE_URL=//p" $(PROD_ENV_FILE) 2>/dev/null)
+BING_WEBMASTER_API_KEY := $(shell sed -n "s/^BING_WEBMASTER_API_KEY=//p" $(PROD_ENV_FILE) 2>/dev/null)
+YANDEX_WEBMASTER_OAUTH_TOKEN := $(shell sed -n "s/^YANDEX_WEBMASTER_OAUTH_TOKEN=//p" $(PROD_ENV_FILE) 2>/dev/null)
+YANDEX_WEBMASTER_USER_ID := $(shell sed -n "s/^YANDEX_WEBMASTER_USER_ID=//p" $(PROD_ENV_FILE) 2>/dev/null)
+YANDEX_WEBMASTER_HOST_ID := $(shell sed -n "s/^YANDEX_WEBMASTER_HOST_ID=//p" $(PROD_ENV_FILE) 2>/dev/null)
 GOOGLE_OAUTH_CLIENT_ID := $(shell sed -n "s/^GOOGLE_OAUTH_CLIENT_ID=//p" $(PROD_ENV_FILE) 2>/dev/null)
 GOOGLE_OAUTH_CLIENT_SECRET := $(shell sed -n "s/^GOOGLE_OAUTH_CLIENT_SECRET=//p" $(PROD_ENV_FILE) 2>/dev/null)
 TINYMCE_API_KEY := $(shell sed -n "s/^TINYMCE_API_KEY=//p" $(PROD_ENV_FILE) 2>/dev/null)
@@ -215,6 +221,12 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 			NotificationEmail="$(NOTIFICATION_EMAIL)" \
 			NotificationPhone="$(NOTIFICATION_PHONE)" \
 			GoogleAnalyticsId="$(GOOGLE_ANALYTICS_ID)" \
+			IndexNowKey="$(INDEXNOW_KEY)" \
+			GoogleSearchConsoleSiteUrl="$(GOOGLE_SEARCH_CONSOLE_SITE_URL)" \
+			BingWebmasterApiKey="$(BING_WEBMASTER_API_KEY)" \
+			YandexWebmasterOauthToken="$(YANDEX_WEBMASTER_OAUTH_TOKEN)" \
+			YandexWebmasterUserId="$(YANDEX_WEBMASTER_USER_ID)" \
+			YandexWebmasterHostId="$(YANDEX_WEBMASTER_HOST_ID)" \
 			GoogleOauthClientId="$(GOOGLE_OAUTH_CLIENT_ID)" \
 			GoogleOauthClientSecret="$(GOOGLE_OAUTH_CLIENT_SECRET)" \
 			TinyMceApiKey="$(TINYMCE_API_KEY)" \

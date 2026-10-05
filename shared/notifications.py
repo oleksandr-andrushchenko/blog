@@ -3,9 +3,10 @@
 import copy
 import json
 import logging
-import os
 import sys
 from urllib.request import Request, urlopen
+
+from app_config import get_telegram_bot_token, get_telegram_chat_id, get_telegram_log_level
 
 
 def get_access_log(request, status: int) -> tuple[int, str]:
@@ -31,8 +32,7 @@ class TelegramFormatter(logging.Formatter):
     """Include only the log record's context as JSON alongside the message."""
 
     def format(self, record):
-        # shared_utils imports this module to configure its logger.
-        from shared_utils import config
+        from app_config import get_config
 
         record = copy.copy(record)
         record.exc_text = None  # Another handler may already have formatted it.
@@ -47,7 +47,7 @@ class TelegramFormatter(logging.Formatter):
             bullet = "🔵"
         else:
             bullet = "⚪"
-        return f"{bullet} [{config.get('app_stage')}] {text} {context}"
+        return f"{bullet} [{get_config().get('app_stage')}] {text} {context}"
 
 
 class TelegramHandler(logging.Handler):
@@ -88,9 +88,9 @@ def configure_telegram_logging(logger):
     """Attach once at startup to the app logger, leaving third-party logs alone."""
     if any(isinstance(handler, TelegramHandler) for handler in logger.handlers):
         return
-    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-    level_name = os.environ.get("TELEGRAM_LOG_LEVEL", "INFO").upper()
+    token = get_telegram_bot_token()
+    chat_id = get_telegram_chat_id()
+    level_name = get_telegram_log_level()
     if not token or not chat_id or level_name == "OFF":
         return
     levels = {name: getattr(logging, name) for name in

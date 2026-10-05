@@ -53,6 +53,29 @@ Parameters:
   GoogleAnalyticsId:
     Type: String
     Description: Google Analytics tracking ID (e.g. UA-XXXXX-Y)
+  IndexNowKey:
+    Type: String
+    Description: IndexNow ownership key (8-128 letters, numbers, or dashes)
+    Default: ''
+    AllowedPattern: '^$|^[A-Za-z0-9-]{8,128}$'
+  GoogleSearchConsoleSiteUrl:
+    Type: String
+    Description: Search Console property URL (defaults to the web URL)
+    Default: ''
+  BingWebmasterApiKey:
+    Type: String
+    Default: ''
+    NoEcho: true
+  YandexWebmasterOauthToken:
+    Type: String
+    Default: ''
+    NoEcho: true
+  YandexWebmasterUserId:
+    Type: String
+    Default: ''
+  YandexWebmasterHostId:
+    Type: String
+    Default: ''
   GoogleOauthClientId:
     Type: String
     Description: Google OAuth Client ID for Cognito Identity Provider
@@ -86,6 +109,22 @@ Parameters:
     Description: S3 key of the image Lambda zip file
 
 Resources:
+  GoogleSearchConsoleCredentialsSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    Properties:
+      Name: !Sub "${AWS::StackName}/google-search-console-credentials"
+      Description: Google service account JSON for Search Console sitemap submission
+      Tags:
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Region
+          Value: !Ref AWS::Region
+
   SiteBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
@@ -381,6 +420,14 @@ Resources:
                 Action:
                   - ses:SendEmail
                 Resource: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${DomainName}"
+        - PolicyName: GoogleSearchConsoleCredentialsPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref GoogleSearchConsoleCredentialsSecret
       Tags:
         - Key: Stage
           Value: !Ref Stage
@@ -513,6 +560,7 @@ Resources:
           STATIC_BASE_URL: !Sub "https://static.${DomainName}"
           DYNAMODB_TABLE: !Ref DynamoDBTable
           GOOGLE_ANALYTICS_ID: !Ref GoogleAnalyticsId
+          INDEXNOW_KEY: !Ref IndexNowKey
           TINYMCE_API_KEY: !Ref TinyMceApiKey
           CONTACT_TOPIC_ARN: !Ref ContactFormTopic
           ALLOWED_ORIGIN: !Sub "https://${DomainName}"
@@ -565,6 +613,13 @@ Resources:
           STATIC_S3_BUCKET: !Ref SiteBucket
           AUTH_JWT_SECRET: !Ref AuthJwtSecret
           CLOUDFRONT_DISTRIBUTION_ID: !Ref CloudFrontDistribution
+          INDEXNOW_KEY: !Ref IndexNowKey
+          GOOGLE_SEARCH_CONSOLE_CREDENTIALS_SECRET_ARN: !Ref GoogleSearchConsoleCredentialsSecret
+          GOOGLE_SEARCH_CONSOLE_SITE_URL: !Ref GoogleSearchConsoleSiteUrl
+          BING_WEBMASTER_API_KEY: !Ref BingWebmasterApiKey
+          YANDEX_WEBMASTER_OAUTH_TOKEN: !Ref YandexWebmasterOauthToken
+          YANDEX_WEBMASTER_USER_ID: !Ref YandexWebmasterUserId
+          YANDEX_WEBMASTER_HOST_ID: !Ref YandexWebmasterHostId
       Code:
         S3Bucket: !Sub "${AWS::StackName}-code"
         S3Key: !Ref ApiFuncS3Key
@@ -1042,6 +1097,9 @@ Resources:
           Value: !Ref AWS::Region
 
 Outputs:
+  GoogleSearchConsoleCredentialsSecretArn:
+    Value: !Ref GoogleSearchConsoleCredentialsSecret
+    Description: ARN of the empty secret to populate with Google service account JSON
   WebCertificateArn:
     Value: !Ref WebCertificate
     Description: ARN of the regional Web API Gateway certificate

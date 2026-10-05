@@ -2,6 +2,11 @@ from dataclasses import replace
 from html.parser import HTMLParser
 from urllib.parse import unquote, urlparse
 
+from app_config import (
+    get_aws_region, get_cloudfront_distribution_id, get_config, get_contact_topic_arn,
+    get_email_files_dir, get_ses_from_email, get_static_base_url,
+    get_static_files_dir, get_static_s3_bucket, get_web_base_url, is_prod,
+)
 from article_dtos import (
     ArticleCommentDTO, ArticleDTO, UpdateArticleCommentDTO, UpdateArticleDTO, UpdateArticleImpressionDTO,
     UpdateArticleStatusDTO, UpdateTagDTO,
@@ -9,19 +14,20 @@ from article_dtos import (
 from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO
 from category_dtos import UpdateCategoryDTO
 from redirect_dtos import UpsertRedirectDTO
+from search_engine_submissions import notify_search_engines, submit_sitemap_to_search_engines
 from shared_utils import *
 from shared_utils import (
     User, find_article, find_article_by_slug_follow_redirects, find_user_by_username_follow_redirects,
     Category, Permission, Redirect, UserStatus, add_dynamodb_update_transact,
     add_update_category_published_count_transact, get_articles, get_dynamodb_item,
-    get_categories, get_static_base_url, get_tags, get_web_base_url, logger,
+    get_categories, get_tags, logger,
 )
 from tag_subscription_dtos import TagSubscriptionDTO
-from validation import validate_category_slug
 from user_dtos import (
     UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO,
     UserImpressionAction,
 )
+from validation import validate_category_slug
 from web import RequestValidationError
 
 
@@ -229,7 +235,7 @@ def _drop_cdn_cache(*urls) -> dict[str, Any]:
         }
 
     client = _get_cf_client()
-    distribution_id = get_cf_distribution_id()
+    distribution_id = get_cloudfront_distribution_id()
     response = client.create_invalidation(
         DistributionId=distribution_id,
         InvalidationBatch={
@@ -355,12 +361,7 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
     if is_prod():
         safe_execute("CF invalidation", _drop_cdn_cache, ["/sitemap.xml"])
 
-    # Notify engines
-    if is_prod():
-        import httpx
-        with httpx.Client(timeout=5.0) as client:
-            safe_execute("Google SM notify", client.get, "https://www.google.com/ping", params={"sitemap": sitemap_url})
-            safe_execute("Bing SM notify", client.get, "https://www.bing.com/ping", params={"sitemap": sitemap_url})
+    safe_execute("Sitemap submission", submit_sitemap_to_search_engines, sitemap_url)
 
     return len(urls), sitemap_url
 
@@ -748,6 +749,13 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
         if hasattr(article, k):
             setattr(article, k, v)
 
+    if article.status == ArticleStatus.PUBLISHED:
+        safe_execute(
+            "Search engine notification",
+            notify_search_engines,
+            get_article_url(req, article, absolute=True),
+        )
+
 
 def create_article_comment(article: Article, article_comment_dto: ArticleCommentDTO, cur_user: User,
                            req) -> ArticleComment:
@@ -1026,6 +1034,11 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
             dispatch_article_published_event(article)
         except Exception:
             logger.exception("Unable to dispatch article published event")
+        safe_execute(
+            "Search engine notification",
+            notify_search_engines,
+            get_article_url(req, article, absolute=True),
+        )
 
 
 def create_contact_message(message_dto: ContactMessageDTO, user: User = None) -> ContactMessage:
@@ -1211,22 +1224,6 @@ def update_user_impression(user: User, update_relation_dto: UpdateUserImpression
     dynamodb_transact_write(transacts)
 
 
-def get_email_files_dir() -> str:
-    return config.get("email_files_dir")
-
-
-def get_static_s3_bucket() -> str:
-    return os.getenv("STATIC_S3_BUCKET")
-
-
-def get_contact_topic_arn():
-    return get_config().get("contact_topic_arn")
-
-
-def get_ses_from_email():
-    return get_config().get("ses_from_email")
-
-
 def dispatch_article_published_event(article: Article) -> None:
     handle_article_published_event(ArticlePublishedEvent(article))
 
@@ -1334,10 +1331,6 @@ def handle_article_published_event(event: ArticlePublishedEvent) -> None:
                 "Unable to send article publication notification",
                 extra={"user_id": user_id, "article_id": article.id},
             )
-
-
-def get_cf_distribution_id() -> str:
-    return os.getenv("CLOUDFRONT_DISTRIBUTION_ID")
 
 
 @lru_cache

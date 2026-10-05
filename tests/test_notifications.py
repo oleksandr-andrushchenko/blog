@@ -11,15 +11,16 @@ from unittest.mock import patch
 project_root = Path(os.environ.get("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(project_root / "shared"))
 import notifications
+from app_config import config as app_config
 
 
 class NotificationTests(unittest.TestCase):
     def setUp(self):
-        self.env = patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": "bot-secret",
-                                         "TELEGRAM_CHAT_ID": "-123",
-                                         "TELEGRAM_LOG_LEVEL": "INFO"})
-        self.env.start()
-        self.addCleanup(self.env.stop)
+        self.config = patch.dict(app_config, {"telegram_bot_token": "bot-secret",
+                                             "telegram_chat_id": "-123",
+                                             "telegram_log_level": "INFO"})
+        self.config.start()
+        self.addCleanup(self.config.stop)
         self.logger = logging.getLogger("telegram_test")
         self.logger.handlers = []
         self.logger.propagate = False
@@ -33,7 +34,7 @@ class NotificationTests(unittest.TestCase):
                 self.logger.handlers.clear()
                 send.reset_mock()
                 send.side_effect = lambda *a, **k: io.BytesIO(b'{"ok":true}')
-                with patch.dict(os.environ, {"TELEGRAM_LOG_LEVEL": threshold}):
+                with patch.dict(app_config, {"telegram_log_level": threshold}):
                     notifications.configure_telegram_logging(self.logger)
                     notifications.configure_telegram_logging(self.logger)
                 self.assertEqual(len(self.logger.handlers), 1)
@@ -43,9 +44,9 @@ class NotificationTests(unittest.TestCase):
 
     @patch("notifications.urlopen")
     def test_disabled_and_invalid(self, send):
-        for config in [{"TELEGRAM_BOT_TOKEN": ""}, {"TELEGRAM_CHAT_ID": ""},
-                       {"TELEGRAM_LOG_LEVEL": "OFF"}, {"TELEGRAM_LOG_LEVEL": "INVALID"}]:
-            with patch.dict(os.environ, config), patch("sys.stderr", new=io.StringIO()):
+        for config in [{"telegram_bot_token": ""}, {"telegram_chat_id": ""},
+                       {"telegram_log_level": "OFF"}, {"telegram_log_level": "INVALID"}]:
+            with patch.dict(app_config, config), patch("sys.stderr", new=io.StringIO()):
                 notifications.configure_telegram_logging(self.logger)
                 self.assertFalse(self.logger.handlers)
         send.assert_not_called()
@@ -65,7 +66,7 @@ class NotificationTests(unittest.TestCase):
     @patch("notifications.urlopen")
     def test_payload_bullet_matches_log_level(self, send):
         send.side_effect = lambda *a, **k: io.BytesIO(b'{"ok":true}')
-        with patch.dict(os.environ, {"TELEGRAM_LOG_LEVEL": "DEBUG"}):
+        with patch.dict(app_config, {"telegram_log_level": "DEBUG"}):
             notifications.configure_telegram_logging(self.logger)
 
         for level, bullet in [
@@ -124,7 +125,7 @@ class NotificationTests(unittest.TestCase):
         handler = logging.StreamHandler(console)
         handler.setLevel(logging.INFO)
         self.logger.addHandler(handler)
-        with patch.dict(os.environ, {"TELEGRAM_LOG_LEVEL": "DEBUG"}):
+        with patch.dict(app_config, {"telegram_log_level": "DEBUG"}):
             notifications.configure_telegram_logging(self.logger)
         send.return_value = io.BytesIO(b'{"ok":true}')
         logging.getLogger("telegram_test.child").debug("Child debug")

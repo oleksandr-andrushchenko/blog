@@ -1,5 +1,6 @@
 import asyncio
 
+from app_config import get_allowed_origins
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import PlainTextResponse
 
@@ -41,7 +42,6 @@ from api_utils import (
     NotAuthenticatedError,
     update_user_status,
     UserBannedError,
-    get_allowed_origins,
     find_article,
     create_article_comment,
     get_article_comments,

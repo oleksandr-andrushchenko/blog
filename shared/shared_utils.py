@@ -17,12 +17,13 @@ from decimal import Decimal
 from enum import StrEnum
 from functools import lru_cache, partial
 from html import unescape
-from pathlib import Path
 from typing import Callable, TypeVar, Any
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
 from jinja2 import Environment, FileSystemLoader, pass_context, select_autoescape
+
+import app_config
 
 from api_route_metadata import API_URL_ROUTES
 from article_dtos import (ArticleCommentImpressionAction, ArticleImpressionAction)
@@ -274,6 +275,7 @@ class Article:
     is_premium: bool | None
     offset: str | None
 
+
 @dataclass(slots=True)
 class ArticlePublishedEvent:
     article: Article
@@ -462,117 +464,6 @@ class UserByOldSlugRequestedError(Exception):
         self.user = user
 
 
-def get_live_config():
-    return {
-        "app_stage": os.getenv("APP_STAGE"),
-        "app_env": os.getenv("APP_ENV"),
-        "app_debug": os.getenv("APP_DEBUG"),
-        "app_secret": os.getenv("APP_SECRET"),
-        "web_base_url": os.getenv("WEB_BASE_URL"),
-        "api_base_url": os.getenv("API_BASE_URL"),
-        "static_base_url": os.getenv("STATIC_BASE_URL"),
-        "aws_region": os.getenv("AWS_REGION"),
-        "dynamodb_endpoint": os.getenv("DYNAMODB_ENDPOINT"),
-        "dynamodb_table": os.getenv("DYNAMODB_TABLE"),
-        "google_analytics_id": os.getenv("GOOGLE_ANALYTICS_ID"),
-        "tinymce_api_key": os.getenv("TINYMCE_API_KEY"),
-        "contact_topic_arn": os.getenv("CONTACT_TOPIC_ARN"),
-        "ses_from_email": os.getenv("SES_FROM_EMAIL"),
-        "allowed_origin": os.getenv("ALLOWED_ORIGIN"),
-        "cognito_domain": os.getenv("COGNITO_DOMAIN"),
-        "cognito_client_id": os.getenv("COGNITO_CLIENT_ID"),
-        "cognito_client_secret": os.getenv("COGNITO_CLIENT_SECRET"),
-        "cognito_user_pool_id": os.getenv("COGNITO_USER_POOL_ID"),
-        "email_files_dir": os.getenv("EMAIL_FILES_DIR", "/app-emails"),
-        "static_files_dir": os.getenv("STATIC_FILES_DIR", "/app-static"),
-        "css_cache_counter": os.getenv("CSS_CACHE_COUNTER", 0),
-        "js_cache_counter": os.getenv("JS_CACHE_COUNTER", 0),
-        "auth_token_max_age": os.getenv("AUTH_TOKEN_MAX_AGE", 86_400 * 7),
-        "auth_jwt_secret": os.getenv("AUTH_JWT_SECRET"),
-        "permission_hierarchy": {
-            Permission.REGULAR: [
-                Permission.UPDATE_USER_IMPRESSION,
-                Permission.CREATE_ARTICLE,
-                Permission.UPDATE_ARTICLE_IMPRESSION,
-                Permission.CREATE_ARTICLE_COMMENT,
-                Permission.CREATE_CONTACT_MESSAGE,
-            ],
-            Permission.ROOT: [
-                Permission.ALL
-            ],
-        },
-        "default_avatar_colors": {
-            "A": "#F44336",  # Red
-            "B": "#E91E63",  # Pink
-            "C": "#9C27B0",  # Purple
-            "D": "#673AB7",  # Deep Purple
-            "E": "#3F51B5",  # Indigo
-            "F": "#2196F3",  # Blue
-            "G": "#03A9F4",  # Light Blue
-            "H": "#00BCD4",  # Cyan
-            "I": "#009688",  # Teal
-            "J": "#4CAF50",  # Green
-            "K": "#8BC34A",  # Light Green
-            "L": "#CDDC39",  # Lime
-            "M": "#FFEB3B",  # Yellow
-            "N": "#FFC107",  # Amber
-            "O": "#FF9800",  # Orange
-            "P": "#FF5722",  # Deep Orange
-            "Q": "#795548",  # Brown
-            "R": "#9E9E9E",  # Grey
-            "S": "#607D8B",  # Blue Grey
-            "T": "#FF1744",  # Bright Red
-            "U": "#D500F9",  # Bright Purple
-            "V": "#00E676",  # Bright Green
-            "W": "#00B0FF",  # Bright Cyan
-            "X": "#FFD600",  # Bright Yellow
-            "Y": "#FF6D00",  # Bright Orange
-            "Z": "#C51162"  # Bright Pink
-        },
-        **json.load(open(Path(__file__).with_name("data.default.json"))),
-        **json.load(open(Path(__file__).with_name("data.json")))
-    }
-
-
-config = get_live_config()
-
-
-def is_prod():
-    return config.get("app_stage") == "prod"
-
-
-def get_config():
-    return config
-
-
-def get_static_files_dir() -> str:
-    return config.get("static_files_dir") or ""
-
-
-def get_web_base_url() -> str:
-    return get_config().get("web_base_url") or ""
-
-
-def get_api_base_url() -> str:
-    return get_config().get("api_base_url") or ""
-
-
-def get_static_base_url() -> str:
-    return get_config().get("static_base_url") or ""
-
-
-def get_aws_region():
-    return get_config().get("aws_region")
-
-
-def get_dynamodb_endpoint():
-    return get_config().get("dynamodb_endpoint")
-
-
-def get_dynamodb_table_name():
-    return get_config().get("dynamodb_table")
-
-
 def tag_subscription_key(tags: list[str]) -> str:
     return "#".join(sorted(set(sanitize_tags(tags))))
 
@@ -596,40 +487,6 @@ def get_user_tag_subscription_for_tags(user: User, tags: list[str]) -> TagSubscr
     return next((item for item in get_user_tag_subscriptions(user) if item.key == wanted), None)
 
 
-def get_allowed_origins() -> list[str]:
-    return [
-        get_config().get("allowed_origin"),
-    ]
-
-
-def get_cognito_domain():
-    return get_config().get("cognito_domain")
-
-
-def get_cognito_client_id():
-    return get_config().get("cognito_client_id")
-
-
-def get_cognito_client_secret():
-    return get_config().get("cognito_client_secret")
-
-
-def get_cognito_user_pool_id():
-    return get_config().get("cognito_user_pool_id")
-
-
-def get_permission_hierarchy() -> dict[str, list[str]]:
-    return get_config().get("permission_hierarchy")
-
-
-def get_auth_token_max_age() -> int:
-    return get_config().get("auth_token_max_age")
-
-
-def get_auth_jwt_secret() -> str:
-    return get_config().get("auth_jwt_secret")
-
-
 class Lazy:
     def __init__(self, factory: Callable):
         self._factory = factory
@@ -651,7 +508,7 @@ def verify_authorization(
     """
     Verify if user has access to perform action requiring `permission`.
     """
-    hierarchy = hierarchy or get_permission_hierarchy()
+    hierarchy = hierarchy or app_config.get_permission_hierarchy()
 
     # Owner check
     if resource:
@@ -754,7 +611,7 @@ def dynamodb_transact_write(transacts: list[dict[str, Any]]):
 def get_logger():
     lg = logging.getLogger("app")
     if not lg.handlers:
-        lg.setLevel(logging.INFO if is_prod() else logging.DEBUG)
+        lg.setLevel(logging.INFO if app_config.is_prod() else logging.DEBUG)
         handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(
             "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
@@ -951,7 +808,7 @@ def get_url(req, name: str, absolute: bool = False, **params) -> str:
             url_path = f"{url_path}?{urlencode(items)}"
 
     if absolute:
-        base_url = get_api_base_url() if name in API_URL_ROUTES else get_web_base_url()
+        base_url = app_config.get_api_base_url() if name in API_URL_ROUTES else app_config.get_web_base_url()
         return f"{base_url.rstrip("/")}{url_path}"
 
     return url_path
@@ -959,7 +816,7 @@ def get_url(req, name: str, absolute: bool = False, **params) -> str:
 
 def get_static_url(req, filename, **params) -> str:
     absolute = params.pop("absolute", False)
-    static_base_url = get_static_base_url()
+    static_base_url = app_config.get_static_base_url()
     if static_base_url:
         url_path = get_url(req, "static-file", filename=filename, **params)
         return f"{static_base_url.rstrip('/')}{url_path}"
@@ -1081,14 +938,14 @@ def jinja2_render_article_content(ctx, content):
 
 def get_jinja2_env():
     shared_templates_dir = os.path.join(os.path.dirname(__file__), "templates")
-    function_templates_dir = os.getenv("FUNCTION_TEMPLATES_DIR", "")
+    function_templates_dir = app_config.get_function_templates_dir()
     templates_dirs = [path for path in function_templates_dir.split(os.pathsep) if path]
     templates_dirs.append(shared_templates_dir)
     jinja2_env = Environment(
         loader=FileSystemLoader(templates_dirs),
         trim_blocks=True,
         lstrip_blocks=True,
-        auto_reload=not is_prod(),
+        auto_reload=not app_config.is_prod(),
         autoescape=select_autoescape(("html", "htm", "xml"))
     )
     jinja2_env.filters.update({
@@ -1099,7 +956,7 @@ def get_jinja2_env():
         "row_classes": jinja2_row_classes,
         "order_classes": jinja2_order_classes,
     })
-    jinja2_env.globals.update(get_config())
+    jinja2_env.globals.update(app_config.get_config())
     jinja2_env.globals.update({
         "static_url": jinja2_static_url,
         "render_article_content": jinja2_render_article_content,
@@ -1134,16 +991,16 @@ jinja2_env = Lazy(get_jinja2_env)
 @lru_cache
 def get_dynamodb_resource():
     import boto3
-    args = {} if is_prod() else {
-        "region_name": get_aws_region(),
-        "endpoint_url": get_dynamodb_endpoint(),
+    args = {} if app_config.is_prod() else {
+        "region_name": app_config.get_aws_region(),
+        "endpoint_url": app_config.get_dynamodb_endpoint(),
     }
     return boto3.resource("dynamodb", **args)
 
 
 @lru_cache
 def get_dynamodb_table():
-    return get_dynamodb_resource().Table(get_dynamodb_table_name())
+    return get_dynamodb_resource().Table(app_config.get_dynamodb_table_name())
 
 
 def get_html_content(template: str, data: dict[str, Any]) -> str:
@@ -1368,7 +1225,7 @@ def get_user_token_by_auth_jwt_token(token: str | None) -> UserTokenDTO | None:
     try:
         payload = jwt.decode(
             token,
-            get_auth_jwt_secret(),
+            app_config.get_auth_jwt_secret(),
             algorithms=["HS256"],
             options={"verify_aud": False}
         )
@@ -1512,7 +1369,7 @@ def add_increase_tags_rating_transact(transacts: list, tags: list, now):
     for tag in tags:
         transacts.append({
             "Update": {
-                "TableName": get_dynamodb_table_name(),
+                "TableName": app_config.get_dynamodb_table_name(),
                 "Key": {
                     "pk": f"POST_TAG#{tag}",
                     "sk": "META"
@@ -1553,7 +1410,7 @@ def add_decrease_tags_rating_transact(transacts: list, tags: list, now):
     for tag in tags:
         transacts.append({
             "Update": {
-                "TableName": get_dynamodb_table_name(),
+                "TableName": app_config.get_dynamodb_table_name(),
                 "Key": {
                     "pk": f"POST_TAG#{tag}",
                     "sk": "META"
@@ -1581,7 +1438,7 @@ def add_update_category_published_count_transact(transacts: list, category_slug:
     default_count = 0 if delta > 0 else 1
     transacts.append({
         "Update": {
-            "TableName": get_dynamodb_table_name(),
+            "TableName": app_config.get_dynamodb_table_name(),
             "Key": {"pk": "CATEGORY", "sk": category_slug},
             "UpdateExpression": (
                 "SET #published_articles_count = "
@@ -1737,7 +1594,7 @@ def build_dynamodb_put_item_params(
 
     pk, sk = key
     params = {
-        "TableName": get_dynamodb_table_name(),
+        "TableName": app_config.get_dynamodb_table_name(),
         "Item": {
             **values,
             "pk": pk,
@@ -1818,7 +1675,7 @@ def build_dynamodb_update_item_params(
 
     return {
         "Update": {
-            "TableName": get_dynamodb_table_name(),
+            "TableName": app_config.get_dynamodb_table_name(),
             "Key": {"pk": pk, "sk": sk},
             "UpdateExpression": update_expr,
             "ExpressionAttributeNames": expr_attr_names,
@@ -1880,7 +1737,7 @@ def build_dynamodb_delete_item_params(key: tuple[str, str]) -> dict[str, Any]:
 
     return {
         "Delete": {
-            "TableName": get_dynamodb_table_name(),
+            "TableName": app_config.get_dynamodb_table_name(),
             "Key": {
                 "pk": pk,
                 "sk": sk
