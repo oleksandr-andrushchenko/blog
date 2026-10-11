@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import replace
 
 from app_config import get_allowed_origins
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -356,8 +357,26 @@ async def _update_tag(update_tag_dto: UpdateTagDTODep, tag: TagDep,
     return get_tag_url(request, tag)
 
 
+def _get_nonempty_tag_suggestions(query_dto):
+    page_query = replace(query_dto)
+    matches = []
+    while len(matches) < query_dto.limit:
+        page_query.limit = query_dto.limit - len(matches)
+        page = get_tags(page_query)
+        if not page:
+            break
+        matches.extend(tag for tag in page if tag.articles_count > 0)
+        next_offset = page[-1].offset
+        if not next_offset or next_offset == page_query.offset:
+            break
+        page_query.offset = next_offset
+    return matches
+
+
 @route("get", "api-tags", response_class=JSONResponse)
-async def _get_tags(query_dto: TagQueryDep) -> list[Tag]:
+async def _get_tags(query_dto: TagQueryDep, published_only: bool = False) -> list[Tag]:
+    if published_only:
+        return _get_nonempty_tag_suggestions(query_dto)
     return get_tags(query_dto)
 
 

@@ -2,19 +2,18 @@
 {% set layout_assets = {"prism": true} %}
 
 {% set article_canonical_url = article_url(article, absolute=True) %}
-{% set article_alternate_url = url("article", article_id=article.id, absolute=True) %}
 {% set author_canonical_url = user_url(author, absolute=True) %}
-{% set author_alternate_url = url("user", user_id=author.id, absolute=True) %}
-{% set meta_desc = [article.title, article.preview, meta_desc] | select | join('. ') | truncate(155, True, '...') %}
-{% set meta_title = article.title ~ " | by " ~ author.name ~ " ~ " ~ site_name %}
-{% set meta_robots = "index, follow" %}
+{% set meta_desc = (article.preview or html_to_text(article.content) or article.title) | truncate(155, False, '...', 0) %}
+{% set meta_title = article.title ~ " | " ~ site_name %}
+{% set meta_author = author.name %}
+{% set meta_robots = "index, follow" if article.status == ArticleStatus.PUBLISHED else "noindex, nofollow" %}
 {% set og_type = "article" %}
 {% set meta_canonical_url = article_canonical_url %}
 {% set og_url = meta_canonical_url %}
 {% set og_img_filename = article.image_filename %}
 {% set article_og_author = author_canonical_url %}
 {% set article_og_published_time = article.published_at | iso_utc if article.published_at else None %}
-{% set article_og_modified_time = article.updated_at | iso_utc if article.updated_at and article.published_at else None %}
+{% set article_og_modified_time = article.updated_at | iso_utc if article.updated_at and article.published_at and article.updated_at >= article.published_at else None %}
 {% set article_og_tags = article.tags %}
 {% block meta_schema %}
     {% set article_body = html_to_text(article.content) %}
@@ -29,7 +28,7 @@
             "url": meta_canonical_url ~ "#" ~ comment_anchor,
             "author": {
                 "@type": "Person",
-                "@id": user_url(comment_user, absolute=True),
+                "@id": user_url(comment_user, absolute=True) ~ "#person",
                 "name": comment_user.name,
                 "url": user_url(comment_user, absolute=True)
             },
@@ -39,7 +38,7 @@
     {% endfor %}
     {% set author_schema = {
         "@context": "https://schema.org",
-        "@id": author_canonical_url,
+        "@id": author_canonical_url ~ "#person",
         "@type": "Person",
         "identifier": author.username or author.id,
         "name": author.name,
@@ -48,7 +47,7 @@
     } %}
     {% set article_schema = {
         "@context": "https://schema.org",
-        "@id": meta_canonical_url,
+        "@id": meta_canonical_url ~ "#article",
         "@type": "Article",
         "url": meta_canonical_url,
         "dateCreated": article.created_at | iso_utc,
@@ -66,17 +65,16 @@
         "publisher": {
             "@context": "https://schema.org",
             "@type": "Organization",
-            "@id": author_schema["@id"],
-            "name": author_schema["name"],
-            "url": author_schema["url"],
+            "@id": url("index", absolute=True) ~ "#organization",
+            "name": site_name,
+            "url": url("index", absolute=True),
             "logo": {
                 "@type": "ImageObject",
                 "url": static_url(site_img_filename, absolute=True)
             } if site_img_filename else None,
-            "sameAs": ([author_alternate_url] if author_canonical_url != author_alternate_url else [])
-                       + ([author.website] if author.website else [])
+            "sameAs": contact_socials | map(attribute="url") | list
         },
-        "mainEntityOfPage": meta_canonical_url,
+        "mainEntityOfPage": {"@type": "WebPage", "@id": meta_canonical_url, "url": meta_canonical_url},
         "isAccessibleForFree": not article.is_premium,
         "breadcrumb": {
             "@type": "BreadcrumbList",
@@ -87,6 +85,8 @@
             ]
         }
     } %}
+    {% set breadcrumb_schema = article_schema.pop("breadcrumb") %}
+    {% set _ = article_schema["mainEntityOfPage"].update({"breadcrumb": breadcrumb_schema}) %}
     {% if article_image_url %}
         {% set article_schema = article_schema.update({
             "image": [article_image_url],
@@ -96,7 +96,7 @@
     {% if comment_schemas.values %}
         {% set article_schema = article_schema.update({"comment": comment_schemas.values}) or article_schema %}
     {% endif %}
-    {% if article.updated_at and article.published_at and article.updated_at - article.published_at > 86_400_000 %}
+    {% if article.updated_at and article.published_at and article.updated_at > article.published_at %}
         {% set article_schema = article_schema.update({"dateModified": article.updated_at | iso_utc}) or article_schema %}
     {% endif %}
     {{- article_schema | tojson | safe -}}
@@ -140,7 +140,7 @@
                             &mdash;
                             Published on
                             <time>{{ (article.published_at / 1000) | unix_to_full_date }}</time>
-                            {% if article.updated_at and article.updated_at - article.published_at > 86_400_000 %}
+                            {% if article.updated_at and article.updated_at > article.published_at %}
                                 &mdash; Modified on
                                 <time>{{ (article.updated_at / 1000) | unix_to_full_date }}</time>
                             {% endif %}

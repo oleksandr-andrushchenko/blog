@@ -1,6 +1,8 @@
 from dataclasses import replace
+from datetime import datetime, timezone
 from html.parser import HTMLParser
 from urllib.parse import unquote, urlparse
+from xml.etree.ElementTree import Element, SubElement, tostring
 
 from app_config import (
     get_aws_region, get_cloudfront_distribution_id, get_config, get_contact_topic_arn,
@@ -17,10 +19,15 @@ from redirect_dtos import UpsertRedirectDTO
 from search_engine_submissions import notify_search_engines, submit_sitemap_to_search_engines
 from shared_utils import *
 from shared_utils import (
-    User, find_article, find_article_by_slug_follow_redirects, find_user_by_username_follow_redirects,
+    Article, Tag, User, find_article, find_article_by_slug_follow_redirects, find_user_by_username_follow_redirects,
     Category, Permission, Redirect, UserStatus, add_dynamodb_update_transact,
     add_update_category_published_count_transact, get_articles, get_dynamodb_item,
     get_categories, get_tags, logger,
+    get_url, get_articles_url, get_article_url, get_users_url, get_user_url,
+    get_static_url, get_latest_articles, get_latest_users, verify_authorization,
+)
+from query_dtos import (
+    ArticleQueryDTO, ArticleQueryType, ArticleStatus, TagQueryDTO, UserQueryDTO, UserQueryType,
 )
 from tag_subscription_dtos import TagSubscriptionDTO
 from user_dtos import (
@@ -266,104 +273,116 @@ def safe_execute(label: str, func, *args, **kwargs):
         return None
 
 
+def _notify_article_search_engines(req, article: Article) -> None:
+    if not is_prod():
+        return
+    # URL construction belongs inside the best-effort callback too. Local
+    # fixture generation has no HTTP request and does not submit public URLs.
+    notify_search_engines(get_article_url(req, article, absolute=True))
+
+
+SITEMAP_MAX_URLS = 50_000
+SITEMAP_MAX_BYTES = 50 * 1024 * 1024
+SITEMAP_INDEX_MAX_SITEMAPS = 50_000
+SITEMAP_NAMESPACE = "http://www.sitemaps.org/schemas/sitemap/0.9"
+
+
+def _save_sitemap(entries, req) -> tuple[int, str]:
+    """Serialize bounded URL sets; publish the index after all its parts exist."""
+    header = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="{SITEMAP_NAMESPACE}">'.encode()
+    footer = b"</urlset>"
+    parts, filenames, seen = [], [], set()
+    size = len(header) + len(footer)
+    count = 0
+
+    def save_part(filename):
+        return save_public_file(FileDTO(content=header + b"".join(parts) + footer,
+                                        filename=filename), filename=filename)
+
+    for loc, modified in entries:
+        if loc in seen:
+            continue
+        seen.add(loc)
+        node = Element("url")
+        SubElement(node, "loc").text = loc
+        if modified:
+            SubElement(node, "lastmod").text = modified
+        entry = tostring(node, encoding="utf-8")
+        if len(header) + len(entry) + len(footer) > SITEMAP_MAX_BYTES:
+            raise ValueError("A sitemap entry exceeds the byte limit")
+        if parts and (len(parts) >= SITEMAP_MAX_URLS or size + len(entry) > SITEMAP_MAX_BYTES):
+            filenames.append(save_part(f"sitemap-{len(filenames) + 1}.xml"))
+            parts = []
+            size = len(header) + len(footer)
+        parts.append(entry)
+        size += len(entry)
+        count += 1
+
+    if not filenames:
+        filename = save_part("sitemap.xml")
+    else:
+        if parts:
+            filenames.append(save_part(f"sitemap-{len(filenames) + 1}.xml"))
+        index = Element("sitemapindex", xmlns=SITEMAP_NAMESPACE)
+        for filename in filenames:
+            node = SubElement(index, "sitemap")
+            SubElement(node, "loc").text = get_static_url(req, filename, absolute=True)
+        content = tostring(index, encoding="utf-8", xml_declaration=True)
+        if len(filenames) > SITEMAP_INDEX_MAX_SITEMAPS or len(content) > SITEMAP_MAX_BYTES:
+            raise ValueError("Sitemap index exceeds protocol limits")
+        filename = save_public_file(FileDTO(content=content, filename="sitemap.xml"), filename="sitemap.xml")
+    return count, get_static_url(req, filename, absolute=True)
+
+
 def generate_sitemap(user: User, req) -> tuple[int, str]:
     verify_authorization(user, Permission.GENERATE_SITEMAP)
-
-    today = datetime.utcnow().date().isoformat()
 
     def lastmod(ts_ms, fallback_ts_ms=None):
         ts_ms = ts_ms or fallback_ts_ms
         if not ts_ms:
-            return today
-        return datetime.fromtimestamp(
-            float(ts_ms) / 1000,
-            tz=timezone.utc
-        ).date().isoformat()
+            return None
+        return datetime.fromtimestamp(float(ts_ms) / 1000, tz=timezone.utc).date().isoformat()
 
-    urls = []
-
-    # Static
-    def url(route: str) -> str:
-        return get_url(req, route, True)
-
-    urls.extend([
-        (url("index"), today),
-        (url("tags"), today),
-        (url("categories"), today),
-        (url("contacts"), today),
-        (url("rules"), today),
-        (url("terms"), today),
-        (url("earn"), today),
-    ])
-
-    # Post lists
-    def articles_url(tp: ArticleQueryType, tg: Tag | None = None,
-                     category: Category | None = None) -> str:
-        return get_articles_url(
-            req,
-            type=tp,
-            tags=[tg.slug] if tg else [],
-            category=category.slug if category else None,
-            absolute=True,
-        )
-
-    sitemap_tags = get_tags(TagQueryDTO(limit=1000))
-    sitemap_categories = get_categories()
-    for type_ in ArticleQueryType:
-        urls.append((articles_url(type_), today))
-        for tag in sitemap_tags:
-            if tag.articles_count > 0:
-                urls.append((articles_url(type_, tag), today))
-        for category in sitemap_categories:
+    def entries():
+        for route in ("index", "tags", "categories", "contacts", "policy", "rules", "terms", "earn"):
+            yield get_url(req, route, True), None
+        for type_ in ArticleQueryType:
+            yield get_articles_url(req, type=type_, tags=[], absolute=True), None
+        offset = None
+        while tags := get_tags(TagQueryDTO(limit=1000, offset=offset)):
+            for tag in tags:
+                if tag.articles_count > 0:
+                    for type_ in ArticleQueryType:
+                        yield get_articles_url(req, type=type_, tags=[tag.slug], absolute=True), None
+            offset = tags[-1].offset
+            if not offset:
+                break
+        for category in get_categories():
             if category.published_articles_count > 0:
-                urls.append((articles_url(type_, category=category), today))
+                for type_ in ArticleQueryType:
+                    yield get_articles_url(req, type=type_, tags=[], category=category.slug, absolute=True), None
+        offset = None
+        while articles := get_latest_articles(ArticleQueryDTO(status=ArticleStatus.PUBLISHED, limit=1000, offset=offset)):
+            for article in articles:
+                yield get_article_url(req, article, absolute=True), lastmod(article.updated_at, article.published_at or article.created_at)
+            offset = articles[-1].offset
+            if not offset:
+                break
+        for type_ in UserQueryType:
+            yield get_users_url(req, type=type_, absolute=True), None
+        offset = None
+        while users := get_latest_users(UserQueryDTO(status=UserStatus.ACTIVE, limit=1000, offset=offset)):
+            for user_ in users:
+                yield get_user_url(req, user_, absolute=True), lastmod(user_.updated_at, user_.created_at)
+            offset = users[-1].offset
+            if not offset:
+                break
 
-    # Posts
-    def article_url(article: Article) -> str:
-        return get_article_url(req, article, absolute=True)
-
-    offset = None
-    while articles := get_latest_articles(ArticleQueryDTO(status=ArticleStatus.PUBLISHED, limit=1000, offset=offset)):
-        urls.extend([(article_url(article), lastmod(article.updated_at, article.created_at)) for article in articles])
-        offset = articles[-1].offset
-        if not offset:
-            break
-
-    # User lists
-    def users_url(tp: UserQueryType) -> str:
-        return get_users_url(req, type=tp, absolute=True)
-
-    for type_ in UserQueryType:
-        urls.append((users_url(type_), today))
-
-    # Users
-    def user_url(user_: User) -> str:
-        return get_user_url(req, user_, absolute=True)
-
-    offset = None
-    while users := get_latest_users(
-            UserQueryDTO(status=UserStatus.ACTIVE, limit=1000, offset=offset)):
-        urls.extend([(user_url(user), lastmod(user.updated_at, user.created_at)) for user in users])
-        offset = users[-1].offset
-        if not offset:
-            break
-
-    # Save
-    sitemap_xml = f"""<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{''.join([f"""<url><loc>{loc}</loc><lastmod>{lastmod}</lastmod></url>""" for (loc, lastmod) in urls])}</urlset>"""
-
-    sitemap_filename = save_public_file(
-        FileDTO(content=sitemap_xml.encode("utf-8"), filename="sitemap.xml"),
-        filename="sitemap.xml",
-    )
-    sitemap_url = get_static_url(req, sitemap_filename, absolute=True)
-
-    # Invalidate CDN cache
+    count, sitemap_url = _save_sitemap(entries(), req)
     if is_prod():
-        safe_execute("CF invalidation", _drop_cdn_cache, ["/sitemap.xml"])
-
+        safe_execute("CF invalidation", _drop_cdn_cache, ["/sitemap*"])
     safe_execute("Sitemap submission", submit_sitemap_to_search_engines, sitemap_url)
-
-    return len(urls), sitemap_url
+    return count, sitemap_url
 
 
 def create_tag_subscription(dto: TagSubscriptionDTO, user: User) -> TagSubscription:
@@ -752,8 +771,9 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
     if article.status == ArticleStatus.PUBLISHED:
         safe_execute(
             "Search engine notification",
-            notify_search_engines,
-            get_article_url(req, article, absolute=True),
+            _notify_article_search_engines,
+            req,
+            article,
         )
 
 
@@ -1036,8 +1056,9 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
             logger.exception("Unable to dispatch article published event")
         safe_execute(
             "Search engine notification",
-            notify_search_engines,
-            get_article_url(req, article, absolute=True),
+            _notify_article_search_engines,
+            req,
+            article,
         )
 
 

@@ -57,7 +57,8 @@ from web_utils import (
     TagByOldSlugRequestedError,
     UserByOldSlugRequestedError,
     logger,
-    get_html_content,
+    get_web_html_content as get_html_content,
+    template_request,
     get_url,
     get_article_url,
     get_users,
@@ -67,7 +68,6 @@ from web_utils import (
     get_popular_tags,
     get_popular_published_articles,
     find_user,
-    jinja2_env,
     get_popular_active_users,
     Permission,
     verify_authorization,
@@ -231,8 +231,11 @@ async def redirect_legacy_web_endpoints(request: Request, call_next):
 
 @app.middleware("http")
 async def inject_template_global_vars(request: Request, call_next):
-    jinja2_env().globals["request"] = request
-    return await call_next(request)
+    token = template_request.set(request)
+    try:
+        return await call_next(request)
+    finally:
+        template_request.reset(token)
 
 
 @app.middleware("http")
@@ -255,13 +258,13 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
             query = "&".join(filter(None, (parsed_url.query, request.url.query)))
             url = urlunsplit(parsed_url._replace(query=query))
             return RedirectResponse(url=url, status_code=308)
-    return get_error_response(exc.status_code, exc.detail)
+    return get_error_response(exc.status_code, exc.detail, request=request)
 
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(_request: Request, exc: Exception):
     logger.error("Unhandled request exception", exc_info=exc)
-    return get_error_response(500)
+    return get_error_response(500, request=_request)
 
 
 @app.exception_handler(RequestValidationError)
@@ -270,12 +273,12 @@ async def validation_exception_handler(_request: Request, exc: RequestValidation
     for error in exc.errors():
         field = error["loc"][-1] if len(error["loc"]) > 1 else error["loc"][0]
         details[field] = error["msg"]
-    return get_error_response(422, details)
+    return get_error_response(422, details, request=_request)
 
 
 @app.exception_handler(NotAuthenticatedError)
 async def not_authenticated_error_handler(_request: Request, _exc: NotAuthenticatedError):
-    return get_error_response(401)
+    return get_error_response(401, request=_request)
 
 
 @app.exception_handler(UserBannedError)
@@ -285,7 +288,7 @@ async def user_banned_error_handler(_request: Request, _exc: UserBannedError):
 
 @app.exception_handler(NotAuthorizedError)
 async def not_authorized_error_handler(_request: Request, exc: NotAuthorizedError):
-    return get_error_response(403, {"permission": exc.permission})
+    return get_error_response(403, {"permission": exc.permission}, request=_request)
 
 
 @app.exception_handler(ArticleByOldSlugRequestedError)
@@ -369,6 +372,7 @@ async def _article_page(article: ArticleDep, cur_user: OptCurUserDep) -> HTMLRes
 
 
 async def _articles_page(query_dto: ArticleQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
+    category = find_category(query_dto.category) if query_dto.category else None
     tag_slug = query_dto.tags[0] if query_dto.tags and len(query_dto.tags) == 1 else None
     (
         articles,
@@ -394,7 +398,7 @@ async def _articles_page(query_dto: ArticleQueryDep, cur_user: OptCurUserDep) ->
         "article_query_tag_items": article_query_tag_items,
         "articles": articles,
         "tag": tag,
-        "category": find_category(query_dto.category) if query_dto.category else None,
+        "category": category,
         "tag_subscription": get_user_tag_subscription_for_tags(cur_user,
                                                                query_dto.tags) if cur_user and query_dto.tags else None,
     })
@@ -435,7 +439,12 @@ async def categories_page(cur_user: OptCurUserDep) -> str:
 
 
 @route("get", "article")
-async def article_page(article: ArticleDep, cur_user: OptCurUserDep):
+async def article_page(article: ArticleDep, cur_user: OptCurUserDep, request: Request):
+    if article.user_slug:
+        url = get_article_url(request, article)
+        if request.url.query:
+            url += f"?{request.url.query}"
+        return RedirectResponse(url, status_code=308)
     return await _article_page(article, cur_user)
 
 
@@ -563,6 +572,11 @@ async def _user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_use
 
 @route("get", "user")
 async def user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_user: OptCurUserDep, request: Request):
+    if user.username:
+        url = get_user_url(request, user)
+        if request.url.query:
+            url += f"?{request.url.query}"
+        return RedirectResponse(url, status_code=308)
     return await _user_page(user, articles_query_dto, cur_user, request)
 
 

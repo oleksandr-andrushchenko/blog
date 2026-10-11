@@ -337,8 +337,10 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
 
 // Load more
 (() => {
-  $(document).on("click", ".btn-load-more", async function () {
+  $(document).on("click", ".btn-load-more", async function (event) {
     const btn = this
+    if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button > 0) return
+    event.preventDefault()
     if (btn.disabled) return
 
     const container = document.querySelector(btn.dataset.container)
@@ -391,6 +393,11 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
       }
 
       btn.dataset.offset = newOffset
+      if (btn.hasAttribute("href")) {
+        const nextPageUrl = new URL(btn.href)
+        nextPageUrl.searchParams.set("offset", newOffset)
+        btn.href = nextPageUrl.toString()
+      }
     } catch (err) {
       console.error(err)
     } finally {
@@ -448,7 +455,9 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
     templates: {
       dropdownItem(tagData) {
         const className = tagData.class ? ` ${tagData.class}` : ""
-        return `<div ${this.getAttributes(tagData)} class="tagify__dropdown__item${className}" tabindex="0" role="option">${escapeHtml(tagData.name || tagData.value)}</div>`
+        const count = Number(tagData.articles_count)
+        const badge = Number.isFinite(count) ? `<span class="badge text-bg-secondary flex-shrink-0">${escapeHtml(count.toLocaleString())} article${count === 1 ? "" : "s"}</span>` : ""
+        return `<div ${this.getAttributes(tagData)} class="tagify__dropdown__item${className} d-flex justify-content-between align-items-center gap-3" tabindex="0" role="option"><span class="text-break">${escapeHtml(tagData.name || tagData.value)}</span>${badge}</div>`
       }
     },
     dropdown: {
@@ -465,7 +474,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
     if (typeof d === "string") return {value: d, name: d}
     const value = d.slug || d.value || d.name
     const name = d.name || d.slug || d.value
-    return value ? {value, name} : null
+    return value ? {value, name, articles_count: d.articles_count} : null
   }
 
   if (injectHidden) {

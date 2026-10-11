@@ -7,7 +7,7 @@ import uuid
 from email import policy
 from email.parser import BytesParser
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlsplit
 
 import pytest
 from pyquery import PyQuery as pq
@@ -47,7 +47,9 @@ def get_user(client, user_alias) -> pq:
     doc = pq(resp.text)
     assert user["name"] in doc("head title").text()
     schema = json.loads(doc('script[type="application/ld+json"]').text())
-    assert schema["@type"] == "Person"
+    assert schema["@type"] == "ProfilePage"
+    assert schema["mainEntity"]["@type"] == "Person"
+    assert schema["mainEntity"]["@id"] == schema["mainEntity"]["url"] + "#person"
     assert schema["url"].startswith("http")
     assert schema["breadcrumb"]["itemListElement"][-1]["name"] == user["name"]
     assert all(value is not None for value in schema.values())
@@ -899,6 +901,10 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     read_doc = pq(read_success.text)
     article_schema = json.loads(read_doc('script[type="application/ld+json"]').text())
     assert article_schema["@type"] == "Article"
+    assert article_schema["@id"] == article_schema["url"] + "#article"
+    assert article_schema["author"]["@id"] == article_schema["author"]["url"] + "#person"
+    assert article_schema["mainEntityOfPage"]["@type"] == "WebPage"
+    assert article_schema["mainEntityOfPage"]["breadcrumb"]["itemListElement"][-1]["name"] == article_schema["headline"]
     assert article_schema["inLanguage"] == "en"
     assert article_schema["author"]["url"].endswith("/@root-functional")
     assert read_doc('meta[property="og:type"]').attr("content") == "article"
@@ -909,7 +915,13 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     assert article_schema["commentCount"] == 0
     assert article_schema["image"][0].endswith(f"/{ARTICLE_IMAGE_FILENAME}")
     assert article_schema["thumbnailUrl"].endswith(f"/{ARTICLE_IMAGE_FILENAME}")
-    assert read_doc('meta[name="robots"]').attr("content") == "index, follow"
+    assert read_doc('meta[name="robots"]').attr("content") == "noindex, nofollow"
+    assert article_schema["publisher"]["name"] == "SysDesPro"
+    assert article_schema["publisher"]["@id"] != article_schema["author"]["@id"]
+    id_response = get(root_client, f"/articles/{article_id}?source=audit", allow_redirects=False)
+    assert id_response.status_code == 308
+    assert id_response.headers["Location"].endswith(
+        f"/@root-functional/{functional_state['article_slug']}?source=audit")
     rendered_picture = read_doc("article picture")
     assert len(rendered_picture) == 1
     rendered_source = rendered_picture("source")
@@ -981,6 +993,9 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
 
     status_success = post(root_client, f"/articles/{article_id}/status", json={"status": "published"})
     assert status_success.status_code == 200, status_success.text
+
+    published_doc = pq(get(guest_client, f"/articles/{article_id}").text)
+    assert published_doc('meta[name="robots"]').attr("content") == "index, follow"
 
     published_tag_page = get(guest_client, "/articles?type=latest&status=published&tags=functional-tag")
     assert published_tag_page.status_code == 200
@@ -1461,3 +1476,79 @@ def test_query_endpoints_ignore_undeclared_parameters(guest_client, path):
 def test_query_endpoints_validate_declared_parameters_with_unknown_parameters(guest_client, path):
     response = get(guest_client, f"{path}?asdasd=13sd&limit=invalid")
     assert response.status_code == 422, (path, response.status_code, response.text)
+
+
+@pytest.mark.parametrize("path", ["/articles", "/users", "/tags", "/@root-functional"])
+def test_archive_next_pages_are_crawlable_and_self_canonical(guest_client, path):
+    response = guest_client.get(f"{WEB_TEST_BASE_URL}{path}?limit=1", timeout=30)
+    assert response.status_code == 200
+    doc = pq(response.text)
+    next_link = doc('nav[aria-label="Pagination"] a[rel="next"]')
+    assert next_link.hasClass("btn-load-more")
+    assert doc(".btn-load-more").length == 1
+    next_url = next_link.attr("href")
+    assert next_url
+    query = parse_qs(urlsplit(next_url).query)
+    assert query["offset"][0]
+    assert query["limit"] == ["1"]
+    next_page = guest_client.get(f"{WEB_TEST_BASE_URL}{next_url}", timeout=30)
+    assert next_page.status_code == 200, next_page.text
+    next_doc = pq(next_page.text)
+    assert next_doc('nav[aria-label="Pagination"] a:not([rel="next"])').text() == "Back to first page"
+    canonical = next_doc('link[rel="canonical"]').attr("href")
+    assert parse_qs(urlsplit(canonical).query) == query
+    if path.startswith("/@"):
+        profile = json.loads(next_doc('script[type="application/ld+json"]').text())
+        assert "offset=" not in profile["mainEntity"]["@id"]
+        assert profile["mainEntity"]["@id"].endswith(path + "#person")
+
+
+def test_search_and_empty_archives_are_not_indexable(guest_client):
+    response = guest_client.get(f"{WEB_TEST_BASE_URL}/tags?prefix=cache&limit=1", timeout=30)
+    assert response.status_code == 200
+    search = pq(response.text)
+    assert search('meta[name="robots"]').attr("content") == "noindex, follow"
+    assert parse_qs(urlsplit(search('link[rel="canonical"]').attr("href")).query) == {
+        "prefix": ["cache"], "limit": ["1"]}
+    empty = pq(get(guest_client, "/seo-audit-nonexistent-tag/articles").text)
+    assert empty('meta[name="robots"]').attr("content") == "noindex, follow"
+    missing_category = get(guest_client, "/articles?category=seo-audit-nonexistent")
+    assert missing_category.status_code == 200
+    missing_doc = pq(missing_category.text)
+    assert missing_doc("main h1")
+    assert "Seo-Audit-Nonexistent" in missing_doc("main h1").text()
+    assert not missing_doc("#articles .article")
+    assert missing_doc('meta[name="robots"]').attr("content") == "noindex, follow"
+
+
+def test_profile_id_redirect_preserves_query(guest_client):
+    user_id = functional_state["root_id"]
+    response = get(guest_client, f"/users/{user_id}?limit=1", allow_redirects=False)
+    assert response.status_code == 308
+    assert response.headers["Location"] == "/@root-functional?limit=1"
+
+
+def test_discovery_tag_suggestions_skip_empty_pages_and_keep_editor_tags(guest_client):
+    slugs = ["zz-discovery-a", "zz-discovery-b", "zz-discovery-c"]
+    keys = []
+    try:
+        for slug, count in zip(slugs, [0, 0, 2]):
+            key = {"pk": f"POST_TAG#{slug}", "sk": "META"}
+            keys.append(key)
+            dynamodb_table.put_item(Item=key | {
+                "name": slug, "tag_type_pk": "POST_TAG", "tag_name_sk": slug,
+                "created_at": 1, "rating_sk": 1, "posts_count": count})
+        response = get(guest_client, "/tags?prefix=zz-discovery&limit=1&published_only=true")
+        assert response.status_code == 200, response.text
+        assert [tag["slug"] for tag in response.json()] == [slugs[2]]
+        assert response.json()[0]["articles_count"] == 2
+        unfiltered = get(guest_client, "/tags?prefix=zz-discovery&limit=1")
+        assert unfiltered.status_code == 200, unfiltered.text
+        assert unfiltered.json()[0]["slug"] == slugs[0]
+        assert unfiltered.json()[0]["articles_count"] == 0
+        assert get(guest_client, "/tags?prefix=zz-discovery-missing&limit=1&published_only=true").json() == []
+        listing = pq(get(guest_client, "/articles").text)
+        assert parse_qs(urlsplit(listing("#tags-input").attr("data-url")).query)["published_only"] == ["1"]
+    finally:
+        for key in keys:
+            dynamodb_table.delete_item(Key=key)

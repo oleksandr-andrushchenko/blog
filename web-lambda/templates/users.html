@@ -14,7 +14,7 @@
 {% set subtitle = ([val_map[user_query.type]["subtitle"]] + [val_map[user_query.status]["subtitle"]] + ["Users"]) | select | join(" ") | title %}
 {% set meta_title = title ~ " | " ~ site_name %}
 {% set meta_canonical_url = users_url(query=user_query, absolute=True) %}
-{% set meta_desc = [title, subtitle, site_desc] | select | join('. ') | truncate(155, True, '...') %}
+{% set meta_desc = [title, subtitle, site_desc] | select | join('. ') | truncate(155, False, '...', 0) %}
 {% block meta_schema %}
     {% set items = namespace(values=[]) %}
     {% for user in users %}
@@ -129,9 +129,12 @@
             offset=users[-1].offset,
             url=url("users-fragment", absolute=True, **user_query.get_dict()),
             container="#users",
-            auto_click=True %}
+            auto_click=True,
+            next_page_url=users_url(query=user_query, offset=users[-1].offset) if users[-1].offset else None,
+            first_page_url=users_url(query=user_query, offset=None) if user_query.offset else None %}
             {% include "fragments/load-more-button.html" %}
         {% endwith %}
+
     {% else %}
         <div>N/A</div>
     {% endif %}

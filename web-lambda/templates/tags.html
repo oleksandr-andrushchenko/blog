@@ -10,9 +10,11 @@
 {% set title = ([val_map[tags_query.type]["title"], "Tags"]) | select | join(" ") | title %}
 {% set subtitle = ([val_map[tags_query.type]["subtitle"], "Tags"]) | select | join(" ") | title %}
 {% set meta_title = title ~ " | " ~ site_name %}
-{% set meta_robots = "index, follow" %}
-{% set meta_canonical_url = url("tags", type=None if tags_query.type == TagQueryDTO.DEFAULT_TYPE else tags_query.type, absolute=True) %}
-{% set meta_desc = [title, subtitle, site_desc] | select | join('. ') | truncate(155, True, '...') %}
+{% set meta_robots = "noindex, follow" if tags_query.prefix else "index, follow" %}
+{% set meta_canonical_url = url("tags", type=None if tags_query.type == TagQueryDTO.DEFAULT_TYPE else tags_query.type,
+    prefix=tags_query.prefix, offset=tags_query.offset,
+    limit=tags_query.limit if tags_query.limit != TagQueryDTO.DEFAULT_LIMIT else None, absolute=True) %}
+{% set meta_desc = [title, subtitle, site_desc] | select | join('. ') | truncate(155, False, '...', 0) %}
 
 {% block meta_schema %}
     {% set items = namespace(values=[]) %}
@@ -107,9 +109,14 @@
                 offset=tags[-1].offset,
                 url=url("tags-fragment", absolute=True, **tags_query.get_dict()),
                 container="#tags",
-                auto_click=True %}
+                auto_click=True,
+            next_page_url=url("tags", type=None if tags_query.type == TagQueryDTO.DEFAULT_TYPE else tags_query.type,
+                prefix=tags_query.prefix, offset=tags[-1].offset,
+                limit=tags_query.limit if tags_query.limit != TagQueryDTO.DEFAULT_LIMIT else None) if tags[-1].offset else None,
+            first_page_url=url("tags", type=None if tags_query.type == TagQueryDTO.DEFAULT_TYPE else tags_query.type, prefix=tags_query.prefix, limit=tags_query.limit if tags_query.limit != TagQueryDTO.DEFAULT_LIMIT else None) if tags_query.offset else None %}
             {% include "fragments/load-more-button.html" %}
         {% endwith %}
+
     {% else %}
         <div>N/A</div>
     {% endif %}

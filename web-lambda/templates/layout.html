@@ -1,3 +1,4 @@
+{% set meta_desc = html_to_text(meta_desc or site_desc) | truncate(155, False, "...", 0) %}
 {% set index_url = url("index") %}
 {% set current_route = request.scope.get("route_name") %}
 {% set layout_assets = layout_assets | default({}) %}
@@ -13,6 +14,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    {% if layout_assets.tagify | default(false) %}
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css">
+    {% endif %}
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,11 +39,10 @@
         </script>
     {% endif %}
 
-    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <title>{{ meta_title or site_title }}</title>
-    <meta name="description" content="{{ (meta_desc or site_desc) | truncate(155, True, '...') }}"/>
+    <meta name="description" content="{{ meta_desc }}"/>
     <meta name="author" content="{{ meta_author }}"/>
     {% if meta_rating_value is defined %}
         <meta name="ratingValue" content="{{ meta_rating_value }}"/>
@@ -59,15 +64,16 @@
     {% set social_url = og_url or meta_canonical_url or url("index", absolute=True) %}
     {% set image_filename = og_img_filename or meta_img_filename or site_img_filename %}
     {% set social_image_url = static_url(image_filename, absolute=True) if image_filename else None %}
+    {% set social_image_alt = og_img_alt or meta_img_alt or ((site_img_title or site_name) if image_filename == site_img_filename else (meta_title or site_title)) %}
     <meta property="og:title" content="{{ og_title or meta_title or site_title }}"/>
-    <meta property="og:description" content="{{ og_desc or meta_desc or site_desc }}"/>
+    <meta property="og:description" content="{{ html_to_text(og_desc or meta_desc) }}"/>
     <meta property="og:type" content="{{ og_type or "website" }}"/>
     <meta property="og:url" content="{{ social_url }}"/>
     <meta property="og:site_name" content="{{ site_name }}"/>
     {% if social_image_url %}
         <meta property="og:image" content="{{ social_image_url }}"/>
         <meta property="og:image:alt"
-              content="{{ og_img_alt or meta_img_alt or meta_title or site_img_title or site_title }}"/>
+              content="{{ social_image_alt }}"/>
     {% endif %}
     {% set img_width, img_height = img_dims(image_filename) %}
     {% if img_width and img_height %}
@@ -75,11 +81,12 @@
         <meta property="og:image:height" content="{{ img_height }}"/>
     {% endif %}
 
-    <meta name="twitter:card" content="{{ twitter_card or "summary_large_image" }}"/>
+    <meta name="twitter:card" content="{{ twitter_card or ("summary_large_image" if social_image_url else "summary") }}"/>
     <meta name="twitter:title" content="{{ og_title or meta_title or site_title }}"/>
-    <meta name="twitter:description" content="{{ og_desc or meta_desc or site_desc }}"/>
+    <meta name="twitter:description" content="{{ html_to_text(og_desc or meta_desc) }}"/>
     {% if social_image_url %}
         <meta name="twitter:image" content="{{ social_image_url }}"/>
+        <meta name="twitter:image:alt" content="{{ social_image_alt }}"/>
     {% endif %}
 
     {% if og_type == "article" %}
@@ -111,7 +118,6 @@
         <link rel="icon" type="image/svg+xml" href="{{ static_url("favicon.svg") }}"/>
         <link rel="shortcut icon" href="{{ static_url("favicon.ico") }}"/>
         <link rel="apple-touch-icon" sizes="180x180" href="{{ static_url("apple-touch-icon.png") }}"/>
-        <meta name="apple-mobile-web-app-title" content="{{ site_name }}"/>
         <link rel="manifest" href="{{ static_url("site.webmanifest") }}"/>
     {% endif %}
 
@@ -271,11 +277,6 @@
     </div>
 </footer>
 
-<link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css"
-      as="style" onload="this.onload=null;this.rel='stylesheet'">
-<noscript>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-</noscript>
 <!--bs-->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q"
@@ -288,11 +289,6 @@
     <!-- tags input -->
     <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.polyfills.min.js" defer></script>
-    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css" as="style"
-          onload="this.onload=null;this.rel='stylesheet'">
-    <noscript>
-        <link href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css" rel="stylesheet" type="text/css">
-    </noscript>
 {% endif %}
 <!--jquery-->
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"

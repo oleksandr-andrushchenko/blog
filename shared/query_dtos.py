@@ -106,6 +106,7 @@ class ArticleQueryDTO(BaseQueryDTO):
 
     def __post_init__(self):
         BaseQueryDTO.__post_init__(self)
+        self.tags = sorted({tag for tag in self.tags if tag})
         self.type = ArticleQueryType(self.type)
         self.status = ArticleStatus(self.status)
         if self.category is not None:

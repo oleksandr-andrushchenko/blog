@@ -11,16 +11,18 @@
 } %}
 
 {% set tag_label = article_query_tag_names | join(" + ") %}
-{% set subject_label = tag_label or (category.name if category else site_about) %}
+{% set subject_label = tag_label or (category.name if category else article_query.category) %}
 {% set title = ([val_map[article_query.type]["title"], subject_label, val_map[article_query.status]["title"], "Articles"]) | select | join(" ") | title %}
 {% if category and tag_label %}
     {% set title = title ~ " in " ~ category.name %}
 {% endif %}
-{% set meta_robots = "noindex, follow" if article_query.status != ArticleStatus.PUBLISHED else "index, follow" %}
+{% set meta_robots = "noindex, follow" if article_query.status != ArticleStatus.PUBLISHED or not articles else "index, follow" %}
 {% set subtitle = category.description if category else ([val_map[article_query.type]["subtitle"], tag_label, val_map[article_query.status]["subtitle"], "Articles"]) | select | join(" ") | title %}
-{% set meta_title = title ~ " | " ~ site_name %}
-{% set meta_canonical_url = articles_url(query=article_query, tags=article_query.tags|sort, absolute=True) %}
-{% set meta_desc = [title, subtitle, site_desc] | select | join('. ') | truncate(155, True, '...') %}
+{% set meta_title = title ~ (" Category" if article_query.category and not tag_label else "") ~ " | " ~ site_name %}
+{% set meta_canonical_url = articles_url(query=article_query, tags=article_query.tags|unique|sort, absolute=True) %}
+{% set meta_desc = ("Browse " ~ title ~ " on " ~ site_name ~ ". " ~ (category.description if category else "Explore system design guides, architecture patterns, and practical engineering articles.")) | truncate(155, False, '...', 0) %}
+{% set og_img_filename = category.image_filename if category else None %}
+{% set og_img_alt = category.name if category and category.image_filename else None %}
 {% block meta_schema %}
     {% set items = namespace(values=[]) %}
     {% for article in articles %}
@@ -72,7 +74,7 @@
             "@type": "ListItem",
             "position": breadcrumb_position,
             "name": article_query.status | title,
-            "item": articles_url(type=article_query.status, absolute=True)
+            "item": articles_url(status=article_query.status, absolute=True)
         }] %}
     {% endif %}
     {{- {
@@ -113,7 +115,7 @@
     {% endfor %}
 
     {% if article_query.status and article_query.status != ArticleQueryDTO.DEFAULT_STATUS %}
-        {% set breadcrumbs = breadcrumbs.update({article_query.status | title: articles_url(type=article_query.status)}) or breadcrumbs %}
+        {% set breadcrumbs = breadcrumbs.update({article_query.status | title: articles_url(status=article_query.status)}) or breadcrumbs %}
     {% endif %}
 
     {% set last_key = (breadcrumbs.keys() | list)[-1] %}
@@ -131,7 +133,8 @@
 
         <input type="hidden" name="type" value="{{ article_query.type }}">
         <input type="hidden" name="status" value="{{ article_query.status }}">
-        {% if article_query.category %}<input type="hidden" name="category" value="{{ article_query.category }}">{% endif %}
+        {% if article_query.category %}
+            <input type="hidden" name="category" value="{{ article_query.category }}">{% endif %}
 
         <div class="d-flex align-items-center gap-2">
             <small class="text-secondary bi bi-sort-down"> Show:</small>
@@ -151,7 +154,7 @@
 
         <div class="d-flex flex-wrap align-items-center gap-2">
             <small class="text-secondary bi bi-tags"> Filter by tags:</small>
-            {% with url=url("api-tags", absolute=True),
+            {% with url=url("api-tags", absolute=True, published_only=article_query.status == ArticleStatus.PUBLISHED),
                             value=article_query.tags,
                             tag_items=article_query_tag_items,
                             class_name="w-auto",
@@ -224,9 +227,12 @@
             offset=articles[-1].offset,
             url=url("articles-fragment", absolute=True, **article_query.get_dict()),
             container="#articles",
-            auto_click=True %}
+            auto_click=True,
+            next_page_url=articles_url(query=article_query, offset=articles[-1].offset) if articles[-1].offset else None,
+            first_page_url=articles_url(query=article_query, offset=None) if article_query.offset else None %}
             {% include "fragments/load-more-button.html" %}
         {% endwith %}
+
     {% else %}
         <div>N/A</div>
     {% endif %}

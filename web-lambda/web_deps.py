@@ -6,12 +6,15 @@ from starlette.responses import HTMLResponse
 
 from shared_deps import OptCurUserDep
 from query_dtos import ArticleQueryDTO, UserQueryDTO
-from shared_utils import Article, User, ArticleNotFoundError, UserNotFoundError, get_html_content
+from shared_utils import Article, User, ArticleNotFoundError, UserNotFoundError
 from web import Depends, HTTPException, Request, parse_dto
-from web_utils import get_article_by_slugs, get_user_by_slug, parse_articles_url_slugs_path
+from web_utils import (
+    get_article_by_slugs, get_user_by_slug, parse_articles_url_slugs_path,
+    get_web_html_content as get_html_content,
+)
 
 
-def get_error_response(status_code: int, details: dict | str = None):
+def get_error_response(status_code: int, details: dict | str = None, request: Request | None = None):
     status_enum = HTTPStatus(status_code)
     public_data = {
         "code": status_code,
@@ -22,6 +25,7 @@ def get_error_response(status_code: int, details: dict | str = None):
 
     content = get_html_content("error.html", {
         **public_data,
+        **({"request": request} if request is not None else {}),
     })
 
     return HTMLResponse(

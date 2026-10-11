@@ -37,6 +37,8 @@ class ExceptionHandlerTests(unittest.TestCase):
         app = Application()
         app.exception_handlers.update(module.app.exception_handlers)
         app.middleware("http")(module.access_log_middleware)
+        if hasattr(module, "inject_template_global_vars"):
+            app.middleware("http")(module.inject_template_global_vars)
         app.url_routes = [*module.app.routes, *module.app.url_routes]
 
         @app.get("/failure", name="failure")

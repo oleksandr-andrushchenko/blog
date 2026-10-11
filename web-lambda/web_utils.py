@@ -1,3 +1,4 @@
+from contextvars import ContextVar
 from datetime import timedelta
 from urllib.parse import quote, urlparse
 
@@ -13,7 +14,16 @@ from shared_utils import (
     find_article, find_article_by_slug_follow_redirects, find_user_by_username_follow_redirects,
     verify_authorization,
     get_dynamodb_table, article_from_dynamodb, query_dynamodb_table, Key, to_thread,
+    get_html_content,
 )
+
+
+template_request = ContextVar("template_request", default=None)
+
+
+def get_web_html_content(template: str, data: dict | None = None) -> str:
+    # Per-render context prevents concurrent requests from sharing URL/navigation state.
+    return get_html_content(template, {"request": template_request.get(), **(data or {})})
 
 
 def get_login_redirect_url(callback_url: str) -> str:

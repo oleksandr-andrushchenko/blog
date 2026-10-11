@@ -700,7 +700,7 @@ def get_articles_url(req, query: ArticleQueryDTO | None = None, **params) -> str
 
     tags = params.pop("tags", None)
     if tags:
-        slugs.extend(str(t) for t in tags if t)
+        slugs.extend(sorted({str(t) for t in tags if t}))
 
     status = params.pop("status", None)
     if status:
@@ -1852,14 +1852,30 @@ def decode_offset(token: str) -> dict | None:
 def get_articles(query_dto: ArticleQueryDTO = None, cur_user: User = None) -> list[Article]:
     if query_dto is None:
         query_dto = ArticleQueryDTO()
-    if query_dto.category:
-        articles = (get_popular_articles(query_dto, cur_user)
-                    if query_dto.type == ArticleQueryType.POPULAR
-                    else get_latest_articles(query_dto, cur_user))
-        if query_dto.tags:
-            wanted_tags = set(query_dto.tags)
-            articles = [article for article in articles if wanted_tags.issubset(set(article.tags))]
+    if query_dto.category and query_dto.tags:
+        fetch_page = get_popular_articles if query_dto.type == ArticleQueryType.POPULAR else get_latest_articles
+        page_query = copy.copy(query_dto)
+        articles = []
+        wanted_tags = set(query_dto.tags)
+        continuation_offset = None
+        while len(articles) < query_dto.limit:
+            page_query.limit = query_dto.limit - len(articles)
+            page = fetch_page(page_query, cur_user)
+            if not page:
+                continuation_offset = None
+                break
+            continuation_offset = page[-1].offset
+            articles.extend(article for article in page if wanted_tags.issubset(set(article.tags)))
+            if not continuation_offset:
+                break
+            page_query.offset = continuation_offset
+        if articles:
+            articles[-1].offset = continuation_offset
         return articles
+    if query_dto.category:
+        return (get_popular_articles(query_dto, cur_user)
+                if query_dto.type == ArticleQueryType.POPULAR
+                else get_latest_articles(query_dto, cur_user))
     if query_dto.type == ArticleQueryType.POPULAR:
         if query_dto.tags:
             return get_popular_articles_by_tags(query_dto, cur_user)
@@ -1893,11 +1909,11 @@ def query_dynamodb_table(
     except Exception as e:
         if not is_aws_client_error(e):
             raise
-        error_code = e.response["Error"]["Code"]
-        # Happens if the index doesn't exist yet (e.g., table is empty)
-        if error_code == "ValidationException":
-            logger.warning(f"DynamoDB index '{index_name}' not ready or empty. Returning empty list.")
-            return {}
+        error = e.response.get("Error", {})
+        logger.error(
+            f"DynamoDB query failed on {index_name or 'base table'}: "
+            f"{error.get('Code', 'Unknown')} — {error.get('Message', str(e))}"
+        )
         raise
 
 
@@ -1909,12 +1925,13 @@ def query_dynamodb_items(
         map_fn: Callable[[dict], T],
         index_name: str | None = None,
         key_condition_expr: Any = None,
+        scan_index_forward: bool = False,
 ) -> list[T]:
     """Generic DynamoDB query executor with pagination and mapping."""
     resp = query_dynamodb_table(
         index_name=index_name,
         key_condition_expr=key_condition_expr,
-        scan_index_forward=False,
+        scan_index_forward=scan_index_forward,
         limit=query_dto.limit,
         exclusive_start_key=decode_offset(query_dto.offset) if query_dto.offset else None
     )
@@ -1989,12 +2006,13 @@ def get_latest_articles_by_tags(query_dto: ArticleQueryDTO = None, cur_user: Use
         query_args["ExclusiveStartKey"] = decode_offset(query_dto.offset)
     resp = table.query(**query_args)
     combo_items = resp.get("Items", [])
+    last_evaluated_key = resp.get("LastEvaluatedKey")
     # logger.debug(combo_items)
     if not combo_items:
         return []
 
     # Batch get post metadata
-    article_ids = set([item["post_id"] for item in combo_items])
+    article_ids = list(dict.fromkeys(item["post_id"] for item in combo_items))
     keys = [{"pk": f"POST#{article_id}", "sk": "META"} for article_id in article_ids]
     resp = table.meta.client.batch_get_item(RequestItems={table.name: {"Keys": keys}})
     article_items = resp["Responses"].get(table.name, [])
@@ -2004,8 +2022,8 @@ def get_latest_articles_by_tags(query_dto: ArticleQueryDTO = None, cur_user: Use
     ordered_articles = [article_items_map[pid] for pid in article_ids if pid in article_items_map]
 
     articles = [article_from_dynamodb(item) for item in ordered_articles]
-    if len(articles) == query_dto.limit:
-        articles[-1].offset = encode_offset(resp.get("LastEvaluatedKey"))
+    if articles and last_evaluated_key:
+        articles[-1].offset = encode_offset(last_evaluated_key)
     return articles
 
 
@@ -2130,13 +2148,13 @@ def get_popular_tags(query_dto: TagQueryDTO = None) -> list[Tag]:
 def get_tags_by_prefix(query_dto: TagQueryDTO = None) -> list[Tag]:
     if query_dto is None:
         query_dto = TagQueryDTO()
-
-    resp = query_dynamodb_table(
+    return query_dynamodb_items(
+        query_dto=query_dto,
         index_name="TAGS_BY_TYPE_NAME",
         key_condition_expr=Key("tag_type_pk").eq("POST_TAG") & Key("tag_name_sk").begins_with(query_dto.prefix),
-        limit=query_dto.limit
+        scan_index_forward=True,
+        map_fn=tag_from_dynamodb,
     )
-    return [tag_from_dynamodb(item) for item in resp.get("Items", [])]
 
 
 def get_latest_tags(query_dto: TagQueryDTO = None) -> list[Tag]:

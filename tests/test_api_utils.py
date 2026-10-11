@@ -17,6 +17,51 @@ import search_engine_submissions
 IMAGE_FILENAME = "61677cb2-b588-45b8-8036-240e185a382f_1200x518.png"
 
 
+def test_local_article_notification_does_not_need_request(monkeypatch):
+    monkeypatch.setattr(api_utils, "is_prod", lambda: False)
+
+    def unexpected_call(*args, **kwargs):
+        raise AssertionError("Local publication must not build or submit public URLs")
+
+    monkeypatch.setattr(api_utils, "get_article_url", unexpected_call)
+    monkeypatch.setattr(api_utils, "notify_search_engines", unexpected_call)
+
+    api_utils._notify_article_search_engines(None, SimpleNamespace())
+
+
+def test_production_article_notification_submits_canonical_url(monkeypatch):
+    request, article = object(), SimpleNamespace()
+    submissions = []
+    monkeypatch.setattr(api_utils, "is_prod", lambda: True)
+
+    def article_url(req, value, absolute):
+        assert req is request and value is article and absolute is True
+        return "https://example.com/@author/article"
+
+    monkeypatch.setattr(api_utils, "get_article_url", article_url)
+    monkeypatch.setattr(api_utils, "notify_search_engines", submissions.append)
+
+    api_utils._notify_article_search_engines(request, article)
+
+    assert submissions == ["https://example.com/@author/article"]
+
+
+def test_article_notification_url_errors_are_best_effort(monkeypatch, caplog):
+    monkeypatch.setattr(api_utils, "is_prod", lambda: True)
+
+    def unavailable_url(*args, **kwargs):
+        raise ValueError("Request unavailable")
+
+    monkeypatch.setattr(api_utils, "get_article_url", unavailable_url)
+
+    result = api_utils.safe_execute(
+        "Search engine notification", api_utils._notify_article_search_engines,
+        None, SimpleNamespace())
+
+    assert result is None
+    assert "Search engine notification failed" in caplog.text
+
+
 @pytest.mark.parametrize("source", [IMAGE_FILENAME, f"/{IMAGE_FILENAME}"])
 def test_find_static_image_filename_accepts_relative_static_urls(monkeypatch, source):
     monkeypatch.setattr(api_utils, "get_static_base_url", lambda: "https://static.example.com")

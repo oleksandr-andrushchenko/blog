@@ -30,6 +30,10 @@ def copy_static_files(src: Path, dst: Path):
             target.mkdir(exist_ok=True)
             copy_static_files(item, target)
         elif item.is_file():
+            # The API generates the live sitemap from production data. Local test
+            # runs also write this file; never deploy that copy over production.
+            if re.fullmatch(r"sitemap(?:-\d+)?\.xml", item.name):
+                continue
             if uuid_prefix_pattern.match(item.name):
                 print(f"⏭️  Skipping file: {item.name}")
                 continue
