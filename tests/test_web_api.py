@@ -1552,3 +1552,14 @@ def test_discovery_tag_suggestions_skip_empty_pages_and_keep_editor_tags(guest_c
     finally:
         for key in keys:
             dynamodb_table.delete_item(Key=key)
+
+
+def test_production_popular_url_with_latest_cursor_returns_validation_response(guest_client):
+    offset = ("eyJwb3N0X2NhdGVnb3J5X3N0YXR1c19wayI6ICJQT1NUI2Nsb3VkLWluZnJh"
+              "c3RydWN0dXJlI3B1Ymxpc2hlZCIsICJzayI6ICJNRVRBIiwgInBrIjogIlBPU1Qj"
+              "OTJhZTQ3NzUtNWM0ZS00NTFkLWI3MTMtYjRmYzNjMDQ2MmIwIiwgImNyZWF0ZWRf"
+              "YXQiOiAxNzgyMzYwNDcwNDMzfQ==")
+    response = get(guest_client, f"/popular/articles?category=cloud-infrastructure&offset={offset}")
+    assert response.status_code == 422
+    assert "422 - Unprocessable Entity" in pq(response.text)("main h1").text()
+    assert "Back home" in response.text

@@ -1379,7 +1379,7 @@ def get_ses_client():
 
 
 def get_image_dimensions(data: bytes) -> tuple[int, int]:
-    """Return (width, height) for JPEG, PNG, GIF images from raw bytes."""
+    """Return (width, height) for supported upload images from raw bytes."""
 
     import struct
 
@@ -1422,6 +1422,19 @@ def get_image_dimensions(data: bytes) -> tuple[int, int]:
                 offset += 2 + seg_len
 
         raise ValueError("No SOF marker found in JPEG")
+
+    # Modern formats have more complex containers; use the installed codecs.
+    import filetype
+    kind = filetype.guess(data)
+    if kind and kind.extension in {"webp", "avif"}:
+        from io import BytesIO
+        from PIL import Image
+
+        try:
+            with Image.open(BytesIO(data)) as image:
+                return image.size
+        except (OSError, ValueError) as error:
+            raise ValueError("Invalid image data") from error
 
     raise ValueError("Unsupported image type")
 

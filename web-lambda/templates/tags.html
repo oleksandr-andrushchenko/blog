@@ -79,12 +79,12 @@
             <small class="text-secondary bi bi-sort-down"> Show:</small>
             <div class="btn-group btn-group-sm" role="group">
                 {% set is_latest = tags_query.type == TagQueryType.LATEST %}
-                <a href="{{ url("tags", **tags_query.get_dict({"type": None if is_latest else TagQueryType.LATEST})) }}"
+                <a href="{{ url("tags", **tags_query.get_dict({"type": None if is_latest else TagQueryType.LATEST, "offset": None})) }}"
                    class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
                     {{ TagQueryType.LATEST | title }} first
                 </a>
                 {% set is_popular = tags_query.type == TagQueryType.POPULAR %}
-                <a href="{{ url("tags", **tags_query.get_dict({"type": None if is_popular else TagQueryType.POPULAR})) }}"
+                <a href="{{ url("tags", **tags_query.get_dict({"type": None if is_popular else TagQueryType.POPULAR, "offset": None})) }}"
                    class="btn {% if is_popular %}btn-primary active{% else %}btn-light{% endif %} bi bi-star{{ "-fill" if is_popular else "" }}">
                     {{ TagQueryType.POPULAR | title }} first
                 </a>

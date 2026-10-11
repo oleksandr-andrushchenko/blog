@@ -6,7 +6,7 @@ import boto3
 from PIL import Image
 
 IMAGE_NAME = re.compile(
-    r"^(?P<base>.+)_(?P<width>\d+)x(?P<height>\d+)\.(?P<extension>png|jpe?g)$"
+    r"^(?P<base>.+)_(?P<width>\d+)x(?P<height>\d+)\.(?P<extension>png|jpe?g|avif)$"
 )
 TARGET_WIDTHS = (160, 320, 640, 1024)
 s3 = boto3.client("s3")

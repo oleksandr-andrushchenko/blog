@@ -7,6 +7,7 @@
     {% set height = height | default(None) %}
     {% set loading = loading | default(None) %}
     {% set decoding = decoding | default(None) %}
+    {% set fetchpriority = fetchpriority | default(None) %}
     {% set img_sizes = img_sizes | default({"default": "100vw"}) %}
     {% set img_sizes_value = namespace(parts=[]) %}
     {% for breakpoint, size in img_sizes.items() if breakpoint != "default" %}
@@ -28,7 +29,8 @@
         {% endif %}
     {% endif %}
 
-    {% set responsive = responsive | default(True) %}
+    {% set image_url = filename if filename.startswith('http://') or filename.startswith('https://') else static_url(filename) %}
+    {% set responsive = responsive | default(True) and not (filename.startswith('http://') or filename.startswith('https://')) %}
     {% set source_width = width | int if width else None %}
     {% set source_height = height | int if height else None %}
     {% if not source_width or not source_height %}
@@ -39,7 +41,7 @@
         {% endif %}
     {% endif %}
     {% set webp_srcset = namespace(value=[]) %}
-    {% if responsive and source_width and source_height and '_' in filename and '.' in filename and filename.rsplit('.', 1)[1] in ['png', 'jpg', 'jpeg'] %}
+    {% if responsive and source_width and source_height and '_' in filename and '.' in filename and filename.rsplit('.', 1)[1] in ['png', 'jpg', 'jpeg', 'avif'] %}
         {% set source_base = filename.rsplit('_', 1)[0] %}
         {% for candidate_width in [160, 320, 640, 1024] %}
             {% if candidate_width < source_width %}
@@ -60,14 +62,15 @@
     {% if webp_srcset.value %}
         <source type="image/webp" srcset="{{ webp_srcset.value | join(', ') }}" sizes="{{ img_sizes }}">
     {% endif %}
-    <img src="{{ static_url(filename) }}"
+    <img src="{{ image_url }}"
          alt="{{ alt or '' }}" class="{{ img_class }}"
-         {% if webp_srcset.value %}data-fallback-src="{{ static_url(filename) }}"{% endif %}
+         {% if webp_srcset.value %}data-fallback-src="{{ image_url }}"{% endif %}
          {% if img_style %}style="{{ img_style }}"{% endif %}
             {% if width %} width="{{ width }}"{% endif %}
          {% if height %}height="{{ height }}"{% endif %}
             {% if loading %} loading="{{ loading }}"{% endif %}
-         {% if decoding %}decoding="{{ decoding }}"{% endif %}>
+         {% if decoding %}decoding="{{ decoding }}"{% endif %}
+         {% if fetchpriority %}fetchpriority="{{ fetchpriority }}"{% endif %}>
 </picture>
 
 {% if figure %}

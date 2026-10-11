@@ -1,6 +1,7 @@
 import asyncio
 from dataclasses import replace
 
+from shared_utils import template_request
 from app_config import get_allowed_origins
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import PlainTextResponse
@@ -32,7 +33,6 @@ from api_utils import (
     get_all_articles,
     get_all_article_hrefs,
     find_user,
-    jinja2_env,
     update_user,
     update_article,
     find_article_impression,
@@ -135,8 +135,11 @@ async def add_no_robots_to_api(request: Request, call_next):
 
 @app.middleware("http")
 async def inject_template_global_vars(request: Request, call_next):
-    jinja2_env().globals["request"] = request
-    return await call_next(request)
+    token = template_request.set(request)
+    try:
+        return await call_next(request)
+    finally:
+        template_request.reset(token)
 
 
 @app.middleware("http")

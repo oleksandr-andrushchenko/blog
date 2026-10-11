@@ -89,12 +89,12 @@ def test_concurrent_web_renders_do_not_share_request_context(monkeypatch):
     monkeypatch.setattr(shared_utils, "jinja2_env", lambda: env)
 
     async def render(path):
-        token = web_utils.template_request.set(SimpleNamespace(path=path))
+        token = shared_utils.template_request.set(SimpleNamespace(path=path))
         try:
             await asyncio.sleep(0)
-            return web_utils.get_web_html_content("page.html")
+            return shared_utils.get_html_content("page.html")
         finally:
-            web_utils.template_request.reset(token)
+            shared_utils.template_request.reset(token)
 
     async def run():
         return await asyncio.gather(render("/articles"), render("/users"))

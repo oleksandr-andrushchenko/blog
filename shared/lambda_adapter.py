@@ -42,6 +42,8 @@ async def _invoke(app, event: dict, request_id=None) -> dict:
     status = 500
     response_headers: list[tuple[bytes, bytes]] = []
     response_body = bytearray()
+    response_started = False
+    response_complete = False
 
     async def receive():
         nonlocal request_sent
@@ -51,16 +53,24 @@ async def _invoke(app, event: dict, request_id=None) -> dict:
         return {"type": "http.request", "body": body_bytes, "more_body": False}
 
     async def send(message):
-        nonlocal status, response_headers
+        nonlocal status, response_headers, response_started, response_complete
         if message["type"] == "http.response.start":
             status = message["status"]
             response_headers = message.get("headers", [])
+            response_started = True
         elif message["type"] == "http.response.body":
             response_body.extend(message.get("body", b""))
+            response_complete = response_started and not message.get("more_body", False)
 
     scope = _scope(event)
     scope["aws_request_id"] = request_id
-    await app(scope, receive, send)
+    try:
+        await app(scope, receive, send)
+    except Exception:
+        # Starlette re-raises after sending its error response. Preserve that
+        # completed response instead of letting API Gateway replace it.
+        if not response_complete:
+            raise
 
     headers: dict[str, str] = {}
     cookies: list[str] = []

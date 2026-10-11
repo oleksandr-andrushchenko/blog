@@ -524,6 +524,7 @@ Resources:
               - suffix: .png
               - suffix: .jpg
               - suffix: .jpeg
+              - suffix: .avif
       Targets:
         - Id: ImageVariantsFunction
           Arn: !GetAtt ImageVariantsFunction.Arn

@@ -11,4 +11,4 @@ python-jose
 python-multipart
 filetype
 nh3
-Pillow
+Pillow>=11.3.0

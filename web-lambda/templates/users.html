@@ -79,12 +79,12 @@
             <small class="text-secondary bi bi-sort-down"> Show:</small>
             <div class="btn-group btn-group-sm" role="group">
                 {% set is_latest = user_query.type == UserQueryType.LATEST %}
-                <a href="{{ users_url(**user_query.get_dict({"type": None if is_latest else UserQueryType.LATEST})) }}"
+                <a href="{{ users_url(**user_query.get_dict({"type": None if is_latest else UserQueryType.LATEST, "offset": None})) }}"
                    class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
                     {{ UserQueryType.LATEST | title }} first
                 </a>
                 {% set is_popular = user_query.type == UserQueryType.POPULAR %}
-                <a href="{{ users_url(**user_query.get_dict({"type": None if is_popular else UserQueryType.POPULAR})) }}"
+                <a href="{{ users_url(**user_query.get_dict({"type": None if is_popular else UserQueryType.POPULAR, "offset": None})) }}"
                    class="btn btn-sm {% if is_popular %}btn-primary active{% else %}btn-light{% endif %} bi bi-heart{{ "-fill" if is_popular else "" }}">
                     {{ UserQueryType.POPULAR | title }} first
                 </a>
@@ -96,13 +96,13 @@
                 <small class="text-secondary bi bi-toggle2-on"> Filter by status:</small>
                 <div class="btn-group btn-group-sm" role="group">
                     {% set is_active = user_query.status == UserStatus.ACTIVE %}
-                    <a href="{{ users_url(**user_query.get_dict({"status": None if is_active else UserStatus.ACTIVE})) }}"
+                    <a href="{{ users_url(**user_query.get_dict({"status": None if is_active else UserStatus.ACTIVE, "offset": None})) }}"
                        class="btn {% if is_active %}btn-success active{% else %}btn-light{% endif %}">
                         {{ UserStatus.ACTIVE | title }}
                     </a>
 
                     {% set is_banned = user_query.status == UserStatus.BANNED %}
-                    <a href="{{ users_url(**user_query.get_dict({"status": None if is_banned else UserStatus.BANNED})) }}"
+                    <a href="{{ users_url(**user_query.get_dict({"status": None if is_banned else UserStatus.BANNED, "offset": None})) }}"
                        class="btn {% if is_banned %}btn-danger active{% else %}btn-light{% endif %}">
                         {{ UserStatus.BANNED | title }}
                     </a>

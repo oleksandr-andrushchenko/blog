@@ -6,11 +6,10 @@ from starlette.responses import HTMLResponse
 
 from shared_deps import OptCurUserDep
 from query_dtos import ArticleQueryDTO, UserQueryDTO
-from shared_utils import Article, User, ArticleNotFoundError, UserNotFoundError
+from shared_utils import Article, User, ArticleNotFoundError, UserNotFoundError, get_html_content
 from web import Depends, HTTPException, Request, parse_dto
 from web_utils import (
     get_article_by_slugs, get_user_by_slug, parse_articles_url_slugs_path,
-    get_web_html_content as get_html_content,
 )
 
 

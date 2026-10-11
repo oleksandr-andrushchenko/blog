@@ -11,6 +11,7 @@ import re
 import sys
 import time
 import uuid
+from contextvars import ContextVar
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -1003,11 +1004,14 @@ def get_dynamodb_table():
     return get_dynamodb_resource().Table(app_config.get_dynamodb_table_name())
 
 
-def get_html_content(template: str, data: dict[str, Any]) -> str:
-    if data is None:
-        data = {}
+template_request = ContextVar("template_request", default=None)
+
+
+def get_html_content(template: str, data: dict[str, Any] | None = None) -> str:
+    # Keep request state in each render, never in the cached Jinja environment.
+    context = {"request": template_request.get(), **(data or {})}
     template = jinja2_env().get_template(template)
-    return template.render(data)
+    return template.render(context)
 
 
 def to_datetime(ts: Any) -> datetime:

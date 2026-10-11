@@ -1,1 +1,1 @@
-Pillow
+Pillow>=11.3.0

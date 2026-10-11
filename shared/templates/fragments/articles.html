@@ -1,4 +1,5 @@
 {% for article in articles %}
+    {% set article_image_loading = "eager" if loop.index <= eager_article_images | default(0) else "lazy" %}
     {% if horizontal | default(False) %}
         {% include "fragments/horizontal-article.html" %}
     {% else %}

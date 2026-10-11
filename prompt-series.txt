@@ -1,0 +1,247 @@
+# Generate a Practical Article Series for `<TECHNOLOGY>`
+
+Generate a list of article ideas for a **SysDesPro** article series.
+
+The goal is **not** to reproduce official documentation or explain every feature individually. Instead, design a concise article series that teaches engineers how to build, operate, troubleshoot, optimize, and scale real production systems using the technology.
+
+---
+
+# Target Audience
+
+- Software Engineers
+- Backend Engineers
+- Cloud Engineers
+- DevOps Engineers
+- Site Reliability Engineers
+- Engineers preparing for Senior/Staff interviews
+- Engineers interested in System Design
+
+---
+
+# Goal
+
+Generate a series of articles that naturally progresses from beginner concepts to advanced production architecture.
+
+Each article should be substantial enough to support a **1,000–2,000 word technical article**.
+
+**Aim for 5–7 articles**, depending on the breadth of the technology.
+
+Prefer **fewer, broader, higher-quality articles** over many narrowly focused ones.
+
+Merge closely related topics into a single article whenever it produces a stronger, more practical article.
+
+For example:
+
+- Combine **Task Definitions**, **Services**, and **Deployments** into one article.
+- Combine **Production APIs** and **Background Workers** into one article.
+- Combine **Deployment Strategies** and **Auto Scaling** when appropriate.
+
+Avoid splitting concepts that naturally belong together.
+
+---
+
+# Content Philosophy
+
+The purpose of SysDesPro is **not** to rewrite vendor documentation.
+
+Instead, every proposed article should teach engineers how experienced software engineers design, build, deploy, scale, troubleshoot, and operate production systems.
+
+Each article should focus on practical engineering knowledge such as:
+
+- Why the technology exists
+- How it works internally
+- When to use it
+- When not to use it
+- Architecture decisions
+- Design trade-offs
+- Scalability
+- Reliability
+- High availability
+- Performance optimization
+- Security
+- Operational considerations
+- Production patterns
+- Common mistakes
+- Best practices
+- Real-world engineering experience
+
+Assume readers can always find:
+
+- API references
+- Configuration options
+- CLI commands
+- SDK documentation
+- Console walkthroughs
+
+in the official documentation.
+
+Instead, generate articles that explain concepts, architecture, design decisions, and production practices.
+
+Prefer articles that remain valuable for years rather than articles tied to specific console screens, configuration options, SDK methods, or CLI syntax.
+
+Every article should answer meaningful engineering questions rather than simply documenting a feature.
+
+---
+
+# Priorities
+
+The proposed series should emphasize:
+
+- Production systems
+- System architecture
+- Scalability
+- Reliability
+- High availability
+- Deployment strategies
+- Networking
+- Security
+- Performance optimization
+- Operational trade-offs
+- Monitoring
+- Observability
+- Debugging
+- Cost optimization
+- Best practices
+- Real-world engineering
+
+The series should feel like an experienced engineer's handbook rather than product documentation.
+
+---
+
+# Avoid
+
+Do **not** generate articles that are only about a single small feature, UI option, configuration field, CLI command, SDK function, or API parameter.
+
+For example, avoid titles like:
+
+- ECS Clusters Explained
+- ECS Tasks Explained
+- ECS Containers Explained
+- ECS Environment Variables
+- ECS Port Mappings
+- ECS Logging Driver
+
+Those belong naturally inside broader articles.
+
+Also avoid:
+
+- "Top 10..."
+- "Everything About..."
+- "Complete Guide..."
+- "Ultimate Guide..."
+- Marketing-style titles
+- Beginner-only cheat sheets
+- Console walkthroughs
+- Articles whose primary purpose is to document configuration syntax
+
+---
+
+# Prefer
+
+Prefer articles that naturally combine multiple related concepts into one production-focused topic.
+
+Examples include:
+
+- Architecture Patterns
+- Deployment Strategies
+- Networking
+- Production Best Practices
+- Performance Optimization
+- Scaling
+- High Availability
+- Security
+- Monitoring & Observability
+- Cost Optimization
+- Production Debugging
+- Disaster Recovery
+- Infrastructure Decisions
+- Running Production Workloads
+- Real-world Design Trade-offs
+
+Think like an experienced Staff Engineer creating internal engineering documentation.
+
+---
+
+# Beginner → Advanced Progression
+
+The articles should follow a logical learning path.
+
+A typical progression looks like:
+
+1. Introduction
+2. Core architecture
+3. Core building blocks
+4. Deployments
+5. Networking
+6. Production workloads
+7. Production best practices
+
+Not every technology must follow this exact order, but the progression should feel natural.
+
+---
+
+# Naming Style
+
+Article titles should be:
+
+- Practical
+- Searchable
+- Concise
+- Production-oriented
+
+Good examples:
+
+- Amazon ECS Task Definitions, Services, and Deployments Explained
+- AWS Fargate vs EC2 for ECS: Architecture Trade-Offs
+- Amazon ECS Networking Explained
+- Running Production APIs and Background Workers on Amazon ECS
+- Amazon ECS Deployment Strategies and Auto Scaling
+- Amazon ECS Best Practices for Production
+
+Prefer titles that answer real engineering questions rather than simply naming a feature.
+
+---
+
+# Coverage
+
+Together, the articles should cover the most important production topics where applicable, such as:
+
+- Architecture
+- Deployments
+- Networking
+- Security
+- Scaling
+- Performance
+- Monitoring
+- Observability
+- Logging
+- Infrastructure
+- Production workloads
+- Operational trade-offs
+- Reliability
+- High availability
+- Cost optimization
+- Best practices
+
+Not every technology requires every category.
+
+---
+
+# Output Format
+
+Return **only** a numbered list.
+
+For each item provide:
+
+- Article title only
+
+Do not include:
+
+- Descriptions
+- Explanations
+- Group headings
+- Difficulty labels
+- Categories
+- Markdown besides the numbered list
+
+The resulting list should represent a concise, practical learning path for mastering **`<TECHNOLOGY>`** in production environments and should fit naturally into the existing **SysDesPro** article series.

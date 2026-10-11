@@ -30,7 +30,7 @@
                     new</label></div>
             </div>
             <div id="category-upload-image" class="mt-2 d-none">
-                <input type="file" class="form-control" id="image_file" name="image_file" data-public-file>
+                <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/avif" class="form-control" id="image_file" name="image_file" data-public-file>
             </div>
         </div>
     </div>
@@ -59,10 +59,10 @@
             rule: "files",
             value: {
               files: {
-                extensions: ["jpeg", "jpg", "png"],
+                extensions: ["jpeg", "jpg", "png", "gif", "webp", "avif"],
                 maxSize: 10000000,
                 minSize: 1000,
-                types: ["image/jpeg", "image/jpg", "image/png"]
+                types: ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/avif"]
               }
             }
           }

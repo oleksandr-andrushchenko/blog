@@ -23,7 +23,10 @@ from shared_deps import (
     TagQueryDep,
     CategoryDep,
 )
-from shared_utils import find_category, find_redirect, get_categories, get_category, get_static_url, get_tags
+from shared_utils import (
+    template_request, get_html_content, find_category, find_redirect,
+    get_categories, get_category, get_static_url, get_tags,
+)
 from web import (
     Application,
     Request,
@@ -57,8 +60,6 @@ from web_utils import (
     TagByOldSlugRequestedError,
     UserByOldSlugRequestedError,
     logger,
-    get_web_html_content as get_html_content,
-    template_request,
     get_url,
     get_article_url,
     get_users,

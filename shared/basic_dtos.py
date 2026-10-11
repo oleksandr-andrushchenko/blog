@@ -54,7 +54,7 @@ class FileDTO(BaseDTO):
 @dataclass(slots=True)
 class ImageFileDTO(FileDTO):
     MAX_IMAGE_SIZE = 2 * 1024 * 1024
-    ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif"}
+    ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp", "avif"}
 
     def __post_init__(self):
         if self.size > self.MAX_IMAGE_SIZE:

@@ -3,7 +3,8 @@
         alt=article.title,
         img_class="img-fluid w-100 h-auto",
         img_style=None,
-        img_sizes=article_img_sizes %}
+        img_sizes=article_img_sizes,
+        loading=article_image_loading | default("lazy"), decoding="async" %}
         {% include "fragments/image.html" %}
     {% endwith %}
 </a>

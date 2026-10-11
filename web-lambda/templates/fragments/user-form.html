@@ -32,7 +32,7 @@
                 </div>
 
                 <div class="{{ {"def": 6, "lg": 8, "xl": 10} | col_classes }}" id="upload-avatar" style="display:none">
-                    <input type="file" class="form-control" id="avatar_file" name="avatar_file"
+                    <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/avif" class="form-control" id="avatar_file" name="avatar_file"
                            placeholder="Avatar" data-public-file>
                 </div>
             </div>
@@ -172,10 +172,10 @@
             rule: "files",
             value: {
               files: {
-                extensions: ["jpeg", "jpg", "png"],
+                extensions: ["jpeg", "jpg", "png", "gif", "webp", "avif"],
                 maxSize: 10000000,
                 minSize: 1000,
-                types: ["image/jpeg", "image/jpg", "image/png"]
+                types: ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/avif"]
               }
             }
           }

@@ -1,3 +1,5 @@
+import base64
+import json
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 
@@ -111,6 +113,20 @@ class ArticleQueryDTO(BaseQueryDTO):
         self.status = ArticleStatus(self.status)
         if self.category is not None:
             self.category = validate_category_slug(self.category)
+        if self.offset and self.category:
+            try:
+                cursor = json.loads(base64.urlsafe_b64decode(self.offset).decode())
+            except (ValueError, UnicodeError) as exc:
+                raise ValueError("offset must be a valid pagination cursor") from exc
+            sort_key = "rating_sk" if self.type == ArticleQueryType.POPULAR else "created_at"
+            expected_keys = {"pk", "sk", "post_category_status_pk", sort_key}
+            if (not isinstance(cursor, dict) or set(cursor) != expected_keys
+                    or cursor.get("post_category_status_pk") != f"POST#{self.category}#{self.status}"
+                    or not isinstance(cursor.get("pk"), str) or not cursor["pk"].startswith("POST#")
+                    or cursor.get("sk") != "META"
+                    or isinstance(cursor.get(sort_key), bool)
+                    or not isinstance(cursor.get(sort_key), (int, float))):
+                raise ValueError("offset does not match this article category, status, or sort order")
 
     def has_params(self):
         return BaseQueryDTO.has_params(self) or bool(

@@ -6,7 +6,8 @@
                 {% if category.image_filename %}
                     {% with filename=category.image_filename, alt=category.name,
                             img_class="w-100 h-100 object-fit-cover", img_style="min-height: 10rem;",
-                            img_sizes={"992px": "33vw", "default": "40vw"}, figure=False %}
+                            img_sizes={"1400px": "173px", "992px": "153px", "768px": "232px", "576px": "172px", "default": "calc((100vw - 26px) / 3)"},
+                            loading=category_image_loading | default("lazy"), decoding="async", figure=False %}
                         {% include "fragments/image.html" %}
                     {% endwith %}
                 {% else %}

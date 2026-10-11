@@ -140,12 +140,12 @@
             <small class="text-secondary bi bi-sort-down"> Show:</small>
             <div class="btn-group btn-group-sm" role="group">
                 {% set is_latest = article_query.type == ArticleQueryType.LATEST %}
-                <a href="{{ articles_url(**article_query.get_dict({"type": None if is_latest else ArticleQueryType.LATEST})) }}"
+                <a href="{{ articles_url(**article_query.get_dict({"type": None if is_latest else ArticleQueryType.LATEST, "offset": None})) }}"
                    class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
                     {{ ArticleQueryType.LATEST | title }} first
                 </a>
                 {% set is_popular = article_query.type == ArticleQueryType.POPULAR %}
-                <a href="{{ articles_url(**article_query.get_dict({"type": None if is_popular else ArticleQueryType.POPULAR})) }}"
+                <a href="{{ articles_url(**article_query.get_dict({"type": None if is_popular else ArticleQueryType.POPULAR, "offset": None})) }}"
                    class="btn {% if is_popular %}btn-primary active{% else %}btn-light{% endif %} bi bi-star{{ "-fill" if is_popular else "" }}">
                     {{ ArticleQueryType.POPULAR | title }} first
                 </a>
@@ -171,19 +171,19 @@
                 <small class="text-secondary bi bi-toggle2-on"> Filter by status:</small>
                 <div class="btn-group btn-group-sm" role="group">
                     {% set is_published = article_query.status == ArticleStatus.PUBLISHED %}
-                    <a href="{{ articles_url(**article_query.get_dict({"status": None if is_published else ArticleStatus.PUBLISHED})) }}"
+                    <a href="{{ articles_url(**article_query.get_dict({"status": None if is_published else ArticleStatus.PUBLISHED, "offset": None})) }}"
                        class="btn {% if is_published %}btn-success active{% else %}btn-light{% endif %}">
                         {{ ArticleStatus.PUBLISHED | title }}
                     </a>
 
                     {% set is_unpublished = article_query.status == ArticleStatus.UNPUBLISHED %}
-                    <a href="{{ articles_url(**article_query.get_dict({"status": None if is_unpublished else ArticleStatus.UNPUBLISHED})) }}"
+                    <a href="{{ articles_url(**article_query.get_dict({"status": None if is_unpublished else ArticleStatus.UNPUBLISHED, "offset": None})) }}"
                        class="btn {% if is_unpublished %}btn-warning active{% else %}btn-light{% endif %}">
                         {{ ArticleStatus.UNPUBLISHED | title }}
                     </a>
 
                     {% set is_rejected = article_query.status == ArticleStatus.REJECTED %}
-                    <a href="{{ articles_url(**article_query.get_dict({"status": None if is_rejected else ArticleStatus.REJECTED})) }}"
+                    <a href="{{ articles_url(**article_query.get_dict({"status": None if is_rejected else ArticleStatus.REJECTED, "offset": None})) }}"
                        class="btn {% if is_rejected %}btn-danger active{% else %}btn-light{% endif %}">
                         {{ ArticleStatus.REJECTED | title }}
                     </a>
@@ -218,7 +218,7 @@
             {% endwith %}
 
             {% with h_tag_size=2,
-                article_img_sizes={"1400px": "196px", "1200px": "166px", "992px": "96px", "768px": "156px", "default": "100vw"} %}
+                article_img_sizes={"1400px": "196px", "1200px": "166px", "992px": "96px", "768px": "156px", "default": "100vw"}, eager_article_images=1 %}
                 {% include "fragments/articles.html" %}
             {% endwith %}
         </section>
