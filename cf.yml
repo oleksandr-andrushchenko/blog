@@ -1100,61 +1100,61 @@ Resources:
 Outputs:
   GoogleSearchConsoleCredentialsSecretArn:
     Value: !Ref GoogleSearchConsoleCredentialsSecret
-    Description: ARN of the empty secret to populate with Google service account JSON
+    Description: Search Console credentials secret ARN
   WebCertificateArn:
     Value: !Ref WebCertificate
-    Description: ARN of the regional Web API Gateway certificate
+    Description: Web certificate ARN
   ApiCertificateArn:
     Value: !Ref ApiCertificate
-    Description: ARN of the regional API Gateway certificate
+    Description: API certificate ARN
   SesIdentityArn:
     Value: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${DomainName}"
-    Description: ARN of the verified SES sending identity
+    Description: SES identity ARN
   SesMailFromDomain:
     Value: !Sub "bounce.${DomainName}"
-    Description: Custom SES MAIL FROM domain
+    Description: SES MAIL FROM domain
   WebsiteUrl:
     Value: !Sub "https://${DomainName}"
-    Description: URL of the deployed website
+    Description: Website URL
   CloudFrontDistributionId:
     Value: !GetAtt CloudFrontDistribution.Id
-    Description: ID of the CloudFront distribution serving static files
+    Description: CloudFront distribution ID
   StaticUrl:
     Value: !Sub "https://static.${DomainName}"
-    Description: URL of the static file distribution
+    Description: Static files URL
   WebLambdaName:
     Value: !Ref WebFunction
-    Description: Name of the Web Lambda function
+    Description: Web Lambda name
   ContactFormTopicArn:
     Value: !Ref ContactFormTopic
-    Description: ARN of the SNS topic used for contact form notifications
+    Description: Contact topic ARN
   LambdaRoleName:
     Value: !Ref BackendFunctionRole
-    Description: Shared IAM role name for the Web and API Lambdas
+    Description: Lambda role name
   WebLambdaLogGroupName:
     Value: !Ref WebFunctionLogGroup
-    Description: CloudWatch log group for the Web Lambda
+    Description: Web Lambda log group
   ApiLambdaLogGroupName:
     Value: !Ref ApiLambdaLogGroup
-    Description: CloudWatch log group for the API Lambda
+    Description: API Lambda log group
   MediaLambdaLogGroupName:
     Value: !Ref ImageVariantsLambdaLogGroup
-    Description: CloudWatch log group for the image variants Lambda
+    Description: Media Lambda log group
   ApiApiGatewayId:
     Value: !Ref ApiGatewayApi
-    Description: ID of the API Gateway dedicated to the API Lambda
+    Description: API Gateway ID
   ApiUrl:
     Value: !Sub "https://api.${DomainName}"
-    Description: Custom domain URL of the API Lambda
+    Description: API URL
   WebApiGatewayId:
     Value: !Ref ApiGateway
-    Description: ID of the API Gateway for the Web Lambda
+    Description: Web API Gateway ID
   DynamoDbTableName:
     Value: !Ref DynamoDBTable
-    Description: Name of the application DynamoDB table
+    Description: DynamoDB table name
   CognitoUserPoolId:
     Value: !Ref CognitoUserPoolV2
-    Description: ID of the Cognito User Pool
+    Description: Cognito user pool ID
   CognitoUserPoolClientId:
     Value: !Ref CognitoUserPoolClient
-    Description: ID of the Cognito User Pool Client
+    Description: Cognito client ID
