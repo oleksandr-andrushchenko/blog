@@ -37,15 +37,61 @@ document.querySelectorAll("img[data-fallback-src]").forEach(image => {
   if (image.complete && image.naturalWidth === 0) useImageFallback(image)
 })
 
+// Own initialization: data-masonry-options avoids the library's data-masonry
+// auto-init creating a second instance after DOMContentLoaded.
+const masonryContainers = new WeakMap()
+
+function observeMasonryItems(container, masonry) {
+  let state = masonryContainers.get(container)
+  if (!state) {
+    let pendingLayout = false
+    const scheduleLayout = () => {
+      if (pendingLayout) return
+      pendingLayout = true
+      requestAnimationFrame(() => {
+        pendingLayout = false
+        if (container.isConnected) masonry.layout()
+      })
+    }
+    // Listen during capture: media load/error events do not bubble. This also
+    // handles lazy images, responsive sources, fallbacks, and appended cards.
+    for (const event of ["load", "error", "loadedmetadata"]) {
+      container.addEventListener(event, scheduleLayout, true)
+    }
+    const sizes = new WeakMap()
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(entries => {
+      for (const {target} of entries) {
+        const {width, height} = target.getBoundingClientRect()
+        const previous = sizes.get(target)
+        sizes.set(target, {width, height})
+        if (previous && (width !== previous.width || height !== previous.height)) scheduleLayout()
+      }
+    })
+    state = {observer, sizes}
+    masonryContainers.set(container, state)
+    // Moving cards must keep pace with changing media heights, without a
+    // transition that temporarily leaves them overlapping.
+    masonry.option({transitionDuration: 0})
+  }
+  for (const item of masonry.getItemElements()) {
+    if (state.sizes.has(item)) continue
+    const {width, height} = item.getBoundingClientRect()
+    state.sizes.set(item, {width, height})
+    // Observe cards rather than the grid, whose height is changed by layout().
+    state.observer?.observe(item)
+  }
+}
+
 function getMasonryInstance(container) {
-  if (typeof Masonry === "undefined" || !container.matches("[data-masonry]")) return null
+  if (typeof Masonry === "undefined" || !container.matches("[data-masonry-options]")) return null
 
   let masonry = Masonry.data(container)
-  if (masonry) return masonry
-
   try {
-    const options = JSON.parse(container.dataset.masonry || "{}")
-    masonry = new Masonry(container, options)
+    if (!masonry) {
+      const options = JSON.parse(container.dataset.masonryOptions || "{}")
+      masonry = new Masonry(container, {...options, transitionDuration: 0})
+    }
+    observeMasonryItems(container, masonry)
   } catch (err) {
     console.error("Unable to initialize Masonry:", err)
   }
@@ -54,7 +100,7 @@ function getMasonryInstance(container) {
 
 function initializeMasonryContainers() {
   if (typeof Masonry === "undefined") return
-  document.querySelectorAll("[data-masonry]").forEach(getMasonryInstance)
+  document.querySelectorAll("[data-masonry-options]").forEach(getMasonryInstance)
 }
 
 if (document.readyState === "loading") {
@@ -372,16 +418,12 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
 
       const fragment = document.createRange().createContextualFragment(content)
       const newElements = Array.from(fragment.children)
+      const masonry = getMasonryInstance(container)
       container.append(fragment)
 
-      const masonry = getMasonryInstance(container)
       if (masonry && newElements.length) {
         masonry.appended(newElements)
-        const images = newElements.flatMap(element => Array.from(element.querySelectorAll("img")))
-        Promise.all(images.map(image => image.complete ? Promise.resolve() : new Promise(resolve => {
-          image.addEventListener("load", resolve, {once: true})
-          image.addEventListener("error", resolve, {once: true})
-        }))).then(() => masonry.layout())
+        observeMasonryItems(container, masonry)
       }
 
       const lastElement = container.lastElementChild

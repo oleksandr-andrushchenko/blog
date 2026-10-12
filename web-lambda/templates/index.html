@@ -51,7 +51,7 @@
                     <h2 class="h5 mb-2 text-decoration-underline">Popular tags</h2>
                     {% if popular_tags %}
                         <div class="{{ {"def": 2, "sm": 3, "md": 4} | row_classes }} g-2 mb-2"
-                             data-masonry='{"percentPosition": true }'>
+                             data-masonry-options='{"percentPosition": true }'>
                             {% for tag in popular_tags[:20] %}
                                 {% include "fragments/tag.html" %}
                             {% endfor %}
@@ -82,7 +82,7 @@
                     </h2>
                     {% if popular_users %}
                         <div id="popular-users" class="{{ {"def": 1, "sm": 2} | row_classes }} g-2 mb-2"
-                             data-masonry='{"percentPosition": true }'>
+                             data-masonry-options='{"percentPosition": true }'>
                             {% with users=popular_users[:3] %}
                                 {% include "fragments/popular-users.html" %}
                             {% endwith %}
@@ -167,7 +167,7 @@
             </h2>
             {% if latest_articles %}
                 <div id="articles" class="{{ {"def": 1, "sm": 2, "lg": 3, "xl": 4} | row_classes }} g-3 mb-2"
-                     data-masonry='{"percentPosition": true }'>
+                     data-masonry-options='{"percentPosition": true }'>
                     {% with articles=latest_articles,
                             article_img_sizes={"1400px": "196px", "1200px": "166px", "992px": "96px", "768px": "156px", "default": "100vw"}, eager_article_images=1 %}
                         {% include "fragments/articles.html" %}

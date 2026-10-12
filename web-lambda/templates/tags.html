@@ -99,7 +99,7 @@
     </form>
 
     {% if tags %}
-        <div class="{{ {"def": 2, "sm": 3, "md": 4, "lg": 5, "xl": 6} | row_classes }} g-3" id="tags" data-masonry='{"percentPosition": true }'>
+        <div class="{{ {"def": 2, "sm": 3, "md": 4, "lg": 5, "xl": 6} | row_classes }} g-3" id="tags" data-masonry-options='{"percentPosition": true }'>
             {% for tag in tags %}
                 {% include "fragments/tag.html" %}
             {% endfor %}

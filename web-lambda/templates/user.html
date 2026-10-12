@@ -246,7 +246,7 @@
 
             {% if articles %}
                 <div id="articles" class="{{ {"def": 1, "sm": 2, "lg": 3, "xl": 4} | row_classes }} g-3"
-                     data-masonry='{"percentPosition": true }'>
+                     data-masonry-options='{"percentPosition": true }'>
                     {% with article_img_sizes={"1400px": "196px", "1200px": "166px", "992px": "96px", "768px": "156px", "default": "100vw"}, eager_article_images=1 %}
                         {% include "fragments/articles.html" %}
                     {% endwith %}

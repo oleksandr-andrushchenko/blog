@@ -212,7 +212,7 @@
 
     {% if articles %}
         <section id="articles" class="{{ {"def": 1, "sm": 2, "lg": 3, "xl": 4} | row_classes }} g-3"
-                 data-masonry='{"percentPosition": true }'>
+                 data-masonry-options='{"percentPosition": true }'>
             {% with tags=article_query.tags %}
                 {% include "fragments/tag-subscription.html" %}
             {% endwith %}
