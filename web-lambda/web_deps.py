@@ -5,7 +5,7 @@ from http import HTTPStatus
 from starlette.responses import HTMLResponse
 
 from shared_deps import OptCurUserDep
-from query_dtos import ArticleQueryDTO, UserQueryDTO
+from query_dtos import ArticleListingQueryDTO, UserQueryDTO
 from shared_utils import Article, User, ArticleNotFoundError, UserNotFoundError, get_html_content
 from web import Depends, HTTPException, Request, parse_dto
 from web_utils import (
@@ -40,10 +40,10 @@ def get_user_query_by_slugs(request: Request, type: str) -> UserQueryDTO:
 
 
 
-def get_article_query_by_slugs(request: Request, slugs_path: str) -> ArticleQueryDTO:
+def get_article_query_by_slugs(request: Request, slugs_path: str) -> ArticleListingQueryDTO:
     data = dict(request.query_params)
     data.update(parse_articles_url_slugs_path(slugs_path))
-    return parse_dto(ArticleQueryDTO, data)
+    return parse_dto(ArticleListingQueryDTO, data)
 
 
 
@@ -71,4 +71,4 @@ def _get_article_by_slugs(user_slug: str, article_slug: str, cur_user: OptCurUse
 UserBySlugDep = Annotated[User, Depends(_get_user_by_slug)]
 UserQueryBySlugsDep = Annotated[UserQueryDTO, Depends(get_user_query_by_slugs)]
 ArticleBySlugsDep = Annotated[Article, Depends(_get_article_by_slugs)]
-ArticleQueryBySlugsDep = Annotated[ArticleQueryDTO, Depends(get_article_query_by_slugs)]
+ArticleQueryBySlugsDep = Annotated[ArticleListingQueryDTO, Depends(get_article_query_by_slugs)]

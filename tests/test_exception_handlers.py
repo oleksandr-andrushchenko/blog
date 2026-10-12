@@ -9,6 +9,7 @@ from pathlib import Path
 import sys
 import unittest
 from unittest.mock import patch
+from urllib.parse import urlencode
 
 project_root = Path(os.environ.get("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
 for directory in ("shared", "api-lambda", "web-lambda"):
@@ -34,6 +35,36 @@ class ExceptionHandlerTests(unittest.TestCase):
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
                 cls.modules.append(module)
+
+    def test_article_routes_reject_wrong_sort_cursor_before_loading_articles(self):
+        offset = shared_utils.encode_offset({
+            "pk": "POST#ea1c0fa7-075f-45e2-aa46-4df4540c8886", "sk": "META",
+            "post_status_pk": "POST#published", "rating_sk": 11788053264236,
+        })
+        for module in self.modules:
+            paths = ("/articles", "/web-protocols/articles") if module.__name__.startswith("web_") \
+                else ("/articles-fragment",)
+            for path in paths:
+                with self.subTest(module=module.__name__, path=path):
+                    with patch.dict(app_config, {
+                        "function_templates_dir": str(project_root / "web-lambda/templates"),
+                    }):
+                        templates = shared_utils.get_jinja2_env()
+                    with patch.object(shared_utils, "jinja2_env", return_value=templates), \
+                            patch.object(module, "get_articles") as get_articles, \
+                            patch.object(module, "logger") as logger:
+                        response = make_handler(module.app)({
+                            "rawPath": path, "rawQueryString": urlencode({"offset": offset}),
+                            "headers": {"host": "example.com"},
+                            "requestContext": {"http": {"method": "GET"}},
+                        }, None)
+                    self.assertEqual(response["statusCode"], 422)
+                    if module.__name__.startswith("web_"):
+                        self.assertIn("<h1>422 - ", response["body"])
+                    else:
+                        self.assertIn("offset", response["body"])
+                    get_articles.assert_not_called()
+                    logger.error.assert_not_called()
 
     def invoke(self, module, exception, path="/failure", status=200, redirect=None):
         app = Application()

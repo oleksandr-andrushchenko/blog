@@ -16,6 +16,7 @@ from shared_deps import (
     OptCurUserDep,
     CurUserDep,
     ArticleQueryDep,
+    ArticleListingQueryDep,
     ArticleDep,
     UserQueryDep,
     UserDep,
@@ -372,7 +373,7 @@ async def _article_page(article: ArticleDep, cur_user: OptCurUserDep) -> HTMLRes
     return HTMLResponse(html_content)
 
 
-async def _articles_page(query_dto: ArticleQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
+async def _articles_page(query_dto: ArticleQueryDTO, cur_user: OptCurUserDep) -> HTMLResponse:
     category = find_category(query_dto.category) if query_dto.category else None
     tag_slug = query_dto.tags[0] if query_dto.tags and len(query_dto.tags) == 1 else None
     (
@@ -417,7 +418,7 @@ async def new_article(cur_user: CurUserDep) -> str:
 
 
 @route("get", "articles", response_class=HTMLResponse)
-async def articles_page(query_dto: ArticleQueryDep, cur_user: OptCurUserDep):
+async def articles_page(query_dto: ArticleListingQueryDep, cur_user: OptCurUserDep):
     return await _articles_page(query_dto, cur_user)
 
 

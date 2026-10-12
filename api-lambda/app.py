@@ -78,6 +78,7 @@ from shared_deps import (
     OptCurUserDep,
     CurUserDep,
     ArticleQueryDep,
+    ArticleListingQueryDep,
     ArticleDep,
     TagQueryDep,
     UserQueryDep,
@@ -226,7 +227,7 @@ async def _create_article(article_dto: ArticleDTO, cur_user: CurUserDep, request
 
 
 @route("get", "articles-fragment", response_class=HTMLResponse)
-async def articles_fragment(query_dto: ArticleQueryDep, cur_user: OptCurUserDep) -> str:
+async def articles_fragment(query_dto: ArticleListingQueryDep, cur_user: OptCurUserDep) -> str:
     return get_html_content("fragments/articles.html", {
         "articles": get_articles(query_dto, cur_user)
     })

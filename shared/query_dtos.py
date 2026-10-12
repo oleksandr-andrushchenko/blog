@@ -134,5 +134,33 @@ class ArticleQueryDTO(BaseQueryDTO):
 
 
 @dataclass(slots=True)
+class ArticleListingQueryDTO(ArticleQueryDTO):
+    """Article feed query, whose cursor must match the selected index."""
+
+    def __post_init__(self):
+        ArticleQueryDTO.__post_init__(self)
+        if not self.offset or self.category:
+            return
+        try:
+            cursor = json.loads(base64.urlsafe_b64decode(self.offset).decode())
+        except (ValueError, UnicodeError) as exc:
+            raise ValueError("offset must be a valid pagination cursor") from exc
+        if self.tags and self.type == ArticleQueryType.LATEST:
+            valid = (isinstance(cursor, dict) and set(cursor) == {"pk", "sk"}
+                     and cursor.get("pk") == "POST_TAG_COMBO#" + "#".join(self.tags)
+                     and isinstance(cursor.get("sk"), str) and cursor["sk"].startswith("POST#"))
+        else:
+            sort_key = "rating_sk" if self.type == ArticleQueryType.POPULAR else "created_at"
+            valid = (isinstance(cursor, dict) and set(cursor) == {"pk", "sk", "post_status_pk", sort_key}
+                     and cursor.get("post_status_pk") == f"POST#{self.status}"
+                     and isinstance(cursor.get("pk"), str) and cursor["pk"].startswith("POST#")
+                     and cursor.get("sk") == "META"
+                     and not isinstance(cursor.get(sort_key), bool)
+                     and isinstance(cursor.get(sort_key), (int, float)))
+        if not valid:
+            raise ValueError("offset does not match this article listing, status, or sort order")
+
+
+@dataclass(slots=True)
 class ArticleCommentQueryDTO(BaseQueryDTO):
     pass

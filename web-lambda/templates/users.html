@@ -10,7 +10,7 @@
 } %}
 
 {% set title = ([val_map[user_query.type]["title"]] + [val_map[user_query.status]["title"]] + ["Users"]) | select | join(" ") | title %}
-{% set meta_robots = "noindex, follow" if user_query.status != UserStatus.ACTIVE else "index, follow" %}
+{% set meta_robots = "noindex, follow" if user_query.offset or user_query.status != UserStatus.ACTIVE else "index, follow" %}
 {% set subtitle = ([val_map[user_query.type]["subtitle"]] + [val_map[user_query.status]["subtitle"]] + ["Users"]) | select | join(" ") | title %}
 {% set meta_title = title ~ " | " ~ site_name %}
 {% set meta_canonical_url = users_url(query=user_query, absolute=True) %}

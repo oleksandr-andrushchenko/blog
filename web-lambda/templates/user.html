@@ -22,7 +22,7 @@
 
 {% set articles_icon = val_map[ArticleQueryType.LATEST]["icon"] %}
 {% set articles_title = ([val_map[article_query.type]["title"]] + [val_map[article_query.status]["title"]] + ["Articles"]) | select | join(" ") | title %}
-{% set meta_robots = "index, follow" if user.status == UserStatus.ACTIVE and article_query.status == ArticleStatus.PUBLISHED else "noindex, nofollow" %}
+{% set meta_robots = ("noindex, follow" if article_query.offset else "index, follow") if user.status == UserStatus.ACTIVE and article_query.status == ArticleStatus.PUBLISHED else "noindex, nofollow" %}
 {% set articles_subtitle = ([val_map[article_query.type]["subtitle"]] + [val_map[article_query.status]["subtitle"]] + ["Articles"]) | select | join(" ") | title %}
 {% set meta_title = user.name ~ " - " ~ site_name %}
 {% set meta_desc = [

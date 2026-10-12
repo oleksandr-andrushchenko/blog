@@ -10,7 +10,7 @@
 {% set title = ([val_map[tags_query.type]["title"], "Tags"]) | select | join(" ") | title %}
 {% set subtitle = ([val_map[tags_query.type]["subtitle"], "Tags"]) | select | join(" ") | title %}
 {% set meta_title = title ~ " | " ~ site_name %}
-{% set meta_robots = "noindex, follow" if tags_query.prefix else "index, follow" %}
+{% set meta_robots = "noindex, follow" if tags_query.offset or tags_query.prefix else "index, follow" %}
 {% set meta_canonical_url = url("tags", type=None if tags_query.type == TagQueryDTO.DEFAULT_TYPE else tags_query.type,
     prefix=tags_query.prefix, offset=tags_query.offset,
     limit=tags_query.limit if tags_query.limit != TagQueryDTO.DEFAULT_LIMIT else None, absolute=True) %}

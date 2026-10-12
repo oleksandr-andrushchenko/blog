@@ -1,8 +1,8 @@
 from typing import Annotated, Optional
 
+from query_dtos import ArticleListingQueryDTO, ArticleQueryDTO
 from shared_utils import (
     User,
-    ArticleQueryDTO,
     Article,
     TagQueryDTO,
     UserQueryDTO,
@@ -93,10 +93,17 @@ def get_article_query(request: Request, tags: list[str] = Query([])) -> ArticleQ
     return parse_dto(ArticleQueryDTO, data)
 
 
+def get_article_listing_query(request: Request, tags: list[str] = Query([])) -> ArticleListingQueryDTO:
+    data = dict(request.query_params)
+    data.update({"tags": tags})
+    return parse_dto(ArticleListingQueryDTO, data)
+
+
 UserDep = Annotated[User, Depends(get_user_by_id)]
 UserQueryDep = Annotated[UserQueryDTO, Depends()]
 ArticleDep = Annotated[Article, Depends(get_article_by_id)]
 ArticleQueryDep = Annotated[ArticleQueryDTO, Depends(get_article_query)]
+ArticleListingQueryDep = Annotated[ArticleListingQueryDTO, Depends(get_article_listing_query)]
 TagQueryDep = Annotated[TagQueryDTO, Depends()]
 TagDep = Annotated[Tag, Depends(get_tag_by_slug)]
 CategoryDep = Annotated[Category, Depends(get_category_by_slug)]

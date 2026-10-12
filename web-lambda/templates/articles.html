@@ -16,7 +16,7 @@
 {% if category and tag_label %}
     {% set title = title ~ " in " ~ category.name %}
 {% endif %}
-{% set meta_robots = "noindex, follow" if article_query.status != ArticleStatus.PUBLISHED or not articles else "index, follow" %}
+{% set meta_robots = "noindex, follow" if article_query.offset or article_query.status != ArticleStatus.PUBLISHED or not articles else "index, follow" %}
 {% set subtitle = category.description if category else ([val_map[article_query.type]["subtitle"], tag_label, val_map[article_query.status]["subtitle"], "Articles"]) | select | join(" ") | title %}
 {% set meta_title = title ~ (" Category" if article_query.category and not tag_label else "") ~ " | " ~ site_name %}
 {% set meta_canonical_url = articles_url(query=article_query, tags=article_query.tags|unique|sort, absolute=True) %}
