@@ -1,5 +1,13 @@
 # Repository agent instructions
 
+## Review and delivery authorization
+
+- Leave changes unstaged and uncommitted for the user to review.
+- Staging, commits (including amendments), pushes, merges, rebases, reverts, tags/releases, pull requests,
+  deployments, and other publishing actions require an explicit user command for that specific action.
+- Implementation requests, passing checks, and guidance about organizing commits do not authorize these actions.
+  Authorization for one action does not authorize another; a commit command does not authorize a push.
+
 ## Change scope and verification
 
 - When committing, split unrelated work into separate commits by logical concern. Include relevant tests and
