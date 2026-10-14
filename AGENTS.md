@@ -44,6 +44,13 @@
 - Template request state belongs in `template_request` (a `ContextVar`), never in cached Jinja environment globals.
   Pass requests explicitly to error rendering when exception handling can occur after middleware resets the context.
 
+## Authentication redirects
+
+- Login/logout return destinations must be same-origin application pages, never authentication endpoints. Validate
+  both the incoming return URL/referrer and the saved `redirect_url` cookie, then clear that cookie after the callback.
+  Returning to a login callback reuses a single-use authorization code and causes a repeated Cognito `invalid_grant`.
+  Authentication responses use `Cache-Control: no-store`.
+
 ## Templates and static assets
 
 - Store layouts and page templates in the owning Lambda's templates root; store reusable partial HTML templates in

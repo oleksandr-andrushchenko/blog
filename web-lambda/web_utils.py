@@ -1,5 +1,7 @@
 from datetime import timedelta
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, unquote, urlparse
+
+from web_route_metadata import WEB_AUTH_URL_ROUTES
 
 from app_config import (
     get_auth_jwt_secret, get_auth_token_max_age, get_cognito_client_id,
@@ -120,24 +122,28 @@ def get_logout_redirect_url(callback_url: str) -> str:
     return callback_url
 
 
+def get_auth_return_url(req, value: str | None) -> str:
+    fallback = get_url(req, "index")
+    if not value or "\\" in value or any(ord(char) < 32 for char in value):
+        return fallback
+    try:
+        parsed = urlparse(value)
+        base_url = urlparse(get_web_base_url())
+    except ValueError:
+        return fallback
+    if parsed.netloc:
+        if parsed.netloc != base_url.netloc or parsed.scheme not in {"", base_url.scheme}:
+            return fallback
+    elif parsed.scheme or not parsed.path.startswith("/"):
+        return fallback
+    path = unquote(parsed.path).rstrip("/") or "/"
+    if path in WEB_AUTH_URL_ROUTES.values() or path.startswith("//"):
+        return fallback
+    return value
+
+
 def get_redirect_url(req) -> str:
-    redirect_url = req.query_params.get("redirect_url")
-
-    if not redirect_url:
-        referer = req.headers.get("referer")
-        if referer:
-            parsed = urlparse(referer)
-            base_url = urlparse(get_web_base_url())
-
-            # If referer has no netloc (relative path) → safe
-            # If referer belongs to your domain → safe
-            if not parsed.netloc or parsed.netloc == base_url.netloc:
-                redirect_url = referer
-
-    if not redirect_url:
-        redirect_url = get_url(req, "index")
-
-    return redirect_url
+    return get_auth_return_url(req, req.query_params.get("redirect_url") or req.headers.get("referer"))
 
 
 def get_user_activities(user: User, year: int | None = None, recent_limit: int = 10) -> dict[str, Any]:

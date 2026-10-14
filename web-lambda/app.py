@@ -196,6 +196,7 @@ async def add_no_robots_to_auth_endpoints(request: Request, call_next):
     response = await call_next(request)
     if request.url.path.rstrip("/") in WEB_AUTH_URL_ROUTES.values():
         response.headers["X-Robots-Tag"] = "noindex, nofollow"
+        response.headers["Cache-Control"] = "no-store"
     return response
 
 
@@ -607,10 +608,10 @@ async def login(request: Request) -> RedirectResponse:
 
 @route("get", "login-callback", response_class=RedirectResponse)
 async def login_callback(request: Request) -> RedirectResponse:
-    from web_utils import create_auth_jwt_token, get_user_token_by_code
+    from web_utils import create_auth_jwt_token, get_auth_return_url, get_user_token_by_code
 
     try:
-        redirect_url = request.cookies.get("redirect_url") or get_url(request, "index")
+        redirect_url = get_auth_return_url(request, request.cookies.get("redirect_url"))
         callback_url = get_url(request, 'login-callback', absolute=True)
 
         cognito_user_token = get_user_token_by_code(
@@ -618,6 +619,7 @@ async def login_callback(request: Request) -> RedirectResponse:
             callback_url=callback_url
         )
         response = RedirectResponse(redirect_url, 302)
+        response.delete_cookie("redirect_url")
         token = create_auth_jwt_token(cognito_user_token)
         set_token_cookie(token, response)
         user = get_user_by_auth_token(token)
@@ -642,7 +644,10 @@ async def logout(request: Request) -> RedirectResponse:
 
 @route("get", "logout-callback", response_class=RedirectResponse)
 async def logout_callback(request: Request):
-    response = RedirectResponse(request.cookies.get("redirect_url") or get_url(request, "index"))
+    from web_utils import get_auth_return_url
+
+    response = RedirectResponse(get_auth_return_url(request, request.cookies.get("redirect_url")))
+    response.delete_cookie("redirect_url")
     drop_token_cookie(response)
     return response
 

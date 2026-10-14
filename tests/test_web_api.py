@@ -6,6 +6,7 @@ import time
 import uuid
 from email import policy
 from email.parser import BytesParser
+from http.cookies import SimpleCookie
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlsplit
 
@@ -752,6 +753,48 @@ def test_login_callback_success_and_invalid_code_failure():
     failure = get(get_guest_client(), "/login-callback?code=invalid", allow_redirects=False)
     assert failure.status_code == 400
     assert failure.headers["X-Robots-Tag"] == "noindex, nofollow"
+
+
+@pytest.mark.parametrize("path", ["/login", "/login-callback?code=expired", "/logout", "/logout-callback"])
+def test_login_does_not_return_to_authentication_pages(path):
+    response = get(get_guest_client(), "/login", headers={"Referer": WEB_TEST_BASE_URL + path},
+                   allow_redirects=False)
+    assert response.status_code == 307
+    assert SimpleCookie(response.headers["Set-Cookie"])["redirect_url"].value == "/"
+    assert response.headers["Cache-Control"] == "no-store"
+
+
+@pytest.mark.parametrize("target, expected", [
+    ("/login-callback?code=expired", "/"),
+    ("/login-callback/", "/"),
+    ("/%6cogin-callback?code=expired", "/"),
+    ("/logout-callback", "/"),
+    ("https://external.example/", "/"),
+    ("//external.example/", "/"),
+    ("/articles?limit=2", "/articles?limit=2"),
+])
+def test_login_callback_validates_stored_return_destination(target, expected):
+    from shared_utils import encode_offset
+
+    code = encode_offset({"sub": "callback-return-sub", "iss": "callback-return-iss",
+                          "email": "callback-return@example.com"})
+    response = get(get_guest_client(), "/login-callback", params={"code": code},
+                   headers={"Cookie": f"redirect_url={target}"}, allow_redirects=False)
+    assert response.status_code == 302, response.text
+    assert response.headers["location"] == expected
+    assert response.cookies.get("token")
+    assert 'redirect_url=""' in response.headers["Set-Cookie"]
+    assert "Max-Age=0" in response.headers["Set-Cookie"]
+    assert response.headers["Cache-Control"] == "no-store"
+
+
+def test_login_preserves_normal_return_destinations():
+    response = get(get_guest_client(), "/login", headers={"Referer": WEB_TEST_BASE_URL + "/tags"},
+                   allow_redirects=False)
+    assert SimpleCookie(response.headers["Set-Cookie"])["redirect_url"].value == WEB_TEST_BASE_URL + "/tags"
+    response = get(get_guest_client(), "/login", params={"redirect_url": "/articles"},
+                   allow_redirects=False)
+    assert SimpleCookie(response.headers["Set-Cookie"])["redirect_url"].value == "/articles"
 
 
 def test_logout_callback_success_and_wrong_method_failure(guest_client):
