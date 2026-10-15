@@ -1649,3 +1649,14 @@ def test_production_popular_url_with_latest_cursor_returns_validation_response(g
     assert "422 - Unprocessable Entity" in pq(response.text)("main h1").text()
     assert "Back home" in response.text
 
+
+def test_external_site_links_open_in_new_tabs(guest_client):
+    for path in ("/privacy-policy", "/contacts", "/@root-functional"):
+        response = get(guest_client, path)
+        assert response.status_code == 200
+        doc = pq(response.text)
+        for link in doc('a[href^="https://"], a[href^="http://"]').items():
+            if urlsplit(link.attr("href")).netloc == urlsplit(WEB_TEST_BASE_URL).netloc:
+                continue
+            assert link.attr("target") == "_blank"
+            assert {"nofollow", "noopener", "noreferrer"} <= set((link.attr("rel") or "").split())
