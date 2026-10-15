@@ -996,6 +996,11 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
         UpdateExpression="REMOVE image_filename",
     )
 
+    for client in (guest_client, regular_client):
+        for path in (f"/articles/{article_id}", f"/@root-functional/{functional_state['article_slug']}"):
+            response = get(client, path, allow_redirects=False)
+            assert response.status_code == 404, response.text
+
     read_failure = get(guest_client, "/articles/missing-article")
     assert read_failure.status_code == 404
 
@@ -1006,7 +1011,7 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     assert f'<img src="/{ARTICLE_IMAGE_FILENAME}" alt="{ARTICLE_IMAGE_ALT}">' in raw_editor_content
     assert "<picture>" not in raw_editor_content
     edit_failure = get(regular_client, f"/articles/{article_id}/edit")
-    assert edit_failure.status_code == 403
+    assert edit_failure.status_code == 404
 
     invalid_links_content = (
             ARTICLE_CONTENT
@@ -1043,6 +1048,43 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     published_tag_page = get(guest_client, "/articles?type=latest&status=published&tags=functional-tag")
     assert published_tag_page.status_code == 200
     assert "Updated functional endpoint coverage article" in pq(published_tag_page.text)("#articles").text()
+
+    published_admin_doc = pq(get(root_client, f"/articles/{article_id}").text)
+    assert published_admin_doc('.btn-article-unpublish')
+    assert not published_doc('.btn-article-unpublish')
+    before_owner = get_dynamodb_user_by_email(root_user["email"])
+    before_article = get_dynamodb_article(article_id)
+    before_category = dynamodb_table.get_item(Key={"pk": "CATEGORY", "sk": "distributed-systems"})["Item"]
+
+    # Repeating publication must not inflate counters.
+    repeat = post(root_client, f"/articles/{article_id}/status", json={"status": "published"})
+    assert repeat.status_code == 200, repeat.text
+    assert get_dynamodb_user_by_email(root_user["email"])["published_posts_count"] == before_owner["published_posts_count"]
+    denied = post(regular_client, f"/articles/{article_id}/status", json={"status": "unpublished"})
+    assert denied.status_code == 403
+
+    unpublished = post(root_client, f"/articles/{article_id}/status", json={"status": "unpublished"})
+    assert unpublished.status_code == 200, unpublished.text
+    unpublished_item = get_dynamodb_article(article_id)
+    assert unpublished_item["status"] == "unpublished"
+    assert unpublished_item["published_at"] == before_article["published_at"]
+    assert unpublished_item["content"] == before_article["content"]
+    owner = get_dynamodb_user_by_email(root_user["email"])
+    assert owner["published_posts_count"] == before_owner["published_posts_count"] - 1
+    assert owner["unpublished_posts_count"] == before_owner["unpublished_posts_count"] + 1
+    category = dynamodb_table.get_item(Key={"pk": "CATEGORY", "sk": "distributed-systems"})["Item"]
+    assert category["published_articles_count"] == before_category["published_articles_count"] - 1
+    hidden_tag_page = get(guest_client, "/articles?tags=functional-tag")
+    assert "Updated functional endpoint coverage article" not in pq(hidden_tag_page.text)("#articles").text()
+    for path in (f"/articles/{article_id}", f"/@root-functional/{functional_state['article_slug']}"):
+        assert get(guest_client, path, allow_redirects=False).status_code == 404
+    assert get(root_client, f"/articles/{article_id}").status_code == 200
+
+    republished = post(root_client, f"/articles/{article_id}/status", json={"status": "published"})
+    assert republished.status_code == 200, republished.text
+    assert get_dynamodb_user_by_email(root_user["email"])["published_posts_count"] == before_owner["published_posts_count"]
+    assert get_dynamodb_article(article_id)["published_at"] == before_article["published_at"]
+    assert get(guest_client, f"/articles/{article_id}").status_code == 200
 
     remove_tag_success = patch(root_client, f"/articles/{article_id}", json={
         "tags": ["coverage-tag"],
@@ -1606,3 +1648,4 @@ def test_production_popular_url_with_latest_cursor_returns_validation_response(g
     assert response.status_code == 422
     assert "422 - Unprocessable Entity" in pq(response.text)("main h1").text()
     assert "Back home" in response.text
+

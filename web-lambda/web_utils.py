@@ -13,7 +13,7 @@ from shared_utils import (
     ArticleByOldSlugRequestedError, User, UserStatus, UserNotFoundError,
     UserByOldSlugRequestedError, NotAuthenticatedError, Permission,
     find_article, find_article_by_slug_follow_redirects, find_user_by_username_follow_redirects,
-    verify_authorization,
+    check_authorization, verify_authorization,
     get_dynamodb_table, article_from_dynamodb, query_dynamodb_table, Key, to_thread,
 )
 
@@ -340,10 +340,9 @@ def get_article_by_slugs(user_slug: str, article_slug: str, cur_user: User = Non
         raise ArticleNotFoundError(f"Post '{article_slug}' not found")
     if article.user_slug != user_slug:
         raise UserNotFoundError(f"User '{user_slug}' not found")
-    if article.status != ArticleStatus.PUBLISHED:
-        if not cur_user:
-            raise NotAuthenticatedError()
-        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE, article)
+    if article.status != ArticleStatus.PUBLISHED and (
+            not cur_user or not check_authorization(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE, article)):
+        raise ArticleNotFoundError(f"Post '{article_slug}' not found")
     if article.slug != article_slug:
         raise ArticleByOldSlugRequestedError(article_slug, article)
     return article

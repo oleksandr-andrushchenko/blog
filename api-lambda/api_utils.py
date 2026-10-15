@@ -998,9 +998,6 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
-    if article.status == ArticleStatus.PUBLISHED:
-        raise ArticleAlreadyPublishedError()
-
     changes = update_article_status_dto.get_changes()
     if not changes:
         return
@@ -1014,11 +1011,11 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
     transacts = []
 
     article_owner = get_user(article.owner_id)
-    add_dynamodb_user_update_transact(transacts, article_owner, deltas={
-        # User post counters
+    deltas = {
         f"{old_status}_posts_count": -1,
         f"{status}_posts_count": 1,
-    })
+    } if old_status != status else {}
+    add_dynamodb_user_update_transact(transacts, article_owner, deltas=deltas)
 
     crossed_published_boundary = (old_status == ArticleStatus.PUBLISHED) != (status == ArticleStatus.PUBLISHED)
     if crossed_published_boundary and status == ArticleStatus.PUBLISHED:
@@ -1048,8 +1045,8 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
 
     dynamodb_transact_write(transacts)
 
-    logger.info("Article status changed", extra={"context": {"article_id": article.id, "status": status}})
-    if status == ArticleStatus.PUBLISHED:
+    logger.debug("Article status changed", extra={"context": {"article_id": article.id, "status": status}})
+    if crossed_published_boundary and status == ArticleStatus.PUBLISHED:
         try:
             dispatch_article_published_event(article)
         except Exception:

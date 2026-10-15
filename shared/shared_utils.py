@@ -1472,10 +1472,9 @@ def get_article(article_id: str, cur_user: User = None) -> Article:
     article = find_article(article_id)
     if article is None:
         raise ArticleNotFoundError(f"Post '{article_id}' not found")
-    if article.status != ArticleStatus.PUBLISHED:
-        if not cur_user:
-            raise NotAuthenticatedError()
-        verify_authorization(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE, article)
+    if article.status != ArticleStatus.PUBLISHED and (
+            not cur_user or not check_authorization(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE, article)):
+        raise ArticleNotFoundError(f"Post '{article_id}' not found")
     return article
 
 
