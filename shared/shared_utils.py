@@ -564,17 +564,11 @@ def check_authorization(
         return False
 
 
-def to_kebab_case(s: str) -> str:
-    s = s.lower().strip()
-    s = re.sub(r"[^\w\s-]", "", s)
-    s = re.sub(r"\s+", "-", s)
-    return s
-
-
 def sanitize_tags(value):
     if not value:
         return []
-    normalized = [to_kebab_case(tag) for tag in value]
+    # Preserve existing tag/subscription keys; DTOs normalize newly supplied article tags.
+    normalized = [re.sub(r"\s+", "-", re.sub(r"[^\w\s-]", "", tag.lower().strip())) for tag in value]
     return list(dict.fromkeys(normalized))
 
 

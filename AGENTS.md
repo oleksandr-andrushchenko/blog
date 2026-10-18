@@ -39,6 +39,8 @@
 - The web Lambda owns page rendering; resource mutations, uploads, and resource API responses belong to the API Lambda.
   Browser scripts should call the configured API URL directly rather than adding web routes that proxy API requests.
 - Keep authentication cookies and supporting token logic compatible between the web and API Lambdas.
+- New article slugs normalize Unicode and repeated separators and must contain letters or digits. Preserve legacy
+  tag and subscription keys during lookups; do not apply new slug normalization to existing keys implicitly.
 - Keep the web Lambda dependency footprint minimal to reduce bundle size and cold-start time. Add API-only or
   heavyweight dependencies there only when page rendering or authentication requires them.
 - Register application environment settings centrally in `shared/app_config.py` and read them through its accessors or

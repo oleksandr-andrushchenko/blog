@@ -3,12 +3,11 @@ from enum import StrEnum
 
 from basic_dtos import BaseDTO, UNSET
 from query_dtos import ArticleStatus
-from validation import validate_category_slug
+from validation import normalize_slug, validate_catalog_text, validate_category_slug
 
 
 def _validate_tags(values):
-    from shared_utils import to_kebab_case
-    result = list(dict.fromkeys(to_kebab_case(value) for value in (values or [])))
+    result = list(dict.fromkeys(normalize_slug(validate_catalog_text(value)) for value in (values or [])))
     if not 1 <= len(result) <= 3:
         raise ValueError("tags must contain between 1 and 3 items")
     if any(not 2 <= len(value) <= 40 for value in result):
@@ -17,8 +16,11 @@ def _validate_tags(values):
 
 
 def _validate_title(value):
+    validate_catalog_text(value)
     if not 2 <= len(value) <= 500:
         raise ValueError("title must contain between 10 and 500 characters")
+    if not normalize_slug(value):
+        raise ValueError("title must contain letters or digits for its URL slug")
 
 
 def _validate_content(value):

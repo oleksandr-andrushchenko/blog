@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 project_root = Path(os.getenv("PROJECT_ROOT", Path(__file__).parents[1]))
 sys.path.insert(0, str(project_root / "shared"))
 sys.path.insert(0, str(project_root / "web-lambda"))
@@ -14,6 +16,7 @@ import shared_utils
 import web_utils
 from article_dtos import ArticleDTO, UpdateArticleDTO
 from query_dtos import ArticleQueryDTO
+from validation import normalize_slug
 os.chdir(previous_cwd)
 
 
@@ -33,6 +36,29 @@ def test_article_category_uses_valid_slug():
         assert "unsupported article category" in str(exc)
     else:
         raise AssertionError("invalid categories must be rejected")
+
+
+@pytest.mark.parametrize("title", ["...", "___--", "😀😀", "Bad\x00title", "Bad\ud800title", "Bad\ufffdtitle"])
+def test_article_titles_reject_empty_slugs_and_invalid_text(title):
+    with pytest.raises(ValueError):
+        ArticleDTO(title=title, content="x" * 5000, tags=["valid"], category="distributed-systems")
+    with pytest.raises(ValueError):
+        UpdateArticleDTO(title=title)
+
+
+def test_new_slugs_normalize_separators_and_preserve_unicode_and_legacy_tag_keys():
+    dto = ArticleDTO(title="  Café___-- Привіт --  ", content="x" * 5000,
+                     tags=["  Cloud___--Design  ", "Café"], category="distributed-systems")
+    assert normalize_slug(dto.title) == "café-привіт"
+    assert dto.tags == ["cloud-design", "café"]
+    assert shared_utils.sanitize_tags(["legacy__tag--", "Привіт"]) == ["legacy__tag--", "привіт"]
+    assert shared_utils.tag_subscription_key(["legacy__tag--"]) == "legacy__tag--"
+
+
+@pytest.mark.parametrize("tag", ["bad\x00tag", "bad\ufffdtag", "bad\ud800tag"])
+def test_new_article_tags_reject_invalid_text(tag):
+    with pytest.raises(ValueError):
+        UpdateArticleDTO(tags=[tag])
 
 
 def article(article_id, tags, rating, offset=None):

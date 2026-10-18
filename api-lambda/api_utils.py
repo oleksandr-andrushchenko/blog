@@ -34,7 +34,7 @@ from user_dtos import (
     UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO,
     UserImpressionAction,
 )
-from validation import validate_category_slug
+from validation import normalize_slug, validate_category_slug
 from web import RequestValidationError
 
 
@@ -609,7 +609,7 @@ def create_article(article_dto: ArticleDTO, cur_user: User) -> Article:
     preview = find_preview(content)
     image_filename = find_static_image_filename(content)
     tags = sanitize_tags(article_dto.tags)
-    slug = to_kebab_case(title)
+    slug = normalize_slug(title)
 
     transacts = []
 
@@ -686,7 +686,7 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
         if published_already and get_text_diff_percentage(old_title, new_title) > 10:
             changes["status"] = ArticleStatus.UNPUBLISHED
         old_slug = article.slug
-        slug = to_kebab_case(new_title)
+        slug = normalize_slug(new_title)
         if old_slug != slug:
             changes["post_slug"] = slug
             # Create redirect item so old slug resolves
