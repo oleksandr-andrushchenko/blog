@@ -24,6 +24,8 @@
   `docker-compose.test.yml` stack with its own DynamoDB table, rather than the development database. Functional tests
   call the test services through `API_TEST_BASE_URL` and `WEB_TEST_BASE_URL` and use their own database connections for
   fixtures and assertions.
+- The isolated test stack mounts tracked `tests/site-config.json` over `shared/data.json` in both Lambdas
+  and the test runner. Keep test site settings there rather than relying on ignored local configuration.
 - Record useful, durable repository knowledge in this file when work reveals conventions, tooling limitations, or
   build and deployment requirements that will help future changes.
 

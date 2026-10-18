@@ -29,6 +29,7 @@ services:
       FUNCTION_TEMPLATES_DIR: "/web-lambda/templates"
     volumes:
       - ./shared:/app
+      - ./tests/site-config.json:/app/data.json:ro
       - ./web-lambda:/web-lambda
       - ./static:/app-static
       - ./static:/app/static
@@ -64,6 +65,7 @@ services:
       FUNCTION_TEMPLATES_DIR: "/api-lambda/templates"
     volumes:
       - ./shared:/app
+      - ./tests/site-config.json:/app/data.json:ro
       - ./api-lambda:/api-lambda
       - ./static:/app-static
       - ./static:/app/static
@@ -95,6 +97,7 @@ services:
     volumes:
       - ./tests:/tests
       - ./:/project
+      - ./tests/site-config.json:/project/shared/data.json:ro
       - ./scripts:/scripts
       - ./static:/app/static
       - ./.emails:/app/.emails
