@@ -248,7 +248,7 @@ class ExceptionHandlerTests(unittest.TestCase):
             "app": module.app,
         })
 
-        with patch.object(shared_utils.app_config, "get_static_base_url", return_value="https://static.example.com"):
+        with patch.object(shared_utils, "get_static_base_url", return_value="https://static.example.com"):
             robots = asyncio.run(module.robots_txt(request))
             sitemap = asyncio.run(module.sitemap_xml(request))
         self.assertIn(b"Allow: /", robots.body)

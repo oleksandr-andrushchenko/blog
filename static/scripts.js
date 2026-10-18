@@ -1,9 +1,15 @@
-// Form validation & submission
-
 // Send the auth cookie with cross-origin API requests (localhost:5000 -> localhost:5002).
 $.ajaxSetup({
   xhrFields: {withCredentials: true}
 })
+
+function formatUrl(template, params = {}) {
+  return template.replace(/(?:\{|%7B)(\w+)(?:\}|%7D)/gi, (match, key) =>
+    Object.hasOwn(params, key)
+      ? encodeURIComponent(String(params[key]))
+      : match
+  );
+}
 
 const ajaxResponse = options => new Promise(resolve => {
   let request
@@ -636,7 +642,7 @@ $(".btn-article-publish, .btn-article-unpublish").on("click", function () {
   const $btn = $(this)
   const articleId = $btn.data("article-id")
   const status = $btn.data("status")
-  const url = window.CONFIG.update_article_status_url.replace("{article_id}", articleId)
+  const url = formatUrl(window.CONFIG.update_article_status_url, {article_id: articleId})
 
   $btn.setButtonLoading()
 
@@ -657,7 +663,7 @@ $(".btn-article-reject").on("click", function () {
   const $btn = $(this)
   const articleId = $btn.data("article-id")
   const status = $btn.data("status")
-  const url = window.CONFIG.update_article_status_url.replace("{article_id}", articleId)
+  const url = formatUrl(window.CONFIG.update_article_status_url, {article_id: articleId})
   const comment = $btn.closest(".input-group").find("input[name='comment']").val().trim()
 
   if (!comment) {
@@ -690,7 +696,7 @@ $(document).on("click", ".btn-article-like, .btn-article-dislike", function () {
   const $btn = $(this)
   const articleId = $btn.data("article-id")
   const action = $btn.data("action")
-  const url = window.CONFIG.update_article_impression_url.replace("{article_id}", articleId)
+  const url = formatUrl(window.CONFIG.update_article_impression_url, {article_id: articleId})
 
   $btn.setButtonLoading()
 
@@ -711,7 +717,7 @@ $(document).on("click", ".btn-user-follow, .btn-user-block", function () {
   const $btn = $(this)
   const userId = $btn.data("user-id")
   const action = $btn.data("action")
-  const url = window.CONFIG.update_user_impression_url.replace("{user_id}", userId)
+  const url = formatUrl(window.CONFIG.update_user_impression_url, {user_id: userId})
 
   $btn.setButtonLoading()
 
@@ -732,7 +738,7 @@ $(".btn-user-activate").on("click", function () {
   const $btn = $(this)
   const userId = $btn.data("user-id")
   const status = $btn.data("status")
-  const url = window.CONFIG.update_user_status_url.replace("{user_id}", userId)
+  const url = formatUrl(window.CONFIG.update_user_status_url, {user_id: userId})
 
   $btn.setButtonLoading()
 
@@ -753,7 +759,7 @@ $(".btn-user-ban").on("click", function () {
   const $btn = $(this)
   const userId = $btn.data("user-id")
   const status = $btn.data("status")
-  const url = window.CONFIG.update_user_status_url.replace("{user_id}", userId)
+  const url = formatUrl(window.CONFIG.update_user_status_url, {user_id: userId})
   const comment = $btn.closest(".input-group").find("input[name='comment']").val().trim()
 
   if (!comment) {
@@ -862,7 +868,7 @@ if (window.CONFIG.init_tinymce) {
     image_dimensions: false,
     images_upload_handler: async (blobInfo, progress) => {
       const filename = await uploadPublicFile(blobInfo.blob(), progress)
-      return window.CONFIG.static_relative_url.replace("{filename}", filename)
+      return formatUrl(window.CONFIG.static_relative_url, {filename})
     },
     codesample_languages: [
       {text: "HTML/XML", value: "markup"},
@@ -997,7 +1003,7 @@ $(document).on("click", ".btn-tag-subscription", function () {
   const subscriptionId = button.attr("data-tag-subscription-id")
   const request = subscriptionId
     ? $.ajax({
-      url: window.CONFIG.delete_tag_subscription_url.replace("{tag_subscription_id}", subscriptionId),
+      url: formatUrl(window.CONFIG.delete_tag_subscription_url, {tag_subscription_id: subscriptionId}),
       method: "DELETE"
     })
     : $.ajax({
