@@ -50,6 +50,22 @@ class TelegramFormatter(logging.Formatter):
         return f"{bullet} [{get_config().get('app_stage')}] {text} {context}"
 
 
+def _telegram_message_parts(text):
+    """Split without dropping characters or cutting an emoji's UTF-16 pair."""
+    chunk = []
+    units = 0
+    for char in text:
+        width = 2 if ord(char) > 0xFFFF else 1
+        if units + width > 4000:
+            yield ''.join(chunk)
+            chunk = []
+            units = 0
+        chunk.append(char)
+        units += width
+    if chunk:
+        yield ''.join(chunk)
+
+
 class TelegramHandler(logging.Handler):
     """Synchronous, best-effort delivery; no background work survives Lambda freeze."""
 
@@ -62,16 +78,16 @@ class TelegramHandler(logging.Handler):
     def emit(self, record):
         try:
             text = self.format(record).replace(self._token, "[REDACTED]")
-            # Bound both characters and UTF-16 code units, including emoji.
-            text = text.encode("utf-16-le")[:8000].decode("utf-16-le", errors="ignore")
-            payload = json.dumps({"chat_id": self._chat_id, "text": text,
-                                  "link_preview_options": {"is_disabled": True}}).encode()
-            request = Request(f"https://api.telegram.org/bot{self._token}/sendMessage",
-                              data=payload, headers={"Content-Type": "application/json"},
-                              method="POST")
-            with urlopen(request, timeout=2) as response:
-                if not json.load(response).get("ok"):
-                    self.handleError(record)
+            for part in _telegram_message_parts(text):
+                payload = json.dumps({"chat_id": self._chat_id, "text": part,
+                                      "link_preview_options": {"is_disabled": True}}).encode()
+                request = Request(f"https://api.telegram.org/bot{self._token}/sendMessage",
+                                  data=payload, headers={"Content-Type": "application/json"},
+                                  method="POST")
+                with urlopen(request, timeout=2) as response:
+                    if not json.load(response).get("ok"):
+                        self.handleError(record)
+                        return
         except Exception:
             self.handleError(record)
 

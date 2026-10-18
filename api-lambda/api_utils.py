@@ -401,6 +401,9 @@ def create_tag_subscription(dto: TagSubscriptionDTO, user: User) -> TagSubscript
         if exc.is_conditional():
             raise SlugDuplicationError("Tag subscription already exists", "tags")
         raise
+    logger.info("New tag subscription created", extra={"context": {
+        "tag_subscription_id": tag_subscription_id, "user_id": user.id,
+    }})
     return TagSubscription(tag_subscription_id, user.id, dto.tags, now)
 
 
@@ -522,6 +525,7 @@ def create_category(slug: str, name: str, description: str, cur_user: User) -> C
     transacts = []
     add_dynamodb_put_transact(transacts, ("CATEGORY", slug), values, new_pk_only=True)
     dynamodb_transact_write(transacts)
+    logger.info("New category created", extra={"context": {"category_slug": slug, "user_id": cur_user.id}})
     return category_from_dynamodb(slug, {**values, "pk": "CATEGORY", "sk": slug})
 
 

@@ -53,15 +53,57 @@ class NotificationTests(unittest.TestCase):
 
     @patch("notifications.urlopen")
     def test_payload_and_length(self, send):
-        send.return_value = io.BytesIO(b'{"ok": true}')
+        send.side_effect = lambda *a, **k: io.BytesIO(b'{"ok":true}')
         notifications.configure_telegram_logging(self.logger)
         self.logger.info("New article %s", "😀" * 5000)
-        request = send.call_args.args[0]
-        payload = json.loads(request.data)
-        self.assertEqual(payload["chat_id"], "-123")
-        self.assertLessEqual(len(payload["text"].encode("utf-16-le")), 8000)
-        self.assertNotIn("parse_mode", payload)
-        self.assertEqual(send.call_args.kwargs["timeout"], 2)
+        parts = []
+        self.assertEqual(send.call_count, 3)
+        for call in send.call_args_list:
+            payload = json.loads(call.args[0].data)
+            self.assertEqual(payload["chat_id"], "-123")
+            self.assertLessEqual(len(payload["text"].encode("utf-16-le")), 8000)
+            self.assertNotIn("parse_mode", payload)
+            self.assertEqual(call.kwargs["timeout"], 2)
+            parts.append(payload['text'])
+        record = self.logger.makeRecord(self.logger.name, logging.INFO, '', 0, 'New article %s',
+                                       ('😀' * 5000,), None)
+        self.assertEqual(''.join(parts), self.logger.handlers[0].format(record))
+
+    def test_message_split_preserves_characters_at_boundaries(self):
+        for text in ('a' * 4000, 'a' * 3999 + '😀' + 'b' * 4000, '😀' * 4000):
+            with self.subTest(length=len(text)):
+                parts = list(notifications._telegram_message_parts(text))
+                self.assertEqual(''.join(parts), text)
+                self.assertTrue(all(0 < len(part.encode('utf-16-le')) <= 8000 for part in parts))
+
+    @patch("notifications.urlopen")
+    def test_oversized_exception_keeps_final_cause_and_console_trace(self, send):
+        send.side_effect = lambda *a, **k: io.BytesIO(b'{"ok":true}')
+        console = io.StringIO()
+        self.logger.addHandler(logging.StreamHandler(console))
+        notifications.configure_telegram_logging(self.logger)
+        try:
+            raise ValueError("underlying failure bot-secret")
+        except ValueError:
+            self.logger.exception("Long preamble " + "😀" * 5000)
+        parts = [json.loads(call.args[0].data)['text'] for call in send.call_args_list]
+        text = ''.join(parts)
+        self.assertIn("Long preamble " + "😀" * 5000, text)
+        self.assertTrue(text.endswith("ValueError: underlying failure [REDACTED] {}"))
+        self.assertTrue(all(len(part.encode('utf-16-le')) <= 8000 for part in parts))
+        self.assertNotIn("bot-secret", text)
+        self.assertIn("Long preamble " + "😀" * 5000, console.getvalue())
+        self.assertIn("ValueError: underlying failure bot-secret", console.getvalue())
+
+    @patch("notifications.urlopen")
+    def test_short_message_is_sent_once(self, send):
+        send.return_value = io.BytesIO(b'{"ok":true}')
+        notifications.configure_telegram_logging(self.logger)
+        self.logger.error("Short failure")
+        self.assertEqual(send.call_count, 1)
+        text = json.loads(send.call_args.args[0].data)["text"]
+        self.assertIn("ERROR telegram_test: Short failure {}", text)
+        self.assertNotIn("trimmed", text)
 
     @patch("notifications.urlopen")
     def test_payload_bullet_matches_log_level(self, send):
