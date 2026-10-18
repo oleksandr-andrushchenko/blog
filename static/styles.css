@@ -22,6 +22,24 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     font-weight: 500;
 }
 
+.tagify.form-control {
+    --tag-pad: 0.125rem 0.5rem;
+    display: inline-flex;
+    padding: 0;
+    max-width: 100%;
+}
+
+.tagify.form-control.tags-filter-input {
+    width: 18rem;
+}
+
+.tagify.form-control .tagify__input {
+    margin: 0;
+    min-height: 0;
+    padding: 0.375rem 0.75rem;
+    line-height: var(--bs-body-line-height);
+}
+
 .avatar-letter {
     font-weight: bold;
 }

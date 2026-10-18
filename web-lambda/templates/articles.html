@@ -108,8 +108,9 @@
     <h1>{{ title }}</h1>
     <p class="small text-secondary">{{ subtitle }}</p>
 
-    <form action="{{ articles_url() }}" method="get" class="d-flex flex-wrap align-items-center gap-3 mb-4">
-        <h2 class="h5 mb-0 text-decoration-underline bi bi-filter"> Filter articles</h2>
+    <form action="{{ articles_url() }}" method="get"
+          class="d-flex flex-wrap align-items-center gap-3 mb-4 p-2 bg-white border rounded"
+          aria-label="Filter articles">
 
         <input type="hidden" name="type" value="{{ article_query.type }}">
         <input type="hidden" name="status" value="{{ article_query.status }}">
@@ -118,7 +119,7 @@
 
         <div class="d-flex align-items-center gap-2">
             <small class="text-secondary bi bi-sort-down"> Show:</small>
-            <div class="btn-group btn-group-sm" role="group">
+            <div class="btn-group btn-group-sm" role="group" aria-label="Sort articles">
                 {% set is_latest = article_query.type == ArticleQueryType.LATEST %}
                 <a href="{{ articles_url(**article_query.get_dict({"type": None if is_latest else ArticleQueryType.LATEST, "offset": None})) }}"
                    class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
@@ -132,12 +133,12 @@
             </div>
         </div>
 
-        <div class="d-flex flex-wrap align-items-center gap-2">
+        <div class="d-flex flex-wrap align-items-center gap-2 mw-100">
             <small class="text-secondary bi bi-tags"> Filter by tags:</small>
             {% with url=url("api-tags", absolute=True, published_only=article_query.status == ArticleStatus.PUBLISHED),
                             value=article_query.tags,
                             tag_items=article_query_tag_items,
-                            class_name="w-auto",
+                            class_name="tags-filter-input",
                             auto_submit=False,
                             inject_hidden=True %}
                 {% include "fragments/tags-input.html" %}
@@ -149,7 +150,7 @@
         {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE) %}
             <div class="d-flex align-items-center gap-2">
                 <small class="text-secondary bi bi-toggle2-on"> Filter by status:</small>
-                <div class="btn-group btn-group-sm" role="group">
+                <div class="btn-group btn-group-sm" role="group" aria-label="Article status">
                     {% set is_published = article_query.status == ArticleStatus.PUBLISHED %}
                     <a href="{{ articles_url(**article_query.get_dict({"status": None if is_published else ArticleStatus.PUBLISHED, "offset": None})) }}"
                        class="btn {% if is_published %}btn-success active{% else %}btn-light{% endif %}">

@@ -69,15 +69,16 @@
     <h1>{{ title }}</h1>
     <p class="small text-secondary">{{ subtitle }}</p>
 
-    <form action="{{ users_url() }}" method="get" class="d-flex flex-wrap align-items-center gap-3 mb-4">
-        <h2 class="h5 mb-0 text-decoration-underline bi bi-filter"> Filter users</h2>
+    <form action="{{ users_url() }}" method="get"
+          class="d-flex flex-wrap align-items-center gap-3 mb-4 p-2 bg-white border rounded"
+          aria-label="Filter users">
 
         <input type="hidden" name="type" value="{{ user_query.type }}">
         <input type="hidden" name="status" value="{{ user_query.status }}">
 
         <div class="d-flex align-items-center gap-2">
             <small class="text-secondary bi bi-sort-down"> Show:</small>
-            <div class="btn-group btn-group-sm" role="group">
+            <div class="btn-group btn-group-sm" role="group" aria-label="Sort users">
                 {% set is_latest = user_query.type == UserQueryType.LATEST %}
                 <a href="{{ users_url(**user_query.get_dict({"type": None if is_latest else UserQueryType.LATEST, "offset": None})) }}"
                    class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
@@ -85,7 +86,7 @@
                 </a>
                 {% set is_popular = user_query.type == UserQueryType.POPULAR %}
                 <a href="{{ users_url(**user_query.get_dict({"type": None if is_popular else UserQueryType.POPULAR, "offset": None})) }}"
-                   class="btn btn-sm {% if is_popular %}btn-primary active{% else %}btn-light{% endif %} bi bi-heart{{ "-fill" if is_popular else "" }}">
+                   class="btn {% if is_popular %}btn-primary active{% else %}btn-light{% endif %} bi bi-heart{{ "-fill" if is_popular else "" }}">
                     {{ UserQueryType.POPULAR | title }} first
                 </a>
             </div>
@@ -94,7 +95,7 @@
         {% if cur_user and check_auth(cur_user, Permission.READ_NON_ACTIVE_USER) %}
             <div class="d-flex align-items-center gap-2">
                 <small class="text-secondary bi bi-toggle2-on"> Filter by status:</small>
-                <div class="btn-group btn-group-sm" role="group">
+                <div class="btn-group btn-group-sm" role="group" aria-label="User status">
                     {% set is_active = user_query.status == UserStatus.ACTIVE %}
                     <a href="{{ users_url(**user_query.get_dict({"status": None if is_active else UserStatus.ACTIVE, "offset": None})) }}"
                        class="btn {% if is_active %}btn-success active{% else %}btn-light{% endif %}">

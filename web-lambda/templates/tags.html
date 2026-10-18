@@ -70,14 +70,15 @@
     <h1>{{ title }}</h1>
     <p class="small text-secondary">{{ subtitle }}</p>
 
-    <form action="{{ url("tags") }}" method="get" class="d-flex flex-wrap align-items-center gap-3 mb-4">
-        <h2 class="h5 mb-0 text-decoration-underline bi bi-filter"> Filter tags</h2>
+    <form action="{{ url("tags") }}" method="get"
+          class="d-flex flex-wrap align-items-center gap-3 mb-4 p-2 bg-white border rounded"
+          aria-label="Filter tags">
 
         <input type="hidden" name="type" value="{{ tags_query.type }}">
 
         <div class="d-flex align-items-center gap-2">
             <small class="text-secondary bi bi-sort-down"> Show:</small>
-            <div class="btn-group btn-group-sm" role="group">
+            <div class="btn-group btn-group-sm" role="group" aria-label="Sort tags">
                 {% set is_latest = tags_query.type == TagQueryType.LATEST %}
                 <a href="{{ url("tags", **tags_query.get_dict({"type": None if is_latest else TagQueryType.LATEST, "offset": None})) }}"
                    class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
