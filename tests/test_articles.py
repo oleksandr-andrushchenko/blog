@@ -15,7 +15,7 @@ os.chdir(project_root / "shared")
 import shared_utils
 import web_utils
 from article_dtos import ArticleDTO, UpdateArticleDTO
-from query_dtos import ArticleQueryDTO
+from query_dtos import ArticleCommentQueryDTO, ArticleQueryDTO
 from validation import normalize_slug
 os.chdir(previous_cwd)
 
@@ -108,6 +108,42 @@ def test_popular_articles_by_tags_uses_last_match_as_pagination_cursor(monkeypat
         "post_status_pk": "POST#published",
         "rating_sk": 10,
     }
+
+
+def test_homepage_comments_skip_nonpublic_articles_and_fill_sparse_pages(monkeypatch):
+    public = SimpleNamespace(id="public", status="published", title="Current title")
+    articles = {
+        "public": public,
+        "draft": SimpleNamespace(status="unpublished"),
+        "rejected": SimpleNamespace(status="rejected"),
+        "deleted": None,
+    }
+    pages = {
+        None: {"Items": [{"post_id": key} for key in ("draft", "rejected", "deleted", "draft")],
+               "LastEvaluatedKey": {"pk": "next"}},
+        "next": {"Items": [], "LastEvaluatedKey": {"pk": "last"}},
+        "last": {"Items": [{"post_id": "public", "id": str(i)} for i in range(3)]},
+    }
+    queries = []
+    lookups = []
+
+    def query(**kwargs):
+        offset = kwargs["exclusive_start_key"]
+        queries.append(offset)
+        return pages[offset["pk"] if offset else None]
+
+    def find(article_id):
+        lookups.append(article_id)
+        return articles[article_id]
+
+    monkeypatch.setattr(web_utils, "query_dynamodb_table", query)
+    monkeypatch.setattr(web_utils, "find_article", find)
+    monkeypatch.setattr(web_utils, "article_comment_from_dynamodb", lambda item: item["id"])
+    result = web_utils.get_latest_article_comments(ArticleCommentQueryDTO(limit=2))
+
+    assert result == [{"comment": "0", "article": public}, {"comment": "1", "article": public}]
+    assert queries == [None, {"pk": "next"}, {"pk": "last"}]
+    assert lookups == ["draft", "rejected", "deleted", "public"]
 
 
 def test_related_articles_query_each_tag_and_batch_load_candidates(monkeypatch):

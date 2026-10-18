@@ -575,6 +575,36 @@ def test_index_shows_latest_article_comments(guest_client):
     assert comment_texts[0] not in doc("#latest-article-comments").text()
     assert article_title in doc("#latest-article-comments").text()
 
+    latest_link = doc("#latest-article-comments .border-top a").eq(0).attr("href")
+    assert latest_link.startswith(f"/articles/{article_id}#comment-")
+
+    dynamodb_table.update_item(
+        Key={"pk": f"POST#{article_id}", "sk": "META"},
+        UpdateExpression="SET title = :title",
+        ExpressionAttributeValues={":title": "Updated discussion article title"},
+    )
+    updated = get_index(guest_client)("#latest-article-comments").text()
+    assert "Updated discussion article title" in updated
+    assert article_title not in updated
+
+    try:
+        for status in ("unpublished", "rejected"):
+            dynamodb_table.update_item(
+                Key={"pk": f"POST#{article_id}", "sk": "META"},
+                UpdateExpression="SET #status = :status",
+                ExpressionAttributeNames={"#status": "status"},
+                ExpressionAttributeValues={":status": status},
+            )
+            hidden = get_index(guest_client)("#latest-article-comments").text()
+            assert not any(text in hidden for text in comment_texts)
+    finally:
+        dynamodb_table.update_item(
+            Key={"pk": f"POST#{article_id}", "sk": "META"},
+            UpdateExpression="SET #status = :status",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={":status": "published"},
+        )
+
 
 @pytest.mark.parametrize(("legacy_path", "article_path"), [
     ("/posts", "/articles"),

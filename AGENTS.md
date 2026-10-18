@@ -38,6 +38,9 @@
   fragments returned by API endpoints consistent.
 - The web Lambda owns page rendering; resource mutations, uploads, and resource API responses belong to the API Lambda.
   Browser scripts should call the configured API URL directly rather than adding web routes that proxy API requests.
+- Homepage comment previews must verify current article publication status and use the current article title and URL;
+  comment snapshots alone do not establish public access. Skip missing or nonpublic articles and continue pagination
+  to fill the feed.
 - Keep authentication cookies and supporting token logic compatible between the web and API Lambdas.
 - New article slugs normalize Unicode and repeated separators and must contain letters or digits. Preserve legacy
   tag and subscription keys during lookups; do not apply new slug normalization to existing keys implicitly.

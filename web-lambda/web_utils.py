@@ -1,6 +1,7 @@
 from datetime import timedelta
 from urllib.parse import quote, unquote, urlparse
 
+from query_dtos import ArticleCommentQueryDTO
 from web_route_metadata import WEB_AUTH_URL_ROUTES
 
 from app_config import (
@@ -14,6 +15,7 @@ from shared_utils import (
     UserByOldSlugRequestedError, NotAuthenticatedError, Permission,
     find_article, find_article_by_slug_follow_redirects, find_user_by_username_follow_redirects,
     check_authorization, verify_authorization,
+    article_comment_from_dynamodb, decode_offset,
     get_dynamodb_table, article_from_dynamodb, query_dynamodb_table, Key, to_thread,
 )
 
@@ -299,16 +301,35 @@ async def get_article_related_articles(article: Article, limit: int = 10) -> lis
     )[:limit]
 
 
-def get_latest_article_comments(query_dto: ArticleCommentQueryDTO = None) -> list[ArticleComment]:
+def get_latest_article_comments(query_dto: ArticleCommentQueryDTO = None) -> list[dict]:
     if query_dto is None:
         query_dto = ArticleCommentQueryDTO()
 
-    return query_dynamodb_items(
-        query_dto=query_dto,
-        index_name="POST_COMMENTS_BY_CREATED_AT",
-        key_condition_expr=Key("post_comment_pk").eq(f"POST_COMMENT"),
-        map_fn=article_comment_from_dynamodb,
-    )
+    results = []
+    articles = {}
+    offset = decode_offset(query_dto.offset) if query_dto.offset else None
+    while len(results) < query_dto.limit:
+        response = query_dynamodb_table(
+            index_name="POST_COMMENTS_BY_CREATED_AT",
+            key_condition_expr=Key("post_comment_pk").eq("POST_COMMENT"),
+            scan_index_forward=False,
+            limit=max(12, query_dto.limit),
+            exclusive_start_key=offset,
+        )
+        for item in response.get("Items", []):
+            article_id = item["post_id"]
+            if article_id not in articles:
+                articles[article_id] = find_article(article_id)
+            article = articles[article_id]
+            if article is None or article.status != ArticleStatus.PUBLISHED:
+                continue
+            results.append({"comment": article_comment_from_dynamodb(item), "article": article})
+            if len(results) == query_dto.limit:
+                break
+        offset = response.get("LastEvaluatedKey")
+        if not offset:
+            break
+    return results
 
 
 def get_popular_active_users(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[User]:

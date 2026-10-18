@@ -1,5 +1,6 @@
-{% for article_comment in latest_article_comments %}
-    {% set article = article_comment.get_article() %}
+{% for item in latest_article_comments %}
+    {% set article_comment = item.comment %}
+    {% set article = item.article %}
     {% set user = article_comment.get_user() %}
     <article class="article-comment col"{% if article_comment.offset %}
              data-offset="{{ article_comment.offset }}"{% endif %}>
@@ -36,7 +37,7 @@
                 <div class="border-top pt-2">
                     <div class="small text-secondary mb-1">Commented on</div>
                     <a class="link-body-emphasis fw-semibold text-decoration-none d-block text-truncate"
-                       href="{{ article_url(article) }}">
+                       href="{{ article_url(article) }}#comment-{{ article_comment.id | replace('#', '-') }}">
                         <i class="bi bi-journal-text me-1" aria-hidden="true"></i>{{ article.title }}
                     </a>
                 </div>
