@@ -58,6 +58,8 @@
 - Build internal links with named route helpers (`url(...)`, `article_url(...)`, etc.). Append section fragments to a
   generated endpoint URL rather than using bare fragment-only links.
 - Serve web assets and store web uploads under the repository-level `static` directory, exposed at `/static`.
+- When changing `static/styles.css`, increment `CSS_CACHE_COUNTER` in `.env.prod`; when changing
+  `static/scripts.js`, increment `JS_CACHE_COUNTER` in `.env.prod`.
 - Prefer native Bootstrap classes and components for UI changes; avoid modifying `static/styles.css` unless the requirement cannot be implemented cleanly with Bootstrap.
 - Generate responsive Bootstrap grid sizes with the Jinja `row_classes` and `col_classes` filters rather than
   hardcoding `row-cols-*` or sized `col-*` classes. Plain `row` and `col` may remain when no sizes are specified.
