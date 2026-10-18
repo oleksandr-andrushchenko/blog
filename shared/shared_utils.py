@@ -2074,6 +2074,7 @@ def get_popular_articles_by_tags(
         if not articles:
             break
 
+        next_offset = articles[-1].offset
         for article in articles:
             article_tags = set(article.tags)
             matches = bool(wanted_tags.intersection(article_tags)) if or_mode \
@@ -2081,6 +2082,7 @@ def get_popular_articles_by_tags(
             if not matches:
                 continue
 
+            article.offset = None
             filtered_articles.append(article)
             if len(filtered_articles) == query_dto.limit:
                 article.offset = encode_offset({
@@ -2091,7 +2093,7 @@ def get_popular_articles_by_tags(
                 })
                 return filtered_articles
 
-        page_query.offset = articles[-1].offset
+        page_query.offset = next_offset
         if not page_query.offset:
             break
 

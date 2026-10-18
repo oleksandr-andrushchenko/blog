@@ -10,19 +10,54 @@
     (ArticleStatus.REJECTED): {"title": "Rejected", "subtitle": "Rejected"}
 } %}
 
-{% set tag_label = article_query_tag_names | join(" + ") %}
-{% set subject_label = tag_label or (category.name if category else article_query.category) %}
-{% set title = ([val_map[article_query.type]["title"], subject_label, val_map[article_query.status]["title"], "Articles"]) | select | join(" ") | title %}
+{% set tag_labels = namespace(values=[]) %}
+{% for slug in article_query.tags %}
+    {% set name = article_query_tag_names[loop.index0] if article_query_tag_names is defined and loop.index0 < article_query_tag_names | length else slug %}
+    {% set tag_labels.values = tag_labels.values + [name if name != slug else slug | title] %}
+{% endfor %}
+{% set tag_label = tag_labels.values | join(" + ") %}
+{% set category_label = category.name if category else (article_query.category | title if article_query.category else None) %}
+{% set subject_label = tag_label or category_label %}
+{% set title = ([val_map[article_query.type]["title"], subject_label, val_map[article_query.status]["title"], "Articles"]) | select | join(" ") %}
 {% if category and tag_label %}
     {% set title = title ~ " in " ~ category.name %}
 {% endif %}
 {% set meta_robots = "noindex, follow" if article_query.offset or article_query.status != ArticleStatus.PUBLISHED or not articles else "index, follow" %}
-{% set subtitle = category.description if category else ([val_map[article_query.type]["subtitle"], tag_label, val_map[article_query.status]["subtitle"], "Articles"]) | select | join(" ") | title %}
+{% set subtitle = category.description if category else ([val_map[article_query.type]["subtitle"], tag_label, val_map[article_query.status]["subtitle"], "Articles"]) | select | join(" ") %}
 {% set meta_title = title ~ (" Category" if article_query.category and not tag_label else "") ~ " | " ~ site_name %}
 {% set meta_canonical_url = articles_url(query=article_query, tags=article_query.tags|unique|sort, absolute=True) %}
 {% set meta_desc = ("Browse " ~ title ~ " on " ~ site_name ~ ". " ~ (category.description if category else "Explore system design guides, architecture patterns, and practical engineering articles.")) | truncate(155, False, '...', 0) %}
 {% set og_img_filename = category.image_filename if category else None %}
 {% set og_img_alt = category.name if category and category.image_filename else None %}
+{% set listing_breadcrumbs = namespace(values=[
+    {"name": "Home", "item": url("index", absolute=True)},
+    {"name": "Articles", "item": articles_url(absolute=True)}
+]) %}
+{% if article_query.type != ArticleQueryDTO.DEFAULT_TYPE %}
+    {% set listing_breadcrumbs.values = listing_breadcrumbs.values + [{
+        "name": article_query.type | title, "item": articles_url(type=article_query.type, absolute=True)
+    }] %}
+{% endif %}
+{% if category %}
+    {% set listing_breadcrumbs.values = listing_breadcrumbs.values + [{
+        "name": category.name,
+        "item": articles_url(type=article_query.type, category=category.slug, absolute=True)
+    }] %}
+{% endif %}
+{% set tag_path = namespace(values=[]) %}
+{% for tag in article_query.tags %}
+    {% set tag_path.values = tag_path.values + [tag] %}
+    {% set listing_breadcrumbs.values = listing_breadcrumbs.values + [{
+        "name": tag_labels.values[loop.index0],
+        "item": articles_url(tags=tag_path.values, type=article_query.type, category=article_query.category, absolute=True)
+    }] %}
+{% endfor %}
+{% if article_query.status != ArticleQueryDTO.DEFAULT_STATUS %}
+    {% set listing_breadcrumbs.values = listing_breadcrumbs.values + [{
+        "name": article_query.status | title,
+        "item": articles_url(query=article_query, offset=None, absolute=True)
+    }] %}
+{% endif %}
 {% block meta_schema %}
     {% set items = namespace(values=[]) %}
     {% for article in articles %}
@@ -33,50 +68,12 @@
             "url": article_url(article, absolute=True)
         }] %}
     {% endfor %}
-    {% set breadcrumb_items = namespace(values=[
-        {"@type": "ListItem", "position": 1, "name": "Home", "item": url("index", absolute=True)},
-        {"@type": "ListItem", "position": 2, "name": "Articles", "item": articles_url(absolute=True)}
-    ]) %}
-    {% set breadcrumb_position = 2 %}
-    {% if article_query.type and article_query.type != ArticleQueryDTO.DEFAULT_TYPE %}
-        {% set breadcrumb_position = breadcrumb_position + 1 %}
+    {% set breadcrumb_items = namespace(values=[]) %}
+    {% for crumb in listing_breadcrumbs.values %}
         {% set breadcrumb_items.values = breadcrumb_items.values + [{
-            "@type": "ListItem",
-            "position": breadcrumb_position,
-            "name": article_query.type | title,
-            "item": articles_url(type=article_query.type, absolute=True)
-        }] %}
-    {% endif %}
-
-    {% if category %}
-        {% set breadcrumb_position = breadcrumb_position + 1 %}
-        {% set breadcrumb_items.values = breadcrumb_items.values + [{
-            "@type": "ListItem",
-            "position": breadcrumb_position,
-            "name": category.name,
-            "item": articles_url(category=category.slug, absolute=True)
-        }] %}
-    {% endif %}
-    {% set tag_path = namespace(values=[]) %}
-    {% for tag in article_query.tags %}
-        {% set tag_path.values = tag_path.values + [tag] %}
-        {% set breadcrumb_position = breadcrumb_position + 1 %}
-        {% set breadcrumb_items.values = breadcrumb_items.values + [{
-            "@type": "ListItem",
-            "position": breadcrumb_position,
-            "name": tag | title,
-            "item": articles_url(tags=tag_path.values, type=article_query.type, absolute=True)
+            "@type": "ListItem", "position": loop.index, "name": crumb.name, "item": crumb.item
         }] %}
     {% endfor %}
-    {% if article_query.status and article_query.status != ArticleQueryDTO.DEFAULT_STATUS %}
-        {% set breadcrumb_position = breadcrumb_position + 1 %}
-        {% set breadcrumb_items.values = breadcrumb_items.values + [{
-            "@type": "ListItem",
-            "position": breadcrumb_position,
-            "name": article_query.status | title,
-            "item": articles_url(status=article_query.status, absolute=True)
-        }] %}
-    {% endif %}
     {{- {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
@@ -98,30 +95,13 @@
 {% endblock %}
 
 {% block breadcrumbs %}
-    {% set breadcrumbs = {"Home": url("index"), "Articles": articles_url()} %}
-
-    {% if article_query.type and article_query.type != ArticleQueryDTO.DEFAULT_TYPE %}
-        {% set breadcrumbs = breadcrumbs.update({article_query.type | title: articles_url(type=article_query.type)}) or breadcrumbs %}
-    {% endif %}
-
-    {% if category %}
-        {% set breadcrumbs = breadcrumbs.update({category.name: articles_url(category=category.slug)}) or breadcrumbs %}
-    {% endif %}
-
-    {% set ns = namespace(path_tags=[]) %}
-    {% for tag in article_query.tags %}
-        {% set ns.path_tags = ns.path_tags + [tag] %}
-        {% set breadcrumbs = breadcrumbs.update({tag | title: articles_url(tags=ns.path_tags, type=article_query.type)}) or breadcrumbs %}
+    {% set crumbs = namespace(values=[]) %}
+    {% for crumb in listing_breadcrumbs.values %}
+        {% set crumbs.values = crumbs.values + [(crumb.name, crumb.item)] %}
     {% endfor %}
-
-    {% if article_query.status and article_query.status != ArticleQueryDTO.DEFAULT_STATUS %}
-        {% set breadcrumbs = breadcrumbs.update({article_query.status | title: articles_url(status=article_query.status)}) or breadcrumbs %}
-    {% endif %}
-
-    {% set last_key = (breadcrumbs.keys() | list)[-1] %}
-    {% set breadcrumbs = breadcrumbs.update({ last_key: None }) or breadcrumbs %}
-
-    {% include "fragments/breadcrumbs.html" %}
+    {% with breadcrumbs=crumbs.values %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
 {% endblock %}
 
 {% block content %}

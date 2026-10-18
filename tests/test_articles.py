@@ -111,6 +111,26 @@ def test_popular_articles_by_tags_uses_last_match_as_pagination_cursor(monkeypat
     }
 
 
+def test_popular_tag_filter_clears_consumed_page_cursors(monkeypatch):
+    pages = {
+        None: [article("aws-1", ["aws"], 30, "next-page")],
+        "next-page": [article("unrelated", ["databases"], 20, "last-page")],
+        "last-page": [],
+    }
+    offsets = []
+
+    def fetch(query, user):
+        offsets.append(query.offset)
+        return pages[query.offset]
+
+    monkeypatch.setattr(shared_utils, "get_popular_articles", fetch)
+    result = shared_utils.get_popular_articles_by_tags(ArticleQueryDTO(tags=["aws"], limit=2))
+
+    assert [value.id for value in result] == ["aws-1"]
+    assert result[-1].offset is None
+    assert offsets == [None, "next-page", "last-page"]
+
+
 def test_homepage_comments_skip_nonpublic_articles_and_fill_sparse_pages(monkeypatch):
     public = SimpleNamespace(id="public", status="published", title="Current title")
     articles = {

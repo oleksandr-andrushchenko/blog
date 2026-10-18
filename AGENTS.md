@@ -75,6 +75,8 @@
   `col_classes` includes the base `col` class; use `"def": 12` when a responsive column must stack at full width.
 - Bootstrap and Bootstrap Icons are loaded centrally in `web-lambda/templates/layout.html`.
 - Do not underline non-link headings. Apply link decoration to anchors rather than heading containers.
+- Define article listing breadcrumbs once in the template and reuse them for navigation and structured metadata.
+  Preserve configured display-name casing and keep paginated listings self-canonical.
 - External HTTP(S) links must include `rel="nofollow"`; preserve `noopener noreferrer` when present, including on
   user links, references, configured social links, and sharing controls.
 - Keep `static/scripts.js` limited to JavaScript reused across pages. Put page-specific scripts in their owning template

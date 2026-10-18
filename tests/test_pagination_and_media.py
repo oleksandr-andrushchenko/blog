@@ -1,5 +1,6 @@
 """Regressions for stale category cursors and paginated navigation rendering."""
 import os
+import json
 import sys
 from html.parser import HTMLParser
 from pathlib import Path
@@ -8,6 +9,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from jinja2 import FileSystemLoader
+from pyquery import PyQuery
 
 project_root = Path(os.environ.get("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(project_root / "shared"))
@@ -125,6 +127,48 @@ def test_sort_links_restart_pagination(render, template, data):
         assert "offset" not in params
         if template == "articles.html":
             assert params["category"] == ["cloud-infrastructure"]
+
+
+@pytest.mark.parametrize("status", ["published", "unpublished"])
+def test_article_breadcrumbs_preserve_filter_hierarchy(render, status):
+    query = ArticleQueryDTO(type="popular", category="cloud-infrastructure",
+                            tags=["aws", "networking"], status=status)
+    doc = PyQuery(render(
+        "articles.html", article_query=query, articles=[], tag=None,
+        category=SimpleNamespace(name="Cloud Infrastructure", slug=query.category, description="Cloud guides",
+                                 image_filename=None),
+        article_query_tag_names=["AWS", "Networking"], article_query_tag_items=[],
+    ))
+    schema = json.loads(doc('script[type="application/ld+json"]').text())
+    crumbs = schema["breadcrumb"]["itemListElement"]
+    assert [item["position"] for item in crumbs] == list(range(1, len(crumbs) + 1))
+    for crumb in crumbs[3:]:
+        params = parse_qs(urlsplit(crumb["item"]).query)
+        assert params["category"] == [query.category]
+        assert urlsplit(crumb["item"]).path.startswith("/popular/")
+        assert "offset" not in params
+    for link in doc(".breadcrumb a").items():
+        label = link.text()
+        if label in {"Cloud Infrastructure", "AWS", "Networking"}:
+            assert parse_qs(urlsplit(link.attr("href")).query)["category"] == [query.category]
+            assert urlsplit(link.attr("href")).path.startswith("/popular/")
+    if status != "published":
+        final_url = urlsplit(crumbs[-1]["item"])
+        assert parse_qs(final_url.query)["status"] == [status]
+        assert final_url.path == "/popular/aws/networking/articles"
+
+    visible_labels = [item.text() for item in doc(".breadcrumb li").items()]
+    assert visible_labels == [item["name"] for item in crumbs]
+    assert "AWS" in doc("h1").text()
+    assert "AWS" in doc("head title").text()
+
+
+def test_article_breadcrumbs_keep_duplicate_display_names(render):
+    doc = PyQuery(render(
+        "articles.html", article_query=ArticleQueryDTO(tags=["articles"]), articles=[], tag=None,
+        category=None, article_query_tag_names=["Articles"], article_query_tag_items=[],
+    ))
+    assert [item.text() for item in doc(".breadcrumb li").items()] == ["Home", "Articles", "Articles"]
 
 
 @pytest.mark.parametrize("template,query_name,query_type,extra", [
