@@ -8,7 +8,7 @@ from email import policy
 from email.parser import BytesParser
 from http.cookies import SimpleCookie
 from pathlib import Path
-from urllib.parse import parse_qs, quote, urlsplit
+from urllib.parse import parse_qs, quote, urlencode, urlsplit
 
 import pytest
 from pyquery import PyQuery as pq
@@ -1690,3 +1690,63 @@ def test_external_site_links_open_in_new_tabs(guest_client):
                 continue
             assert link.attr("target") == "_blank"
             assert {"nofollow", "noopener", "noreferrer"} <= set((link.attr("rel") or "").split())
+
+
+def test_related_articles_autoload_pages_are_public_unique_and_source_scoped(guest_client):
+    client = get_logged_in_client(root_user)
+    owner_id = get_logged_in_user_id(root_user)
+    set_dynamodb_user_permissions(owner_id, ['root'])
+    tag = 'related-' + uuid.uuid4().hex[:8]
+
+    def create(number, tags, published=True):
+        response = post(client, '/articles', json={
+            'title': f'Related {tag} {number}', 'content': 'Related pagination regression. ' * 200,
+            'category': 'distributed-systems', 'tags': tags,
+        })
+        assert response.status_code == 200, response.text
+        path = urlsplit(response.json()).path
+        identifier = path.rsplit('/', 1)[-1]
+        article_id = identifier if path.startswith('/articles/') else dynamodb_table.get_item(Key={
+            'pk': f'POST_SLUG#{identifier}', 'sk': 'META',
+        })['Item']['post_id']
+        if published:
+            response = post(client, f'/articles/{article_id}/status', json={'status': 'published'})
+            assert response.status_code == 200, response.text
+        return article_id, path
+
+    expected = {create(number, [tag, tag + '-second'])[1] for number in range(12)}
+    private_id, private_path = create('private', [tag, tag + '-second'], published=False)
+    _, unrelated_path = create('unrelated', [tag + '-unrelated'])
+    source_id, source_path = create('source', [tag, tag + '-second'])
+    page = get(guest_client, f'/articles/{source_id}')
+    assert page.status_code == 200, page.text
+    doc = pq(page.text)
+    cards = doc('#related-articles > .article')
+    assert len(cards) == 10
+    seen = [urlsplit(card('.card-title').parent().attr('href')).path for card in cards.items()]
+    button = doc('.btn-load-more[data-container="#related-articles"]')
+    assert len(button) == 1 and button.attr('data-auto-click') is not None
+    assert urlsplit(button.attr('data-url')).netloc == urlsplit(os.environ['API_TEST_BASE_URL']).netloc
+    endpoint = urlsplit(button.attr('data-url')).path
+    offset = button.attr('data-offset')
+    first_offset = offset
+    for _ in range(5):
+        response = get(guest_client, endpoint + '?' + urlencode({'offset': offset, 'limit': 10}))
+        assert response.status_code == 200, response.text
+        new_cards = pq(response.text)('.article')
+        seen.extend(urlsplit(card('.card-title').parent().attr('href')).path for card in new_cards.items())
+        offset = new_cards.eq(-1).attr('data-offset') if new_cards else None
+        if not offset:
+            break
+    assert not offset
+    assert len(seen) == len(set(seen)) == 12
+    assert set(seen) == expected
+    assert {private_path, unrelated_path, source_path}.isdisjoint(seen)
+    for params in ({'offset': 'invalid'}, {'offset': first_offset, 'limit': 0}, {'limit': 1000}):
+        invalid = get(guest_client, endpoint + '?' + urlencode(params))
+        assert invalid.status_code == 422, invalid.text
+    other_id = create('other-source', [tag, tag + '-second'])[0]
+    wrong_source = get(guest_client, f'/articles/{other_id}/related-fragment?' + urlencode({'offset': first_offset}))
+    assert wrong_source.status_code == 422, wrong_source.text
+    private = get(guest_client, f'/articles/{private_id}/related-fragment')
+    assert private.status_code == 404, private.text

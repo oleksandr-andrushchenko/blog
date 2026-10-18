@@ -36,6 +36,8 @@
 - Lambda-specific orchestration, page composition, and presentation-oriented query helpers must remain in the owning Lambda.
 - Shared HTML fragments used by both Lambdas belong in `shared/templates/fragments`; keep initial page renders and
   fragments returned by API endpoints consistent.
+- Related-article discovery is shared by the initial web page and the API's paginated fragment. Keep source/tag-scoped
+  cursors and public-access filtering consistent; never advance past unprocessed batch-read keys.
 - The web Lambda owns page rendering; resource mutations, uploads, and resource API responses belong to the API Lambda.
   Browser scripts should call the configured API URL directly rather than adding web routes that proxy API requests.
 - Homepage comment previews must verify current article publication status and use the current article title and URL;

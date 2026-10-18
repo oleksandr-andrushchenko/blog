@@ -72,8 +72,10 @@ from deps import (
     TagSubscriptionDTODep,
     DropCDNCacheDTODep,
     UpsertRedirectDTODep,
+    RelatedArticleQueryDep,
 )
 from notifications import get_access_log
+from related_articles import get_related_articles
 from shared_deps import (
     OptCurUserDep,
     CurUserDep,
@@ -237,6 +239,15 @@ async def articles_fragment(query_dto: ArticleListingQueryDep, cur_user: OptCurU
 async def _articles(cur_user: OptCurUserDep, request: Request) -> dict[str, str]:
     articles = await asyncio.to_thread(get_all_articles, cur_user)
     return {get_article_url(request, article): article.title for article in articles}
+
+
+@route("get", "related-articles-fragment", response_class=HTMLResponse)
+async def related_articles_fragment(article: ArticleDep, query_dto: RelatedArticleQueryDep) -> str:
+    try:
+        articles = await get_related_articles(article, query_dto.limit, query_dto.offset)
+    except ValueError as exc:
+        raise RequestValidationError({"offset": str(exc)}) from exc
+    return get_html_content("fragments/related-articles.html", {"articles": articles})
 
 
 @route("get", "article-hrefs", response_class=JSONResponse)

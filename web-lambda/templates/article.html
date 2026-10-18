@@ -200,16 +200,17 @@
                         Related articles
                     </h2>
                     <div id="related-articles" class="{{ {"def": 1} | row_classes }} g-2">
-                        {% with articles=related_articles,
-                            horizontal=True,
-                            preview=False,
-                            vert_gap=0,
-                            h_tag_size=3,
-                            h_display_size=6,
-                            image_order_size={"def":12} %}
-                            {% include "fragments/articles.html" %}
+                        {% with articles=related_articles %}
+                            {% include "fragments/related-articles.html" %}
                         {% endwith %}
                     </div>
+                    {% with limit=10,
+                        offset=related_articles[-1].offset,
+                        url=url("related-articles-fragment", article_id=article.id, absolute=True),
+                        container="#related-articles",
+                        auto_click=True %}
+                        {% include "fragments/load-more-button.html" %}
+                    {% endwith %}
                 </section>
             {% endif %}
         </div>

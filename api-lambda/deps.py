@@ -12,11 +12,15 @@ from basic_dtos import ImageFileDTO
 from cdn_cache_dtos import DropCDNCacheDTO
 from category_dtos import UpdateCategoryDTO
 from query_dtos import ArticleCommentQueryDTO
+from related_articles import RelatedArticleQueryDTO
 from redirect_dtos import UpsertRedirectDTO
 from shared_utils import ArticleComment, ArticleCommentNotFoundError, get_article_comment
 from tag_subscription_dtos import TagSubscriptionDTO
 from user_dtos import UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO
 from web import Depends, Body, HTTPException, Request, RequestValidationError
+
+
+RelatedArticleQueryDep = Annotated[RelatedArticleQueryDTO, Depends()]
 
 
 async def get_image_file(request: Request):

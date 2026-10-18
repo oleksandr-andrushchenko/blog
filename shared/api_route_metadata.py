@@ -6,6 +6,7 @@ API_URL_ROUTES = {
     "api-articles": "/articles",
     "article-hrefs": "/articles/hrefs",
     "articles-fragment": "/articles-fragment",
+    "related-articles-fragment": "/articles/{article_id}/related-fragment",
     "article-comments-fragment": "/articles/{article_id}/comments-fragment",
     "update-article": "/articles/{article_id}",
     "update-article-status": "/articles/{article_id}/status",

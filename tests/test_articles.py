@@ -13,6 +13,7 @@ sys.path.insert(0, str(project_root / "web-lambda"))
 previous_cwd = os.getcwd()
 os.chdir(project_root / "shared")
 import shared_utils
+import related_articles
 import web_utils
 from article_dtos import ArticleDTO, UpdateArticleDTO
 from query_dtos import ArticleCommentQueryDTO, ArticleQueryDTO
@@ -155,21 +156,21 @@ def test_related_articles_query_each_tag_and_batch_load_candidates(monkeypatch):
     captured_queries = []
     captured_batch_ids = []
 
-    def get_article_ids_by_tag(tag, limit):
+    def get_article_ids_by_tag(tag, limit, offset=None):
         captured_queries.append((tag, limit))
         return {
             "aws": ["current", "related-1", "related-2"],
             "python": ["current", "related-2"],
-        }[tag]
+        }[tag], None
 
     def get_articles_by_ids(article_ids):
         captured_batch_ids.extend(article_ids)
-        return candidates
+        return [candidate for candidate in candidates if candidate.id in article_ids]
 
-    monkeypatch.setattr(web_utils, "_get_article_ids_by_tag", get_article_ids_by_tag)
-    monkeypatch.setattr(web_utils, "_get_articles_by_ids", get_articles_by_ids)
+    monkeypatch.setattr(related_articles, "_get_article_ids_by_tag", get_article_ids_by_tag)
+    monkeypatch.setattr(related_articles, "_get_articles_by_ids", get_articles_by_ids)
 
-    result = asyncio.run(web_utils.get_article_related_articles(current, limit=2))
+    result = asyncio.run(related_articles.get_related_articles(current, limit=2))
 
     assert [item.id for item in result] == ["related-2", "related-1"]
     assert sorted(captured_queries) == [("aws", 3), ("python", 3)]
@@ -197,10 +198,75 @@ def test_related_article_batch_read_retries_unprocessed_keys(monkeypatch):
 
     client = Client()
     table = SimpleNamespace(name="articles", meta=SimpleNamespace(client=client))
-    monkeypatch.setattr(web_utils, "get_dynamodb_table", lambda: table)
-    monkeypatch.setattr(web_utils, "article_from_dynamodb", lambda item: item["id"])
+    monkeypatch.setattr(related_articles, "get_dynamodb_table", lambda: table)
+    monkeypatch.setattr(related_articles, "article_from_dynamodb", lambda item: item["id"])
 
-    result = web_utils._get_articles_by_ids(["related-1", "related-2"])
+    result = related_articles._get_articles_by_ids(["related-1", "related-2"])
 
     assert result == ["related-1", "related-2"]
     assert client.requests[1] == {"articles": {"Keys": [unprocessed_key]}}
+
+
+def test_related_batch_read_does_not_advance_past_unprocessed_keys(monkeypatch):
+    key = {"pk": "POST#pending", "sk": "META"}
+    client = SimpleNamespace(batch_get_item=lambda **kwargs: {
+        "Responses": {}, "UnprocessedKeys": {"articles": {"Keys": [key]}},
+    })
+    monkeypatch.setattr(related_articles, "get_dynamodb_table", lambda: SimpleNamespace(
+        name="articles", meta=SimpleNamespace(client=client)))
+    monkeypatch.setattr(related_articles.time, "sleep", lambda delay: None)
+    with pytest.raises(RuntimeError, match="unprocessed"):
+        related_articles._get_articles_by_ids(["pending"])
+
+
+def test_related_pagination_keeps_candidates_and_deduplicates_later_tag_pages(monkeypatch):
+    current = article('source', ['a', 'b'], 0)
+    items = {
+        'source': current, 'a1': article('a1', ['a'], 10), 'a2': article('a2', ['a'], 20),
+        'shared': article('shared', ['a', 'b'], 5), 'b1': article('b1', ['b'], 30),
+        'b2': article('b2', ['b'], 40), 'draft': article('draft', ['a'], 100),
+        'unrelated': article('unrelated', ['other'], 200),
+    }
+    items['draft'].status = 'unpublished'
+    streams = {'a': ['source', 'a1', 'draft', 'unrelated', 'a2', 'shared'],
+               'b': ['shared', 'b1', 'b2', 'a1']}
+    queries = []
+
+    def read_tag(tag, limit, offset=None):
+        queries.append(tag)
+        start = int(offset['sk'].split('#')[1]) if offset else 0
+        end = min(start + limit, len(streams[tag]))
+        next_key = {'pk': f'POST_TAG_COMBO#{tag}', 'sk': f'POST#{end}#cursor'} if end < len(streams[tag]) else None
+        return streams[tag][start:end], next_key
+
+    monkeypatch.setattr(related_articles, '_get_article_ids_by_tag', read_tag)
+    monkeypatch.setattr(related_articles, '_get_articles_by_ids', lambda ids: [items[key] for key in ids])
+    seen, offset = [], None
+    for _ in range(5):
+        page = asyncio.run(related_articles.get_related_articles(current, limit=2, offset=offset))
+        assert page
+        seen.extend(item.id for item in page)
+        offset = page[-1].offset
+        if offset is None:
+            break
+        state = shared_utils.decode_offset(offset)
+        assert set(state) == {'article_id', 'tags', 'positions', 'pending'}
+        assert len(state['pending']) <= 6
+    assert offset is None
+    assert len(seen) == len(set(seen)) == 5
+    assert set(seen) == {'a1', 'a2', 'shared', 'b1', 'b2'}
+    assert sorted(queries) == ['a', 'a', 'b', 'b']
+
+
+@pytest.mark.parametrize('state', [
+    [], {'article_id': 'other', 'tags': ['a'], 'positions': {'a': None}, 'pending': []},
+    {'article_id': 'source', 'tags': ['a'], 'positions': {'a': {'pk': 'POST_TAG_COMBO#other', 'sk': 'POST#1#p'}},
+     'pending': []},
+    {'article_id': 'source', 'tags': ['a'], 'positions': {'a': None}, 'pending': [['bad']]},
+])
+def test_related_cursors_reject_other_scopes_and_invalid_state(state):
+    import base64
+    import json
+    offset = base64.urlsafe_b64encode(json.dumps(state).encode()).decode()
+    with pytest.raises(ValueError, match='cursor'):
+        asyncio.run(related_articles.get_related_articles(article('source', ['a'], 0), offset=offset))

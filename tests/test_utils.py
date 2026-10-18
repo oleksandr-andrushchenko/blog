@@ -116,7 +116,7 @@ def _is_api_request(method: str, url: str) -> bool:
     if method == "GET" and urlsplit(url).path == "/posts-fragment":
         return False
     if path in {"/articles-fragment", "/tags-fragment", "/users-fragment"} or any(
-            path.endswith(suffix) for suffix in ("/comments-fragment", "/articles-fragment")):
+            path.endswith(suffix) for suffix in ("/comments-fragment", "/articles-fragment", "/related-fragment")):
         return True
     if method == "GET":
         return path in {"/tag-subscriptions", "/tags"}

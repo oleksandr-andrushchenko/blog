@@ -9,6 +9,7 @@ from starlette.responses import PlainTextResponse
 from starlette.routing import Match
 
 from notifications import get_access_log
+from related_articles import get_related_articles
 from query_dtos import (
     TagQueryDTO,
 )
@@ -81,7 +82,6 @@ from web_utils import (
     UserBannedError,
     get_redirect_url,
     should_show_popular_articles,
-    get_article_related_articles,
     get_article_comments,
     get_latest_article_comments,
     get_user_by_auth_token,
@@ -356,7 +356,7 @@ async def _article_page(article: ArticleDep, cur_user: OptCurUserDep) -> HTMLRes
     ) = await asyncio.gather(
         to_thread(find_user, article.user_id),
         to_thread(find_article_impression, article, cur_user) if cur_user else asyncio.sleep(0, result=None),
-        get_article_related_articles(article),
+        get_related_articles(article),
         to_thread(get_article_comments, article),
         to_thread(get_category, article.category),
     )
