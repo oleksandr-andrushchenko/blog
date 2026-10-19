@@ -1,25 +1,26 @@
 {% if user.bmc_username %}
-    <section class="card shadow-sm mb-4 text-bg-warning">
-        <div class="card-body">
-            <div class="h4 card-title">
-                <i class="bi bi-lightbulb"></i>
-                {{ header | default("Enjoyed this article?") }}
-            </div>
-
-            <p class="card-text">
-                Support {{ user.name }}
-            </p>
+    <section class="{{ 'mb-0' if support_compact else 'card shadow-sm mb-4 text-bg-warning' }}" id="author-support">
+        <div{% if not support_compact %} class="card-body"{% endif %}>
+            {% if not support_compact %}
+                <div class="h4 card-title">
+                    <i class="bi bi-lightbulb"></i>
+                    {{ header | default("Enjoyed this article?") }}
+                </div>
+                <p class="card-text">Support {{ user.name }}</p>
+            {% endif %}
 
             <a href="https://buymeacoffee.com/{{ user.bmc_username }}"
                target="_blank" rel="nofollow noopener noreferrer"
-               class="btn btn-dark mb-2">
-                <i class="bi bi-cup-hot"></i>
+               class="btn btn-dark {{ 'btn-sm' if support_compact else 'mb-2' }}">
+                <i class="bi bi-cup-hot" aria-hidden="true"></i>
                 Buy me a coffee
             </a>
 
-            <p class="card-text mb-0">
-                This helps {{ user.name }} continue creating useful content
-            </p>
+            {% if not support_compact %}
+                <p class="card-text mb-0">
+                    This helps {{ user.name }} continue creating useful content
+                </p>
+            {% endif %}
         </div>
     </section>
 {% endif %}

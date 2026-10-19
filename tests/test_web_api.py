@@ -1750,3 +1750,49 @@ def test_related_articles_autoload_pages_are_public_unique_and_source_scoped(gue
     assert wrong_source.status_code == 422, wrong_source.text
     private = get(guest_client, f'/articles/{private_id}/related-fragment')
     assert private.status_code == 404, private.text
+
+
+def test_guest_article_controls_preserve_return_url_and_keep_support_public(guest_client):
+    root_client = get_logged_in_client(root_user)
+    article_id = functional_state["article_id"]
+    article_item = get_dynamodb_article(article_id)
+    owner_id = article_item["user_id"]
+    owner = get_dynamodb_user(owner_id)
+    original = owner.get("bmc_username")
+    dynamodb_table.update_item(
+        Key={"pk": f"USER#{owner_id}", "sk": "META"},
+        UpdateExpression="SET bmc_username = :value",
+        ExpressionAttributeValues={":value": "controls-author"},
+    )
+    try:
+        response = get(guest_client, f"/articles/{article_id}?source=controls&ref=guest")
+        assert response.status_code == 200, response.text
+        doc = pq(response.text)
+        assert len(doc("#article-controls .article-impressions")) == 1
+        assert len(doc("#article-controls .share")) == 1
+        assert not doc("#article-controls .btn-article-like, #article-controls .btn-article-dislike")
+        canonical = urlsplit(response.url)
+        destination = canonical.path + "?" + canonical.query
+        for label in ("Sign in to like this article", "Sign in to dislike this article"):
+            link = doc(f'#article-controls a[aria-label="{label}"]')
+            assert len(link) == 1
+            login = urlsplit(link.attr("href"))
+            assert login.path == "/login"
+            assert parse_qs(login.query)["redirect_url"] == [destination]
+            login_response = get(guest_client, link.attr("href"), allow_redirects=False)
+            assert SimpleCookie(login_response.headers["Set-Cookie"])["redirect_url"].value == destination
+        support = doc("#article-controls #author-support a")
+        assert len(support) == 1
+        assert support.attr("href") == "https://buymeacoffee.com/controls-author"
+        assert set(support.attr("rel").split()) == {"nofollow", "noopener", "noreferrer"}
+        signed_in = pq(get(root_client, destination).text)
+        assert len(signed_in("#article-controls .article-impressions .btn-article-like")) == 1
+        assert len(signed_in("#article-controls #comment")) == 1
+        assert len(signed_in("#article-controls .bi-pencil")) == 1
+        assert not signed_in('.border-start > #author-support')
+    finally:
+        dynamodb_table.update_item(
+            Key={"pk": f"USER#{owner_id}", "sk": "META"},
+            UpdateExpression="SET bmc_username = :value",
+            ExpressionAttributeValues={":value": original},
+        )

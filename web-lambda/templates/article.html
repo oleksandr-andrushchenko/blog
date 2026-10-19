@@ -109,7 +109,7 @@
 {% endblock %}
 
 {% block content %}
-    <div class="row g-5">
+    <div class="row gx-3 gx-lg-5 gy-5">
         <div class="{{ {"def": 12, "lg": 8} | col_classes }} overflow-auto article-content">
             <article class="mb-4">
                 <header>
@@ -159,6 +159,10 @@
                         </div>
                     {% endif %}
 
+                </div>
+
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-3" id="article-controls"
+                     role="group" aria-label="Article controls">
                     {% include "fragments/article-status.html" %}
                     {% include "fragments/article-impressions.html" %}
 
@@ -173,6 +177,10 @@
 
                     {% with share_label="Share this article" %}
                         {% include "fragments/share.html" %}
+                    {% endwith %}
+
+                    {% with user=author, support_compact=True %}
+                        {% include "fragments/bmc-donate.html" %}
                     {% endwith %}
                 </div>
 
@@ -189,10 +197,6 @@
                     {% include "fragments/user.html" %}
                 {% endwith %}
             </section>
-
-            {% with user=author %}
-                {% include "fragments/bmc-donate.html" %}
-            {% endwith %}
 
             {% if related_articles %}
                 <section class="mb-4">

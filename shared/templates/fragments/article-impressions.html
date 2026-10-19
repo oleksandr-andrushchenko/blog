@@ -21,6 +21,16 @@
             <i class="bi {% if is_disliked %}bi-hand-thumbs-down-fill{% else %}bi-hand-thumbs-down{% endif %}"></i>
             {{ article.dislikes_count }} {% if is_disliked %}- Disliked{% endif %}
         </button>
+    {% elif not cur_user %}
+        {% set impression_login_url = url('login', redirect_url=request.url.path ~ ("?" ~ request.url.query if request.url.query else "")) %}
+        <a class="btn btn-light btn-sm" href="{{ impression_login_url }}" rel="nofollow"
+           title="Sign in to like this article" aria-label="Sign in to like this article">
+            <i class="bi bi-hand-thumbs-up" aria-hidden="true"></i> {{ article.likes_count }}
+        </a>
+        <a class="btn btn-light btn-sm" href="{{ impression_login_url }}" rel="nofollow"
+           title="Sign in to dislike this article" aria-label="Sign in to dislike this article">
+            <i class="bi bi-hand-thumbs-down" aria-hidden="true"></i> {{ article.dislikes_count }}
+        </a>
     {% else %}
         <!-- Counts -->
         <div><b>{{ article.likes_count }}</b> <small class="text-secondary">Likes</small></div>

@@ -80,6 +80,8 @@
 - Do not underline non-link headings. Apply link decoration to anchors rather than heading containers.
 - Define article listing breadcrumbs once in the template and reuse them for navigation and structured metadata.
   Preserve configured display-name casing and keep paginated listings self-canonical.
+- Guest article reactions link to login with the current path and query as the return destination. Keep donation links
+  public and render article actions once in the compact article-controls group.
 - External HTTP(S) links must include `rel="nofollow"`; preserve `noopener noreferrer` when present, including on
   user links, references, configured social links, and sharing controls.
 - Keep `static/scripts.js` limited to JavaScript reused across pages. Put page-specific scripts in their owning template
