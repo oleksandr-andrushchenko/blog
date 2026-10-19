@@ -94,6 +94,10 @@
 - Run production maintenance and import commands through `scripts-production` in
   `docker-compose.scripts.production.yml`. Default new maintenance commands to a read-only dry run and require explicit
   `--apply` for writes.
+- Assign reviewed category illustrations with `python scripts/set_category_images.py scripts/fixtures/category-images.json
+  --user-id USER_ID` through that service. Review the default dry-run output before adding `--apply`; production requires
+  `STATIC_S3_BUCKET`. The command preserves other assigned images, skips completed assignments, and verifies existing
+  public bytes before reusing a filename. The manifest maps only categories with a matching reviewed illustration.
 - Reuse application services and persistence helpers so imports preserve validation, counters, side effects, and domain
   invariants. Search for an existing operation before adding direct DynamoDB, S3, or filesystem writes; reserve direct
   writes for explicitly scoped migrations, repairs, or metadata that existing services cannot express.

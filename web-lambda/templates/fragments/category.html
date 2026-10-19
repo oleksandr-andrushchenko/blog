@@ -2,7 +2,7 @@
     <article class="card text-bg-light shadow-sm overflow-hidden h-100">
         <div class="row g-0 h-100">
             <a href="{{ articles_url(category=category.slug) }}"
-               class="col-4 text-decoration-none d-flex bg-secondary-subtle">
+               class="{{ {"def": 4} | col_classes }} order-last text-decoration-none d-flex bg-secondary-subtle">
                 {% if category.image_filename %}
                     {% with filename=category.image_filename, alt=category.name,
                             img_class="w-100 h-100 object-fit-cover", img_style="min-height: 10rem;",
@@ -15,7 +15,7 @@
                           aria-hidden="true"></span>
                 {% endif %}
             </a>
-            <div class="col-8 d-flex">
+            <div class="{{ {"def": 8} | col_classes }} d-flex">
                 <div class="card-body d-flex flex-column">
                     <h2 class="h5 card-title">
                         <a href="{{ articles_url(category=category.slug) }}"
