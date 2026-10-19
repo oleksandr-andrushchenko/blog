@@ -178,10 +178,6 @@
                     {% with share_label="Share this article" %}
                         {% include "fragments/share.html" %}
                     {% endwith %}
-
-                    {% with user=author, support_compact=True %}
-                        {% include "fragments/bmc-donate.html" %}
-                    {% endwith %}
                 </div>
 
                 {{ render_article_content(article.content) | safe }}
@@ -197,6 +193,10 @@
                     {% include "fragments/user.html" %}
                 {% endwith %}
             </section>
+
+            {% with user=author %}
+                {% include "fragments/bmc-donate.html" %}
+            {% endwith %}
 
             {% if related_articles %}
                 <section class="mb-4">

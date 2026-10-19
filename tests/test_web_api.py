@@ -1781,7 +1781,11 @@ def test_guest_article_controls_preserve_return_url_and_keep_support_public(gues
             assert parse_qs(login.query)["redirect_url"] == [destination]
             login_response = get(guest_client, link.attr("href"), allow_redirects=False)
             assert SimpleCookie(login_response.headers["Set-Cookie"])["redirect_url"].value == destination
-        support = doc("#article-controls #author-support a")
+        support_section = doc(".border-start > #author-support")
+        assert len(doc("#author-support")) == len(support_section) == 1
+        assert support_section.prev("section")("h2").text() == "Author"
+        assert not doc("#article-controls #author-support")
+        support = support_section("a")
         assert len(support) == 1
         assert support.attr("href") == "https://buymeacoffee.com/controls-author"
         assert set(support.attr("rel").split()) == {"nofollow", "noopener", "noreferrer"}
@@ -1789,7 +1793,8 @@ def test_guest_article_controls_preserve_return_url_and_keep_support_public(gues
         assert len(signed_in("#article-controls .article-impressions .btn-article-like")) == 1
         assert len(signed_in("#article-controls #comment")) == 1
         assert len(signed_in("#article-controls .bi-pencil")) == 1
-        assert not signed_in('.border-start > #author-support')
+        assert len(signed_in('.border-start > #author-support')) == 1
+        assert not signed_in('#article-controls #author-support')
     finally:
         dynamodb_table.update_item(
             Key={"pk": f"USER#{owner_id}", "sk": "META"},
