@@ -38,6 +38,9 @@
   fragments returned by API endpoints consistent.
 - Related-article discovery is shared by the initial web page and the API's paginated fragment. Keep source/tag-scoped
   cursors and public-access filtering consistent; never advance past unprocessed batch-read keys.
+- Published popular tag listings rank matching tag-combination members in batches of at most 100, retaining the top
+  page plus one result. They still traverse the matching partition on each request; category and OR filters use their
+  existing index paths. Preserve deterministic rating/ID ordering and fail if batch reads remain incomplete.
 - The web Lambda owns page rendering; resource mutations, uploads, and resource API responses belong to the API Lambda.
   Browser scripts should call the configured API URL directly rather than adding web routes that proxy API requests.
 - Homepage comment previews must verify current article publication status and use the current article title and URL;

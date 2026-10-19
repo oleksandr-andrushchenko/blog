@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from enum import StrEnum
 from functools import lru_cache, partial
+from heapq import nlargest
 from html import unescape
 from typing import Callable, TypeVar, Any
 from urllib.parse import quote, urlencode
@@ -2059,6 +2060,24 @@ def get_popular_articles_by_tags(
     if not query_dto.tags:
         return get_popular_articles(query_dto, cur_user)
 
+    if (query_dto.status == ArticleStatus.PUBLISHED and not or_mode and not query_dto.category):
+        after = None
+        if query_dto.offset:
+            cursor = decode_offset(query_dto.offset)
+            after = (cursor["rating_sk"], cursor["pk"].removeprefix("POST#"))
+        ranked = nlargest(query_dto.limit + 1, _popular_tag_candidates(query_dto.tags, after),
+                          key=lambda article: (article.rating, article.id))
+        results = ranked[:query_dto.limit]
+        for article in results:
+            article.offset = None
+        if results and len(ranked) > len(results):
+            last = results[-1]
+            last.offset = encode_offset({
+                "pk": f"POST#{last.id}", "sk": "META",
+                "post_status_pk": f"POST#{ArticleStatus.PUBLISHED}", "rating_sk": last.rating,
+            })
+        return results
+
     # Popular articles are ordered by a global index, so tag filtering has to
     # happen after each query. Keep following DynamoDB's continuation cursor:
     # a response can stop at the 1 MB page-size limit before any matching
@@ -2098,6 +2117,43 @@ def get_popular_articles_by_tags(
             break
 
     return filtered_articles
+
+
+def _popular_tag_candidates(tags, after):
+    """Rank only tag members, loading bounded batches and retaining no full catalog."""
+    table = get_dynamodb_table()
+    params = {
+        "KeyConditionExpression": Key("pk").eq("POST_TAG_COMBO#" + "#".join(sorted(tags))),
+        "ProjectionExpression": "post_id",
+        "Limit": 100,
+    }
+    wanted_tags = set(tags)
+    seen = set()
+    while True:
+        page = table.query(**params)
+        ids = list(dict.fromkeys(item["post_id"] for item in page.get("Items", [])
+                                if item["post_id"] not in seen))
+        seen.update(ids)
+        keys = [{"pk": f"POST#{article_id}", "sk": "META"} for article_id in ids]
+        for start in range(0, len(keys), 100):
+            pending = keys[start:start + 100]
+            for attempt in range(3):
+                response = table.meta.client.batch_get_item(RequestItems={table.name: {"Keys": pending}})
+                for item in response.get("Responses", {}).get(table.name, []):
+                    article = article_from_dynamodb(item)
+                    if (article.status == ArticleStatus.PUBLISHED and wanted_tags.issubset(article.tags)
+                            and (after is None or (article.rating, article.id) < after)):
+                        yield article
+                pending = response.get("UnprocessedKeys", {}).get(table.name, {}).get("Keys", [])
+                if not pending:
+                    break
+                if attempt < 2:
+                    time.sleep(0.05 * 2 ** attempt)
+            if pending:
+                raise RuntimeError("Unable to load all popular article candidates; retry this page")
+        if not page.get("LastEvaluatedKey"):
+            break
+        params["ExclusiveStartKey"] = page["LastEvaluatedKey"]
 
 
 def tag_from_dynamodb(d_item: dict[str, Any]) -> Tag:

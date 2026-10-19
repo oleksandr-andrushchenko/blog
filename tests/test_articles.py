@@ -16,7 +16,7 @@ import shared_utils
 import related_articles
 import web_utils
 from article_dtos import ArticleDTO, UpdateArticleDTO
-from query_dtos import ArticleCommentQueryDTO, ArticleQueryDTO
+from query_dtos import ArticleCommentQueryDTO, ArticleListingQueryDTO, ArticleQueryDTO
 from validation import normalize_slug
 os.chdir(previous_cwd)
 
@@ -85,7 +85,7 @@ def test_popular_articles_by_tags_continues_past_page_without_matches(monkeypatc
 
     monkeypatch.setattr(shared_utils, "get_popular_articles", get_popular_articles)
 
-    result = shared_utils.get_popular_articles_by_tags(ArticleQueryDTO(tags=["aws"], limit=10))
+    result = shared_utils.get_popular_articles_by_tags(ArticleQueryDTO(tags=["aws"], limit=10), or_mode=True)
 
     assert [item.id for item in result] == ["aws-1"]
     assert offsets == [None, "next-page"]
@@ -100,7 +100,7 @@ def test_popular_articles_by_tags_uses_last_match_as_pagination_cursor(monkeypat
     ]
     monkeypatch.setattr(shared_utils, "get_popular_articles", lambda query, cur_user: page)
 
-    result = shared_utils.get_popular_articles_by_tags(ArticleQueryDTO(tags=["aws"], limit=2))
+    result = shared_utils.get_popular_articles_by_tags(ArticleQueryDTO(tags=["aws"], limit=2), or_mode=True)
 
     assert [item.id for item in result] == ["aws-1", "aws-2"]
     assert shared_utils.decode_offset(result[-1].offset) == {
@@ -124,7 +124,7 @@ def test_popular_tag_filter_clears_consumed_page_cursors(monkeypatch):
         return pages[query.offset]
 
     monkeypatch.setattr(shared_utils, "get_popular_articles", fetch)
-    result = shared_utils.get_popular_articles_by_tags(ArticleQueryDTO(tags=["aws"], limit=2))
+    result = shared_utils.get_popular_articles_by_tags(ArticleQueryDTO(tags=["aws"], limit=2), or_mode=True)
 
     assert [value.id for value in result] == ["aws-1"]
     assert result[-1].offset is None
@@ -290,3 +290,116 @@ def test_related_cursors_reject_other_scopes_and_invalid_state(state):
     offset = base64.urlsafe_b64encode(json.dumps(state).encode()).decode()
     with pytest.raises(ValueError, match='cursor'):
         asyncio.run(related_articles.get_related_articles(article('source', ['a'], 0), offset=offset))
+
+
+def test_popular_tag_partition_ranking_paginates_ties_and_skips_stale_members(monkeypatch):
+    from boto3.dynamodb.conditions import ConditionExpressionBuilder
+
+    matches = {item.id: item for item in [
+        article("a", ["aws", "python"], 10), article("b", ["aws", "python"], 20),
+        article("c", ["aws", "python"], 20), article("d", ["aws", "python"], 5),
+        article("hidden", ["aws", "python"], 100), article("wrong-tag", ["aws"], 999),
+    ]}
+    matches["hidden"].status = "unpublished"
+    calls = []
+    batches = []
+    pages = {
+        None: {"Items": [], "LastEvaluatedKey": {"pk": "combo", "sk": "empty"}},
+        "empty": {"Items": [{"post_id": value} for value in ["a", "hidden", "missing", "wrong-tag"]],
+                  "LastEvaluatedKey": {"pk": "combo", "sk": "next"}},
+        "next": {"Items": [{"post_id": value} for value in ["b", "c", "a", "d"]]},
+    }
+
+    def query(**params):
+        calls.append(params)
+        return pages[params.get("ExclusiveStartKey", {}).get("sk")]
+
+    def batch(**params):
+        keys = params["RequestItems"]["catalog"]["Keys"]
+        batches.append(keys)
+        return {"Responses": {"catalog": [matches[key["pk"][5:]] for key in reversed(keys)
+                                          if key["pk"][5:] in matches]}}
+
+    table = SimpleNamespace(name="catalog", query=query,
+                            meta=SimpleNamespace(client=SimpleNamespace(batch_get_item=batch)))
+    monkeypatch.setattr(shared_utils, "get_dynamodb_table", lambda: table)
+    monkeypatch.setattr(shared_utils, "article_from_dynamodb", lambda item: item)
+    monkeypatch.setattr(shared_utils, "get_popular_articles", lambda *args: pytest.fail("Read the global popularity index"))
+    first = shared_utils.get_popular_articles_by_tags(ArticleListingQueryDTO(type="popular", tags=["python", "aws"], limit=2))
+    assert [item.id for item in first] == ["c", "b"]
+    assert first[0].offset is None
+    second = shared_utils.get_popular_articles_by_tags(ArticleListingQueryDTO(
+        type="popular", tags=["aws", "python"], limit=2, offset=first[-1].offset,
+    ))
+    assert [item.id for item in second] == ["a", "d"]
+    assert all(item.offset is None for item in second)
+    assert len(calls) == 6
+    assert all(len(keys) <= 100 for keys in batches)
+    assert all(sum(key["pk"] == "POST#a" for key in keys) <= 1 for keys in batches)
+    for params in calls:
+        expression = ConditionExpressionBuilder().build_expression(params["KeyConditionExpression"])
+        assert set(expression.attribute_value_placeholders.values()) == {"POST_TAG_COMBO#aws#python"}
+        assert params["Limit"] == 100
+        assert "IndexName" not in params
+
+
+@pytest.mark.parametrize("recover", [True, False])
+def test_popular_tag_partition_retries_unprocessed_keys_without_partial_results(monkeypatch, recover):
+    calls = []
+    keys = [{"pk": "POST#matched", "sk": "META"}]
+    candidate = article("matched", ["aws"], 10)
+
+    def batch(**params):
+        calls.append(params)
+        if recover and len(calls) == 2:
+            return {"Responses": {"catalog": [candidate]}}
+        return {"Responses": {"catalog": []}, "UnprocessedKeys": {"catalog": {"Keys": keys}}}
+
+    table = SimpleNamespace(
+        name="catalog", query=lambda **params: {"Items": [{"post_id": "matched"}]},
+        meta=SimpleNamespace(client=SimpleNamespace(batch_get_item=batch)),
+    )
+    monkeypatch.setattr(shared_utils, "get_dynamodb_table", lambda: table)
+    monkeypatch.setattr(shared_utils, "article_from_dynamodb", lambda item: item)
+    if recover:
+        results = shared_utils.get_popular_articles_by_tags(ArticleListingQueryDTO(type="popular", tags=["aws"]))
+        assert [item.id for item in results] == ["matched"]
+        assert len(calls) == 2
+    else:
+        with pytest.raises(RuntimeError, match="Unable to load all popular article candidates"):
+            shared_utils.get_popular_articles_by_tags(ArticleListingQueryDTO(type="popular", tags=["aws"]))
+        assert len(calls) == 3
+    assert all(call["RequestItems"]["catalog"]["Keys"] == keys for call in calls)
+
+
+def test_sparse_popular_tag_query_loads_matching_metadata_only(monkeypatch):
+    members = {f"item-{i}": article(f"item-{i}", ["rare"], 10_000 - i) for i in range(99, 10_000, 100)}
+    loaded = {"global": 0, "tag": 0}
+
+    def global_page(query, user):
+        start = int(query.offset or 0)
+        end = min(start + query.limit, 10_000)
+        page = [article(f"item-{i}", ["rare"] if f"item-{i}" in members else ["other"], 10_000 - i)
+                for i in range(start, end)]
+        loaded["global"] += len(page)
+        if end < 10_000:
+            page[-1].offset = str(end)
+        return page
+
+    def batch(**kwargs):
+        keys = kwargs["RequestItems"]["catalog"]["Keys"]
+        loaded["tag"] += len(keys)
+        return {"Responses": {"catalog": [members[key["pk"].removeprefix("POST#")] for key in keys]}}
+
+    table = SimpleNamespace(name="catalog", query=lambda **kwargs: {
+        "Items": [{"post_id": key} for key in members],
+    }, meta=SimpleNamespace(client=SimpleNamespace(batch_get_item=batch)))
+    monkeypatch.setattr(shared_utils, "get_popular_articles", global_page)
+    monkeypatch.setattr(shared_utils, "get_dynamodb_table", lambda: table)
+    monkeypatch.setattr(shared_utils, "article_from_dynamodb", lambda value: value)
+    query = ArticleQueryDTO(type="popular", tags=["rare"], limit=40)
+    previous = shared_utils.get_popular_articles_by_tags(query, or_mode=True)
+    current = shared_utils.get_popular_articles_by_tags(query)
+    assert [value.id for value in current] == [value.id for value in previous]
+    assert loaded == {"global": 4000, "tag": 100}
+    print(f"Sparse tag benchmark: {loaded['global']} global metadata records vs {loaded['tag']} matching records")
