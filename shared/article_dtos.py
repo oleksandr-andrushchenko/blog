@@ -24,6 +24,7 @@ def _validate_title(value):
 
 
 def _validate_content(value):
+    validate_catalog_text(value)
     if not 5_000 <= len(value) <= 100_000:
         raise ValueError("content must contain between 5000 and 50000 characters")
 
@@ -36,6 +37,7 @@ def _validate_category(value):
 
 
 def _validate_comment_text(value):
+    validate_catalog_text(value)
     if not 1 <= len(value) <= 5_000:
         raise ValueError("text must contain between 1 and 5000 characters")
 
@@ -89,7 +91,7 @@ class UpdateTagDTO(BaseDTO):
         if self.name is not UNSET:
             if self.name is None:
                 raise ValueError("name must contain between 2 and 40 characters")
-            self.name = self.name.strip()
+            self.name = validate_catalog_text(self.name).strip()
             if not 2 <= len(self.name) <= 40:
                 raise ValueError("name must contain between 2 and 40 characters")
         if self.slug is not UNSET:
@@ -105,6 +107,8 @@ class UpdateArticleStatusDTO(BaseDTO):
 
     def __post_init__(self):
         self.status = ArticleStatus(self.status)
+        if self.comment is not None:
+            validate_catalog_text(self.comment)
         if self.status == ArticleStatus.REJECTED and not self.comment:
             raise ValueError("Comment is required when rejecting an article")
 

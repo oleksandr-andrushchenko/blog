@@ -34,7 +34,7 @@ from user_dtos import (
     UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO,
     UserImpressionAction,
 )
-from validation import normalize_slug, validate_category_slug
+from validation import normalize_slug, validate_catalog_text, validate_category_slug
 from web import RequestValidationError
 
 
@@ -503,8 +503,8 @@ def create_category(slug: str, name: str, description: str, cur_user: User) -> C
         raise UserBannedError()
 
     slug = validate_category_slug(slug)
-    name = name.strip()
-    description = description.strip()
+    name = validate_catalog_text(name).strip()
+    description = validate_catalog_text(description).strip()
     if not 2 <= len(name) <= 80:
         raise ValueError("name must contain between 2 and 80 characters")
     if not 10 <= len(description) <= 500:
