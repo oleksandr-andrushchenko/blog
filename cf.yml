@@ -37,6 +37,17 @@ Parameters:
     Type: String
     Default: ''
     NoEcho: true
+  TelegramPublisherBotToken:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: Shared bot token for user channel connections (separate from logging)
+  TelegramPublisherWebhookSecret:
+    Type: String
+    Default: ''
+    NoEcho: true
+    AllowedPattern: '^$|^[A-Za-z0-9_-]{32,256}$'
+    Description: Secret used to authenticate Telegram integration webhook requests
   TelegramChatId:
     Type: String
     Default: ''
@@ -385,6 +396,13 @@ Resources:
                 Resource:
                   - !GetAtt DynamoDBTable.Arn
                   - !Sub "${DynamoDBTable.Arn}/index/*"
+        - PolicyName: TelegramConnectionChecks
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [dynamodb:ConditionCheckItem]
+                Resource: !GetAtt DynamoDBTable.Arn
         - PolicyName: LambdaLoggingPolicy
           PolicyDocument:
             Version: "2012-10-17"
@@ -597,6 +615,8 @@ Resources:
       MemorySize: 512
       Environment:
         Variables:
+          TELEGRAM_PUBLISHER_BOT_TOKEN: !Ref TelegramPublisherBotToken
+          TELEGRAM_PUBLISHER_WEBHOOK_SECRET: !Ref TelegramPublisherWebhookSecret
           TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
           TELEGRAM_CHAT_ID: !Ref TelegramChatId
           TELEGRAM_LOG_LEVEL: !Ref TelegramLogLevel

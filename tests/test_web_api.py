@@ -847,6 +847,36 @@ def test_user_edit_update_and_fragment_endpoints_success_and_failure(root_user_c
 
     edit_success = get(root_user_client, f"/users/{root_id}/edit")
     assert edit_success.status_code == 200
+    edit_doc = pq(edit_success.text)
+    form = edit_doc('#user-form')
+    assert [tab.text() for tab in form('[role="tab"]').items()] == ['Personal info', 'Links', 'Earn', 'Integrations']
+    assert form('.tab-pane.active').attr('id') == 'personal-info'
+    assert form('#personal-info [name="name"]') and form('#personal-info [name="avatar_action"]')
+    assert form('#links [name="website"]') and form('#links [name="github_username"]')
+    assert form('#earn [name="bmc_username"]')
+    assert form('#integrations #telegram-connect').text() == 'Connect Telegram'
+    assert not form('#integrations input')
+    assert not form('#telegram-token')
+    connection_url = f"/users/{root_id}/integrations/telegram"
+    connection = get(root_user_client, connection_url)
+    assert connection.status_code == 200, connection.text
+    assert connection.json() == {"connected": False, "configured": False, "pending": False}
+    assert connection.headers['Cache-Control'] == 'no-store'
+    assert get(guest_client, connection_url).status_code == 401
+    assert post(root_user_client, connection_url, json={}).status_code == 503
+    assert post(root_user_client, connection_url, json={},
+                  headers={"Origin": "https://untrusted.example"}).status_code == 403
+    webhook = guest_client.post(os.environ['API_TEST_BASE_URL'] + '/integrations/telegram/webhook', json={})
+    assert webhook.status_code == 503
+    assert delete(root_user_client, connection_url).status_code == 200
+    other_id = get_dynamodb_user_by_email(regular_user["email"])["id"]
+    assert get(root_user_client, f"/users/{other_id}/integrations/telegram").status_code == 403
+    other_profile = get(root_user_client, f"/users/{other_id}/edit")
+    assert other_profile.status_code == 200
+    assert not pq(other_profile.text)('#integrations')
+
+    assert len(form('[type="submit"]')) == 1
+    assert not form('[type="submit"]').parents('.tab-pane')
     edit_failure = get(guest_client, f"/users/{root_id}/edit")
     assert edit_failure.status_code == 401
 
@@ -1071,6 +1101,25 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
 
     status_success = post(root_client, f"/articles/{article_id}/status", json={"status": "published"})
     assert status_success.status_code == 200, status_success.text
+    published_admin_doc = pq(get(root_client, f"/articles/{article_id}").text)
+    assert not published_admin_doc('#telegram-share')
+    owner_key = {"pk": f"USER#{functional_state['root_id']}", "sk": "META"}
+    dynamodb_table.update_item(Key=owner_key, UpdateExpression="SET has_telegram_integration = :connected",
+                               ExpressionAttributeValues={":connected": True})
+    try:
+        connected_page = get(root_client, f"/articles/{article_id}")
+        assert connected_page.status_code == 200, connected_page.text
+        connected_doc = pq(connected_page.text)
+        assert connected_doc('#telegram-share i.bi-telegram')
+        assert connected_doc('#telegram-share').attr('disabled') is None
+        assert f"/users/{functional_state['root_id']}/integrations/telegram" not in connected_page.text
+        assert not pq(get(regular_client, f"/articles/{article_id}").text)('#telegram-share')
+        assert not pq(get(guest_client, f"/articles/{article_id}").text)('#telegram-share')
+    finally:
+        disconnected = delete(root_client, f"/users/{functional_state['root_id']}/integrations/telegram")
+        assert disconnected.status_code == 200, disconnected.text
+    assert get_dynamodb_user(functional_state['root_id'])["has_telegram_integration"] is False
+    assert not pq(get(root_client, f"/articles/{article_id}").text)('#telegram-share')
 
     published_doc = pq(get(guest_client, f"/articles/{article_id}").text)
     assert published_doc('meta[name="robots"]').attr("content") == "index, follow"

@@ -180,6 +180,8 @@
                     {% endwith %}
                 </div>
 
+                {% include "fragments/telegram-share.html" %}
+
                 {{ render_article_content(article.content) | safe }}
             </article>
         </div>

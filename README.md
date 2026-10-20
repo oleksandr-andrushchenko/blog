@@ -224,3 +224,40 @@ Configure optional Google Fonts in ignored `shared/data.json`:
 
 Each role is optional. Empty settings use Bootstrap's font defaults without Google
 Fonts requests. The same family is downloaded once when used for both roles.
+
+## Telegram article sharing
+
+Profile editing has Personal info, Links, Earn, and an owner-only Integrations tab.
+An active user can connect one Telegram channel and manually share published
+articles to it. Posts contain the title, category, preview, and canonical article
+link. Sharing never happens automatically. The connected user and bot must have
+posting permission; the application rechecks both before every share. Disconnecting
+removes the connection without deleting existing Telegram posts.
+
+Create a shared publisher bot with BotFather and set these in ignored `.env.prod`:
+
+```dotenv
+TELEGRAM_PUBLISHER_BOT_TOKEN=
+TELEGRAM_PUBLISHER_WEBHOOK_SECRET=
+```
+
+Use a separate bot from Telegram logging, and generate a random webhook secret of
+32–256 letters, digits, underscores, or hyphens. Deploy the infrastructure and API
+changes together through the normal deployment workflow. Publisher credentials
+are passed only to the API Lambda; users never enter their own bot tokens.
+
+Review webhook registration using the deployed API base URL:
+
+```sh
+docker compose -f docker-compose.scripts.production.yml run --rm \
+  -e API_BASE_URL=https://api.example.com scripts-production \
+  python scripts/configure_telegram_webhook.py
+```
+
+Add `--apply` to register the reviewed webhook. Review output redacts the secret.
+Registration does not send messages or drop pending updates. Until the bot token
+and secret are configured, the profile explains that connections are unavailable.
+Connection links expire after ten minutes and are bound to the initiating account
+and the Telegram user who starts the connection. Webhook requests require the
+configured Telegram secret header. Temporary records are removed on completion,
+replacement, or disconnect; expired links cannot complete a connection.

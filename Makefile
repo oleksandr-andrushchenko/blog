@@ -45,6 +45,8 @@ APP_SECRET := $(shell sed -n "s/^APP_SECRET=//p" $(PROD_ENV_FILE) 2>/dev/null)
 DOMAIN_NAME := $(shell sed -n "s/^DOMAIN_NAME=//p" $(PROD_ENV_FILE) 2>/dev/null)
 HOSTED_ZONE_ID := $(shell sed -n "s/^HOSTED_ZONE_ID=//p" $(PROD_ENV_FILE) 2>/dev/null)
 TELEGRAM_BOT_TOKEN := $(shell sed -n "s/^TELEGRAM_BOT_TOKEN=//p" $(PROD_ENV_FILE) 2>/dev/null)
+TELEGRAM_PUBLISHER_BOT_TOKEN := $(shell sed -n "s/^TELEGRAM_PUBLISHER_BOT_TOKEN=//p" $(PROD_ENV_FILE) 2>/dev/null)
+TELEGRAM_PUBLISHER_WEBHOOK_SECRET := $(shell sed -n "s/^TELEGRAM_PUBLISHER_WEBHOOK_SECRET=//p" $(PROD_ENV_FILE) 2>/dev/null)
 TELEGRAM_CHAT_ID := $(shell sed -n "s/^TELEGRAM_CHAT_ID=//p" $(PROD_ENV_FILE) 2>/dev/null)
 TELEGRAM_LOG_LEVEL := $(shell sed -n "s/^TELEGRAM_LOG_LEVEL=//p" $(PROD_ENV_FILE) 2>/dev/null)
 NOTIFICATION_EMAIL := $(shell sed -n "s/^NOTIFICATION_EMAIL=//p" $(PROD_ENV_FILE) 2>/dev/null)
@@ -216,6 +218,8 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 			HostedZoneId="$(HOSTED_ZONE_ID)" \
 			CertificateArn="$$CERTIFICATE_ARN" \
 			TelegramBotToken="$(TELEGRAM_BOT_TOKEN)" \
+			TelegramPublisherBotToken="$(TELEGRAM_PUBLISHER_BOT_TOKEN)" \
+			TelegramPublisherWebhookSecret="$(TELEGRAM_PUBLISHER_WEBHOOK_SECRET)" \
 			TelegramChatId="$(TELEGRAM_CHAT_ID)" \
 			TelegramLogLevel="$(or $(TELEGRAM_LOG_LEVEL),INFO)" \
 			NotificationEmail="$(NOTIFICATION_EMAIL)" \

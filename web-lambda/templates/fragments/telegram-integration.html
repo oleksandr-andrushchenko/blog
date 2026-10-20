@@ -1,0 +1,124 @@
+<section aria-labelledby="telegram-heading" class="d-flex flex-column gap-3">
+    <h2 class="h5 mb-0" id="telegram-heading"><i class="bi bi-telegram me-1" aria-hidden="true"></i>Telegram channel</h2>
+    <p class="mb-0">Share articles to your Telegram channel.</p>
+    <ol class="mb-0">
+        <li>Select <strong>Connect Telegram</strong> and tap <strong>Start</strong> in Telegram.</li>
+        <li>Tap <strong>Choose channel</strong>, select your channel, and allow the bot to post messages.</li>
+        <li>Return here. Your connected channel will appear below.</li>
+    </ol>
+    <p class="form-text mb-0">You need permission to add an administrator and post in the channel.</p>
+    <div id="telegram-status" role="status" aria-live="polite">Loading connection…</div>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+        <button type="button" class="btn btn-primary" id="telegram-connect" disabled>
+            <i class="bi bi-telegram me-1" aria-hidden="true"></i><span id="telegram-connect-label">Connect Telegram</span>
+        </button>
+        <a id="telegram-open" class="btn btn-outline-primary d-none" target="_blank" rel="nofollow noopener noreferrer">
+            <i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>Continue in Telegram
+        </a>
+        <button type="button" class="btn btn-outline-danger" id="telegram-disconnect" disabled>
+            <i class="bi bi-x-circle me-1" aria-hidden="true"></i>Disconnect
+        </button>
+    </div>
+    <p class="form-text mb-0">Disconnecting leaves your existing channel posts in place.</p>
+</section>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const endpoint = {{ url('telegram-connection', user_id=user.id, absolute=True) | tojson }}
+    const status = document.getElementById("telegram-status")
+    const connect = document.getElementById("telegram-connect")
+    const connectLabel = document.getElementById("telegram-connect-label")
+    const disconnect = document.getElementById("telegram-disconnect")
+    const open = document.getElementById("telegram-open")
+    let busy = false
+    let pollTimer = null
+    let pollUntil = 0
+    async function request(method) {
+      const response = await fetch(endpoint, {method, credentials: "include", cache: "no-store",
+        headers: {"Content-Type": "application/json"}, ...(method === "POST" ? {body: "{}"} : {})})
+      const data = await response.json()
+      if (!response.ok) throw new Error(typeof data.details === "string" ? data.details : "Could not update your Telegram connection.")
+      return data
+    }
+    function stopPolling() {
+      clearTimeout(pollTimer)
+      pollTimer = null
+      pollUntil = 0
+    }
+    async function load() {
+      if (busy) return
+      clearTimeout(pollTimer)
+      pollTimer = null
+      busy = true
+      try {
+        const data = await request("GET")
+        connect.disabled = !data.configured
+        connectLabel.textContent = data.connected ? "Connect another channel" : "Connect Telegram"
+        disconnect.disabled = !(data.connected || data.pending)
+        if (!data.pending) {
+          stopPolling()
+          open.classList.add("d-none")
+          open.removeAttribute("href")
+        }
+        status.textContent = !data.configured ? "Telegram connections are not available yet. Please try again later." :
+          data.connected ? `Connected to ${data.channel_title}.` : "No Telegram channel connected."
+        if (data.pending) status.textContent += " Complete the channel selection in Telegram."
+        status.className = data.connected ? "text-success" : "text-secondary"
+      } catch (error) {
+        status.textContent = error.message
+        status.className = "text-danger"
+      } finally {
+        busy = false
+        if (pollUntil > Date.now()) pollTimer = setTimeout(load, 4000)
+      }
+    }
+    connect.addEventListener("click", async () => {
+      if (busy) return
+      busy = true
+      connect.disabled = disconnect.disabled = true
+      // Open during the click gesture so browsers can hand off to Telegram without blocking it.
+      const popup = window.open("about:blank", "_blank")
+      if (popup) popup.opener = null
+      try {
+        const data = await request("POST")
+        open.href = data.connect_url
+        open.classList.remove("d-none")
+        if (popup) popup.location.replace(data.connect_url)
+        clearTimeout(pollTimer)
+        pollUntil = data.expires_at
+        status.textContent = "Tap Start in Telegram, then choose your channel and approve posting access."
+        status.className = "text-secondary"
+        disconnect.disabled = false
+      } catch (error) {
+        if (popup) popup.close()
+        status.textContent = error.message
+        status.className = "text-danger"
+      } finally {
+        busy = false
+        connect.disabled = false
+        if (pollUntil > Date.now()) pollTimer = setTimeout(load, 4000)
+      }
+    })
+    disconnect.addEventListener("click", async () => {
+      if (busy) return
+      busy = true
+      disconnect.disabled = connect.disabled = true
+      try {
+        await request("DELETE")
+        stopPolling()
+        open.classList.add("d-none")
+        open.removeAttribute("href")
+        status.textContent = "Telegram disconnected."
+        status.className = "text-secondary"
+      } catch (error) {
+        status.textContent = error.message
+        disconnect.disabled = false
+      } finally {
+        busy = false
+        connect.disabled = false
+      }
+    })
+    window.addEventListener("focus", () => {clearTimeout(pollTimer); load()})
+    window.addEventListener("pagehide", stopPolling)
+    load()
+  })
+</script>

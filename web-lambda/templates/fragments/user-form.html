@@ -1,173 +1,247 @@
 <form class="d-flex flex-column gap-2" id="user-form" novalidate>
-    <div class="form-group row align-items-center">
-        <div class="{{ {"def": 2} | col_classes }} px-lg-5">
-            {% include "fragments/user-avatar.html" %}
-        </div>
-        <div class="{{ {"def": 10} | col_classes }}">
-            <div class="row align-items-center g-3">
-                <div class="{{ {"def": 6, "lg": 4, "xl": 2} | col_classes }}">
-                    <div class="form-check text-decoration-underline">
-                        Avatar action
-                    </div>
-
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="avatar_action" id="keep-avatar" value="keep"
-                               checked>
-                        <label class="form-check-label" for="keep-avatar">Keep current</label>
-                    </div>
-
-                    {% if user and user.avatar_filename %}
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="avatar_action" id="delete-avatar"
-                                   value="delete">
-                            <label class="form-check-label" for="delete-avatar">Delete current</label>
-                        </div>
-                    {% endif %}
-
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="avatar_action" id="replace-avatar"
-                               value="replace">
-                        <label class="form-check-label" for="replace-avatar">Upload new</label>
-                    </div>
-                </div>
-
-                <div class="{{ {"def": 6, "lg": 8, "xl": 10} | col_classes }}" id="upload-avatar" style="display:none">
-                    <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/avif" class="form-control" id="avatar_file" name="avatar_file"
-                           placeholder="Avatar" data-public-file>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="form-group row">
-        <label for="name" class="col-form-label {{ {"def": 2} | col_classes }} label-required">Name</label>
-        <div class="{{ {"def": 10} | col_classes }}">
-            <div class="input-group">
-                <span class="input-group-text"><i class="bi bi-person-circle"></i></span>
-                <input type="text" class="form-control" id="name" name="name" placeholder="Name"
-                       value="{{ user.name if user and user.name else "" }}">
-            </div>
-        </div>
-    </div>
-
-    <div class="form-group row">
-        <label for="username" class="col-form-label {{ {"def": 2} | col_classes }}">Username</label>
-        <div class="{{ {"def": 10} | col_classes }}">
-            <div class="input-group">
-                <span class="input-group-text">{{ web_base_url.replace('https://', '').replace('http://', '') }}/</span>
-                <input type="text" class="form-control" id="username" name="username" placeholder="your-username"
-                       value="{{ user.username if user and user.username else "" }}">
-            </div>
-        </div>
-    </div>
-
-    <div class="form-group row">
-        <label for="github_username" class="col-form-label {{ {"def": 2} | col_classes }}">GitHub</label>
-        <div class="{{ {"def": 10} | col_classes }}">
-            <div class="input-group">
-                <span class="input-group-text">github.com/</span>
-                <input type="text" class="form-control" id="github_username" name="github_username"
-                       placeholder="your-github-username"
-                       value="{{ user.github_username if user and user.github_username else "" }}">
-                <span class="input-group-text"><i class="bi bi-box-arrow-up-right"></i></span>
-            </div>
-        </div>
-    </div>
-
-    <div class="form-group row">
-        <label for="bmc_username" class="col-form-label {{ {"def": 2} | col_classes }}">
-            <i class="bi bi-currency-dollar"></i> Buy Me a Coffee
-        </label>
-        <div class="{{ {"def": 10} | col_classes }}">
-            <div class="input-group">
-                <span class="input-group-text">buymeacoffee.com/</span>
-                <input type="text"
-                       class="form-control"
-                       id="bmc_username"
-                       name="bmc_username"
-                       placeholder="your-bmc-username"
-                       value="{{ user.bmc_username if user and user.bmc_username else '' }}">
-                <span class="input-group-text"><i class="bi bi-box-arrow-up-right"></i></span>
-            </div>
-            <div class="form-text">
-                Don’t have an account?
-                <a class="link-body-emphasis" href="https://www.buymeacoffee.com/invite/oleksandr.andrushchenko"
-                   target="_blank" rel="nofollow noopener noreferrer">Create one here</a>
-            </div>
-        </div>
-    </div>
-
-    <div class="form-group row">
-        <label for="headline" class="col-form-label {{ {"def": 2} | col_classes }}">Headline</label>
-        <div class="{{ {"def": 10} | col_classes }}">
-            <input type="text" class="form-control" id="headline" name="headline" placeholder="Headline"
-                   value="{{ user.headline if user and user.headline else "" }}">
-        </div>
-    </div>
-
-    <div class="form-group row">
-        <label for="about" class="col-form-label {{ {"def": 2} | col_classes }}">About</label>
-        <div class="{{ {"def": 10} | col_classes }}">
-            <textarea class="form-control" id="about" name="about" placeholder="About"
-                      rows="6">{{ user.about if user and user.about else "" }}</textarea>
-        </div>
-    </div>
-
-    <div class="form-group row">
-        <label for="website" class="col-form-label {{ {"def": 2} | col_classes }}">Website</label>
-        <div class="{{ {"def": 10} | col_classes }}">
-            <div class="input-group">
-                <input type="text" class="form-control" id="website" name="website" placeholder="Website"
-                       value="{{ user.website if user and user.website else "" }}">
-                <span class="input-group-text"><i class="bi bi-box-arrow-up-right"></i></span>
-            </div>
-        </div>
-    </div>
-
-    <div class="form-group row">
-        <label for="address" class="col-form-label {{ {"def": 2} | col_classes }}">Location</label>
-        <div class="{{ {"def": 10} | col_classes }}">
-            <div class="input-group">
-                <span class="input-group-text"><i class="bi bi-geo"></i></span>
-                <input type="text" class="form-control" id="address" name="address" placeholder="Address"
-                       value="{{ user.address if user and user.address else "" }}">
-            </div>
-        </div>
-    </div>
-
-    <div class="form-group row">
-        <div class="{{ {"def": 10} | col_classes }} offset-2">
-            <button type="submit" class="btn btn-light">
-                <i class="bi {% if user %}bi-arrow-clockwise{% else %}bi-plus-lg{% endif %}"></i>
-                {% if user %}Update{% else %}Create{% endif %} profile
+    <ul class="nav nav-tabs" id="user-profile-tabs" role="tablist" aria-label="Profile sections">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="personal-info-tab" data-bs-toggle="tab"
+                    data-bs-target="#personal-info" type="button" role="tab" aria-controls="personal-info"
+                    aria-selected="true">
+                <i class="bi bi-person me-1" aria-hidden="true"></i>Personal info
             </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="links-tab" data-bs-toggle="tab"
+                    data-bs-target="#links" type="button" role="tab" aria-controls="links"
+                    aria-selected="false" tabindex="-1">
+                <i class="bi bi-link-45deg me-1" aria-hidden="true"></i>Links
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="earn-tab" data-bs-toggle="tab"
+                    data-bs-target="#earn" type="button" role="tab" aria-controls="earn"
+                    aria-selected="false" tabindex="-1">
+                <i class="bi bi-currency-dollar me-1" aria-hidden="true"></i>Earn
+            </button>
+        </li>
+        {% if user and cur_user and user.id == cur_user.id %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="integrations-tab" data-bs-toggle="tab"
+                        data-bs-target="#integrations" type="button" role="tab" aria-controls="integrations"
+                        aria-selected="false" tabindex="-1">
+                    <i class="bi bi-plug me-1" aria-hidden="true"></i>Integrations
+                </button>
+            </li>
+        {% endif %}
+    </ul>
+    <div class="tab-content" id="user-profile-sections">
+        <div class="tab-pane active py-3" id="personal-info" role="tabpanel"
+             aria-labelledby="personal-info-tab" tabindex="0">
+            <div class="d-flex flex-column gap-3">
+                <div class="form-group row align-items-center">
+                    <div class="{{ {"def": 3, "md": 2} | col_classes }} px-lg-5">
+                        {% include "fragments/user-avatar.html" %}
+                    </div>
+                    <div class="{{ {"def": 9, "md": 10} | col_classes }}">
+                        <div class="row align-items-center g-3">
+                            <div class="{{ {"def": 12, "lg": 4, "xl": 2} | col_classes }}">
+                                <div class="fw-semibold mb-1">
+                                    Avatar action
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="avatar_action" id="keep-avatar" value="keep"
+                                           checked>
+                                    <label class="form-check-label" for="keep-avatar">Keep current</label>
+                                </div>
+
+                                {% if user and user.avatar_filename %}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="avatar_action" id="delete-avatar"
+                                               value="delete">
+                                        <label class="form-check-label" for="delete-avatar">Delete current</label>
+                                    </div>
+                                {% endif %}
+
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="avatar_action" id="replace-avatar"
+                                           value="replace">
+                                    <label class="form-check-label" for="replace-avatar">Upload new</label>
+                                </div>
+                            </div>
+
+                            <div class="{{ {"def": 12, "lg": 8, "xl": 10} | col_classes }}" id="upload-avatar" style="display:none">
+                                <input type="file" class="form-control" id="avatar_file" name="avatar_file" accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
+                                       placeholder="Avatar" data-public-file>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label for="name" class="col-form-label {{ {"def": 12, "md": 2} | col_classes }} label-required">Name</label>
+                    <div class="{{ {"def": 12, "md": 10} | col_classes }}">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-person-circle"></i></span>
+                            <input type="text" class="form-control" id="name" name="name" placeholder="Name"
+                                   value="{{ user.name if user and user.name else "" }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label for="username" class="col-form-label {{ {"def": 12, "md": 2} | col_classes }}">Username</label>
+                    <div class="{{ {"def": 12, "md": 10} | col_classes }}">
+                        <div class="input-group">
+                            <span class="input-group-text">{{ web_base_url.replace('https://', '').replace('http://', '') }}/</span>
+                            <input type="text" class="form-control" id="username" name="username" placeholder="your-username"
+                                   value="{{ user.username if user and user.username else "" }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label for="headline" class="col-form-label {{ {"def": 12, "md": 2} | col_classes }}">Headline</label>
+                    <div class="{{ {"def": 12, "md": 10} | col_classes }}">
+                        <input type="text" class="form-control" id="headline" name="headline" placeholder="Headline"
+                               value="{{ user.headline if user and user.headline else "" }}">
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label for="about" class="col-form-label {{ {"def": 12, "md": 2} | col_classes }}">About</label>
+                    <div class="{{ {"def": 12, "md": 10} | col_classes }}">
+                        <textarea class="form-control" id="about" name="about" placeholder="About"
+                                  rows="6">{{ user.about if user and user.about else "" }}</textarea>
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label for="address" class="col-form-label {{ {"def": 12, "md": 2} | col_classes }}">Location</label>
+                    <div class="{{ {"def": 12, "md": 10} | col_classes }}">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-geo"></i></span>
+                            <input type="text" class="form-control" id="address" name="address" placeholder="Address"
+                                   value="{{ user.address if user and user.address else "" }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+        <div class="tab-pane py-3" id="links" role="tabpanel"
+             aria-labelledby="links-tab" tabindex="0">
+            <div class="d-flex flex-column gap-3">
+                <div class="form-group row">
+                    <label for="website" class="col-form-label {{ {"def": 12, "md": 2} | col_classes }}">Website</label>
+                    <div class="{{ {"def": 12, "md": 10} | col_classes }}">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="website" name="website" placeholder="Website"
+                                   value="{{ user.website if user and user.website else "" }}">
+                            <span class="input-group-text"><i class="bi bi-box-arrow-up-right"></i></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <label for="github_username" class="col-form-label {{ {"def": 12, "md": 2} | col_classes }}">GitHub</label>
+                    <div class="{{ {"def": 12, "md": 10} | col_classes }}">
+                        <div class="input-group">
+                            <span class="input-group-text">github.com/</span>
+                            <input type="text" class="form-control" id="github_username" name="github_username"
+                                   placeholder="your-github-username"
+                                   value="{{ user.github_username if user and user.github_username else "" }}">
+                            <span class="input-group-text"><i class="bi bi-box-arrow-up-right"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane py-3" id="earn" role="tabpanel"
+             aria-labelledby="earn-tab" tabindex="0">
+            <div class="d-flex flex-column gap-3">
+                <p class="text-secondary mb-0">
+                    Add a Buy Me a Coffee profile so readers can support your work.
+                    <a href="{{ url('earn') }}" class="link-body-emphasis">Learn about earning</a>.
+                </p>
+                <div class="form-group row">
+                    <label for="bmc_username" class="col-form-label {{ {"def": 12, "md": 2} | col_classes }}">
+                        <i class="bi bi-currency-dollar"></i> Buy Me a Coffee
+                    </label>
+                    <div class="{{ {"def": 12, "md": 10} | col_classes }}">
+                        <div class="input-group">
+                            <span class="input-group-text">buymeacoffee.com/</span>
+                            <input type="text"
+                                   class="form-control"
+                                   id="bmc_username"
+                                   name="bmc_username"
+                                   placeholder="your-bmc-username"
+                                   value="{{ user.bmc_username if user and user.bmc_username else '' }}">
+                            <span class="input-group-text"><i class="bi bi-box-arrow-up-right"></i></span>
+                        </div>
+                        <div class="form-text">
+                            Don’t have an account?
+                            <a class="link-body-emphasis" href="https://www.buymeacoffee.com/"
+                               target="_blank" rel="nofollow noopener noreferrer">Create one here</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% if user and cur_user and user.id == cur_user.id %}
+            <div class="tab-pane py-3" id="integrations" role="tabpanel" aria-labelledby="integrations-tab" tabindex="0">
+                {% include "fragments/telegram-integration.html" %}
+            </div>
+        {% endif %}
+    </div>
+    <div class="border-top pt-3">
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg" aria-hidden="true"></i> Save changes
+        </button>
+        <p class="form-text mb-0">Profile changes are saved together. Telegram connections are saved separately.</p>
     </div>
 </form>
 
 <script>
   document.addEventListener("DOMContentLoaded", () => {
-    const uploadDiv = document.getElementById("upload-avatar")
-    const avatarRadios = document.querySelectorAll("input[name=\"avatar_action\"]")
-
-    // Initially hide the upload div
-    uploadDiv.style.display = "none"
-
-    avatarRadios.forEach(radio => {
-      radio.addEventListener("change", () => {
-        if (radio.value === "replace" && radio.checked) {
-          uploadDiv.style.display = "block"
-        } else if (radio.checked) {
-          uploadDiv.style.display = "none"
-        }
-      })
+    const form = document.getElementById("user-form")
+    const tabs = document.getElementById("user-profile-tabs")
+    const tabButtons = Array.from(tabs.querySelectorAll('[data-bs-toggle="tab"]'))
+    const selectTabFromHash = () => {
+      const tab = tabButtons.find(button => button.dataset.bsTarget === window.location.hash)
+      if (tab) bootstrap.Tab.getOrCreateInstance(tab).show()
+    }
+    tabs.addEventListener("shown.bs.tab", event => {
+      const currentUrl = new URL(window.location.href)
+      currentUrl.hash = event.target.dataset.bsTarget
+      history.replaceState(history.state, "", currentUrl)
     })
+    window.addEventListener("hashchange", selectTabFromHash)
+    selectTabFromHash()
+
+    // Client and API validation both add is-invalid. Reveal the field before focusing it.
+    new MutationObserver(records => {
+      if (!records.some(record => record.target.classList.contains("is-invalid") &&
+        !(record.oldValue || "").split(/\s+/).includes("is-invalid"))) return
+      const invalid = form.querySelector(".is-invalid")
+      const pane = invalid?.closest(".tab-pane")
+      const tab = tabButtons.find(button => button.dataset.bsTarget === `#${pane?.id}`)
+      if (tab) {
+        bootstrap.Tab.getOrCreateInstance(tab).show()
+        invalid.focus()
+      }
+    }).observe(form, {subtree: true, attributes: true, attributeFilter: ["class"], attributeOldValue: true})
+
+    const uploadDiv = document.getElementById("upload-avatar")
+    const imageInput = form.elements.avatar_file
+    const avatarRadios = document.querySelectorAll("input[name=\"avatar_action\"]")
+    const updateAvatarUpload = () => {
+      const replacing = form.elements.avatar_action.value === "replace"
+      uploadDiv.style.display = replacing ? "block" : "none"
+      imageInput.disabled = !replacing
+      if (!replacing) imageInput.value = ""
+    }
+    avatarRadios.forEach(radio => radio.addEventListener("change", updateAvatarUpload))
+    updateAvatarUpload()
 
     handleFormSubmit("#user-form", {{ (url('update-user', user_id=user.id, absolute=True) if user else '') | tojson }}, {
       method: "{{ 'PATCH' if user else 'POST' }}",
       rules: {
         avatar_file: [
-          {rule: "required", errorMessage: "Avatar is required"},
+          {
+            validator: () => form.elements.avatar_action.value !== "replace" || imageInput.files.length > 0,
+            errorMessage: "Avatar is required"
+          },
           {
             rule: "files",
             value: {
@@ -180,7 +254,11 @@
             }
           }
         ],
-        name: [{rule: "required"}, {rule: "minLength", value: 1}, {rule: "maxLength", value: 100}],
+        name: [
+          {rule: "required"},
+          {rule: "minLength", value: 1},
+          {rule: "maxLength", value: 100}
+        ],
         username: [
           {rule: "minLength", value: 3},
           {rule: "maxLength", value: 30},
@@ -250,8 +328,14 @@
             errorMessage: "BMC username cannot contain consecutive dots"
           }
         ],
-        headline: [{rule: "minLength", value: 1}, {rule: "maxLength", value: 150}],
-        about: [{rule: "minLength", value: 1}, {rule: "maxLength", value: 2000}],
+        headline: [
+          {rule: "minLength", value: 1},
+          {rule: "maxLength", value: 150}
+        ],
+        about: [
+          {rule: "minLength", value: 1},
+          {rule: "maxLength", value: 2000}
+        ],
         website: [
           {
             rule: "customRegexp",
@@ -259,9 +343,16 @@
             errorMessage: "Website must be a valid URL"
           }
         ],
-        address: [{rule: "minLength", value: 1}, {rule: "maxLength", value: 255}]
+        address: [
+          {rule: "minLength", value: 1},
+          {rule: "maxLength", value: 255}
+        ]
       },
-      onSuccess: (res) => res && (window.location.href = res),
+      onSuccess: (res) => {
+        if (res) window.location.href = res
+      },
+      successMessage: "Profile updated!"
     })
+
   })
 </script>

@@ -26,6 +26,8 @@ def _get_live_config() -> dict[str, Any]:
         "yandex_webmaster_host_id": os.getenv("YANDEX_WEBMASTER_HOST_ID"),
         "indexnow_key": os.getenv("INDEXNOW_KEY"),
         "tinymce_api_key": os.getenv("TINYMCE_API_KEY"),
+        "telegram_publisher_bot_token": os.getenv("TELEGRAM_PUBLISHER_BOT_TOKEN", ""),
+        "telegram_publisher_webhook_secret": os.getenv("TELEGRAM_PUBLISHER_WEBHOOK_SECRET", ""),
         "telegram_bot_token": os.getenv("TELEGRAM_BOT_TOKEN", ""),
         "telegram_chat_id": os.getenv("TELEGRAM_CHAT_ID", ""),
         "telegram_log_level": os.getenv("TELEGRAM_LOG_LEVEL", "INFO"),

@@ -92,6 +92,7 @@ class User:
     created_at: int
     updated_at: int | None
     offset: str | None
+    has_telegram_integration: bool = False
 
 
 @dataclass(slots=True)
@@ -1562,6 +1563,7 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         article_comments_count=d_item.get("post_comments_count", 0),
         tag_subscriptions_count=d_item.get("tag_subscriptions_count", d_item.get("article_tag_subscriptions_count", 0)),
         bmc_username=d_item.get("bmc_username"),
+        has_telegram_integration=d_item.get("has_telegram_integration", False),
         redirect_to=d_item.get("redirect_to"),
         created_at=d_item["created_at"],
         updated_at=d_item.get("updated_at"),
@@ -1764,8 +1766,9 @@ def add_dynamodb_delete_transact(
     transacts.append(build_dynamodb_delete_item_params(**param_dict))
 
 
-def get_dynamodb_item(pk: str, sk: str) -> dict[str, Any] | None:
-    resp = get_dynamodb_table().get_item(Key={"pk": pk, "sk": sk})
+def get_dynamodb_item(pk: str, sk: str, *, consistent_read: bool = False) -> dict[str, Any] | None:
+    options = {"ConsistentRead": True} if consistent_read else {}
+    resp = get_dynamodb_table().get_item(Key={"pk": pk, "sk": sk}, **options)
     return resp.get("Item")
 
 

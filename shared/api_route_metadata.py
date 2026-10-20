@@ -1,6 +1,9 @@
 """Canonical API route names and path templates."""
 
 API_URL_ROUTES = {
+    "telegram-webhook": "/integrations/telegram/webhook",
+    "telegram-connection": "/users/{user_id}/integrations/telegram",
+    "share-article-telegram": "/articles/{article_id}/share/telegram",
     "upload-public-file": "/public-file",
     "create-article": "/articles",
     "api-articles": "/articles",

@@ -12,6 +12,8 @@ services:
       - .env.test
     environment:
       APP_STAGE: local
+      TELEGRAM_PUBLISHER_BOT_TOKEN: ""
+      TELEGRAM_PUBLISHER_WEBHOOK_SECRET: ""
       APP_ENV: test
       APP_DEBUG: 1
       APP_SECRET: test-app-secret
@@ -47,6 +49,8 @@ services:
       - .env.test
     environment:
       APP_STAGE: local
+      TELEGRAM_PUBLISHER_BOT_TOKEN: ""
+      TELEGRAM_PUBLISHER_WEBHOOK_SECRET: ""
       APP_ENV: test
       APP_DEBUG: 1
       APP_SECRET: test-app-secret
@@ -92,6 +96,8 @@ services:
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"
+      TELEGRAM_PUBLISHER_BOT_TOKEN: ""
+      TELEGRAM_PUBLISHER_WEBHOOK_SECRET: ""
       TELEGRAM_BOT_TOKEN: ""
       TELEGRAM_CHAT_ID: ""
     volumes:

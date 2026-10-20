@@ -1,5 +1,8 @@
 import asyncio
+import json
 from dataclasses import replace
+
+import telegram_service
 
 from shared_utils import template_request
 from app_config import get_allowed_origins
@@ -485,3 +488,54 @@ async def _drop_cdn_cache(cur_user: CurUserDep, drop_cache_dto: DropCDNCacheDTOD
 @route("post", "upsert-redirect")
 async def _upsert_redirect(cur_user: CurUserDep, redirect_dto: UpsertRedirectDTODep):
     return upsert_redirect(redirect_dto, cur_user)
+
+
+def _integration_mutation(request):
+    origin = request.headers.get("origin")
+    if origin and origin not in get_allowed_origins():
+        raise HTTPException(403, "Untrusted request origin")
+    if request.method != "DELETE" and request.headers.get("content-type", "").split(";")[0] != "application/json":
+        raise HTTPException(415, "Use application/json")
+
+
+@route("get", "telegram-connection")
+async def telegram_connection(user: UserDep, cur_user: CurUserDep):
+    result = await to_thread(telegram_service.connection_status, user, cur_user)
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+
+@route("post", "telegram-connection")
+async def connect_telegram(user: UserDep, cur_user: CurUserDep, request: Request):
+    _integration_mutation(request)
+    result = await to_thread(telegram_service.begin_connection, user, cur_user)
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+
+@route("delete", "telegram-connection")
+async def disconnect_telegram(user: UserDep, cur_user: CurUserDep, request: Request):
+    _integration_mutation(request)
+    result = await to_thread(telegram_service.disconnect, user, cur_user)
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+
+@route("post", "share-article-telegram")
+async def share_article_telegram(article: ArticleDep, cur_user: CurUserDep, request: Request):
+    _integration_mutation(request)
+    result = await to_thread(telegram_service.share_article, article, cur_user, request)
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+
+@route("post", "telegram-webhook")
+async def telegram_webhook(request: Request):
+    telegram_service.verify_webhook(request.headers.get("x-telegram-bot-api-secret-token"))
+    body = await request.body()
+    if len(body) > 65536:
+        raise HTTPException(413, "Update too large")
+    try:
+        update = json.loads(body)
+    except (ValueError, UnicodeDecodeError):
+        raise HTTPException(400, "Invalid Telegram update") from None
+    if not isinstance(update, dict):
+        raise HTTPException(400, "Invalid Telegram update")
+    result = await to_thread(telegram_service.handle_update, update)
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})

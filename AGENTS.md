@@ -139,3 +139,17 @@
   result. Reuse that result throughout the item, and avoid model calls for completed or deterministically rejected items.
 - After DynamoDB schema/index changes, use `make recreate-local-dynamodb` to recreate the persistent local table.
   Local AWS CLI commands default to `us-west-2`.
+
+## Telegram publishing and profile settings
+
+- Keep Telegram publishing separate from Telegram logging. Publisher credentials belong only to the API Lambda;
+  register `TELEGRAM_PUBLISHER_BOT_TOKEN` and `TELEGRAM_PUBLISHER_WEBHOOK_SECRET` in central configuration and deployment.
+- Only the active account owner may manage their channel connection. Keep onboarding nonces hashed, expiring, and
+  transactionally bound to pending sessions and Telegram user IDs. Keep webhook secret verification and current
+  channel posting permission checks for both the user and bot before sharing.
+- Sharing is an explicit user action on a published article. Post only title, category, preview, and canonical URL;
+  escape Telegram HTML and respect its visible UTF-16 text limit. Keep provider errors free of bot tokens.
+- Run webhook setup through scripts-production with `API_BASE_URL`; `scripts/configure_telegram_webhook.py` defaults
+  to a redacted dry run and requires `--apply` to register. Registration and deployment require explicit authorization.
+- Profile tabs share one profile save button; Telegram connections are saved separately through the API. Preserve
+  hash-based tab selection and reveal invalid fields in hidden tabs before focusing them.
