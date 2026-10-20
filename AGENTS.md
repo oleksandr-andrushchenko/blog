@@ -77,6 +77,8 @@
   hardcoding `row-cols-*` or sized `col-*` classes. Plain `row` and `col` may remain when no sizes are specified.
   `col_classes` includes the base `col` class; use `"def": 12` when a responsive column must stack at full width.
 - Bootstrap and Bootstrap Icons are loaded centrally in `web-lambda/templates/layout.html`.
+- Optional `fonts.body` and `fonts.headings` site settings load Google Fonts after Bootstrap. Empty settings retain
+  Bootstrap defaults and make no font requests; keep typography out of hardcoded styles.
 - Do not underline non-link headings. Apply link decoration to anchors rather than heading containers.
 - Define article listing breadcrumbs once in the template and reuse them for navigation and structured metadata.
   Preserve configured display-name casing. Collection pagination uses buttons and API fragments, never crawlable

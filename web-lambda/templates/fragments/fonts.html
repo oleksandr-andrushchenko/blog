@@ -1,0 +1,25 @@
+{% set font_config = fonts | default({}, true) %}
+{% set body_font = font_config.body | default('', true) | trim %}
+{% set heading_font = font_config.headings | default('', true) | trim %}
+{% set font_families = ([body_font] if body_font else []) + ([heading_font] if heading_font else []) %}
+{% if font_families %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?{% for family in font_families | unique %}{% if not loop.first %}&amp;{% endif %}family={{ (family ~ ':wght@400;700') | urlencode }}{% endfor %}&amp;display=swap" crossorigin="anonymous">
+    <style id="site-fonts">
+        :root {
+            {% if body_font %}
+            --bs-body-font-family: {{ body_font | tojson }}, var(--bs-font-sans-serif);
+            {% endif %}
+            {% if heading_font %}
+            --bs-heading-font-family: {{ heading_font | tojson }}, var(--bs-body-font-family);
+            {% endif %}
+        }
+        {% if heading_font %}
+        h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .navbar-brand {
+            font-family: var(--bs-heading-font-family);
+            font-weight: 700;
+        }
+        {% endif %}
+    </style>
+{% endif %}

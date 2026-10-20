@@ -7,7 +7,6 @@
 {% set users_active = current_route in ["users", "users-by-slugs", "user", "edit-user", "user-by-slug"] %}
 {% set css_filenames = [
     "https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css",
-    "https://fonts.googleapis.com/css2?family=Rethink+Sans:wght@400;700&display=swap",
     static_url('styles.css', _=css_cache_counter),
 ] %}
 
@@ -21,8 +20,6 @@
     {% endif %}
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
     {% if google_analytics_id %}
         <!-- Google tag (gtag.js) -->
@@ -124,6 +121,7 @@
     {% for css_filename in css_filenames %}
         <link rel="stylesheet" href="{{ css_filename }}" crossorigin="anonymous">
     {% endfor %}
+    {% include "fragments/fonts.html" %}
 </head>
 
 <body class="d-flex flex-column min-vh-100">

@@ -213,3 +213,14 @@ Run offline logging checks with:
 `python3 -m unittest discover -s tests -p test_notifications.py`.
 Exception-handler routing checks are in `tests/test_exception_handlers.py` and
 run with the normal test suite (they require the application dependencies).
+
+## Fonts
+
+Configure optional Google Fonts in ignored `shared/data.json`:
+
+```json
+"fonts": {"body": "Rethink Sans", "headings": "Rethink Sans"}
+```
+
+Each role is optional. Empty settings use Bootstrap's font defaults without Google
+Fonts requests. The same family is downloaded once when used for both roles.
