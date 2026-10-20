@@ -1,5 +1,5 @@
 import asyncio
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlencode, urlsplit, urlunsplit
 
 from app_config import (
     get_allowed_origins, get_indexnow_key, get_static_base_url, get_static_files_dir, is_prod,
@@ -240,6 +240,17 @@ async def inject_template_global_vars(request: Request, call_next):
         return await call_next(request)
     finally:
         template_request.reset(token)
+
+
+@app.middleware("http")
+async def redirect_web_pagination(request: Request, call_next):
+    if request.method in {"GET", "HEAD"} and "offset" in request.query_params:
+        query = urlencode([(key, value) for key, value in request.query_params.multi_items() if key != "offset"])
+        return RedirectResponse(
+            str(request.url.replace(query=query)), status_code=308,
+            headers={"Cache-Control": "no-store"} if request.url.path.rstrip("/") in WEB_AUTH_URL_ROUTES.values() else None,
+        )
+    return await call_next(request)
 
 
 @app.middleware("http")

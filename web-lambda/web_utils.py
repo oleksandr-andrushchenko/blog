@@ -1,5 +1,5 @@
 from datetime import timedelta
-from urllib.parse import quote, unquote, urlparse
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
 from query_dtos import ArticleCommentQueryDTO
 from web_route_metadata import WEB_AUTH_URL_ROUTES
@@ -141,6 +141,9 @@ def get_auth_return_url(req, value: str | None) -> str:
     path = unquote(parsed.path).rstrip("/") or "/"
     if path in WEB_AUTH_URL_ROUTES.values() or path.startswith("//"):
         return fallback
+    query = parse_qsl(parsed.query, keep_blank_values=True)
+    if any(key == "offset" for key, _ in query):
+        return parsed._replace(query=urlencode([(key, value) for key, value in query if key != "offset"])).geturl()
     return value
 
 

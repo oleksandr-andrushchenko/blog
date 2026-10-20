@@ -58,10 +58,11 @@ class ExceptionHandlerTests(unittest.TestCase):
                             "headers": {"host": "example.com"},
                             "requestContext": {"http": {"method": "GET"}},
                         }, None)
-                    self.assertEqual(response["statusCode"], 422)
                     if module.__name__.startswith("web_"):
-                        self.assertIn("<h1>422 - ", response["body"])
+                        self.assertEqual(response["statusCode"], 308)
+                        self.assertTrue(response["headers"]["location"].endswith(path))
                     else:
+                        self.assertEqual(response["statusCode"], 422)
                         self.assertIn("offset", response["body"])
                     get_articles.assert_not_called()
                     logger.error.assert_not_called()

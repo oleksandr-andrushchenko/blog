@@ -802,6 +802,7 @@ def test_login_does_not_return_to_authentication_pages(path):
     ("https://external.example/", "/"),
     ("//external.example/", "/"),
     ("/articles?limit=2", "/articles?limit=2"),
+    ("/articles?offset=invalid&limit=2&offset=#comments", "/articles?limit=2#comments"),
 ])
 def test_login_callback_validates_stored_return_destination(target, expected):
     from shared_utils import encode_offset
@@ -825,6 +826,10 @@ def test_login_preserves_normal_return_destinations():
     response = get(get_guest_client(), "/login", params={"redirect_url": "/articles"},
                    allow_redirects=False)
     assert SimpleCookie(response.headers["Set-Cookie"])["redirect_url"].value == "/articles"
+    response = get(get_guest_client(), "/login", params={
+        "redirect_url": "/articles?tags=cache&offset=invalid&tags=queues&limit=2#comments",
+    }, allow_redirects=False)
+    assert SimpleCookie(response.headers["Set-Cookie"])["redirect_url"].value == "/articles?tags=cache&tags=queues&limit=2#comments"
 
 
 def test_logout_callback_success_and_wrong_method_failure(guest_client):
@@ -1605,9 +1610,9 @@ def test_legacy_slug_urls_redirect_only_for_existing_entities(guest_client):
         (f"/root-functional/root-functional/{article_slug}",
          f"/@root-functional/{article_slug}"),
     ]:
-        response = get(guest_client, f"{legacy_path}?limit=5&offset=2", allow_redirects=False)
+        response = get(guest_client, f"{legacy_path}?limit=5&source=legacy", allow_redirects=False)
         assert response.status_code == 308
-        assert response.headers["Location"].endswith(f"{canonical_path}?limit=5&offset=2")
+        assert response.headers["Location"].endswith(f"{canonical_path}?limit=5&source=legacy")
 
     for path in [
         "/missing-functional-user",
@@ -1660,11 +1665,16 @@ def test_collection_pagination_uses_api_buttons_without_cursor_links(guest_clien
     fragment = get(guest_client, endpoint.path + "?" + urlencode(query, doseq=True))
     assert fragment.status_code == 200, fragment.text
     assert pq(fragment.text)(".article, .user, .tag")
-    # Direct legacy page requests still work, but cannot introduce cursor URLs into metadata or anchors.
+    # Existing web pagination URLs redirect to the first page; only API fragments paginate.
     next_page = guest_client.get(
         f"{WEB_TEST_BASE_URL}{path}?" + urlencode({"limit": 1, "offset": button.attr("data-offset")}),
-        timeout=30,
+        timeout=30, allow_redirects=False,
     )
+    assert next_page.status_code == 308, next_page.text
+    destination = urlsplit(next_page.headers["Location"])
+    assert destination.path == path
+    assert parse_qs(destination.query) == {"limit": ["1"]}
+    next_page = guest_client.get(next_page.headers["Location"], timeout=30)
     assert next_page.status_code == 200, next_page.text
     next_doc = pq(next_page.text)
     assert not any("offset=" in (link.attr("href") or "") for link in next_doc("a[href], link[href]").items())
@@ -1722,15 +1732,16 @@ def test_discovery_tag_suggestions_skip_empty_pages_and_keep_editor_tags(guest_c
             dynamodb_table.delete_item(Key=key)
 
 
-def test_production_popular_url_with_latest_cursor_returns_validation_response(guest_client):
+def test_production_web_pagination_url_redirects_without_validating_cursor(guest_client):
     offset = ("eyJwb3N0X2NhdGVnb3J5X3N0YXR1c19wayI6ICJQT1NUI2Nsb3VkLWluZnJh"
               "c3RydWN0dXJlI3B1Ymxpc2hlZCIsICJzayI6ICJNRVRBIiwgInBrIjogIlBPU1Qj"
               "OTJhZTQ3NzUtNWM0ZS00NTFkLWI3MTMtYjRmYzNjMDQ2MmIwIiwgImNyZWF0ZWRf"
               "YXQiOiAxNzgyMzYwNDcwNDMzfQ==")
-    response = get(guest_client, f"/popular/articles?category=cloud-infrastructure&offset={offset}")
-    assert response.status_code == 422
-    assert "422 - Unprocessable Entity" in pq(response.text)("main h1").text()
-    assert "Back home" in response.text
+    response = get(guest_client, f"/popular/articles?category=cloud-infrastructure&offset={offset}", allow_redirects=False)
+    assert response.status_code == 308
+    destination = urlsplit(response.headers["Location"])
+    assert destination.path == "/popular/articles"
+    assert parse_qs(destination.query) == {"category": ["cloud-infrastructure"]}
 
 
 def test_external_site_links_open_in_new_tabs(guest_client):
@@ -1856,7 +1867,7 @@ def test_guest_article_controls_preserve_return_url_and_keep_support_public(gues
         )
 
 
-@pytest.mark.parametrize("path", ["/articles", "/users", "/tags", "/@root-functional", "/articles-fragment", "/users-fragment", "/tags-fragment"])
+@pytest.mark.parametrize("path", ["/tags", "/articles-fragment", "/users-fragment", "/tags-fragment"])
 @pytest.mark.parametrize("offset", ["756028461", "invalid", "e30=", "W10=", "bnVsbA=="])
 def test_collection_routes_reject_malformed_pagination_offsets(guest_client, path, offset):
     response = get(guest_client, path + "?" + urlencode({"offset": offset}))
@@ -1868,10 +1879,31 @@ def test_profile_and_comment_offsets_are_bound_to_their_collection(guest_client)
     wrong_profile = encode_offset({"pk": "POST#example", "sk": "META", "post_user_status_pk": "POST#another-user#published", "created_at": 1})
     global_feed = encode_offset({"pk": "POST#example", "sk": "META", "post_status_pk": "POST#published", "created_at": 1})
     for offset in (wrong_profile, global_feed):
-        for path in ("/@root-functional", f"/users/{user_ids['root']}/articles-fragment"):
+        for path in (f"/users/{user_ids['root']}/articles-fragment",):
             response = get(guest_client, path + "?" + urlencode({"offset": offset}))
             assert response.status_code == 422, response.text
     article_id = functional_state["article_id"]
     offset = encode_offset({"pk": "POST#another-article", "sk": "COMMENT#1#example"})
     response = get(guest_client, f"/articles/{article_id}/comments-fragment?" + urlencode({"offset": offset}))
     assert response.status_code == 422, response.text
+
+
+@pytest.mark.parametrize("path", [
+    "/", "/articles", "/latest/cache/articles", "/users", "/tags", "/@root-functional",
+    "/root-functional", "/posts", "/post-tags", "/login", "/articles/", "/missing-page",
+])
+@pytest.mark.parametrize("method", ["GET", "HEAD"])
+def test_web_offsets_redirect_before_page_rendering_or_legacy_redirects(guest_client, path, method):
+    response = guest_client.request(
+        method, f"{WEB_TEST_BASE_URL}{path}",
+        params=[("tags", "cache"), ("offset", "756028461"), ("tags", "queues"),
+                ("limit", "5"), ("offset", "")],
+        allow_redirects=False, timeout=30,
+    )
+    assert response.status_code == 308, response.text
+    destination = urlsplit(response.headers["Location"])
+    assert destination.path == path
+    assert parse_qs(destination.query) == {"tags": ["cache", "queues"], "limit": ["5"]}
+    assert "offset" not in response.headers["Location"]
+    if path == "/login":
+        assert response.headers["Cache-Control"] == "no-store"
