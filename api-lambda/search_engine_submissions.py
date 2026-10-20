@@ -1,4 +1,6 @@
 import json
+import logging
+import re
 from collections.abc import Iterable
 from functools import lru_cache
 from urllib.parse import quote, urlparse
@@ -17,6 +19,20 @@ from app_config import (
     is_prod,
 )
 from shared_utils import logger
+
+
+def _redact_request_credentials(record: logging.LogRecord) -> bool:
+    message = record.getMessage()
+    redacted = re.sub(r'([?&](?:api[-_]?key|access[-_]?token)=)[^&\s\"\'<>]+',
+                      r'\1[REDACTED]', message, flags=re.IGNORECASE)
+    if redacted != message:
+        record.msg, record.args = redacted, ()
+    return True
+
+
+# HTTPX request logs and HTTPStatusError messages include query-string API keys.
+logging.getLogger("httpx").addFilter(_redact_request_credentials)
+logger.addFilter(_redact_request_credentials)
 
 
 def notify_search_engines(urls: str | Iterable[str]) -> bool:
