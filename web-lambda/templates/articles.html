@@ -25,7 +25,7 @@
 {% set meta_robots = "noindex, follow" if article_query.offset or article_query.status != ArticleStatus.PUBLISHED or not articles else "index, follow" %}
 {% set subtitle = category.description if category else ([val_map[article_query.type]["subtitle"], tag_label, val_map[article_query.status]["subtitle"], "Articles"]) | select | join(" ") %}
 {% set meta_title = title ~ (" Category" if article_query.category and not tag_label else "") ~ " | " ~ site_name %}
-{% set meta_canonical_url = articles_url(query=article_query, tags=article_query.tags|unique|sort, absolute=True) %}
+{% set meta_canonical_url = articles_url(query=article_query, tags=article_query.tags|unique|sort, offset=None, absolute=True) %}
 {% set meta_desc = ("Browse " ~ title ~ " on " ~ site_name ~ ". " ~ (category.description if category else "Explore system design guides, architecture patterns, and practical engineering articles.")) | truncate(155, False, '...', 0) %}
 {% set og_img_filename = category.image_filename if category else None %}
 {% set og_img_alt = category.name if category and category.image_filename else None %}
@@ -208,9 +208,7 @@
             offset=articles[-1].offset,
             url=url("articles-fragment", absolute=True, **article_query.get_dict()),
             container="#articles",
-            auto_click=True,
-            next_page_url=articles_url(query=article_query, offset=articles[-1].offset) if articles[-1].offset else None,
-            first_page_url=articles_url(query=article_query, offset=None) if article_query.offset else None %}
+            auto_click=True %}
             {% include "fragments/load-more-button.html" %}
         {% endwith %}
 

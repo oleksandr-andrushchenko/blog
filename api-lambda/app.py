@@ -77,6 +77,7 @@ from deps import (
 from notifications import get_access_log
 from related_articles import get_related_articles
 from shared_deps import (
+    validate_collection_offset,
     OptCurUserDep,
     CurUserDep,
     ArticleQueryDep,
@@ -257,6 +258,7 @@ async def _article_hrefs(cur_user: OptCurUserDep) -> dict[str, list[str]]:
 
 @route("get", "article-comments-fragment", response_class=HTMLResponse)
 async def article_comments_fragment(article: ArticleDep, query_dto: ArticleCommentQueryDep) -> str:
+    validate_collection_offset(query_dto, "pk", f"POST#{article.id}")
     return get_html_content("fragments/article-comments.html", {
         "comments": get_article_comments(article, query_dto)
     })
@@ -456,6 +458,7 @@ async def _update_user(update_user_dto: UpdateUserDTODep, user: UserDep, cur_use
 
 @route("get", "user-articles-fragment", response_class=HTMLResponse)
 async def user_articles_fragment(user: UserDep, query_dto: ArticleQueryDep, cur_user: OptCurUserDep) -> str:
+    validate_collection_offset(query_dto, "post_user_status_pk", f"POST#{user.id}#{query_dto.status}")
     return get_html_content("fragments/articles.html", {
         "query": query_dto,
         "articles": get_latest_articles_by_user(user, query_dto, cur_user),

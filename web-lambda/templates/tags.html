@@ -12,7 +12,7 @@
 {% set meta_title = title ~ " | " ~ site_name %}
 {% set meta_robots = "noindex, follow" if tags_query.offset or tags_query.prefix else "index, follow" %}
 {% set meta_canonical_url = url("tags", type=None if tags_query.type == TagQueryDTO.DEFAULT_TYPE else tags_query.type,
-    prefix=tags_query.prefix, offset=tags_query.offset,
+    prefix=tags_query.prefix,
     limit=tags_query.limit if tags_query.limit != TagQueryDTO.DEFAULT_LIMIT else None, absolute=True) %}
 {% set meta_desc = [title, subtitle, site_desc] | select | join('. ') | truncate(155, False, '...', 0) %}
 
@@ -110,11 +110,7 @@
                 offset=tags[-1].offset,
                 url=url("tags-fragment", absolute=True, **tags_query.get_dict()),
                 container="#tags",
-                auto_click=True,
-            next_page_url=url("tags", type=None if tags_query.type == TagQueryDTO.DEFAULT_TYPE else tags_query.type,
-                prefix=tags_query.prefix, offset=tags[-1].offset,
-                limit=tags_query.limit if tags_query.limit != TagQueryDTO.DEFAULT_LIMIT else None) if tags[-1].offset else None,
-            first_page_url=url("tags", type=None if tags_query.type == TagQueryDTO.DEFAULT_TYPE else tags_query.type, prefix=tags_query.prefix, limit=tags_query.limit if tags_query.limit != TagQueryDTO.DEFAULT_LIMIT else None) if tags_query.offset else None %}
+                auto_click=True %}
             {% include "fragments/load-more-button.html" %}
         {% endwith %}
 

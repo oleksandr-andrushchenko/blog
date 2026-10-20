@@ -178,8 +178,7 @@
                         offset=latest_articles[-1].offset,
                         url=url("articles-fragment", absolute=True, **latest_articles_query.get_dict()),
                         container="#articles",
-                        auto_click=True,
-                        next_page_url=articles_url(query=latest_articles_query, offset=latest_articles[-1].offset) if latest_articles[-1].offset else None %}
+                        auto_click=True %}
                     {% include "fragments/load-more-button.html" %}
                 {% endwith %}
 

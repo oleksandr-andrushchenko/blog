@@ -14,7 +14,7 @@ from pyquery import PyQuery
 project_root = Path(os.environ.get("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(project_root / "shared"))
 from api_route_metadata import API_URL_ROUTES
-from query_dtos import ArticleListingQueryDTO, ArticleQueryDTO, UserQueryDTO, TagQueryDTO
+from query_dtos import ArticleCommentQueryDTO, ArticleListingQueryDTO, ArticleQueryDTO, UserQueryDTO, TagQueryDTO
 from shared_utils import encode_offset, get_jinja2_env
 from web import Application, Request, RequestValidationError, parse_dto
 from web_route_metadata import WEB_URL_ROUTES
@@ -114,8 +114,8 @@ def render():
     ("articles.html", {"article_query": ArticleQueryDTO(category="cloud-infrastructure", offset=cursor()),
                        "articles": [], "tag": None, "category": None,
                        "article_query_tag_names": [], "article_query_tag_items": []}),
-    ("users.html", {"user_query": UserQueryDTO(offset="previous-page"), "users": []}),
-    ("tags.html", {"tags_query": TagQueryDTO(offset="previous-page"), "tags": []}),
+    ("users.html", {"user_query": UserQueryDTO(offset=encode_offset({"pk": "USER#example", "sk": "META", "user_status_pk": "USER#active", "created_at": 1})), "users": []}),
+    ("tags.html", {"tags_query": TagQueryDTO(offset=encode_offset({"pk": "POST_TAG#example", "sk": "META", "tag_type_pk": "POST_TAG", "created_at": 1})), "tags": []}),
 ])
 def test_sort_links_restart_pagination(render, template, data):
     links = Elements(render(template, **data)).tags["a"]
@@ -186,6 +186,14 @@ def test_article_breadcrumbs_keep_duplicate_display_names(render):
 def test_cursor_listing_pages_are_not_indexable(render, template, query_name, query_type, extra):
     # Render the real metadata without requiring full models for the page body.
     for offset, expected in ((None, "index, follow"), ("continuation", "noindex, follow")):
+        if offset:
+            if query_type is UserQueryDTO:
+                offset = encode_offset({"pk": "USER#example", "sk": "META", "user_status_pk": "USER#active", "created_at": 1})
+            elif query_type is TagQueryDTO:
+                offset = encode_offset({"pk": "POST_TAG#example", "sk": "META", "tag_type_pk": "POST_TAG", "created_at": 1})
+            else:
+                partition = {"post_user_status_pk": "POST#author#published"} if template == "user.html" else {"post_status_pk": "POST#published"}
+                offset = encode_offset({"pk": "POST#example", "sk": "META", "created_at": 1, **partition})
         html = render(template, metadata_only=True, **{query_name: query_type(offset=offset), **extra})
         robots = [meta["content"] for meta in Elements(html).tags["meta"] if meta.get("name") == "robots"]
         assert robots == [expected]
@@ -208,3 +216,18 @@ def test_avif_image_uses_responsive_webp_variants(render):
     assert source["type"] == "image/webp"
     assert "example_640x400.webp" in source["srcset"]
     assert elements.tags["img"][0]["src"].endswith("example_1280x800.avif")
+
+
+@pytest.mark.parametrize("dto_type", [ArticleQueryDTO, UserQueryDTO, TagQueryDTO, ArticleCommentQueryDTO])
+@pytest.mark.parametrize("offset", ["756028461", "invalid", encode_offset({"unexpected": "value"}), encode_offset(["wrong"]), encode_offset({"pk": "POST#example", "sk": "META", "created_at": float("nan")})])
+def test_collection_query_rejects_malformed_cursor_before_database_access(dto_type, offset):
+    with pytest.raises(RequestValidationError, match="offset"):
+        parse_dto(dto_type, {"offset": offset})
+
+
+def test_load_more_partial_never_renders_pagination_anchors(render):
+    doc = PyQuery(render("fragments/load-more-button.html", offset="opaque", limit=1,
+                         url="/articles-fragment", container="#articles",
+                         next_page_url="/articles?offset=opaque", first_page_url="/articles"))
+    assert not doc("a")
+    assert doc("button.btn-load-more").attr("data-offset") == "opaque"

@@ -4,6 +4,7 @@
 {% set main_class = "" %}
 {% set user_canonical_url = user_url(user, absolute=True) %}
 {% set user_article_url_params = article_query.get_dict({
+    "offset": None,
     "limit": article_query.limit if article_query.limit != ArticleQueryDTO.DEFAULT_LIMIT else None,
     "type": article_query.type if article_query.type != ArticleQueryDTO.DEFAULT_TYPE else None,
     "status": article_query.status if article_query.status != ArticleQueryDTO.DEFAULT_STATUS else None
@@ -255,9 +256,7 @@
                 {% with limit=article_query.limit,
                         offset=articles[-1].offset,
                         url=url("user-articles-fragment", user_id=user.id, absolute=True, **article_query.get_dict()),
-                        container="#articles",
-            next_page_url=user_url(user, **dict(user_article_url_params, offset=articles[-1].offset)) if articles[-1].offset else None,
-            first_page_url=user_url(user, **dict(user_article_url_params, offset=None)) if article_query.offset else None %}
+                        container="#articles" %}
                     {% include "fragments/load-more-button.html" %}
                 {% endwith %}
 

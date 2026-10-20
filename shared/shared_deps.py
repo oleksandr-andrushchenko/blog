@@ -1,6 +1,6 @@
 from typing import Annotated, Optional
 
-from query_dtos import ArticleListingQueryDTO, ArticleQueryDTO
+from query_dtos import ArticleListingQueryDTO, ArticleQueryDTO, BaseQueryDTO, decode_query_offset
 from shared_utils import (
     User,
     Article,
@@ -25,7 +25,18 @@ from web import (
     Query,
     Request,
     parse_dto,
+    RequestValidationError,
 )
+
+
+def validate_collection_offset(query: BaseQueryDTO, key: str, partition: str) -> None:
+    if query.offset is None:
+        return
+    try:
+        if decode_query_offset(query.offset).get(key) != partition:
+            raise ValueError("offset does not match this collection")
+    except ValueError as exc:
+        raise RequestValidationError({"offset": str(exc)}) from exc
 
 
 def _resolve_user(request: Request) -> User | None:

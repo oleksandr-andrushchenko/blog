@@ -79,7 +79,9 @@
 - Bootstrap and Bootstrap Icons are loaded centrally in `web-lambda/templates/layout.html`.
 - Do not underline non-link headings. Apply link decoration to anchors rather than heading containers.
 - Define article listing breadcrumbs once in the template and reuse them for navigation and structured metadata.
-  Preserve configured display-name casing and keep paginated listings self-canonical.
+  Preserve configured display-name casing. Collection pagination uses buttons and API fragments, never crawlable
+  next-page anchors. Exclude pagination offsets from canonical and social URLs, and validate incoming cursors before
+  querying persistence so malformed offsets return 422 instead of 500.
 - Guest article reactions link to login with the current path and query as the return destination. Keep donation links
   public in the article sidebar directly after the author section. Render other article actions once in the compact
   article-controls group.

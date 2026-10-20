@@ -14,6 +14,7 @@ from query_dtos import (
     TagQueryDTO,
 )
 from shared_deps import (
+    validate_collection_offset,
     OptCurUserDep,
     CurUserDep,
     ArticleQueryDep,
@@ -545,6 +546,7 @@ async def users_page_by_slugs(query_dto: UserQueryBySlugsDep, cur_user: OptCurUs
 
 async def _user_page(user: UserDep, articles_query_dto: ArticleQueryDep, cur_user: OptCurUserDep,
                      request: Request) -> HTMLResponse:
+    validate_collection_offset(articles_query_dto, "post_user_status_pk", f"POST#{user.id}#{articles_query_dto.status}")
     activities_year = request.query_params.get("activities_year")
     activities_year = int(activities_year) if activities_year else None
 

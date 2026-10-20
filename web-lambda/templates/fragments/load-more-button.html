@@ -1,17 +1,10 @@
 {% set auto_click = auto_click | default(True) %}
-{% if next_page_url or first_page_url %}<nav class="my-3" aria-label="Pagination">{% endif %}
-{% if first_page_url %}
-    <a class="btn btn-light btn-sm" href="{{ first_page_url }}">Back to first page</a>
-{% endif %}
 {% if offset %}
-    {% set element = "a" if next_page_url else "button" %}
-    <{{ element }} class="btn btn-light btn-sm btn-load-more"
-            {% if next_page_url %}href="{{ next_page_url }}" rel="next"{% else %}type="button"{% endif %}
+    <button type="button" class="btn btn-light btn-sm btn-load-more"
             data-limit="{{ limit }}"
             data-offset="{{ offset }}"
             data-url="{{ url }}"
             data-container="{{ container }}"
             {% if auto_click %}data-auto-click{% endif %}
-    >Load more</{{ element }}>
+    >Load more</button>
 {% endif %}
-{% if next_page_url or first_page_url %}</nav>{% endif %}

@@ -23,10 +23,11 @@ from query_dtos import ArticleQueryDTO
 
 
 def test_sitemap_escapes_urls_paginates_tags_and_uses_real_dates(monkeypatch):
+    tag_cursor = shared_utils.encode_offset({"pk": "POST_TAG#cache", "sk": "META", "tag_type_pk": "POST_TAG", "created_at": 1})
     saved = []
     queries = []
     submissions = []
-    tag = SimpleNamespace(slug="cache", articles_count=1, offset="next-tags")
+    tag = SimpleNamespace(slug="cache", articles_count=1, offset=tag_cursor)
     last_tag = SimpleNamespace(slug="queues", articles_count=1, offset=None)
 
     def tags(query):
@@ -57,7 +58,7 @@ def test_sitemap_escapes_urls_paginates_tags_and_uses_real_dates(monkeypatch):
     entries = fromstring(saved[0]).findall("s:url", ns)
     urls = [e.findtext("s:loc", namespaces=ns) for e in entries]
     assert count == len(urls) == len(set(urls))
-    assert queries == [None, "next-tags"]
+    assert queries == [None, tag_cursor]
     assert "https://example.com/policy?a=1&b=2" in urls
     assert "https://example.com/latest/queues/articles" in urls
     article = entries[urls.index("https://example.com/@author/article")]
@@ -187,6 +188,8 @@ def test_tag_filters_share_a_sorted_unique_url(monkeypatch):
 
 
 def test_sitemap_consumes_article_and_profile_pages_with_real_fallback_dates(monkeypatch):
+    article_cursor = shared_utils.encode_offset({"pk": "POST#first", "sk": "META", "post_status_pk": "POST#published", "created_at": 1})
+    user_cursor = shared_utils.encode_offset({"pk": "USER#first", "sk": "META", "user_status_pk": "USER#active", "created_at": 1})
     saved = {}
     article_offsets, user_offsets = [], []
     def articles(query):
@@ -194,12 +197,12 @@ def test_sitemap_consumes_article_and_profile_pages_with_real_fallback_dates(mon
         return [SimpleNamespace(id="first" if query.offset is None else "second",
                                 updated_at=None, published_at=1_700_000_000_000,
                                 created_at=1_600_000_000_000,
-                                offset="more-articles" if query.offset is None else None)]
+                                offset=article_cursor if query.offset is None else None)]
     def users(query):
         user_offsets.append(query.offset)
         return [SimpleNamespace(id="first" if query.offset is None else "second",
                                 updated_at=None, created_at=1_600_000_000_000,
-                                offset="more-users" if query.offset is None else None)]
+                                offset=user_cursor if query.offset is None else None)]
     monkeypatch.setattr(api_utils, "verify_authorization", lambda *a: None)
     monkeypatch.setattr(api_utils, "get_url", lambda req, route, absolute: f"https://example.com/{route}")
     monkeypatch.setattr(api_utils, "get_articles_url", lambda req, **kw: f"https://example.com/{kw['type']}/articles")
@@ -218,8 +221,8 @@ def test_sitemap_consumes_article_and_profile_pages_with_real_fallback_dates(mon
     ns = {"s": api_utils.SITEMAP_NAMESPACE}
     dates = {entry.findtext("s:loc", namespaces=ns): entry.findtext("s:lastmod", namespaces=ns)
              for entry in fromstring(saved["sitemap.xml"]).findall("s:url", ns)}
-    assert article_offsets == [None, "more-articles"]
-    assert user_offsets == [None, "more-users"]
+    assert article_offsets == [None, article_cursor]
+    assert user_offsets == [None, user_cursor]
     assert dates["https://example.com/articles/second"] == "2023-11-14"
     assert dates["https://example.com/users/second"] == "2020-09-13"
 
@@ -242,7 +245,7 @@ def test_query_validation_errors_are_not_reported_as_empty_results(monkeypatch, 
 
 def test_tag_prefix_query_keeps_alphabetical_order_and_continuation(monkeypatch):
     from query_dtos import TagQueryDTO
-    cursor = {"pk": "POST_TAG#queues", "sk": "META"}
+    cursor = {"pk": "POST_TAG#queues", "sk": "META", "tag_type_pk": "POST_TAG", "tag_name_sk": "queues"}
     calls = []
     def query(**kwargs):
         calls.append(kwargs)

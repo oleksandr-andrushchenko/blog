@@ -1594,28 +1594,32 @@ def test_query_endpoints_validate_declared_parameters_with_unknown_parameters(gu
 
 
 @pytest.mark.parametrize("path", ["/articles", "/users", "/tags", "/@root-functional"])
-def test_archive_next_pages_are_crawlable_and_self_canonical(guest_client, path):
+def test_collection_pagination_uses_api_buttons_without_cursor_links(guest_client, path):
     response = guest_client.get(f"{WEB_TEST_BASE_URL}{path}?limit=1", timeout=30)
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     doc = pq(response.text)
-    next_link = doc('nav[aria-label="Pagination"] a[rel="next"]')
-    assert next_link.hasClass("btn-load-more")
-    assert doc(".btn-load-more").length == 1
-    next_url = next_link.attr("href")
-    assert next_url
-    query = parse_qs(urlsplit(next_url).query)
-    assert query["offset"][0]
-    assert query["limit"] == ["1"]
-    next_page = guest_client.get(f"{WEB_TEST_BASE_URL}{next_url}", timeout=30)
+    button = doc("button.btn-load-more")
+    assert len(button) == 1
+    assert button.attr("type") == "button"
+    assert not button.attr("href")
+    assert not doc('a[rel="next"], a[rel="prev"]')
+    assert not any("offset=" in (link.attr("href") or "") for link in doc("a[href], link[href]").items())
+    endpoint = urlsplit(button.attr("data-url"))
+    assert endpoint.netloc == urlsplit(os.environ["API_TEST_BASE_URL"]).netloc
+    query = parse_qs(endpoint.query)
+    query.update({"offset": [button.attr("data-offset")], "limit": ["1"]})
+    fragment = get(guest_client, endpoint.path + "?" + urlencode(query, doseq=True))
+    assert fragment.status_code == 200, fragment.text
+    assert pq(fragment.text)(".article, .user, .tag")
+    # Direct legacy page requests still work, but cannot introduce cursor URLs into metadata or anchors.
+    next_page = guest_client.get(
+        f"{WEB_TEST_BASE_URL}{path}?" + urlencode({"limit": 1, "offset": button.attr("data-offset")}),
+        timeout=30,
+    )
     assert next_page.status_code == 200, next_page.text
     next_doc = pq(next_page.text)
-    assert next_doc('nav[aria-label="Pagination"] a:not([rel="next"])').text() == "Back to first page"
-    canonical = next_doc('link[rel="canonical"]').attr("href")
-    assert parse_qs(urlsplit(canonical).query) == query
-    if path.startswith("/@"):
-        profile = json.loads(next_doc('script[type="application/ld+json"]').text())
-        assert "offset=" not in profile["mainEntity"]["@id"]
-        assert profile["mainEntity"]["@id"].endswith(path + "#person")
+    assert not any("offset=" in (link.attr("href") or "") for link in next_doc("a[href], link[href]").items())
+    assert "offset=" not in (next_doc('meta[property="og:url"]').attr("content") or "")
 
 
 def test_search_and_empty_archives_are_not_indexable(guest_client):
@@ -1801,3 +1805,24 @@ def test_guest_article_controls_preserve_return_url_and_keep_support_public(gues
             UpdateExpression="SET bmc_username = :value",
             ExpressionAttributeValues={":value": original},
         )
+
+
+@pytest.mark.parametrize("path", ["/articles", "/users", "/tags", "/@root-functional", "/articles-fragment", "/users-fragment", "/tags-fragment"])
+@pytest.mark.parametrize("offset", ["756028461", "invalid", "e30=", "W10=", "bnVsbA=="])
+def test_collection_routes_reject_malformed_pagination_offsets(guest_client, path, offset):
+    response = get(guest_client, path + "?" + urlencode({"offset": offset}))
+    assert response.status_code == 422, (path, response.status_code, response.text)
+
+
+def test_profile_and_comment_offsets_are_bound_to_their_collection(guest_client):
+    from shared_utils import encode_offset
+    wrong_profile = encode_offset({"pk": "POST#example", "sk": "META", "post_user_status_pk": "POST#another-user#published", "created_at": 1})
+    global_feed = encode_offset({"pk": "POST#example", "sk": "META", "post_status_pk": "POST#published", "created_at": 1})
+    for offset in (wrong_profile, global_feed):
+        for path in ("/@root-functional", f"/users/{user_ids['root']}/articles-fragment"):
+            response = get(guest_client, path + "?" + urlencode({"offset": offset}))
+            assert response.status_code == 422, response.text
+    article_id = functional_state["article_id"]
+    offset = encode_offset({"pk": "POST#another-article", "sk": "COMMENT#1#example"})
+    response = get(guest_client, f"/articles/{article_id}/comments-fragment?" + urlencode({"offset": offset}))
+    assert response.status_code == 422, response.text

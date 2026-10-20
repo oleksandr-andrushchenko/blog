@@ -7,7 +7,7 @@ import re
 import time
 from dataclasses import dataclass
 
-from query_dtos import ArticleStatus, BaseQueryDTO
+from query_dtos import ArticleStatus, BaseQueryDTO, decode_query_offset
 from shared_utils import (
     Key, encode_offset, get_dynamodb_table, article_from_dynamodb, query_dynamodb_table, to_thread,
 )
@@ -17,6 +17,11 @@ from shared_utils import (
 class RelatedArticleQueryDTO(BaseQueryDTO):
     DEFAULT_LIMIT = 10
     limit: int = DEFAULT_LIMIT
+
+    def validate_offset(self):
+        # Related listings carry per-tag positions rather than one database key.
+        # Full source/tag scoping is checked by _cursor_state after loading the article.
+        decode_query_offset(self.offset)
 
     def __post_init__(self):
         BaseQueryDTO.__post_init__(self)

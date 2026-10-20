@@ -1,9 +1,22 @@
 import base64
 import json
+import math
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 
 from validation import validate_category_slug
+
+
+def decode_query_offset(value: str) -> dict:
+    try:
+        if not isinstance(value, str) or not 1 <= len(value) <= 32768:
+            raise ValueError()
+        cursor = json.loads(base64.b64decode(value, altchars=b'-_', validate=True).decode())
+        if not isinstance(cursor, dict) or not cursor:
+            raise ValueError()
+        return cursor
+    except (ValueError, UnicodeError, TypeError, RecursionError) as exc:
+        raise ValueError("offset must be a valid pagination cursor") from exc
 
 
 @dataclass(slots=True)
@@ -16,6 +29,23 @@ class BaseQueryDTO:
 
     def __post_init__(self):
         self.limit = _limit(self.limit)
+        if self.offset is not None:
+            self.validate_offset()
+
+    def validate_offset(self):
+        cursor = decode_query_offset(self.offset)
+        try:
+            valid = all(isinstance(cursor.get(key), str) and 0 < len(cursor[key].encode()) <= length
+                        for key, length in (("pk", 2048), ("sk", 1024)))
+            valid = valid and all(
+                (isinstance(value, str) and len(value.encode()) <= 2048)
+                or (type(value) in (int, float) and math.isfinite(value))
+                for value in cursor.values()
+            )
+        except (UnicodeError, OverflowError):
+            valid = False
+        if not valid:
+            raise ValueError("offset must be a valid database pagination cursor")
 
     def get_dict(self, rewrite=None):
         result = asdict(self)
@@ -58,6 +88,14 @@ class UserQueryDTO(BaseQueryDTO):
         BaseQueryDTO.__post_init__(self)
         self.type = UserQueryType(self.type)
         self.status = UserStatus(self.status)
+        if self.offset is not None:
+            cursor = decode_query_offset(self.offset)
+            sort_key = "rating_sk" if self.type == UserQueryType.POPULAR else "created_at"
+            if (set(cursor) != {"pk", "sk", "user_status_pk", sort_key}
+                    or not cursor["pk"].startswith("USER#") or cursor["sk"] != "META"
+                    or cursor["user_status_pk"] != f"USER#{self.status}"
+                    or type(cursor[sort_key]) not in (int, float)):
+                raise ValueError("offset does not match this user listing, status, or sort order")
 
     def has_params(self):
         return BaseQueryDTO.has_params(self) or self.type != self.DEFAULT_TYPE or self.status != self.DEFAULT_STATUS
@@ -80,6 +118,18 @@ class TagQueryDTO(BaseQueryDTO):
         self.type = TagQueryType(self.type)
         if self.prefix is not None and not 1 <= len(self.prefix) <= 40:
             raise ValueError("prefix must contain between 1 and 40 characters")
+        if self.offset is not None:
+            cursor = decode_query_offset(self.offset)
+            sort_key = "tag_name_sk" if self.prefix else "rating_sk" if self.type == TagQueryType.POPULAR else "created_at"
+            valid = (set(cursor) == {"pk", "sk", "tag_type_pk", sort_key}
+                     and cursor["pk"].startswith("POST_TAG#") and cursor["sk"] == "META"
+                     and cursor["tag_type_pk"] == "POST_TAG")
+            if self.prefix:
+                valid = valid and isinstance(cursor[sort_key], str) and cursor[sort_key].startswith(self.prefix)
+            else:
+                valid = valid and type(cursor[sort_key]) in (int, float)
+            if not valid:
+                raise ValueError("offset does not match this tag listing or sort order")
 
     def has_params(self):
         return BaseQueryDTO.has_params(self) or self.type != self.DEFAULT_TYPE or self.prefix is not None
@@ -127,6 +177,27 @@ class ArticleQueryDTO(BaseQueryDTO):
                     or isinstance(cursor.get(sort_key), bool)
                     or not isinstance(cursor.get(sort_key), (int, float))):
                 raise ValueError("offset does not match this article category, status, or sort order")
+        elif self.offset:
+            cursor = decode_query_offset(self.offset)
+            if "post_user_status_pk" in cursor:
+                valid = (set(cursor) == {"pk", "sk", "post_user_status_pk", "created_at"}
+                         and cursor["pk"].startswith("POST#") and cursor["sk"] == "META"
+                         and isinstance(cursor["post_user_status_pk"], str)
+                         and cursor["post_user_status_pk"].startswith("POST#")
+                         and cursor["post_user_status_pk"].endswith(f"#{self.status}")
+                         and type(cursor["created_at"]) in (int, float))
+            elif self.tags and self.type == ArticleQueryType.LATEST:
+                valid = (set(cursor) == {"pk", "sk"}
+                         and cursor["pk"] == "POST_TAG_COMBO#" + "#".join(self.tags)
+                         and cursor["sk"].startswith("POST#"))
+            else:
+                sort_key = "rating_sk" if self.type == ArticleQueryType.POPULAR else "created_at"
+                valid = (set(cursor) == {"pk", "sk", "post_status_pk", sort_key}
+                         and cursor["pk"].startswith("POST#") and cursor["sk"] == "META"
+                         and cursor["post_status_pk"] == f"POST#{self.status}"
+                         and type(cursor[sort_key]) in (int, float))
+            if not valid:
+                raise ValueError("offset does not match this article listing or profile")
 
     def has_params(self):
         return BaseQueryDTO.has_params(self) or bool(
@@ -163,4 +234,10 @@ class ArticleListingQueryDTO(ArticleQueryDTO):
 
 @dataclass(slots=True)
 class ArticleCommentQueryDTO(BaseQueryDTO):
-    pass
+    def __post_init__(self):
+        BaseQueryDTO.__post_init__(self)
+        if self.offset is not None:
+            cursor = decode_query_offset(self.offset)
+            if (set(cursor) != {"pk", "sk"} or not cursor["pk"].startswith("POST#")
+                    or not cursor["sk"].startswith("COMMENT#")):
+                raise ValueError("offset does not match an article comment listing")
