@@ -1106,7 +1106,9 @@ def create_contact_message(message_dto: ContactMessageDTO, user: User = None) ->
         message_item["user_id"] = user.id
 
     get_dynamodb_table().put_item(Item=message_item)
-    logger.info("New contact message", extra={"context": {"message_id": message_id}})
+    logger.info("New contact message", extra={"context": {
+        "name": name, "email": message_dto.email, "message": message,
+    }})
 
     return ContactMessage(
         id=message_id,
