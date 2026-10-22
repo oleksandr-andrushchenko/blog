@@ -694,6 +694,15 @@ Resources:
       ApiId: !Ref ApiGateway
       StageName: $default
       AutoDeploy: true
+      AccessLogSettings:
+        DestinationArn: !GetAtt WebGatewayAccessLogGroup.Arn
+        Format: >-
+          {"requestId":"$context.requestId","integrationRequestId":"$context.integration.requestId",
+          "requestTime":"$context.requestTime","sourceIp":"$context.identity.sourceIp",
+          "httpMethod":"$context.httpMethod","path":"$context.path","routeKey":"$context.routeKey",
+          "status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength",
+          "responseLatency":"$context.responseLatency","integrationLatency":"$context.integrationLatency",
+          "integrationStatus":"$context.integration.integrationStatus","integrationErrorMessage":"$context.integrationErrorMessage"}
       Tags:
         Stage: !Ref Stage
         Project: !Ref Project
@@ -767,6 +776,15 @@ Resources:
       ApiId: !Ref ApiGatewayApi
       StageName: $default
       AutoDeploy: true
+      AccessLogSettings:
+        DestinationArn: !GetAtt ApiGatewayAccessLogGroup.Arn
+        Format: >-
+          {"requestId":"$context.requestId","integrationRequestId":"$context.integration.requestId",
+          "requestTime":"$context.requestTime","sourceIp":"$context.identity.sourceIp",
+          "httpMethod":"$context.httpMethod","path":"$context.path","routeKey":"$context.routeKey",
+          "status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength",
+          "responseLatency":"$context.responseLatency","integrationLatency":"$context.integrationLatency",
+          "integrationStatus":"$context.integration.integrationStatus","integrationErrorMessage":"$context.integrationErrorMessage"}
       Tags:
         Stage: !Ref Stage
         Project: !Ref Project
@@ -1060,6 +1078,38 @@ Resources:
           Endpoint: !Ref NotificationEmail
         - Protocol: sms
           Endpoint: !Ref NotificationPhone
+      Tags:
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Region
+          Value: !Ref AWS::Region
+
+  WebGatewayAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    Properties:
+      LogGroupName: !Sub "/aws/apigateway/${AWS::StackName}-${Stage}-web-access"
+      RetentionInDays: 14
+      Tags:
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Region
+          Value: !Ref AWS::Region
+
+  ApiGatewayAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    Properties:
+      LogGroupName: !Sub "/aws/apigateway/${AWS::StackName}-${Stage}-api-access"
+      RetentionInDays: 14
       Tags:
         - Key: Stage
           Value: !Ref Stage

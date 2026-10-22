@@ -269,3 +269,6 @@ new article likes/dislikes, and articles matching subscribed interests. Existing
 preference can be disabled independently. Toggling or switching an existing reaction does not send another email.
 Emails are sent after successful writes, and delivery failures do not undo the action. Production uses SES and
 `SES_FROM_EMAIL`; development saves multipart text/HTML messages in `EMAIL_FILES_DIR`.
+
+Both API Gateway stages have access logs with 14-day retention. These infrastructure changes take effect on the
+next explicitly requested deployment.
