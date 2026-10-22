@@ -155,3 +155,8 @@
   to a redacted dry run and requires `--apply` to register. Registration and deployment require explicit authorization.
 - Profile tabs share one profile save button; Telegram connections are saved separately through the API. Preserve
   hash-based tab selection and reveal invalid fields in hidden tabs before focusing them.
+
+## User identity
+
+- Provider usernames are authentication metadata, never fallback public slugs. Generated signup slugs must fit the
+  same 30-character limit as profile edits.

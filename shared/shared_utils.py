@@ -1035,7 +1035,6 @@ def to_datetime(ts: Any) -> datetime:
 
 
 def get_user_by_user_token(token: UserTokenDTO) -> User | None:
-    table = get_dynamodb_table()
     provider_user_item = None
     user_item = None
     user_id = None
@@ -1072,7 +1071,6 @@ def get_user_by_user_token(token: UserTokenDTO) -> User | None:
         **user_item,
         "user_email_pk": user_item.get("user_email_pk") or token.email,
         "name": user_item.get("name") or token.name,
-        "username": user_item.get("username") or token.username
     })
 
 
@@ -1103,10 +1101,10 @@ def build_user_username(raw_name: str | None, raw_username: str | None, now: int
     if not username:
         return None
 
-    # Append timestamp for uniqueness
-    username += f"-{now}"
-
-    return username
+    # Keep generated usernames within the same 30-character limit as profile edits.
+    suffix = f"-{now}"
+    username = username[:30 - len(suffix)].rstrip("-")
+    return username + suffix
 
 
 def upsert_user_by_user_token(token: UserTokenDTO, status: UserStatus = UserStatus.ACTIVE) -> User:
