@@ -854,7 +854,10 @@ def test_user_edit_update_and_fragment_endpoints_success_and_failure(root_user_c
     assert edit_success.status_code == 200
     edit_doc = pq(edit_success.text)
     form = edit_doc('#user-form')
-    assert [tab.text() for tab in form('[role="tab"]').items()] == ['Personal info', 'Links', 'Earn', 'Integrations']
+    assert [tab.text() for tab in form('[role="tab"]').items()] == [
+        'Personal info', 'Links', 'Earn', 'Notifications', 'Integrations',
+    ]
+    assert len(form('#notifications input[type="checkbox"]:checked')) == 4
     assert form('.tab-pane.active').attr('id') == 'personal-info'
     assert form('#personal-info [name="name"]') and form('#personal-info [name="avatar_action"]')
     assert form('#links [name="website"]') and form('#links [name="github_username"]')
@@ -1572,13 +1575,14 @@ def test_article_published_dispatch_matches_combinations_excludes_author_and_ren
     assert publish_response.status_code == 200, publish_response.text
 
     new_emails = sorted(set(email_dir.glob("*.eml")) - existing_emails)
-    assert len(new_emails) == 2
     messages = {}
     for email_file in new_emails:
         with email_file.open("rb") as stream:
             message = BytesParser(policy=policy.default).parse(stream)
-        messages[message["To"]] = message
+        if message['Subject'].startswith('New article matching your interests:'):
+            messages[message["To"]] = message
 
+    assert len(messages) == 2
     assert set(messages) == {"root@example.com", "regular2@example.com"}
     assert "regular@example.com" not in messages
 
@@ -1907,3 +1911,107 @@ def test_web_offsets_redirect_before_page_rendering_or_legacy_redirects(guest_cl
     assert "offset" not in response.headers["Location"]
     if path == "/login":
         assert response.headers["Cache-Control"] == "no-store"
+
+
+def test_email_notification_preferences_and_manual_actions_end_to_end(guest_client):
+    suffix = uuid.uuid4().hex
+    owner_data = {'sub': f'notification-owner-{suffix}', 'iss': 'example-provider',
+                  'email': f'notification-owner-{suffix}@example.com', 'name': 'Notification Creator'}
+    actor_data = {'sub': f'notification-actor-{suffix}', 'iss': 'example-provider',
+                  'email': f'notification-actor-{suffix}@example.com', 'name': 'Notification Actor'}
+    owner = get_logged_in_client(owner_data)
+    actor = get_logged_in_client(actor_data)
+    admin = get_logged_in_client(root_user)
+    owner_id = get_dynamodb_user_by_email(owner_data['email'])['id']
+    user_path = f'/users/{owner_id}'
+    preferences = ('notify_article_status', 'notify_user_impressions', 'notify_article_impressions', 'notify_tag_articles')
+    directory = Path('/app/.emails')
+    seen = set(directory.glob('*.eml'))
+
+    def emails():
+        found = []
+        for path in set(directory.glob('*.eml')) - seen:
+            seen.add(path)
+            message = BytesParser(policy=policy.default).parsebytes(path.read_bytes())
+            if message['To'] == owner_data['email']:
+                found.append(message)
+        return found
+
+    form = pq(get(owner, user_path + '/edit').text)
+    for field in preferences:
+        assert form(f'#notifications input[name="{field}"]:checked')
+    assert patch(guest_client, user_path, json={'notify_article_status': False}).status_code == 401
+    assert patch(actor, user_path, json={'notify_article_status': False}).status_code == 403
+    for invalid in (None, 'false', 0):
+        assert patch(owner, user_path, json={'notify_article_status': invalid}).status_code == 422
+
+    title = f'Notification coverage {suffix}'
+    created = post(owner, '/articles', json={
+        'title': title, 'content': ARTICLE_CONTENT,
+        'category': 'distributed-systems', 'tags': ['notification-coverage'],
+    })
+    assert created.status_code == 200, created.text
+    item = next(item for item in dynamodb_table.scan()['Items'] if item.get('title') == title)
+    article_path = f'/articles/{item["id"]}'
+    assert not emails()
+    for status in ('published', 'unpublished', 'rejected'):
+        values = {'status': status, **({'comment': 'Please revise <the example>.'} if status == 'rejected' else {})}
+        response = post(admin, article_path + '/status', json=values)
+        assert response.status_code == 200, response.text
+        messages = emails()
+        assert len(messages) == 1
+        assert messages[0]['Subject'] == 'Your article status changed'
+        assert status in messages[0].get_body('plain').get_content()
+        assert '#notifications' in messages[0].get_body('html').get_content()
+        if status == 'rejected':
+            assert '&lt;the example&gt;' in messages[0].get_body('html').get_content()
+        assert post(admin, article_path + '/status', json=values).status_code == 200
+        assert not emails()
+
+    assert post(admin, article_path + '/status', json={'status': 'published'}).status_code == 200
+    emails()
+    for action, expected_count in (('like', 1), ('dislike', 0), ('dislike', 0), ('dislike', 1)):
+        response = post(actor, article_path + '/impression', json={'action': action})
+        assert response.status_code == 200, response.text
+        messages = emails()
+        assert len(messages) == expected_count
+        if messages:
+            assert messages[0]['Subject'] == 'New reaction to your article'
+            assert 'Notification Actor' in messages[0].get_body('plain').get_content()
+    for action, expected_count in (('follow', 1), ('block', 0), ('block', 0), ('block', 1)):
+        response = post(actor, user_path + '/impression', json={'action': action})
+        assert response.status_code == 200, response.text
+        assert len(emails()) == expected_count
+
+    response = patch(owner, user_path, json={field: False for field in preferences})
+    assert response.status_code == 200, response.text
+    assert patch(owner, user_path, json={'headline': 'Updated creator profile'}).status_code == 200
+    saved = get_dynamodb_user(owner_id)
+    form = pq(get(owner, user_path + '/edit').text)
+    for field in preferences:
+        assert saved[field] is False
+        assert not form(f'#notifications input[name="{field}"]:checked')
+    assert post(admin, article_path + '/status', json={'status': 'unpublished'}).status_code == 200
+    assert post(admin, article_path + '/status', json={'status': 'published'}).status_code == 200
+    # Remove existing reactions, then create new ones with email preferences disabled.
+    for path, action in ((user_path + '/impression', 'block'), (article_path + '/impression', 'dislike')):
+        assert post(actor, path, json={'action': action}).status_code == 200
+        assert post(actor, path, json={'action': action}).status_code == 200
+    assert not emails()
+
+    tag = f'notification-{suffix[:12]}'
+    assert post(owner, '/tag-subscriptions', json={'tags': [tag]}).status_code == 200
+    for enabled in (False, True):
+        assert patch(owner, user_path, json={'notify_tag_articles': enabled}).status_code == 200
+        tagged_title = f'Interest email {enabled} {suffix}'
+        created = post(actor, '/articles', json={
+            'title': tagged_title, 'content': ARTICLE_CONTENT,
+            'category': 'distributed-systems', 'tags': [tag],
+        })
+        assert created.status_code == 200, created.text
+        tagged = next(item for item in dynamodb_table.scan()['Items'] if item.get('title') == tagged_title)
+        assert post(admin, f'/articles/{tagged["id"]}/status', json={'status': 'published'}).status_code == 200
+        messages = emails()
+        assert len(messages) == int(enabled)
+        if enabled:
+            assert messages[0]['Subject'].startswith('New article matching your interests:')

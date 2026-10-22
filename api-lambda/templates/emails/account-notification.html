@@ -1,0 +1,12 @@
+{% extends "emails/layout.html" %}
+
+{% block title %}{{ subject|e }}{% endblock %}
+
+{% block content %}
+    <p>Hello {{ recipient_name|e }},</p>
+    <h1 style="font-size:24px; margin:16px 0;">{{ subject|e }}</h1>
+    <p>{{ message|e }}</p>
+    {% if detail %}<p style="white-space:pre-wrap;">{{ detail|e }}</p>{% endif %}
+    <p><a href="{{ target_url|e }}">View details</a></p>
+    <p><a href="{{ notification_settings_url|e }}">Notification settings</a></p>
+{% endblock %}

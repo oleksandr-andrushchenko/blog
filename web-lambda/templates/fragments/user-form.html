@@ -21,6 +21,13 @@
                 <i class="bi bi-currency-dollar me-1" aria-hidden="true"></i>Earn
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="notifications-tab" data-bs-toggle="tab"
+                    data-bs-target="#notifications" type="button" role="tab" aria-controls="notifications"
+                    aria-selected="false" tabindex="-1">
+                <i class="bi bi-bell me-1" aria-hidden="true"></i>Notifications
+            </button>
+        </li>
         {% if user and cur_user and user.id == cur_user.id %}
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="integrations-tab" data-bs-toggle="tab"
@@ -177,6 +184,22 @@
                     </div>
                 </div>
             </div>
+        </div>
+        <div class="tab-pane py-3" id="notifications" role="tabpanel" aria-labelledby="notifications-tab" tabindex="0">
+            <h2 class="h5">Email notifications</h2>
+            <p class="text-secondary">Choose which updates you receive by email.</p>
+            {% for field, label in [
+                ('notify_article_status', 'Status changes to my articles'),
+                ('notify_user_impressions', 'New follows and blocks on my profile'),
+                ('notify_article_impressions', 'New likes and dislikes on my articles'),
+                ('notify_tag_articles', 'New articles matching my interests')
+            ] %}
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="{{ field }}" id="{{ field }}"
+                           {% if not user or user|attr(field) %}checked{% endif %}>
+                    <label class="form-check-label" for="{{ field }}">{{ label }}</label>
+                </div>
+            {% endfor %}
         </div>
         {% if user and cur_user and user.id == cur_user.id %}
             <div class="tab-pane py-3" id="integrations" role="tabpanel" aria-labelledby="integrations-tab" tabindex="0">

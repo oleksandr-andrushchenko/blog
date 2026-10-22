@@ -93,6 +93,10 @@ class User:
     updated_at: int | None
     offset: str | None
     has_telegram_integration: bool = False
+    notify_article_status: bool = True
+    notify_user_impressions: bool = True
+    notify_article_impressions: bool = True
+    notify_tag_articles: bool = True
 
 
 @dataclass(slots=True)
@@ -1562,6 +1566,10 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         tag_subscriptions_count=d_item.get("tag_subscriptions_count", d_item.get("article_tag_subscriptions_count", 0)),
         bmc_username=d_item.get("bmc_username"),
         has_telegram_integration=d_item.get("has_telegram_integration", False),
+        notify_article_status=d_item.get("notify_article_status", True),
+        notify_user_impressions=d_item.get("notify_user_impressions", True),
+        notify_article_impressions=d_item.get("notify_article_impressions", True),
+        notify_tag_articles=d_item.get("notify_tag_articles", True),
         redirect_to=d_item.get("redirect_to"),
         created_at=d_item["created_at"],
         updated_at=d_item.get("updated_at"),

@@ -19,8 +19,16 @@ class UpdateUserDTO(BaseDTO):
     address: str | None | object = UNSET
     github_username: str | None | object = UNSET
     bmc_username: str | None | object = UNSET
+    notify_article_status: bool | object = UNSET
+    notify_user_impressions: bool | object = UNSET
+    notify_article_impressions: bool | object = UNSET
+    notify_tag_articles: bool | object = UNSET
 
     def __post_init__(self):
+        for field in ('notify_article_status', 'notify_user_impressions', 'notify_article_impressions', 'notify_tag_articles'):
+            value = getattr(self, field)
+            if value is not UNSET and type(value) is not bool:
+                raise ValueError(f'{field} must be true or false')
         if self.name is not UNSET:
             if self.name is None or not 1 <= len(self.name) <= 100:
                 raise ValueError("invalid name length")

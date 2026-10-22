@@ -5,16 +5,16 @@ from urllib.parse import unquote, urlparse
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 from app_config import (
-    get_aws_region, get_cloudfront_distribution_id, get_config, get_contact_topic_arn,
-    get_email_files_dir, get_ses_from_email, get_static_base_url,
+    get_cloudfront_distribution_id, get_config, get_contact_topic_arn, get_static_base_url,
     get_static_files_dir, get_static_s3_bucket, get_web_base_url, is_prod,
 )
 from article_dtos import (
-    ArticleCommentDTO, ArticleDTO, UpdateArticleCommentDTO, UpdateArticleDTO, UpdateArticleImpressionDTO,
-    UpdateArticleStatusDTO, UpdateTagDTO,
+    ArticleCommentDTO, ArticleDTO, ArticleImpressionAction, UpdateArticleCommentDTO, UpdateArticleDTO,
+    UpdateArticleImpressionDTO, UpdateArticleStatusDTO, UpdateTagDTO,
 )
 from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO
 from category_dtos import UpdateCategoryDTO
+from email_service import send_email
 from redirect_dtos import UpsertRedirectDTO
 from search_engine_submissions import notify_search_engines, submit_sitemap_to_search_engines
 from shared_utils import *
@@ -995,7 +995,7 @@ def update_user_status(user: User, update_user_status_dto: UpdateUserStatusDTO, 
 
 
 def update_article_status(article: Article, update_article_status_dto: UpdateArticleStatusDTO, cur_user: User,
-                          req) -> None:
+                          req, *, manual: bool = False) -> None:
     # logger.debug(f"update_post_status: post: {post}, cur_user: {cur_user}")
     verify_authorization(cur_user, Permission.UPDATE_ARTICLE_STATUS)
 
@@ -1061,6 +1061,12 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
             req,
             article,
         )
+
+    if manual and old_status != status:
+        safe_execute('Article status email', _send_account_notification,
+                     article_owner, 'notify_article_status', 'Your article status changed',
+                     f'Your article “{article.title}” changed from {old_status} to {status}.',
+                     article, req, detail=article.comment)
 
 
 def create_contact_message(message_dto: ContactMessageDTO, user: User = None) -> ContactMessage:
@@ -1178,6 +1184,13 @@ def update_article_impression(article: Article, update_article_impression_dto: U
     logger.debug(transacts)
     dynamodb_transact_write(transacts)
 
+    if current_impression is None and cur_user.id != article.owner_id:
+        verb = 'liked' if action == ArticleImpressionAction.LIKE else 'disliked'
+        safe_execute('Article reaction email', _send_account_notification,
+                     article_owner, 'notify_article_impressions', 'New reaction to your article',
+                     f'{cur_user.name} {verb} your article “{article.title}”.',
+                     article, req)
+
 
 def update_user_impression(user: User, update_relation_dto: UpdateUserImpressionDTO, cur_user: User, req) -> None:
     verify_authorization(cur_user, Permission.UPDATE_USER_IMPRESSION, user)
@@ -1245,27 +1258,34 @@ def update_user_impression(user: User, update_relation_dto: UpdateUserImpression
 
     dynamodb_transact_write(transacts)
 
+    if current_relation is None:
+        verb = 'followed' if action == UserImpressionAction.FOLLOW else 'blocked'
+        safe_execute('Profile reaction email', _send_account_notification,
+                     user, 'notify_user_impressions', 'New profile reaction',
+                     f'{cur_user.name} {verb} your profile.',
+                     cur_user, req)
+
 
 def dispatch_article_published_event(article: Article) -> None:
     handle_article_published_event(ArticlePublishedEvent(article))
 
 
-def save_email_to_disk(sender: str, recipient: str, subject: str, text_body: str, html_body: str) -> None:
-    from email.message import EmailMessage
-
-    message = EmailMessage()
-    message["From"] = sender
-    message["To"] = recipient
-    message["Subject"] = subject
-    message.set_content(text_body)
-    message.add_alternative(html_body, subtype="html")
-
-    emails_dir = get_email_files_dir()
-    os.makedirs(emails_dir, exist_ok=True)
-    email_path = os.path.join(emails_dir, f"{utc_now()}-{uuid.uuid4()}.eml")
-    with open(email_path, "wb") as email_file:
-        email_file.write(message.as_bytes())
-    logger.info("Saved development email to %s", email_path)
+def _send_account_notification(user: User, preference: str, subject: str, message: str,
+                               target: Article | User, req, *, detail: str | None = None) -> None:
+    if not user.email or user.status != UserStatus.ACTIVE or not getattr(user, preference):
+        return
+    target_url = (get_article_url(req, target, absolute=True) if isinstance(target, Article)
+                  else get_user_url(req, target, absolute=True))
+    settings_url = get_url(req, 'edit-user', user_id=user.id, absolute=True) + '#notifications'
+    text = f'Hello {user.name or "there"},\n\n{message}\n'
+    if detail:
+        text += f'\n{detail}\n'
+    text += f'\n{target_url}\n\nNotification settings: {settings_url}\n'
+    html = get_html_content('emails/account-notification.html', {
+        'recipient_name': user.name or 'there', 'subject': subject, 'message': message,
+        'detail': detail, 'target_url': target_url, 'notification_settings_url': settings_url,
+    })
+    send_email(user.email, subject, text, html)
 
 
 def handle_article_published_event(event: ArticlePublishedEvent) -> None:
@@ -1292,12 +1312,6 @@ def handle_article_published_event(event: ArticlePublishedEvent) -> None:
     if not matching_subscription_tags:
         return
 
-    sender = get_ses_from_email()
-    if is_prod() and not sender:
-        logger.warning("Article publication notification skipped: SES_FROM_EMAIL is not configured")
-        return
-    sender = sender or "no-reply@localhost"
-
     base_url = get_web_base_url().rstrip('/')
     article_url = f"{base_url}/articles/{article.id}"
     subject = f"New article matching your interests: {article.title}"
@@ -1307,7 +1321,7 @@ def handle_article_published_event(event: ArticlePublishedEvent) -> None:
         if user_id == article.user_id:
             continue
         user = find_user(user_id)
-        if not user or not user.email:
+        if not user or not user.email or user.status != UserStatus.ACTIVE or not user.notify_tag_articles:
             continue
 
         tag_links = [
@@ -1334,20 +1348,7 @@ def handle_article_published_event(event: ArticlePublishedEvent) -> None:
             "tag_links": tag_links,
         })
         try:
-            if not is_prod():
-                save_email_to_disk(sender, user.email, subject, text_body, html_body)
-                continue
-            get_ses_client().send_email(
-                Source=sender,
-                Destination={"ToAddresses": [user.email]},
-                Message={
-                    "Subject": {"Data": subject, "Charset": "UTF-8"},
-                    "Body": {
-                        "Text": {"Data": text_body, "Charset": "UTF-8"},
-                        "Html": {"Data": html_body, "Charset": "UTF-8"},
-                    },
-                },
-            )
+            send_email(user.email, subject, text_body, html_body)
         except Exception:
             logger.exception(
                 "Unable to send article publication notification",
@@ -1371,12 +1372,6 @@ def _get_cf_client():
 def get_sns_client():
     import boto3
     return boto3.client("sns")
-
-
-@lru_cache
-def get_ses_client():
-    import boto3
-    return boto3.client("ses", region_name=get_aws_region())
 
 
 def get_image_dimensions(data: bytes) -> tuple[int, int]:

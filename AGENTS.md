@@ -160,3 +160,10 @@
 
 - Provider usernames are authentication metadata, never fallback public slugs. Generated signup slugs must fit the
   same 30-character limit as profile edits.
+
+## Account email notifications
+
+- Account notification preferences default to enabled for existing users. Deliver status emails only for actual manual
+  status changes and reaction emails only for newly created reactions; skip self reactions and inactive recipients.
+- Send account emails after successful persistence through the API's `email_service`; delivery failures must not fail
+  the committed action. Tag subscription emails honor `notify_tag_articles`. Development emails are saved as `.eml`.

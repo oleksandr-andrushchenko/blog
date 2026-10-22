@@ -280,7 +280,7 @@ async def _update_article(article: ArticleDep, update_article_dto: UpdateArticle
 @route("post", "update-article-status", response_class=JSONResponse)
 async def _update_article_status(article: ArticleDep, update_article_status_dto: UpdateArticleStatusDTODep,
                                  cur_user: CurUserDep, request: Request) -> str:
-    update_article_status(article, update_article_status_dto, cur_user, request)
+    update_article_status(article, update_article_status_dto, cur_user, request, manual=True)
     return get_article_url(request, article)
 
 

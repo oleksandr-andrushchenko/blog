@@ -261,3 +261,11 @@ Connection links expire after ten minutes and are bound to the initiating accoun
 and the Telegram user who starts the connection. Webhook requests require the
 configured Telegram secret header. Temporary records are removed on completion,
 replacement, or disconnect; expired links cannot complete a connection.
+
+### Account email notifications
+
+The profile editor's Notifications tab controls emails for manual article status changes, new profile follows/blocks,
+new article likes/dislikes, and articles matching subscribed interests. Existing accounts default to enabled; each
+preference can be disabled independently. Toggling or switching an existing reaction does not send another email.
+Emails are sent after successful writes, and delivery failures do not undo the action. Production uses SES and
+`SES_FROM_EMAIL`; development saves multipart text/HTML messages in `EMAIL_FILES_DIR`.
