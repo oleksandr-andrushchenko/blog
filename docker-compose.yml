@@ -27,6 +27,7 @@ services:
     volumes:
       - ./shared:/app
       - ./web-lambda:/web-lambda
+      - ./.media-originals:/app-media-originals
       - ./static:/app-static
       - ./.emails:/app-emails
 
@@ -59,6 +60,7 @@ services:
     volumes:
       - ./shared:/app
       - ./api-lambda:/api-lambda
+      - ./.media-originals:/app-media-originals
       - ./static:/app-static
       - ./.emails:/app-emails
 

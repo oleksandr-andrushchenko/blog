@@ -315,6 +315,7 @@
     init_tinymce: {% if tinymce_api_key and layout_assets.editor | default(false) %}true{% else %}false{% endif %},
     css_filenames: {{ css_filenames | tojson | safe }},
     static_relative_url: {{ static_url("{filename}") | tojson }},
+    upload_article_image_url: {{ url("upload-article-image", absolute=True) | tojson }},
     upload_public_file_url: {{ url("upload-public-file", absolute=True) | tojson }}
   }
 </script>

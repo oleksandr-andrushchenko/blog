@@ -302,6 +302,26 @@ exclude owner clicks and are best effort, not unique-visitor analytics. POST nav
 submissions and prefetches; signed internal API notifications keep database mutations in the API Lambda.
 Existing Buy Me a Coffee links retain their current behavior and are not included in the new counters.
 
+Optional article watermarks are disabled by default. Enable them in ignored `shared/data.json`:
+
+```json
+"article_media_watermark_enabled": true,
+"article_media_watermark": {
+  "text": "example.com",
+  "position": "bottom-right",
+  "opacity": 0.5,
+  "relative_font_size": 0.025,
+  "padding": 0.025,
+  "center": false
+}
+```
+
+Omit `text` to use the website hostname. Only newly uploaded article-editor images are branded; existing
+images, avatar/category uploads, and animated images keep their current behavior. Static JPEG, PNG, WebP,
+and AVIF originals are saved before publishing resized branded copies. Production stores originals in a
+separate encrypted, private, retained S3 bucket. Locally they live in ignored `.media-originals/`, mounted
+outside the public static directory. Never configure `MEDIA_ORIGINALS_DIR` inside `STATIC_FILES_DIR`.
+
 ## Background sitemap generation
 
 `POST /generate-sitemap` returns HTTP 202 with `status: accepted` and the sitemap URL. A dedicated

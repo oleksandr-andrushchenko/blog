@@ -30,6 +30,8 @@ def _get_live_config() -> dict[str, Any]:
         "threads_app_id": os.getenv("THREADS_APP_ID", ""),
         "threads_app_secret": os.getenv("THREADS_APP_SECRET", ""),
         "threads_token_encryption_key": os.getenv("THREADS_TOKEN_ENCRYPTION_KEY", ""),
+        "media_originals_dir": os.getenv("MEDIA_ORIGINALS_DIR", "/app-media-originals"),
+        "media_originals_s3_bucket": os.getenv("MEDIA_ORIGINALS_S3_BUCKET", ""),
         "telegram_publisher_bot_token": os.getenv("TELEGRAM_PUBLISHER_BOT_TOKEN", ""),
         "telegram_publisher_webhook_secret": os.getenv("TELEGRAM_PUBLISHER_WEBHOOK_SECRET", ""),
         "telegram_bot_token": os.getenv("TELEGRAM_BOT_TOKEN", ""),

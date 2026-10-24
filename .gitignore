@@ -47,3 +47,6 @@ static/*
 dynamodb-data/
 # Development email sink
 .emails/
+
+# Private unmarked image originals
+.media-originals/

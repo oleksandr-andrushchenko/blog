@@ -1,5 +1,13 @@
 {
   "show_favicon": false,
   "meta_robots": "noindex, nofollow",
-  "fonts": {}
+  "fonts": {},
+  "article_media_watermark_enabled": false,
+  "article_media_watermark": {
+    "position": "bottom-right",
+    "opacity": 0.5,
+    "relative_font_size": 0.025,
+    "padding": 0.025,
+    "center": false
+  }
 }

@@ -180,5 +180,8 @@
 - Support-link navigation uses same-origin POST forms. The web Lambda sends signed, short-lived click notifications
   to the API; persistence stays API-owned. Guard link-list edits against concurrent click increments. Existing BMC
   links remain compatible. `support_providers: null` inherits all profile links; `[]` hides them all.
+- Optional watermarks apply only through `upload-article-image`, used by the article editor. Generic uploads stay
+  unmarked. Save originals before publishing branded bytes, outside the public static directory or in the separate
+  private originals bucket. Preserve animated files.
 - Sitemap generation returns 202 and runs in `sitemap_handler.handler`. Its worker shares the API artifact; refreshing
   that worker after API bundle changes requires an explicitly authorized infrastructure update.

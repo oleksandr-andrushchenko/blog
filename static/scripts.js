@@ -791,14 +791,14 @@ const getApiErrorMessage = (errorBody, fallbackMessage) => {
   return errorBody?.message || fallbackMessage
 }
 
-const uploadPublicFile = async function (file, progress = undefined) {
+const uploadPublicFile = async function (file, progress = undefined, endpoint = window.CONFIG.upload_public_file_url) {
   try {
     const formData = new FormData()
     formData.append("file", file)
 
     // Upload to your existing endpoint
     const uploadResponse = await ajaxResponse({
-      url: window.CONFIG.upload_public_file_url,
+      url: endpoint,
       method: "POST",
       data: formData,
       processData: false,
@@ -861,7 +861,7 @@ if (window.CONFIG.init_tinymce) {
     image_title: false,
     image_dimensions: false,
     images_upload_handler: async (blobInfo, progress) => {
-      const filename = await uploadPublicFile(blobInfo.blob(), progress)
+      const filename = await uploadPublicFile(blobInfo.blob(), progress, window.CONFIG.upload_article_image_url)
       return formatUrl(window.CONFIG.static_relative_url, {filename})
     },
     codesample_languages: [

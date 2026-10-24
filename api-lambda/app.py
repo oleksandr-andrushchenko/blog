@@ -227,6 +227,17 @@ async def upload_public_file(image_file_dto: ImageFileDTODep) -> str:
     return save_public_file(resize_public_image(image_file_dto))
 
 
+@route("post", "upload-article-image", response_class=JSONResponse)
+async def upload_article_image(image_file_dto: ImageFileDTODep, cur_user: CurUserDep) -> str:
+    from shared_utils import Permission, verify_authorization
+    verify_authorization(cur_user, Permission.CREATE_ARTICLE)
+    if cur_user.status != UserStatus.ACTIVE:
+        raise HTTPException(403, "An active account is required")
+    from article_image_service import save_article_image
+
+    return save_article_image(image_file_dto, resize_unmarked=True)
+
+
 @route("post", "create-article", response_class=JSONResponse)
 async def _create_article(article_dto: ArticleDTO, cur_user: CurUserDep, request: Request) -> str:
     try:

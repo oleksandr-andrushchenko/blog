@@ -37,6 +37,7 @@ services:
       - ./shared:/app
       - ./tests/site-config.json:/app/data.json:ro
       - ./web-lambda:/web-lambda
+      - ./.media-originals:/app-media-originals
       - ./static:/app-static
       - ./static:/app/static
       - ./.emails:/app-emails
@@ -79,6 +80,7 @@ services:
       - ./shared:/app
       - ./tests/site-config.json:/app/data.json:ro
       - ./api-lambda:/api-lambda
+      - ./.media-originals:/app-media-originals
       - ./static:/app-static
       - ./static:/app/static
       - ./.emails:/app-emails

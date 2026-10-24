@@ -1,6 +1,7 @@
 """Canonical API route names and path templates."""
 
 API_URL_ROUTES = {
+    "upload-article-image": "/article-images",
     "notify-creator-link-click": "/creator-link-click",
     "threads-connection": "/users/{user_id}/integrations/threads",
     "threads-callback": "/integrations/threads/callback",

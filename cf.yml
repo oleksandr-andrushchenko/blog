@@ -431,6 +431,13 @@ Resources:
               - Effect: Allow
                 Action: lambda:InvokeFunction
                 Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AWS::StackName}-${Stage}-sitemap"
+        - PolicyName: PrivateOriginalsWrite
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: s3:PutObject
+                Resource: !Sub "${MediaOriginalsBucket.Arn}/*"
         - PolicyName: LambdaS3Policy
           PolicyDocument:
             Version: "2012-10-17"
@@ -473,6 +480,21 @@ Resources:
           Value: !Ref Owner
         - Key: Region
           Value: !Ref AWS::Region
+
+  MediaOriginalsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
 
   ImageVariantsFunctionRole:
     Type: AWS::IAM::Role
@@ -634,6 +656,7 @@ Resources:
       Environment:
         Variables:
           SITEMAP_FUNCTION_NAME: !Sub "${AWS::StackName}-${Stage}-sitemap"
+          MEDIA_ORIGINALS_S3_BUCKET: !Ref MediaOriginalsBucket
           THREADS_APP_ID: !Ref ThreadsAppId
           THREADS_APP_SECRET: !Ref ThreadsAppSecret
           THREADS_TOKEN_ENCRYPTION_KEY: !Ref ThreadsTokenEncryptionKey
@@ -681,6 +704,7 @@ Resources:
       ReservedConcurrentExecutions: 1
       Environment:
         Variables:
+          MEDIA_ORIGINALS_S3_BUCKET: !Ref MediaOriginalsBucket
           THREADS_APP_ID: !Ref ThreadsAppId
           TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
           TELEGRAM_CHAT_ID: !Ref TelegramChatId
