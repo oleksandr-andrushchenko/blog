@@ -34,7 +34,7 @@
                       document.addEventListener("DOMContentLoaded", () => {
                         handleFormSubmit("#generate-sitemap-form", {{ url("generate-sitemap", absolute=True) | tojson }}, {
                           method: "POST",
-                          onSuccess: (res) => `Sitemap generated!<br>URLs count: ${res.urls_count}, Sitemap URL: <a href="${res.sitemap_url}" target="_blank">${res.sitemap_url}</a>`,
+                          onSuccess: (res) => `Sitemap generation queued. Check the sitemap after processing: <a href="${res.sitemap_url}" target="_blank" rel="nofollow noopener noreferrer">${res.sitemap_url}</a>`,
                         })
                       })
                     </script>

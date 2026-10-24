@@ -474,11 +474,11 @@ async def user_articles_fragment(user: UserDep, query_dto: ArticleQueryDep, cur_
 
 
 @route("post", "generate-sitemap")
-async def _generate_sitemap(cur_user: CurUserDep, request: Request) -> dict:
-    from api_utils import generate_sitemap
+async def _generate_sitemap(cur_user: CurUserDep, request: Request) -> JSONResponse:
+    from sitemap_service import submit_sitemap
 
-    urls_count, sitemap_url = generate_sitemap(cur_user, request)
-    return {"urls_count": urls_count, "sitemap_url": sitemap_url}
+    return JSONResponse(submit_sitemap(cur_user, request), status_code=202,
+                        headers={"Cache-Control": "no-store"})
 
 
 @route("post", "drop-cdn-cache")

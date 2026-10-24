@@ -26,6 +26,7 @@ def _get_live_config() -> dict[str, Any]:
         "yandex_webmaster_host_id": os.getenv("YANDEX_WEBMASTER_HOST_ID"),
         "indexnow_key": os.getenv("INDEXNOW_KEY"),
         "tinymce_api_key": os.getenv("TINYMCE_API_KEY"),
+        "sitemap_function_name": os.getenv("SITEMAP_FUNCTION_NAME", ""),
         "threads_app_id": os.getenv("THREADS_APP_ID", ""),
         "threads_app_secret": os.getenv("THREADS_APP_SECRET", ""),
         "threads_token_encryption_key": os.getenv("THREADS_TOKEN_ENCRYPTION_KEY", ""),

@@ -1491,10 +1491,14 @@ def test_admin_page_sitemap_and_cache_endpoints_success_and_failure(guest_client
     assert invalid_redirect.status_code == 422
 
     sitemap_success = post(root_client, "/generate-sitemap", json={})
-    assert sitemap_success.status_code == 200, sitemap_success.text
-    assert sitemap_success.json()["urls_count"] > 0
+    assert sitemap_success.status_code == 202, sitemap_success.text
+    assert sitemap_success.json()["status"] == "accepted"
     assert sitemap_success.json()["sitemap_url"] == f"{os.getenv('WEB_TEST_BASE_URL')}/sitemap.xml"
-    sitemap = get(guest_client, "/sitemap.xml")
+    for _ in range(100):
+        sitemap = get(guest_client, "/sitemap.xml")
+        if sitemap.status_code == 200 and "/functional-tag/articles" in sitemap.text:
+            break
+        time.sleep(0.1)
     assert sitemap.status_code == 200
     assert "/tags" in sitemap.text
     assert "/functional-tag/articles" in sitemap.text

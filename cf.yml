@@ -424,6 +424,13 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: "*"
+        - PolicyName: SitemapWorkerInvoke
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AWS::StackName}-${Stage}-sitemap"
         - PolicyName: LambdaS3Policy
           PolicyDocument:
             Version: "2012-10-17"
@@ -626,6 +633,7 @@ Resources:
       MemorySize: 512
       Environment:
         Variables:
+          SITEMAP_FUNCTION_NAME: !Sub "${AWS::StackName}-${Stage}-sitemap"
           THREADS_APP_ID: !Ref ThreadsAppId
           THREADS_APP_SECRET: !Ref ThreadsAppSecret
           THREADS_TOKEN_ENCRYPTION_KEY: !Ref ThreadsTokenEncryptionKey
@@ -658,6 +666,57 @@ Resources:
       Code:
         S3Bucket: !Sub "${AWS::StackName}-code"
         S3Key: !Ref ApiFuncS3Key
+
+
+  SitemapFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-${Stage}-sitemap"
+      Description: Generate and submit live sitemaps asynchronously
+      Role: !GetAtt BackendFunctionRole.Arn
+      Handler: sitemap_handler.handler
+      Runtime: python3.12
+      Timeout: 900
+      MemorySize: 512
+      ReservedConcurrentExecutions: 1
+      Environment:
+        Variables:
+          THREADS_APP_ID: !Ref ThreadsAppId
+          TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
+          TELEGRAM_CHAT_ID: !Ref TelegramChatId
+          TELEGRAM_LOG_LEVEL: !Ref TelegramLogLevel
+          APP_STAGE: !Ref Stage
+          APP_ENV: !Ref Env
+          APP_DEBUG: !Ref Debug
+          APP_SECRET: !Ref Secret
+          API_BASE_URL: !Sub "https://api.${DomainName}"
+          WEB_BASE_URL: !Sub "https://${DomainName}"
+          STATIC_BASE_URL: !Sub "https://static.${DomainName}"
+          DYNAMODB_TABLE: !Ref DynamoDBTable
+          ALLOWED_ORIGIN: !Sub "https://${DomainName}"
+          CONTACT_TOPIC_ARN: !Ref ContactFormTopic
+          SES_FROM_EMAIL: !Sub "no-reply@${DomainName}"
+          STATIC_S3_BUCKET: !Ref SiteBucket
+          AUTH_JWT_SECRET: !Ref AuthJwtSecret
+          CLOUDFRONT_DISTRIBUTION_ID: !Ref CloudFrontDistribution
+          INDEXNOW_KEY: !Ref IndexNowKey
+          GOOGLE_SEARCH_CONSOLE_CREDENTIALS_SECRET_ARN: !Ref GoogleSearchConsoleCredentialsSecret
+          GOOGLE_SEARCH_CONSOLE_SITE_URL: !Ref GoogleSearchConsoleSiteUrl
+          BING_WEBMASTER_API_KEY: !Ref BingWebmasterApiKey
+          YANDEX_WEBMASTER_OAUTH_TOKEN: !Ref YandexWebmasterOauthToken
+          YANDEX_WEBMASTER_USER_ID: !Ref YandexWebmasterUserId
+          YANDEX_WEBMASTER_HOST_ID: !Ref YandexWebmasterHostId
+      Code:
+        S3Bucket: !Sub "${AWS::StackName}-code"
+        S3Key: !Ref ApiFuncS3Key
+
+  SitemapInvokeConfig:
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref SitemapFunction
+      Qualifier: $LATEST
+      MaximumRetryAttempts: 0
+      MaximumEventAgeInSeconds: 3600
 
   ApiGatewayWebFunctionPermission:
     Type: AWS::Lambda::Permission

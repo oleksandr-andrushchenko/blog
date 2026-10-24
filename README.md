@@ -294,3 +294,16 @@ Configure the app's OAuth redirect as `https://api.YOUR_DOMAIN/integrations/thre
 Threads identity, and app ID. Changing the encryption key requires reconnection. Tokens and authorization
 codes are excluded from callback access logs. These credentials are separate from any import provider.
 Rebuild the API and test images after adding the API-only `cryptography` dependency.
+
+## Background sitemap generation
+
+`POST /generate-sitemap` returns HTTP 202 with `status: accepted` and the sitemap URL. A dedicated
+15-minute Lambda uses the API bundle to generate and submit the sitemap, reloading the actor and checking
+current permission before writing. It processes one invocation at a time and logs completion or failure.
+The local API runs this work in a single background thread. Production requires `SITEMAP_FUNCTION_NAME`,
+provided by CloudFormation; asynchronous function-error retries are disabled.
+
+Infrastructure and API/static changes must be deployed together when deployment is explicitly requested.
+The sitemap worker shares `ApiFuncS3Key`, so subsequent API bundle updates also require an infrastructure
+update to refresh the worker. No credentials, webhook registrations, deployment, or live posts are created
+by implementing or testing these features.

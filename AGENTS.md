@@ -177,3 +177,5 @@
   checks the destination. Attach only the article cover, never the full article body.
 - Threads OAuth credentials and encrypted tokens remain API-owned. Redact callback queries from request and referrer
   access logs. Continuations are encrypted and bound to the account, article, and connection session.
+- Sitemap generation returns 202 and runs in `sitemap_handler.handler`. Its worker shares the API artifact; refreshing
+  that worker after API bundle changes requires an explicitly authorized infrastructure update.
