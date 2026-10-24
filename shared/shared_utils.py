@@ -12,7 +12,7 @@ import sys
 import time
 import uuid
 from contextvars import ContextVar
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from datetime import datetime, timezone
 from decimal import Decimal
 from enum import StrEnum
@@ -46,6 +46,7 @@ from query_dtos import (BaseQueryDTO, ArticleCommentQueryDTO, ArticleQueryDTO, A
                         TagQueryDTO, TagQueryType, UserQueryDTO, UserQueryType, UserStatus)
 from tag_subscription_dtos import TagSubscription
 from user_dtos import UserImpressionAction
+from creator_link_models import SupportLink
 
 
 def Key(*args, **kwargs):
@@ -93,6 +94,7 @@ class User:
     updated_at: int | None
     offset: str | None
     has_threads_integration: bool = False
+    support_links: list[SupportLink] = field(default_factory=list)
     has_telegram_integration: bool = False
     notify_article_status: bool = True
     notify_user_impressions: bool = True
@@ -295,6 +297,8 @@ class Article:
     offset: str | None
     telegram_shared_at: int | None = None
     threads_shared_at: int | None = None
+    support_providers: list[str] | None = None
+    support_link_click_counts: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -1290,6 +1294,8 @@ def article_from_dynamodb(d_item: dict[str, Any]) -> Article:
         image_filename=d_item.get("image_filename"),
         telegram_shared_at=d_item.get("telegram_shared_at"),
         threads_shared_at=d_item.get("threads_shared_at"),
+        support_providers=d_item.get("support_providers"),
+        support_link_click_counts=d_item.get("support_link_click_counts", {}),
         redirect_to=d_item.get("redirect_to"),
         comments_count=d_item.get("comments_count", 0),
         created_at=d_item["created_at"],
@@ -1572,6 +1578,7 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         bmc_username=d_item.get("bmc_username"),
         has_telegram_integration=d_item.get("has_telegram_integration", False),
         has_threads_integration=d_item.get("has_threads_integration", False),
+        support_links=[SupportLink(**link) for link in d_item.get("support_links", [])],
         notify_article_status=d_item.get("notify_article_status", True),
         notify_user_impressions=d_item.get("notify_user_impressions", True),
         notify_article_impressions=d_item.get("notify_article_impressions", True),

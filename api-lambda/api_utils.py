@@ -1,4 +1,4 @@
-from dataclasses import replace
+from dataclasses import asdict, replace
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from urllib.parse import unquote, urlparse
@@ -22,7 +22,7 @@ from shared_utils import (
     Article, Tag, User, find_article, find_article_by_slug_follow_redirects, find_user_by_username_follow_redirects,
     Category, Permission, Redirect, UserStatus, add_dynamodb_update_transact,
     add_update_category_published_count_transact, get_articles, get_dynamodb_item,
-    get_categories, get_tags, logger,
+    get_categories, get_tags, logger, get_user, get_article, ArticleNotFoundError,
     get_url, get_articles_url, get_article_url, get_users_url, get_user_url,
     get_static_url, get_latest_articles, get_latest_users, verify_authorization,
 )
@@ -35,7 +35,7 @@ from user_dtos import (
     UserImpressionAction,
 )
 from validation import normalize_slug, validate_catalog_text, validate_category_slug
-from web import RequestValidationError
+from web import HTTPException, RequestValidationError
 
 
 class ArticleHrefExtractor(HTMLParser):
@@ -613,6 +613,7 @@ def create_article(article_dto: ArticleDTO, cur_user: User) -> Article:
 
     transacts = []
 
+    _validate_article_support(article_dto.support_providers, cur_user)
     article_item = {
         "id": article_id,
         "title": title,
@@ -628,6 +629,7 @@ def create_article(article_dto: ArticleDTO, cur_user: User) -> Article:
         "post_status_pk": f"POST#{status}",
         "post_user_status_pk": f"POST#{cur_user.id}#{status}",
         "post_category_status_pk": f"POST#{category}#{status}",
+        "support_providers": article_dto.support_providers,
     }
     if preview:
         article_item["preview"] = preview
@@ -665,6 +667,9 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
     changes = update_article_dto.get_changes(article)
     if not changes:
         return
+
+    if "support_providers" in changes:
+        _validate_article_support(changes["support_providers"], get_user(article.owner_id))
 
     if "category" in changes:
         get_category(changes["category"])
@@ -884,6 +889,9 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
         raise UserBannedError()
 
     changes = update_user_dto.get_changes(user)
+    link_changes = {name: changes.pop(name) for name in ("support_links",) if name in changes}
+    if link_changes:
+        changes.update({name: [asdict(link) for link in links] for name, links in link_changes.items()})
     if not changes:
         return
 
@@ -956,7 +964,11 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
         add_dynamodb_user_update_transact(transacts, cur_user)
 
     try:
-        dynamodb_transact_write(transacts)
+        if link_changes:
+            from creator_click_service import write_user_creator_links
+            write_user_creator_links(transacts, user, link_changes)
+        else:
+            dynamodb_transact_write(transacts)
     except DynamoDBTransactionError as e:
         if e.is_conditional():
             raise SlugDuplicationError(field="username")
@@ -1519,3 +1531,31 @@ def get_all_article_comments_by_user(user: User) -> list[ArticleComment]:
         if not exclusive_start_key:
             break
     return comments
+
+
+def notify_creator_link_click(token: str, req) -> None:
+    try:
+        from creator_links import decode_creator_click, get_creator_link
+        from creator_click_service import record_creator_link_click
+        event = decode_creator_click(token)
+    except ValueError:
+        raise HTTPException(status_code=401)
+    user = find_user(event['owner_id'])
+    if user is None:
+        raise HTTPException(status_code=404)
+    actor = find_user(event.get('actor_id')) if event.get('actor_id') else None
+    if event.get('actor_id') and actor is None:
+        raise HTTPException(status_code=404)
+    try:
+        article = get_article(event.get('article_id'), actor) if event.get('article_id') else None
+        get_creator_link(user, event['kind'], event['link_id'], article)
+    except (ValueError, ArticleNotFoundError):
+        raise HTTPException(status_code=404)
+    if actor is not None and actor.id == user.id:
+        return
+    record_creator_link_click(user, event['link_id'], article, kind=event['kind'])
+
+
+def _validate_article_support(providers, owner):
+    if providers is not None and set(providers) - {link.id for link in owner.support_links}:
+        raise RequestValidationError({'support_providers': 'Choose support links saved by the article author'})

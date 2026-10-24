@@ -35,6 +35,24 @@
             {% include "fragments/tags-input.html" %}
         {% endwith %}
 
+        {% if not article or cur_user.id == article.owner_id %}
+            <fieldset id="article-support-providers" class="mb-3">
+                <legend class="h6">Author support links</legend>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="inherit-support" name="inherit_support"
+                           {% if not article or article.support_providers is none %}checked{% endif %}>
+                    <label class="form-check-label" for="inherit-support">Use all my profile support links</label>
+                </div>
+                {% for link in cur_user.support_links %}
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="support-{{ link.id }}" data-support-id="{{ link.id }}"
+                               {% if article and article.support_providers is not none and link.id in article.support_providers %}checked{% endif %}>
+                        <label class="form-check-label" for="support-{{ link.id }}">{{ link.name }}</label>
+                    </div>
+                {% endfor %}
+                <p class="form-text">Manage support pages in your <a href="{{ url('edit-user', user_id=cur_user.id) }}#earn">profile</a>.</p>
+            </fieldset>
+        {% endif %}
         <div>
             <p class="small text-body-secondary mb-2">
                 By submitting an article, you agree to our
@@ -53,6 +71,14 @@
   document.addEventListener("DOMContentLoaded", () => {
     handleFormSubmit("#article-form", {{ (url('update-article', article_id=article.id, absolute=True) if article else url('create-article', absolute=True)) | tojson }}, {
       method: "{{ 'PATCH' if article else 'POST' }}",
+      prepareData: data => {
+        if (document.getElementById('inherit-support')) {
+          data.support_providers = data.inherit_support ? null :
+            [...document.querySelectorAll('[data-support-id]:checked')].map(input => input.dataset.supportId)
+          delete data.inherit_support
+        }
+        return data
+      },
       rules: {
         title: [{rule: "required"}, {rule: "minLength", value: 2}, {rule: "maxLength", value: 500}],
         content: [{rule: "required"}, {rule: "minLength", value: 5_000}, {rule: "maxLength", value: 100_000}],

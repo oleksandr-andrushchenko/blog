@@ -8,6 +8,8 @@ WEB_AUTH_URL_ROUTES = {
 }
 
 WEB_URL_ROUTES = WEB_AUTH_URL_ROUTES | {
+    "user-support-link": "/users/{user_id}/support/{link_id}",
+    "article-support-link": "/articles/{article_id}/support/{link_id}",
     "index": "/",
     "static-file": "/{filename:path}",
     "new-article": "/articles/new",

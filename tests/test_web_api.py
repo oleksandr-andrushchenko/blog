@@ -2019,3 +2019,42 @@ def test_email_notification_preferences_and_manual_actions_end_to_end(guest_clie
         assert len(messages) == int(enabled)
         if enabled:
             assert messages[0]['Subject'].startswith('New article matching your interests:')
+
+
+def test_support_links_roundtrip_public_navigation_and_owner_statistics(guest_client):
+    admin = get_logged_in_client(root_user)
+    user_id = get_dynamodb_user_by_email('root@example.com')['id']
+    path = f'/users/{user_id}'
+    links = [{'id': 'membership', 'name': 'Membership', 'text': 'Become a member',
+              'url': 'https://support.example/creator'}]
+    response = patch(admin, path, json={'support_links': links})
+    assert response.status_code == 200, response.text
+    try:
+        editor = get(admin, path + '/edit')
+        assert editor.status_code == 200, editor.text
+        assert pq(editor.text)('[data-support-link] [data-link-field="name"]').attr('value') == 'Membership'
+        profile = get(guest_client, path)
+        assert profile.status_code == 200, profile.text
+        action = f'/users/{user_id}/support/membership'
+        assert pq(profile.text)(f'form[action="{os.getenv("WEB_TEST_BASE_URL")}{action}"]')
+        # Crawlers cannot trigger support navigation with GET.
+        assert get(guest_client, action).status_code == 405
+        external = guest_client.post(os.getenv('WEB_TEST_BASE_URL') + action,
+                                     headers={'Origin': 'https://outside.example'})
+        assert external.status_code == 403
+        opened = guest_client.post(os.getenv('WEB_TEST_BASE_URL') + action,
+                                   headers={'Origin': os.getenv('WEB_TEST_BASE_URL')})
+        assert opened.status_code == 200, opened.text
+        assert opened.headers['X-Robots-Tag'] == 'noindex, nofollow'
+        assert 'window.location.replace("https://support.example/creator")' in opened.text
+        for _ in range(50):
+            saved = get_dynamodb_user(user_id)
+            if saved['support_links'][0]['clicks_count'] == 1:
+                break
+            time.sleep(0.1)
+        assert saved['support_links'][0]['clicks_count'] == 1
+        # Editing with stale client input must retain the server-owned count.
+        assert patch(admin, path, json={'support_links': links}).status_code == 200
+        assert get_dynamodb_user(user_id)['support_links'][0]['clicks_count'] == 1
+    finally:
+        assert patch(admin, path, json={'support_links': []}).status_code == 200

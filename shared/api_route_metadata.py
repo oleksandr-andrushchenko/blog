@@ -1,6 +1,7 @@
 """Canonical API route names and path templates."""
 
 API_URL_ROUTES = {
+    "notify-creator-link-click": "/creator-link-click",
     "threads-connection": "/users/{user_id}/integrations/threads",
     "threads-callback": "/integrations/threads/callback",
     "share-article-threads": "/articles/{article_id}/share/threads",

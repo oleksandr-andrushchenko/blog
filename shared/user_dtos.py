@@ -5,6 +5,7 @@ from enum import StrEnum
 from basic_dtos import BaseDTO, UNSET
 from query_dtos import UserStatus
 from validation import validate_http_url
+from support_links import validate_support_links
 
 
 @dataclass(slots=True)
@@ -19,12 +20,15 @@ class UpdateUserDTO(BaseDTO):
     address: str | None | object = UNSET
     github_username: str | None | object = UNSET
     bmc_username: str | None | object = UNSET
+    support_links: list | object = UNSET
     notify_article_status: bool | object = UNSET
     notify_user_impressions: bool | object = UNSET
     notify_article_impressions: bool | object = UNSET
     notify_tag_articles: bool | object = UNSET
 
     def __post_init__(self):
+        if self.support_links is not UNSET:
+            self.support_links = validate_support_links(self.support_links)
         for field in ('notify_article_status', 'notify_user_impressions', 'notify_article_impressions', 'notify_tag_articles'):
             value = getattr(self, field)
             if value is not UNSET and type(value) is not bool:

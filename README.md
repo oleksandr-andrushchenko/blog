@@ -295,6 +295,13 @@ Threads identity, and app ID. Changing the encryption key requires reconnection.
 codes are excluded from callback access logs. These credentials are separate from any import provider.
 Rebuild the API and test images after adding the API-only `cryptography` dependency.
 
+The **Earn** profile tab preserves Buy Me a Coffee and supports up to 20 additional named HTTPS support
+or membership links. Article forms can inherit all saved links or choose a subset. Profile editing shows
+reader click totals; owners also see article-specific totals beside their article's support links. Counts
+exclude owner clicks and are best effort, not unique-visitor analytics. POST navigation rejects cross-origin
+submissions and prefetches; signed internal API notifications keep database mutations in the API Lambda.
+Existing Buy Me a Coffee links retain their current behavior and are not included in the new counters.
+
 ## Background sitemap generation
 
 `POST /generate-sitemap` returns HTTP 202 with `status: accepted` and the sitemap URL. A dedicated

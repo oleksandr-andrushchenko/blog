@@ -618,3 +618,13 @@ async def share_article_threads(article: ArticleDep, cur_user: CurUserDep, reque
         result = await to_thread(threads_sharing_service.share_article, article, cur_user, request)
     return JSONResponse(result, status_code=202 if result.get("status") in ("unconfirmed", "processing") else 200,
                         headers={"Cache-Control": "no-store"})
+
+
+@route("post", "notify-creator-link-click")
+async def creator_link_click(request: Request):
+    from api_utils import notify_creator_link_click
+    header = request.headers.get('authorization', '')
+    if not header.startswith('Bearer '):
+        raise HTTPException(401)
+    await to_thread(notify_creator_link_click, header[7:], request)
+    return JSONResponse({'recorded': True}, headers={'Cache-Control': 'no-store'})

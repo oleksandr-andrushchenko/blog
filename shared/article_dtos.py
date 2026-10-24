@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from basic_dtos import BaseDTO, UNSET
+from support_links import validate_support_providers
 from query_dtos import ArticleStatus
 from validation import normalize_slug, validate_catalog_text, validate_category_slug
 
@@ -48,8 +49,11 @@ class ArticleDTO(BaseDTO):
     content: str
     tags: list[str]
     category: str
+    support_providers: list[str] | None = None
 
     def __post_init__(self):
+        if self.support_providers is not None:
+            self.support_providers = validate_support_providers(self.support_providers)
         _validate_title(self.title)
         _validate_content(self.content)
         self.tags = _validate_tags(self.tags)
@@ -62,8 +66,11 @@ class UpdateArticleDTO(BaseDTO):
     content: str | None | object = UNSET
     tags: list[str] | None | object = UNSET
     category: str | None | object = UNSET
+    support_providers: list[str] | None | object = UNSET
 
     def __post_init__(self):
+        if self.support_providers is not UNSET and self.support_providers is not None:
+            self.support_providers = validate_support_providers(self.support_providers)
         if self.title is not UNSET:
             if self.title is None:
                 raise ValueError("title must contain between 10 and 500 characters")

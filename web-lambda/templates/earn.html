@@ -46,7 +46,8 @@
             <h2>Overview</h2>
             <p>{{ site_name }} allows authors to publish content and optionally include a donation link in their
                 profile.</p>
-            <p>This enables readers to support authors directly based on the value they receive from the content.</p>
+            <p>Add Buy Me a Coffee or other HTTPS support and membership pages. Give each link a name and optional button text, then choose which links appear on each article.</p>
+            <p>Your profile editor shows reader clicks for each support link. Your own clicks are excluded; article pages also show you their individual totals.</p>
         </section>
 
         <section>
@@ -64,13 +65,13 @@
                 {% if cur_user %}
                     <li>Create an Account</li>
                     <li><a href="{{ url("edit-user", user_id=cur_user.id) }}#earn" class="link-body-emphasis">Add</a> an
-                        optional donation username or link
+                        support or membership links in your profile’s Earn tab
                     </li>
                     <li><a href="{{ url("new-article") }}" class="link-body-emphasis">Publish content</a></li>
                 {% else %}
                     <li><a href="{{ url('login', redirect_url=url("earn")) }}" class="link-body-emphasis"
                            rel="nofollow">Create an Account</a></li>
-                    <li>Add an optional donation username or link</li>
+                    <li>Add an support or membership links in your profile’s Earn tab</li>
                     <li>Publish content</li>
                 {% endif %}
                 <li>Readers can support you directly</li>

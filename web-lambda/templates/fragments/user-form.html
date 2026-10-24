@@ -184,6 +184,12 @@
                     </div>
                 </div>
             </div>
+            <section class="d-flex flex-column gap-3 border-top pt-3">
+                <h2 class="h5">Other support links</h2>
+                <p>Add HTTPS support or membership pages. Counts exclude your own clicks.</p>
+                {% from "fragments/creator-link-editor.html" import link_editor %}
+                {{ link_editor('support', user.support_links if user else []) }}
+            </section>
         </div>
         <div class="tab-pane py-3" id="notifications" role="tabpanel" aria-labelledby="notifications-tab" tabindex="0">
             <h2 class="h5">Email notifications</h2>
@@ -258,8 +264,42 @@
     avatarRadios.forEach(radio => radio.addEventListener("change", updateAvatarUpload))
     updateAvatarUpload()
 
+    const linkKinds = ["support"]
+    const linkRows = kind => [...document.getElementById(`${kind}-links`).querySelectorAll(`[data-${kind}-link]`)]
+    for (const kind of linkKinds) {
+      const container = document.getElementById(`${kind}-links`)
+      const addButton = document.getElementById(`add-${kind}-link`)
+      addButton.addEventListener("click", () => {
+        const row = document.getElementById(`${kind}-link-template`).content.firstElementChild.cloneNode(true)
+        const id = crypto.randomUUID()
+        row.dataset.linkId = id
+        row.querySelectorAll("[id], [for]").forEach(element => {
+          if (element.id) element.id = element.id.replace("new-link", id)
+          if (element.htmlFor) element.htmlFor = element.htmlFor.replace("new-link", id)
+        })
+        container.append(row)
+        row.querySelector("input").focus()
+      })
+      container.addEventListener("click", event => {
+        if (event.target.closest(`[data-remove-${kind}]`)) {
+          event.target.closest(`[data-${kind}-link]`).remove()
+          addButton.focus()
+        }
+      })
+    }
+
     handleFormSubmit("#user-form", {{ (url('update-user', user_id=user.id, absolute=True) if user else '') | tojson }}, {
       method: "{{ 'PATCH' if user else 'POST' }}",
+      prepareData: data => {
+        for (const kind of linkKinds) {
+          data[`${kind}_links`] = linkRows(kind).map(row => ({
+            id: row.dataset.linkId,
+            ...Object.fromEntries([...row.querySelectorAll("[data-link-field]")]
+              .map(input => [input.dataset.linkField, input.value.trim()]))
+          }))
+        }
+        return data
+      },
       rules: {
         avatar_file: [
           {

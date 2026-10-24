@@ -2,6 +2,10 @@ from datetime import timedelta
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
 from query_dtos import ArticleCommentQueryDTO
+from creator_links import encode_creator_click, get_creator_link
+from starlette.background import BackgroundTask
+from starlette.responses import HTMLResponse, Response
+from web import HTTPException
 from web_route_metadata import WEB_AUTH_URL_ROUTES
 
 from app_config import (
@@ -15,7 +19,7 @@ from shared_utils import (
     UserByOldSlugRequestedError, NotAuthenticatedError, Permission,
     find_article, find_article_by_slug_follow_redirects, find_user_by_username_follow_redirects,
     check_authorization, verify_authorization,
-    article_comment_from_dynamodb, decode_offset,
+    article_comment_from_dynamodb, decode_offset, get_html_content, get_url, get_article_url, get_user_url, logger,
     query_dynamodb_table, Key,
 )
 
@@ -366,3 +370,54 @@ def set_token_cookie(token, response):
 def drop_token_cookie(response):
     response.delete_cookie("token")
     response.delete_cookie("token", domain=_auth_cookie_domain())
+
+
+def notify_creator_link_click(owner_id, kind, link_id, article_id, actor_id, req):
+    """Deliver an authenticated event to the API; delivery failures preserve navigation."""
+    import httpx
+
+    try:
+        token = encode_creator_click(owner_id, kind, link_id, article_id, actor_id)
+        with httpx.Client(timeout=3) as client:
+            response = client.post(get_url(req, 'notify-creator-link-click', absolute=True),
+                                   headers={'Authorization': f'Bearer {token}'})
+            response.raise_for_status()
+    except Exception:
+        logger.warning('Creator link click notification failed', exc_info=True)
+
+
+def redirect_creator_link(user: User, link_id: str, req, cur_user: User | None = None,
+                          article: Article | None = None, kind: str = 'support') -> Response:
+    try:
+        link = get_creator_link(user, kind, link_id, article)
+    except ValueError:
+        raise HTTPException(status_code=404)
+    if req.method != 'POST':
+        raise HTTPException(status_code=405, headers={'Allow': 'POST'})
+    web_origin = urlparse(get_web_base_url())
+    if (req.headers.get('origin') != f'{web_origin.scheme}://{web_origin.netloc}'
+            or req.headers.get('sec-fetch-site') == 'cross-site'):
+        raise HTTPException(status_code=403, detail='Open this link from its creator or article page')
+    headers = {
+        'Cache-Control': 'no-store', 'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'X-Robots-Tag': 'noindex, nofollow',
+    }
+    background = None
+    prefetch = any('prefetch' in req.headers.get(header, '').lower()
+                   for header in ('purpose', 'sec-purpose', 'x-purpose'))
+    if prefetch:
+        return Response(status_code=204, headers=headers)
+    source_url = (get_article_url(req, article, absolute=True) if article is not None
+                  else get_user_url(req, user, absolute=True))
+    logger.info('Support link clicked', extra={'context': {
+        'source': source_url, 'owner_id': user.id, 'link_id': link_id, 'link_name': link.name,
+    }})
+    if cur_user is None or cur_user.id != user.id:
+        background = BackgroundTask(
+            notify_creator_link_click, user.id, kind, link_id,
+            article.id if article is not None else None, cur_user.id if cur_user is not None else None, req,
+        )
+    return HTMLResponse(get_html_content('creator-link-redirect.html', {
+        'request': req, 'destination_url': link.url, 'link_name': link.name,
+        'source_url': source_url, 'source_label': 'article' if article is not None else 'creator profile',
+    }), background=background, headers=headers)

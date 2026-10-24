@@ -1,0 +1,40 @@
+{% macro link_row(link, kind) %}
+    {% set clicks = link.clicks_count | default(0) %}
+    <fieldset class="card card-body gap-3" data-{{ kind }}-link data-link-id="{{ link.id }}">
+        <legend class="float-none w-auto h6 px-1">{{ kind | capitalize }} link</legend>
+        <div>
+            <label class="form-label" for="{{ kind }}-{{ link.id }}-name">Link name</label>
+            <input class="form-control" id="{{ kind }}-{{ link.id }}-name" data-link-field="name"
+                   type="text" maxlength="100" required value="{{ link.name }}" placeholder="Platform name">
+        </div>
+        <div>
+            <label class="form-label" for="{{ kind }}-{{ link.id }}-text">Button text (optional)</label>
+            <input class="form-control" id="{{ kind }}-{{ link.id }}-text" data-link-field="text"
+                   type="text" maxlength="150" value="{{ link.text }}" placeholder="Support my work">
+            <p class="form-text mb-0">Leave empty to use “Support on” followed by the link name.</p>
+        </div>
+        <div>
+            <label class="form-label" for="{{ kind }}-{{ link.id }}-url">Support URL</label>
+            <input class="form-control" id="{{ kind }}-{{ link.id }}-url" data-link-field="url"
+                   type="url" maxlength="2048" required value="{{ link.url }}" placeholder="https://…">
+        </div>
+        <p class="small text-body-secondary mb-0" data-{{ kind }}-clicks>
+            <i class="bi bi-cursor" aria-hidden="true"></i> {{ clicks }} reader {{ "click" if clicks == 1 else "clicks" }}
+        </p>
+        <button type="button" class="btn btn-outline-danger align-self-start" data-remove-{{ kind }}>
+            <i class="bi bi-trash" aria-hidden="true"></i> Remove link
+        </button>
+    </fieldset>
+{% endmacro %}
+{% macro link_editor(kind, links) %}
+    <input type="hidden" name="{{ kind }}_links" data-form-ignore>
+    <div id="{{ kind }}-links" class="d-flex flex-column gap-3">
+        {% for link in links %}{{ link_row(link, kind) }}{% endfor %}
+    </div>
+    <template id="{{ kind }}-link-template">
+        {{ link_row({"id": "new-link", "name": "", "text": "", "url": ""}, kind) }}
+    </template>
+    <button type="button" id="add-{{ kind }}-link" class="btn btn-outline-primary align-self-start">
+        <i class="bi bi-plus-lg" aria-hidden="true"></i> Add {{ kind }} link
+    </button>
+{% endmacro %}

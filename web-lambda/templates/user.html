@@ -203,6 +203,7 @@
                 {% if user.published_articles_count %}
                     {% with header="Enjoy this author’s work?" %}
                         {% include "fragments/bmc-donate.html" %}
+                {% with support_article=false %}{% include "fragments/creator-support-links.html" %}{% endwith %}
                     {% endwith %}
                 {% endif %}
 

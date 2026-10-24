@@ -1,0 +1,74 @@
+{% if user and user.status == UserStatus.ACTIVE %}
+{% set support_owner_view = cur_user and cur_user.id == user.id %}
+{% set support = namespace(links=[]) %}
+{% for link in user.support_links %}
+    {% if not support_article | default(false) or article.support_providers is none or link.id in article.support_providers %}
+        {% set support.links = support.links + [link] %}
+    {% endif %}
+{% endfor %}
+{% set support_preview = not support.links %}
+{% if support.links or support_owner_view %}
+    {% if support_preview %}
+        {% set support.links = user.support_links or [
+            {"id": "support-page", "name": "Support page", "text": "Support my work"},
+            {"id": "membership", "name": "Membership", "text": "Become a member"},
+        ] %}
+    {% endif %}
+    <div class="creator-support-link mb-4">
+        <section class="card shadow-sm text-bg-warning{% if support_preview %} opacity-50{% endif %}">
+            <div class="card-body">
+                <div class="h4 card-title">
+                    <i class="bi bi-lightbulb" aria-hidden="true"></i>
+                    {{ "Want more articles like this?" if support_article | default(false) else "Support " ~ user.name ~ "’s work" }}
+                </div>
+                <p class="card-text">
+                    {% if support_article | default(false) %}
+                        Show your appreciation for {{ user.name }}.
+                    {% else %}
+                        Help them bring more ideas to the community.
+                    {% endif %}
+                </p>
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    {% for link in support.links %}
+                        {% set label = link.text or ('Support on ' ~ link.name) %}
+                        {% if support_preview %}
+                            <button type="button" class="btn btn-dark" disabled>
+                                {{ label }} <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                            </button>
+                        {% else %}
+                            <form method="post" action="{{ url('article-support-link', article_id=article.id, link_id=link.id, absolute=True) if support_article | default(false) else url('user-support-link', user_id=user.id, link_id=link.id, absolute=True) }}"
+                                  target="_blank" rel="nofollow noopener">
+                                <button type="submit" class="btn btn-dark">
+                                    {{ label }} <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                                </button>
+                            </form>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% if support_owner_view and support_article | default(false) and not support_preview %}
+                    <p class="small mb-2">Reader clicks on this article:
+                        {% for link in support.links %}{{ link.name }}: {{ article.support_link_click_counts.get(link.id, 0) }}{% if not loop.last %}, {% endif %}{% endfor %}
+                    </p>
+                {% endif %}
+                <p class="card-text mb-0">
+                    {% if support_article | default(false) %}
+                        Your support helps them keep creating and sharing.
+                    {% else %}
+                        Every contribution supports their next creation.
+                    {% endif %}
+                </p>
+            </div>
+        </section>
+        {% if support_preview %}
+            <div class="mt-2">
+                {% if support_article | default(false) and user.support_links %}
+                    <a href="{{ url('edit-article', article_id=article.id) }}#article-support-providers" class="link-body-emphasis">Choose support links</a>
+                {% else %}
+                    <a href="{{ url('edit-user', user_id=user.id) }}#earn" class="link-body-emphasis">Set up support links</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% endif %}
+
+{% endif %}

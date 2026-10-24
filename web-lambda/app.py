@@ -699,3 +699,16 @@ async def utils(cur_user: CurUserDep) -> str:
     return get_html_content("utils.html", {
         "cur_user": cur_user,
     })
+
+
+@route('post', 'user-support-link')
+async def user_support_link(user: UserDep, link_id: str, request: Request, cur_user: OptCurUserDep):
+    from web_utils import redirect_creator_link
+    return redirect_creator_link(user, link_id, request, cur_user, kind='support')
+
+
+@route('post', 'article-support-link')
+async def article_support_link(article: ArticleDep, link_id: str, request: Request, cur_user: OptCurUserDep):
+    from shared_utils import get_user
+    from web_utils import redirect_creator_link
+    return redirect_creator_link(get_user(article.owner_id), link_id, request, cur_user, article, kind='support')
