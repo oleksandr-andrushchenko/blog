@@ -165,7 +165,7 @@ class ExceptionHandlerTests(unittest.TestCase):
                     logger.log.assert_called_once()
                     logger.error.assert_not_called()
                     level, access_log = logger.log.call_args.args
-                    self.assertEqual(level, logging.WARNING if status < 500 else logging.ERROR)
+                    self.assertEqual(level, logging.DEBUG if status == 404 else logging.WARNING if status < 500 else logging.ERROR)
                     self.assertIn(f'HTTP/1.1" {status} ', access_log)
                     self.assertEqual(len(logger.mock_calls), 1)
 
@@ -195,7 +195,7 @@ class ExceptionHandlerTests(unittest.TestCase):
                 logger.log.assert_called_once()
                 logger.error.assert_not_called()
                 level, access_log = logger.log.call_args.args
-                self.assertEqual(level, logging.WARNING)
+                self.assertEqual(level, logging.DEBUG)
                 self.assertRegex(access_log, r'^192\.0\.2\.10 - ')
                 self.assertIn(
                     '"GET http://example.execute-api.amazonaws.com/missing-endpoint?token=private-query HTTP/1.1" '

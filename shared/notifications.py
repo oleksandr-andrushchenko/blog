@@ -12,7 +12,7 @@ from app_config import get_telegram_bot_token, get_telegram_chat_id, get_telegra
 def get_access_log(request, status: int) -> tuple[int, str]:
     if status >= 500:
         level = logging.ERROR
-    elif status >= 400:
+    elif status >= 400 and status != 404:
         level = logging.WARNING
     else:
         level = logging.DEBUG
