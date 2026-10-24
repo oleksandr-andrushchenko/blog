@@ -37,6 +37,8 @@ def provider(monkeypatch, actor):
     config = {'telegram_publisher_bot_token': TOKEN, 'telegram_publisher_webhook_secret': SECRET,
               'api_base_url': 'https://api.catalog.example'}
     monkeypatch.setattr(service, 'get_config', lambda: config)
+    import article_sharing
+    monkeypatch.setattr(article_sharing, 'dynamodb_transact_write', Mock())
     with monkeypatch.context() as templates:
         templates.setattr(shared_utils, 'get_function_templates_dir',
                           lambda: str(ROOT / 'api-lambda/templates'))
@@ -145,7 +147,7 @@ def test_banned_owner_cannot_begin_or_share(actor, storage, provider):
         service.begin_connection(actor, actor)
     assert exc.value.status_code == 403
     with pytest.raises(HTTPException):
-        service.share_article(SimpleNamespace(status='published'), actor, None)
+        service.share_article(SimpleNamespace(owner_id=actor.id, status='published'), actor, None)
     provider[0].assert_not_called()
 
 
@@ -244,7 +246,7 @@ def test_share_checks_current_permissions_and_preserves_message_limits(actor, st
     call.reset_mock()
     monkeypatch.setattr(service, 'get_article_url', lambda *args, **kwargs: 'https://catalog.example/@creator/example')
     monkeypatch.setattr(service, 'find_category', lambda slug: SimpleNamespace(name='Photography'))
-    article = SimpleNamespace(status='published', title='Example', category='photography',
+    article = SimpleNamespace(id='example-article', owner_id=actor.id, status='published', title='Example', category='photography',
                              preview='<p>' + '🌻' * 5000 + '</p>',
                              content='NEVER SHARE THIS CONTENT')
     assert service.share_article(article, actor, None)['message_id'] == 42
@@ -426,7 +428,7 @@ def test_user_connection_flag_defaults_for_legacy_records():
 def test_share_flag_does_not_replace_connection_authorization(actor, storage, provider):
     actor.has_telegram_integration = True
     with pytest.raises(HTTPException) as exc:
-        service.share_article(SimpleNamespace(status='published'), actor, None)
+        service.share_article(SimpleNamespace(owner_id=actor.id, status='published'), actor, None)
     assert exc.value.status_code == 409
     provider[0].assert_not_called()
 
@@ -483,7 +485,7 @@ def test_telegram_share_description_preview_and_category_fallback(actor, storage
     connect(actor)
     monkeypatch.setattr(service, 'find_category', lambda slug: SimpleNamespace(name=display_name) if display_name else None)
     monkeypatch.setattr(service, 'get_article_url', lambda *args, **kwargs: 'https://catalog.example/article')
-    article = SimpleNamespace(status='published', title='Example article', category=category,
+    article = SimpleNamespace(id='example-article', owner_id=actor.id, status='published', title='Example article', category=category,
                              preview='<p>A <strong>useful</strong> description &amp; example.</p>')
     service.share_article(article, actor, None)
     assert provider[0].call_args.kwargs['text'] == (
@@ -502,7 +504,7 @@ def test_telegram_html_escapes_content_and_truncates_before_escaping(actor, stor
     monkeypatch.setattr(service, 'find_category', lambda slug: SimpleNamespace(name='Art & <Design>'))
     monkeypatch.setattr(service, 'get_article_url', lambda *args, **kwargs: url)
     description = 'Use <b>literal tags</b> & symbols 🌻. ' * 1000
-    article = SimpleNamespace(status='published', category='art-illustration', title='A & B <img src="x">',
+    article = SimpleNamespace(id='example-article', owner_id=actor.id, status='published', category='art-illustration', title='A & B <img src="x">',
                              preview='<p>' + escape(description) + '</p>')
     service.share_article(article, actor, None)
     payload = provider[0].call_args.kwargs
@@ -520,3 +522,30 @@ def test_telegram_html_escapes_content_and_truncates_before_escaping(actor, stor
     assert '…\n\nRead article 👇' in visible
     assert doc('a').attr('href') == url
     assert text.endswith('Read article 👇</a>')
+
+def test_article_cover_uses_caption_limit_and_preserves_uncertain_errors(actor, storage, provider, monkeypatch):
+    import article_sharing
+    connect(actor)
+    calls = provider[0]
+    original_call = calls.side_effect
+    monkeypatch.setattr(article_sharing, 'get_static_url', lambda *a, **k: 'https://static.example/cover.jpg')
+    monkeypatch.setattr(service, 'get_article_url', lambda *a, **k: 'https://site.example/article')
+    monkeypatch.setattr(service, 'find_category', lambda _: SimpleNamespace(name='Systems'))
+    def call(method, **params):
+        if method == 'sendPhoto':
+            assert params['photo'] == 'https://static.example/cover.jpg'
+            assert service._telegram_text_units(params['caption']) <= 1024
+            return {'message_id': 42}
+        return original_call(method, **params)
+    calls.side_effect = call
+    value = SimpleNamespace(id='cover-article', owner_id=actor.id, status='published', title='Cover example',
+                            category='other', preview='🌻' * 2000, image_filename='cover.jpg')
+    assert service.share_article(value, actor, None)['shared'] is True
+    def uncertain(method, **params):
+        if method == 'sendPhoto':
+            raise HTTPException(502, 'Unknown remote result')
+        return original_call(method, **params)
+    calls.side_effect = uncertain
+    with pytest.raises(HTTPException) as error:
+        service.share_article(value, actor, None)
+    assert error.value.status_code == 502

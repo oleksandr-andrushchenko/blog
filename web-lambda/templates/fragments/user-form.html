@@ -204,6 +204,7 @@
         {% if user and cur_user and user.id == cur_user.id %}
             <div class="tab-pane py-3" id="integrations" role="tabpanel" aria-labelledby="integrations-tab" tabindex="0">
                 {% include "fragments/telegram-integration.html" %}
+                {% include "fragments/threads-integration.html" %}
             </div>
         {% endif %}
     </div>
@@ -211,7 +212,7 @@
         <button type="submit" class="btn btn-primary">
             <i class="bi bi-check-lg" aria-hidden="true"></i> Save changes
         </button>
-        <p class="form-text mb-0">Profile changes are saved together. Telegram connections are saved separately.</p>
+        <p class="form-text mb-0">Profile changes are saved together. Integration connections are saved separately.</p>
     </div>
 </form>
 

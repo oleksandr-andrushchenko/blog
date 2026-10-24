@@ -167,3 +167,13 @@
   status changes and reaction emails only for newly created reactions; skip self reactions and inactive recipients.
 - Send account emails after successful persistence through the API's `email_service`; delivery failures must not fail
   the committed action. Tag subscription emails honor `notify_tag_articles`. Development emails are saved as `.eml`.
+
+
+## Sharing and creator support
+
+- Article sharing is owner-only. Persist `telegram_shared_at` and `threads_shared_at` only after confirmed remote
+  success, without changing article timestamps or publication indexes. History write failures must preserve remote
+  success. Never automatically repeat uncertain publishing requests; keep browser retries disabled until the owner
+  checks the destination. Attach only the article cover, never the full article body.
+- Threads OAuth credentials and encrypted tokens remain API-owned. Redact callback queries from request and referrer
+  access logs. Continuations are encrypted and bound to the account, article, and connection session.

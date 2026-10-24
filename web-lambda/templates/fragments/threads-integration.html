@@ -1,0 +1,115 @@
+<section aria-labelledby="threads-heading" class="d-flex flex-column gap-3 border-top mt-4 pt-4">
+    <h2 class="h5 mb-0" id="threads-heading"><i class="bi bi-threads me-1" aria-hidden="true"></i>Threads account</h2>
+    <p class="mb-0">Connect your Threads account, then share articles from a article page. Nothing is posted automatically.</p>
+    <div id="threads-status" role="status" aria-live="polite">Loading connection…</div>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+        <button type="button" class="btn btn-primary" id="threads-connect" disabled>
+            <i class="bi bi-threads me-1" aria-hidden="true"></i><span id="threads-connect-label">Connect Threads</span>
+        </button>
+        <button type="button" class="btn btn-outline-danger" id="threads-disconnect" disabled>
+            <i class="bi bi-x-circle me-1" aria-hidden="true"></i>Disconnect
+        </button>
+    </div>
+    <p class="form-text mb-0">Disconnecting leaves your existing Threads posts in place.</p>
+</section>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const endpoint = {{ url('threads-connection', user_id=user.id, absolute=True) | tojson }}
+    const status = document.getElementById("threads-status")
+    const connect = document.getElementById("threads-connect")
+    const label = document.getElementById("threads-connect-label")
+    const disconnect = document.getElementById("threads-disconnect")
+    let busy = false
+    let configured = false
+    let connected = false
+    let pending = false
+    const currentUrl = new URL(window.location.href)
+    const outcome = currentUrl.searchParams.get("threads")
+    const reason = currentUrl.searchParams.get("threads_reason")
+    if (outcome) {
+      currentUrl.searchParams.delete("threads")
+      currentUrl.searchParams.delete("threads_reason")
+      window.history.replaceState(null, "", currentUrl)
+    }
+    function controls() {
+      connect.disabled = busy || !configured
+      disconnect.disabled = busy || !(connected || pending)
+    }
+    async function request(method) {
+      const response = await fetch(endpoint, {method, credentials: "include", cache: "no-store",
+        headers: {"Content-Type": "application/json"}, ...(method === "POST" ? {body: "{}"} : {})})
+      const data = await response.json()
+      if (!response.ok) throw new Error(typeof data.details === "string" ? data.details : "Could not update your Threads connection.")
+      return data
+    }
+    async function load() {
+      if (busy) return
+      busy = true
+      controls()
+      try {
+        const data = await request("GET")
+        configured = data.configured
+        connected = data.connected
+        pending = data.pending || data.reconnect_required
+        label.textContent = connected ? "Connect another account" : "Connect Threads"
+        status.textContent = !configured ? "Threads connections are not available yet. Please try again later." :
+          connected ? `Connected to @${data.username}.` : data.reconnect_required ?
+            "Your Threads connection expired. Connect again to continue sharing." : "No Threads account connected."
+        status.className = connected ? "text-success" : "text-secondary"
+        if (outcome === "denied") status.textContent += " Connection cancelled. You can connect again when ready."
+        if (outcome === "error") {
+          const messages = {
+            authorization: "Threads could not authorize this account. Check that your account has access to this app, then connect again.",
+            token: "Threads could not finish granting access. Wait a moment, then select Connect Threads to try again.",
+            profile: "Threads could not confirm your account. Wait a moment, then select Connect Threads to try again.",
+            expired: "This connection attempt expired or was replaced. Select Connect Threads to start again.",
+            rate_limit: "Threads is receiving too many requests. Wait before connecting again.",
+            configuration: "Threads connections are temporarily unavailable. Please try again later."
+          }
+          status.textContent += " " + (Object.hasOwn(messages, reason) ? messages[reason] :
+            "Could not complete the connection. Select Connect Threads to try again.")
+          status.className = "text-danger"
+        }
+      } catch (error) {
+        status.textContent = error.message
+        status.className = "text-danger"
+      } finally {
+        busy = false
+        controls()
+      }
+    }
+    connect.addEventListener("click", async () => {
+      if (busy) return
+      busy = true
+      controls()
+      try {
+        const data = await request("POST")
+        window.location.assign(data.connect_url)
+      } catch (error) {
+        status.textContent = error.message
+        status.className = "text-danger"
+        busy = false
+        controls()
+      }
+    })
+    disconnect.addEventListener("click", async () => {
+      if (busy) return
+      busy = true
+      controls()
+      try {
+        await request("DELETE")
+        connected = pending = false
+        label.textContent = "Connect Threads"
+        status.textContent = "Threads disconnected."
+        status.className = "text-secondary"
+      } catch (error) {
+        status.textContent = error.message
+        status.className = "text-danger"
+      } finally {
+        busy = false
+        controls()
+      }
+    })
+    load()
+  })
+</script>

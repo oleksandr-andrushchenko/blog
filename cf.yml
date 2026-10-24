@@ -48,6 +48,17 @@ Parameters:
     NoEcho: true
     AllowedPattern: '^$|^[A-Za-z0-9_-]{32,256}$'
     Description: Secret used to authenticate Telegram integration webhook requests
+  ThreadsAppId:
+    Type: String
+    Default: ''
+  ThreadsAppSecret:
+    Type: String
+    Default: ''
+    NoEcho: true
+  ThreadsTokenEncryptionKey:
+    Type: String
+    Default: ''
+    NoEcho: true
   TelegramChatId:
     Type: String
     Default: ''
@@ -615,6 +626,9 @@ Resources:
       MemorySize: 512
       Environment:
         Variables:
+          THREADS_APP_ID: !Ref ThreadsAppId
+          THREADS_APP_SECRET: !Ref ThreadsAppSecret
+          THREADS_TOKEN_ENCRYPTION_KEY: !Ref ThreadsTokenEncryptionKey
           TELEGRAM_PUBLISHER_BOT_TOKEN: !Ref TelegramPublisherBotToken
           TELEGRAM_PUBLISHER_WEBHOOK_SECRET: !Ref TelegramPublisherWebhookSecret
           TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken

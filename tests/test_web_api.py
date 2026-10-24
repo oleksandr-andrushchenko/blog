@@ -1110,7 +1110,7 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     status_success = post(root_client, f"/articles/{article_id}/status", json={"status": "published"})
     assert status_success.status_code == 200, status_success.text
     published_admin_doc = pq(get(root_client, f"/articles/{article_id}").text)
-    assert not published_admin_doc('#telegram-share')
+    assert published_admin_doc('#telegram-share').attr('disabled') is not None
     owner_key = {"pk": f"USER#{functional_state['root_id']}", "sk": "META"}
     dynamodb_table.update_item(Key=owner_key, UpdateExpression="SET has_telegram_integration = :connected",
                                ExpressionAttributeValues={":connected": True})
@@ -1127,7 +1127,7 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
         disconnected = delete(root_client, f"/users/{functional_state['root_id']}/integrations/telegram")
         assert disconnected.status_code == 200, disconnected.text
     assert get_dynamodb_user(functional_state['root_id'])["has_telegram_integration"] is False
-    assert not pq(get(root_client, f"/articles/{article_id}").text)('#telegram-share')
+    assert pq(get(root_client, f"/articles/{article_id}").text)('#telegram-share').attr('disabled') is not None
 
     published_doc = pq(get(guest_client, f"/articles/{article_id}").text)
     assert published_doc('meta[name="robots"]').attr("content") == "index, follow"

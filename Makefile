@@ -218,6 +218,9 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 			HostedZoneId="$(HOSTED_ZONE_ID)" \
 			CertificateArn="$$CERTIFICATE_ARN" \
 			TelegramBotToken="$(TELEGRAM_BOT_TOKEN)" \
+			ThreadsAppId="$(THREADS_APP_ID)" \
+			ThreadsAppSecret="$(THREADS_APP_SECRET)" \
+			ThreadsTokenEncryptionKey="$(THREADS_TOKEN_ENCRYPTION_KEY)" \
 			TelegramPublisherBotToken="$(TELEGRAM_PUBLISHER_BOT_TOKEN)" \
 			TelegramPublisherWebhookSecret="$(TELEGRAM_PUBLISHER_WEBHOOK_SECRET)" \
 			TelegramChatId="$(TELEGRAM_CHAT_ID)" \

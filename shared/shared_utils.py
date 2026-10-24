@@ -92,6 +92,7 @@ class User:
     created_at: int
     updated_at: int | None
     offset: str | None
+    has_threads_integration: bool = False
     has_telegram_integration: bool = False
     notify_article_status: bool = True
     notify_user_impressions: bool = True
@@ -292,6 +293,8 @@ class Article:
     published_at: int | None
     is_premium: bool | None
     offset: str | None
+    telegram_shared_at: int | None = None
+    threads_shared_at: int | None = None
 
 
 @dataclass(slots=True)
@@ -1285,6 +1288,8 @@ def article_from_dynamodb(d_item: dict[str, Any]) -> Article:
         likes_count=d_item.get("likes_count", 0),
         dislikes_count=d_item.get("dislikes_count", 0),
         image_filename=d_item.get("image_filename"),
+        telegram_shared_at=d_item.get("telegram_shared_at"),
+        threads_shared_at=d_item.get("threads_shared_at"),
         redirect_to=d_item.get("redirect_to"),
         comments_count=d_item.get("comments_count", 0),
         created_at=d_item["created_at"],
@@ -1566,6 +1571,7 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         tag_subscriptions_count=d_item.get("tag_subscriptions_count", d_item.get("article_tag_subscriptions_count", 0)),
         bmc_username=d_item.get("bmc_username"),
         has_telegram_integration=d_item.get("has_telegram_integration", False),
+        has_threads_integration=d_item.get("has_threads_integration", False),
         notify_article_status=d_item.get("notify_article_status", True),
         notify_user_impressions=d_item.get("notify_user_impressions", True),
         notify_article_impressions=d_item.get("notify_article_impressions", True),

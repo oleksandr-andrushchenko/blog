@@ -1,14 +1,23 @@
-{% if cur_user and cur_user.has_telegram_integration and cur_user.status == UserStatus.ACTIVE and article.status == ArticleStatus.PUBLISHED %}
+{% if cur_user and cur_user.id == article.owner_id %}
+    {% set share_enabled = cur_user.has_telegram_integration and cur_user.status == UserStatus.ACTIVE and article.status == ArticleStatus.PUBLISHED %}
     <div class="mt-3">
-        <button type="button" class="btn btn-outline-secondary" id="telegram-share">
-            <i class="bi bi-telegram me-1" aria-hidden="true"></i>Share to my Telegram channel
+        <button type="button" class="btn {{ 'btn-outline-success' if article.telegram_shared_at else 'btn-outline-secondary' }}" id="telegram-share"
+                {% if not share_enabled %}disabled{% endif %}>
+            <i class="bi bi-telegram me-1" aria-hidden="true"></i><span>{{ "Share again to Telegram" if article.telegram_shared_at else "Share to my Telegram channel" }}</span>
         </button>
-        <p class="small mt-2 mb-0" id="telegram-share-status" role="status" aria-live="polite"></p>
-        <a class="small link-body-emphasis" href="{{ url('edit-user', user_id=cur_user.id) }}#integrations">Manage Telegram connection</a>
+        <p class="small mt-2 mb-0" id="telegram-share-status" role="status" aria-live="polite">
+            {% if not cur_user.has_telegram_integration %}Connect Telegram to share this article.
+            {% elif cur_user.status != UserStatus.ACTIVE %}An active account is required to share articles.
+            {% elif article.status != ArticleStatus.PUBLISHED %}Publish this article to share it.
+            {% elif article.telegram_shared_at %}Previously shared to Telegram.{% endif %}
+        </p>
+        <a class="small link-body-emphasis" href="{{ url('edit-user', user_id=cur_user.id) }}#integrations">{{ "Manage Telegram connection" if cur_user.has_telegram_integration else "Connect Telegram" }}</a>
     </div>
     <script>
       document.addEventListener("DOMContentLoaded", () => {
         const button = document.getElementById("telegram-share")
+        if (button.disabled) return
+        const label = button.querySelector("span")
         const status = document.getElementById("telegram-share-status")
         button.addEventListener("click", async () => {
           button.disabled = true
@@ -18,12 +27,20 @@
               method: "POST", credentials: "include", headers: {"Content-Type": "application/json"}, body: "{}"
             })
             const data = await response.json()
-            if (!response.ok) throw new Error(typeof data.details === "string" ? data.details : "Could not share this article.")
+            if (!response.ok) {
+              const error = new Error(typeof data.details === "string" ? data.details : "Could not share this article.")
+              error.canRetry = [401, 403, 404, 409, 413, 415, 422, 429].includes(response.status)
+              throw error
+            }
+            if (data.shared !== true) throw new Error("Unconfirmed share")
             status.textContent = `Shared to ${data.channel_title}.`
-            // Keep disabled after success to prevent accidental duplicate posts on this page.
-          } catch (error) {
-            status.textContent = error.message
+            label.textContent = "Share again to Telegram"
+            button.classList.replace("btn-outline-secondary", "btn-outline-success")
             button.disabled = false
+          } catch (error) {
+            status.textContent = error.canRetry ? error.message :
+              "Could not confirm this share. Check your Telegram channel before trying again."
+            button.disabled = !error.canRetry
           }
         })
       })

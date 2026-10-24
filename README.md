@@ -272,3 +272,25 @@ Emails are sent after successful writes, and delivery failures do not undo the a
 
 Both API Gateway stages have access logs with 14-day retention. These infrastructure changes take effect on the
 next explicitly requested deployment.
+
+## Sharing, support links, and image branding
+
+Article owners have Telegram and Threads controls on their own article pages. Connect accounts in
+**Edit profile → Integrations**. Sharing is manual and requires a published article and an active account.
+Confirmed shares save a timestamp independently of article edits; “Share again” is an intentional new post.
+A timeout or uncertain provider response keeps the button disabled and asks the owner to check the destination.
+Share-history storage failures never turn a successful remote post into a failed share.
+
+Telegram posts attach the article's cover image when present, with the escaped title, category, preview,
+and canonical URL in a caption. Text-only posts retain link previews. Only the preview is shortened to fit
+Telegram's text/caption limit. Full article content is never sent. Threads uses the same metadata and optional
+cover image; image processing continues while the page stays open. An uncertain publish is checked once
+against recent posts and is never automatically repeated.
+
+Configure `THREADS_APP_ID`, `THREADS_APP_SECRET`, and `THREADS_TOKEN_ENCRYPTION_KEY` in ignored `.env.prod`.
+Generate the encryption key with `python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'`.
+Configure the app's OAuth redirect as `https://api.YOUR_DOMAIN/integrations/threads/callback` and grant
+`threads_basic` and `threads_content_publish` access. The API encrypts tokens and binds them to the account,
+Threads identity, and app ID. Changing the encryption key requires reconnection. Tokens and authorization
+codes are excluded from callback access logs. These credentials are separate from any import provider.
+Rebuild the API and test images after adding the API-only `cryptography` dependency.

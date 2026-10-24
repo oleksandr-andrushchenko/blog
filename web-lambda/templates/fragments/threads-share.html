@@ -1,0 +1,73 @@
+{% if cur_user and cur_user.id == article.owner_id %}
+    {% set share_enabled = cur_user.has_threads_integration and cur_user.status == UserStatus.ACTIVE and article.status == ArticleStatus.PUBLISHED %}
+    <div class="mt-3">
+        <button type="button" class="btn {{ 'btn-outline-success' if article.threads_shared_at else 'btn-outline-secondary' }}" id="threads-share"
+                {% if not share_enabled %}disabled{% endif %}>
+            <i class="bi bi-threads me-1" aria-hidden="true"></i><span>{{ "Share again to Threads" if article.threads_shared_at else "Share to my Threads account" }}</span>
+        </button>
+        <p class="small mt-2 mb-0" id="threads-share-status" role="status" aria-live="polite">
+            {% if not cur_user.has_threads_integration %}Connect Threads to share this article.
+            {% elif cur_user.status != UserStatus.ACTIVE %}An active account is required to share articles.
+            {% elif article.status != ArticleStatus.PUBLISHED %}Publish this article to share it.
+            {% elif article.threads_shared_at %}Previously shared to Threads.{% endif %}
+        </p>
+        <a class="small link-body-emphasis d-block d-none" id="threads-share-profile" target="_blank" rel="nofollow noopener noreferrer">
+            <i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>Open Threads profile
+        </a>
+        <a class="small link-body-emphasis" href="{{ url('edit-user', user_id=cur_user.id) }}#integrations">{{ "Manage Threads connection" if cur_user.has_threads_integration else "Connect Threads" }}</a>
+    </div>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const button = document.getElementById("threads-share")
+        if (button.disabled) return
+        const label = button.querySelector("span")
+        const status = document.getElementById("threads-share-status")
+        const profile = document.getElementById("threads-share-profile")
+        button.addEventListener("click", async () => {
+          button.disabled = true
+          status.textContent = "Sharing to Threads…"
+          let preparingMedia = false
+          try {
+            let payload = {}
+            let data
+            do {
+              const response = await fetch({{ url('share-article-threads', article_id=article.id, absolute=True) | tojson }}, {
+                method: "POST", credentials: "include", headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(payload)
+              })
+              data = await response.json()
+              if (!response.ok) {
+                const error = new Error(typeof data.details === "string" ? data.details : "Could not share this article.")
+                error.canRetry = !preparingMedia && [401, 403, 404, 409, 413, 415, 422, 429].includes(response.status)
+                throw error
+              }
+              if (data.status === "processing") {
+                preparingMedia = true
+                if (typeof data.continuation !== "string") throw new Error("Missing share progress")
+                status.textContent = "Preparing your attachments for Threads… Keep this page open."
+                payload = {continuation: data.continuation}
+                await new Promise(resolve => setTimeout(resolve, Math.max(0, Math.min(60, data.retry_after || 0)) * 1000))
+              }
+            } while (data.status === "processing")
+            if (typeof data.username === "string" && data.username) {
+              profile.href = `https://www.threads.com/@${encodeURIComponent(data.username)}`
+              profile.classList.remove("d-none")
+            }
+            if (data.status === "unconfirmed") {
+              status.textContent = `Threads has not confirmed this share yet. Check @${data.username}'s profile before trying again.`
+              return
+            }
+            if (data.shared !== true) throw new Error("Unconfirmed share")
+            status.textContent = `Shared to @${data.username} on Threads.`
+            label.textContent = "Share again to Threads"
+            button.classList.replace("btn-outline-secondary", "btn-outline-success")
+            button.disabled = false
+          } catch (error) {
+            status.textContent = error.canRetry ? error.message :
+              "Could not confirm this share. Check your Threads profile before trying again."
+            button.disabled = !error.canRetry
+          }
+        })
+      })
+    </script>
+{% endif %}

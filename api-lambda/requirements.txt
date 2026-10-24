@@ -8,3 +8,4 @@ python-multipart
 filetype
 nh3
 Pillow>=11.3.0
+cryptography

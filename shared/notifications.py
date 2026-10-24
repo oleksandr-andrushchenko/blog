@@ -9,6 +9,18 @@ from urllib.request import Request, urlopen
 from app_config import get_telegram_bot_token, get_telegram_chat_id, get_telegram_log_level
 
 
+def _access_log_url(value):
+    from urllib.parse import urlsplit, urlunsplit
+    try:
+        parts = urlsplit(str(value))
+    except ValueError:
+        # Referrers are untrusted and must never break access logging.
+        return str(value).split('?', 1)[0]
+    if parts.path.rstrip('/') == '/integrations/threads/callback':
+        return urlunsplit((parts.scheme, parts.netloc, parts.path, '', ''))
+    return str(value)
+
+
 def get_access_log(request, status: int) -> tuple[int, str]:
     if status >= 500:
         level = logging.ERROR
@@ -21,8 +33,8 @@ def get_access_log(request, status: int) -> tuple[int, str]:
     protocol = f"HTTP/{request.scope.get('http_version', '1.1')}"
     message = (
         f"{client_ip or '-'} - "
-        f"{json.dumps(f'{request.method} {request.url} {protocol}', ensure_ascii=False)} {status} - "
-        f"{json.dumps(request.headers.get('referer') or '-', ensure_ascii=False)} "
+        f"{json.dumps(f'{request.method} {_access_log_url(request.url)} {protocol}', ensure_ascii=False)} {status} - "
+        f"{json.dumps(_access_log_url(request.headers.get('referer') or '-'), ensure_ascii=False)} "
         f"{json.dumps(request.headers.get('user-agent') or '-', ensure_ascii=False)}"
     )
     return level, message

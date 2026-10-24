@@ -1,6 +1,9 @@
 """Canonical API route names and path templates."""
 
 API_URL_ROUTES = {
+    "threads-connection": "/users/{user_id}/integrations/threads",
+    "threads-callback": "/integrations/threads/callback",
+    "share-article-threads": "/articles/{article_id}/share/threads",
     "telegram-webhook": "/integrations/telegram/webhook",
     "telegram-connection": "/users/{user_id}/integrations/telegram",
     "share-article-telegram": "/articles/{article_id}/share/telegram",

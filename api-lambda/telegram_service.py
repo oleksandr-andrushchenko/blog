@@ -13,6 +13,7 @@ from botocore.exceptions import ClientError
 
 from api_route_metadata import API_URL_ROUTES
 from app_config import get_config
+from article_sharing import authorize_article_owner, article_media, remember_article_share
 from query_dtos import ArticleStatus, UserStatus
 from shared_utils import (
     DynamoDBTransactionError, add_dynamodb_delete_transact, add_dynamodb_put_transact,
@@ -56,11 +57,25 @@ def verify_webhook(secret):
         raise HTTPException(403, "Invalid Telegram webhook authentication")
 
 
-def telegram_call(method, **payload):
+def telegram_call(method, *, files=None, **payload):
     # urllib avoids HTTP client INFO request logs exposing bot tokens embedded in URLs.
+    content_type = 'application/json'
+    data = json.dumps(jsonable(payload)).encode()
+    if files:
+        boundary = secrets.token_hex(24)
+        content_type = 'multipart/form-data; boundary=' + boundary
+        parts = []
+        for name, value in jsonable(payload).items():
+            value = json.dumps(value) if isinstance(value, (dict, list, bool)) else str(value)
+            parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n'.encode()
+                         + value.encode() + b'\r\n')
+        for name, (filename, content) in files.items():
+            parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"; filename="{filename}"\r\n'
+                         'Content-Type: application/octet-stream\r\n\r\n'.encode() + content + b'\r\n')
+        data = b''.join(parts) + f'--{boundary}--\r\n'.encode()
     request = URLRequest(
         f"https://api.telegram.org/bot{_bot_token()}/{method}",
-        data=json.dumps(jsonable(payload)).encode(), headers={"Content-Type": "application/json"}, method="POST",
+        data=data, headers={"Content-Type": content_type}, method="POST",
     )
     try:
         with urlopen(request, timeout=8) as response:
@@ -69,10 +84,12 @@ def telegram_call(method, **payload):
         if error.code == 429:
             raise HTTPException(429, "Telegram rate limit reached. Wait before trying again") from None
         if error.code in (400, 401, 403, 404):
-            raise HTTPException(422, "Telegram rejected the request. Reconnect your channel and check posting permissions") from None
+            raise HTTPException(422,
+                                "Telegram rejected the request. Reconnect your channel and check posting permissions") from None
         raise HTTPException(502, "Telegram is unavailable. Try again later") from None
     except (URLError, TimeoutError, ValueError):
-        raise HTTPException(502, "Telegram did not confirm the request. Check your channel before retrying a share") from None
+        raise HTTPException(502,
+                            "Telegram did not confirm the request. Check your channel before retrying a share") from None
     if not isinstance(result, dict) or not result.get("ok") or "result" not in result:
         raise HTTPException(502, "Telegram did not confirm the request")
     return result["result"]
@@ -334,12 +351,14 @@ def _telegram_text_units(text):
 
 def share_article(article, actor, request):
     authorize_owner(actor, actor)
+    authorize_article_owner(article, actor)
     if article.status != ArticleStatus.PUBLISHED:
         raise HTTPException(404, "Only published articles can be shared to a channel")
     connection = get_connection(actor, actor)
     if not connection:
         raise HTTPException(409, "Connect a Telegram channel in your profile's Integrations tab first")
     _verify_posting(connection["channel_id"], connection["telegram_user_id"], connection["bot_id"])
+    media = article_media(article, request)
     url = get_article_url(request, article, absolute=True)
     category = find_category(article.category) if article.category else None
     category_name = category.name if category else (article.category or "other").replace("-", " ").title()
@@ -350,17 +369,39 @@ def share_article(article, actor, request):
     }
     description = html_to_text(article.preview) or ""
     text = template.render(context, description=description)
-    if _telegram_text_units(text) > 4096:
+    limit = 1024 if media else 4096
+    if _telegram_text_units(text) > limit:
         # Reserve the rendered heading, title, CTA and link; only shorten the description.
         fixed_units = _telegram_text_units(template.render(context, description=""))
-        available = 4096 - fixed_units - 3  # Description paragraph separator and ellipsis.
+        available = limit - fixed_units - 3  # Description paragraph separator and ellipsis.
         if available < 0:
             raise HTTPException(422, "Article details are too long to share to Telegram")
         description = description.encode("utf-16-le")[:available * 2].decode("utf-16-le", errors="ignore") + "…"
         text = template.render(context, description=description)
-    message = telegram_call("sendMessage", chat_id=connection["channel_id"], text=text, parse_mode="HTML",
-                            link_preview_options={"url": url})
-    return {"shared": True, "message_id": message["message_id"], "channel_title": connection["channel_title"]}
+    if media:
+        message = _send_article_media(connection['channel_id'], media, text)
+    else:
+        message = telegram_call("sendMessage", chat_id=connection["channel_id"], text=text, parse_mode="HTML",
+                                link_preview_options={"url": url})
+    return remember_article_share(article, 'telegram', {
+        "shared": True, "message_id": message["message_id"], "channel_title": connection["channel_title"],
+    }, article_url=url, post_url=_message_url(message, connection))
+
+
+def _message_url(message, connection):
+    chat = message.get('chat') or {}
+    username = chat.get('username') if chat.get('id') else connection.get('channel_username')
+    if username:
+        return f'https://t.me/{username}/{message["message_id"]}'
+    channel_id = str(chat.get('id') or connection['channel_id'])
+    if channel_id.startswith('-100'):
+        return f'https://t.me/c/{channel_id[4:]}/{message["message_id"]}'
+    return None
+
+
+def _send_article_media(channel_id, media, caption):
+    return telegram_call('sendPhoto', chat_id=channel_id, photo=media[0]['url'],
+                         caption=caption, parse_mode='HTML')
 
 
 def configure_webhook(*, apply=False):
