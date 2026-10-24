@@ -180,9 +180,6 @@
                     {% endwith %}
                 </div>
 
-                {% include "fragments/telegram-share.html" %}
-                    {% include "fragments/threads-share.html" %}
-
                 {{ render_article_content(article.content) | safe }}
             </article>
         </div>
@@ -201,6 +198,13 @@
                 {% include "fragments/bmc-donate.html" %}
                 {% with support_article=true %}{% include "fragments/creator-support-links.html" %}{% endwith %}
             {% endwith %}
+
+            {% if cur_user and cur_user.id == article.owner_id %}
+                <div class="mb-4">
+                    {% include "fragments/telegram-share.html" %}
+                    {% include "fragments/threads-share.html" %}
+                </div>
+            {% endif %}
 
             {% if related_articles %}
                 <section class="mb-4">
