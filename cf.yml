@@ -106,6 +106,10 @@ Parameters:
     Type: String
     Description: Google OAuth Client Secret for Cognito Identity Provider
     NoEcho: true
+  AppleCredentialsSecretArn:
+    Type: String
+    Default: ''
+    Description: Optional Secrets Manager ARN with Apple services_id, team_id, key_id, and private_key
   TinyMceApiKey:
     Type: String
     Description: TinyMCE API key
@@ -129,6 +133,11 @@ Parameters:
   ImgFuncS3Key:
     Type: String
     Description: S3 key of the image Lambda zip file
+
+Conditions:
+  AppleSignInEnabled:
+    Fn::Not:
+      - Fn::Equals: [!Ref AppleCredentialsSecretArn, '']
 
 Resources:
   GoogleSearchConsoleCredentialsSecret:
@@ -955,6 +964,24 @@ Resources:
         email: email
         username: sub
 
+  AppleIdentityProvider:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Condition: AppleSignInEnabled
+    Properties:
+      ProviderName: SignInWithApple
+      ProviderType: SignInWithApple
+      UserPoolId: !Ref CognitoUserPoolV2
+      ProviderDetails:
+        client_id: !Sub '{{resolve:secretsmanager:${AppleCredentialsSecretArn}:SecretString:services_id}}'
+        team_id: !Sub '{{resolve:secretsmanager:${AppleCredentialsSecretArn}:SecretString:team_id}}'
+        key_id: !Sub '{{resolve:secretsmanager:${AppleCredentialsSecretArn}:SecretString:key_id}}'
+        private_key: !Sub '{{resolve:secretsmanager:${AppleCredentialsSecretArn}:SecretString:private_key}}'
+        authorize_scopes: 'email name'
+      AttributeMapping:
+        email: email
+        username: sub
+        name: name
+
   CognitoUserPoolClient:
     Type: AWS::Cognito::UserPoolClient
     DependsOn: GoogleIdentityProvider
@@ -978,6 +1005,7 @@ Resources:
       SupportedIdentityProviders:
         - COGNITO
         - Google
+        - Fn::If: [AppleSignInEnabled, !Ref AppleIdentityProvider, !Ref 'AWS::NoValue']
 
   CognitoUserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain

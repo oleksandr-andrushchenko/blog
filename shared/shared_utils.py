@@ -1111,7 +1111,8 @@ def build_user_name(raw_name: str | None, now: int) -> str:
 
 
 def build_user_username(raw_name: str | None, raw_username: str | None, now: int) -> str | None:
-    base = raw_username or raw_name
+    # Authentication provider usernames must never become public profile slugs.
+    base = raw_name
     if not base:
         return None
 

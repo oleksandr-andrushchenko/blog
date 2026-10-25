@@ -60,6 +60,7 @@ YANDEX_WEBMASTER_USER_ID := $(shell sed -n "s/^YANDEX_WEBMASTER_USER_ID=//p" $(P
 YANDEX_WEBMASTER_HOST_ID := $(shell sed -n "s/^YANDEX_WEBMASTER_HOST_ID=//p" $(PROD_ENV_FILE) 2>/dev/null)
 GOOGLE_OAUTH_CLIENT_ID := $(shell sed -n "s/^GOOGLE_OAUTH_CLIENT_ID=//p" $(PROD_ENV_FILE) 2>/dev/null)
 GOOGLE_OAUTH_CLIENT_SECRET := $(shell sed -n "s/^GOOGLE_OAUTH_CLIENT_SECRET=//p" $(PROD_ENV_FILE) 2>/dev/null)
+APPLE_CREDENTIALS_SECRET_ARN := $(shell sed -n "s/^APPLE_CREDENTIALS_SECRET_ARN=//p" $(PROD_ENV_FILE) 2>/dev/null)
 TINYMCE_API_KEY := $(shell sed -n "s/^TINYMCE_API_KEY=//p" $(PROD_ENV_FILE) 2>/dev/null)
 CSS_CACHE_COUNTER := $(shell sed -n "s/^CSS_CACHE_COUNTER=//p" $(PROD_ENV_FILE) 2>/dev/null)
 JS_CACHE_COUNTER := $(shell sed -n "s/^JS_CACHE_COUNTER=//p" $(PROD_ENV_FILE) 2>/dev/null)
@@ -236,6 +237,7 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 			YandexWebmasterHostId="$(YANDEX_WEBMASTER_HOST_ID)" \
 			GoogleOauthClientId="$(GOOGLE_OAUTH_CLIENT_ID)" \
 			GoogleOauthClientSecret="$(GOOGLE_OAUTH_CLIENT_SECRET)" \
+			AppleCredentialsSecretArn="$(APPLE_CREDENTIALS_SECRET_ARN)" \
 			TinyMceApiKey="$(TINYMCE_API_KEY)" \
 			CssCacheCounter="$(CSS_CACHE_COUNTER)" \
 			JsCacheCounter="$(JS_CACHE_COUNTER)" \

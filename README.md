@@ -53,6 +53,55 @@
   up                   Start local Docker containers
 ```
 
+## Sign in with Apple
+
+Sign-in uses Cognito's hosted login page. Apple appears alongside Google when
+`APPLE_CREDENTIALS_SECRET_ARN` is set in ignored `.env.prod` and the infrastructure
+is deployed. Leave it empty to keep Apple disabled. Both providers use the existing
+`/login-callback` and application session cookies; no Lambda credentials are needed.
+
+Follow [AWS's Apple setup guide](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-social-idp-apple.html)
+to create an Apple App ID with Sign in with Apple enabled, an associated Services ID,
+and a Sign in with Apple private key. Record the Services ID, Team ID, and Key ID.
+Configure the Services ID with:
+
+- Domain: `${AWS_STACK}.auth.${AWS_REGION}.amazoncognito.com` (substitute the deployment values).
+- Return URL: `https://${AWS_STACK}.auth.${AWS_REGION}.amazoncognito.com/oauth2/idpresponse`.
+
+Create a Secrets Manager secret in the stack's account and region containing JSON
+with these fields (use your actual values through the AWS console):
+
+```json
+{
+  "services_id": "com.example.catalog.login",
+  "team_id": "EXAMPLETEAM",
+  "key_id": "EXAMPLEKEY",
+  "private_key": "<Apple .p8 private key>"
+}
+```
+
+For `private_key`, remove the `.p8` PEM header/footer and line breaks, leaving the
+base64 key body. Set `APPLE_CREDENTIALS_SECRET_ARN` to the secret's ARN. The
+CloudFormation deployment identity needs `secretsmanager:GetSecretValue` and,
+for a customer-managed encryption key, `kms:Decrypt`. CloudFormation resolves the
+secret directly into Cognito; the private key stays out of environment files,
+deployment arguments, and Lambda configuration.
+
+On an explicitly authorized infrastructure deployment, Cognito enables Apple with
+`email name` scopes and maps email, provider identity, and name. Test first and
+repeat sign-ins with both Share My Email and Hide My Email after deployment.
+Apple supplies names only on initial consent; a missing name uses the existing
+application fallback and no public username until one is chosen. Provider usernames
+remain authentication metadata. Hide My Email can create a separate account from Google
+because the email addresses differ. Register the application's email sending
+domain with Apple's private email relay service to deliver notifications to those
+addresses.
+
+For key rotation, create a replacement secret and update its ARN before deploying
+the infrastructure. Updating only a secret's value does not cause CloudFormation
+to refresh an unchanged Cognito resource. Verify Apple sign-in before revoking
+the old key.
+
 ## AWS deployment
 
 Use `.env.example` as the template for both environment files. Keep local

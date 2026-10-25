@@ -216,6 +216,9 @@
 
 ## Cognito Apple sign-in and profile forms
 
+- Optional Apple sign-in is enabled by `AppleCredentialsSecretArn` in CloudFormation, wired from
+  `APPLE_CREDENTIALS_SECRET_ARN` in the deployment environment. Resolve Apple key material directly from Secrets
+  Manager into Cognito; do not pass it to Lambdas or commit it. Empty configuration retains existing providers.
 - Omit unchanged usernames from profile form requests so display-name edits do not trigger legacy username
   validation. Preserve actual username edits and the existing support-link prepareData behavior.
 - Support-link POSTs return non-cacheable HTTP 303 redirects with the existing origin, prefetch, and referrer-policy
