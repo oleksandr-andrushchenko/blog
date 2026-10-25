@@ -17,11 +17,13 @@ def get_creator_link(user, kind, link_id, article=None) -> CreatorLink:
     if user.status != 'active' or (article is not None and article.owner_id != user.id):
         raise ValueError('Creator link is unavailable')
     links = get_creator_links(user, kind)
-    if article is not None and getattr(article, f'{kind}_providers') is not None and link_id not in getattr(article, f'{kind}_providers'):
-        raise ValueError('Creator link is unavailable')
     link = next((link for link in links if link.id == link_id), None)
     if link and validate_link_url(link.url):
-        return link
+        enabled = (link.show_on_user_page if article is None else
+                   link.id in article.support_providers if article.support_providers is not None else
+                   link.default_all_articles or article.category in link.default_categories)
+        if enabled:
+            return link
     raise ValueError('Creator link is unavailable')
 
 

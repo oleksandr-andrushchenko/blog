@@ -603,7 +603,8 @@ async def edit_user(user: UserDep, cur_user: CurUserDep) -> str:
         raise UserBannedError
     return get_html_content("edit-user.html", {
         "cur_user": cur_user,
-        "user": user
+        "user": user,
+        "categories": get_categories()
     })
 
 

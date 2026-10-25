@@ -1,38 +1,74 @@
-{% macro link_row(link, kind) %}
+{% macro link_row(link, kind, categories) %}
     {% set clicks = link.clicks_count | default(0) %}
-    <fieldset class="card card-body gap-3" data-{{ kind }}-link data-link-id="{{ link.id }}">
+    <fieldset class="card card-body gap-2 p-3" data-{{ kind }}-link data-link-id="{{ link.id }}">
         <legend class="float-none w-auto h6 px-1">{{ kind | capitalize }} link</legend>
-        <div>
-            <label class="form-label" for="{{ kind }}-{{ link.id }}-name">Link name</label>
-            <input class="form-control" id="{{ kind }}-{{ link.id }}-name" data-link-field="name"
-                   type="text" maxlength="100" required value="{{ link.name }}" placeholder="Platform name">
+        <div class="row g-2">
+            <div class="{{ {"def": 12, "md": 3} | col_classes }}">
+                <label class="form-label small mb-1" for="{{ kind }}-{{ link.id }}-name">Link name</label>
+                <input class="form-control form-control-sm" id="{{ kind }}-{{ link.id }}-name" data-link-field="name"
+                       type="text" maxlength="100" required value="{{ link.name }}" placeholder="Platform name">
+            </div>
+            <div class="{{ {"def": 12, "md": 5} | col_classes }}">
+                <label class="form-label small mb-1"
+                       for="{{ kind }}-{{ link.id }}-url">{{ 'Referral' if kind == 'affiliate' else 'Support' }}
+                    URL</label>
+                <input class="form-control form-control-sm" id="{{ kind }}-{{ link.id }}-url" data-link-field="url"
+                       type="url" maxlength="2048" required value="{{ link.url }}" placeholder="https://…">
+            </div>
+            <div class="{{ {"def": 12, "md": 4} | col_classes }}">
+                <label class="form-label small mb-1" for="{{ kind }}-{{ link.id }}-text">Button text (optional)</label>
+                <input class="form-control form-control-sm" id="{{ kind }}-{{ link.id }}-text" data-link-field="text"
+                       type="text" maxlength="150" value="{{ link.text }}"
+                       placeholder="Default: {{ 'Try' if kind == 'affiliate' else 'Support on' }} [link name]">
+            </div>
         </div>
-        <div>
-            <label class="form-label" for="{{ kind }}-{{ link.id }}-text">Button text (optional)</label>
-            <input class="form-control" id="{{ kind }}-{{ link.id }}-text" data-link-field="text"
-                   type="text" maxlength="150" value="{{ link.text }}" placeholder="Support my work">
-            <p class="form-text mb-0">Leave empty to use “Support on” followed by the link name.</p>
+        <fieldset>
+            <legend class="h6">Enabled by default</legend>
+            <p class="form-text mt-0">Preselect this link for matching articles. You can enable or disable this link when
+                creating or editing each article.</p>
+            <div class="d-flex flex-wrap gap-3">
+                {% for field, label, checked in [
+                    ('show_on_user_page', 'User page', link.show_on_user_page | default(true)),
+                    ('default_all_articles', 'All articles', link.default_all_articles | default(true)),
+                ] %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="{{ kind }}-{{ link.id }}-{{ field }}"
+                               data-link-option="{{ field }}" data-form-ignore {% if checked %}checked{% endif %}>
+                        <label class="form-check-label" for="{{ kind }}-{{ link.id }}-{{ field }}">{{ label }}</label>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="d-flex flex-wrap gap-3 mt-2">
+                {% for category in categories %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox"
+                               id="{{ kind }}-{{ link.id }}-category-{{ category.slug }}"
+                               data-link-category value="{{ category.slug }}" data-form-ignore
+                               {% if link.default_all_articles | default(true) or category.slug in link.default_categories | default([]) %}checked{% endif %}>
+                        <label class="form-check-label"
+                               for="{{ kind }}-{{ link.id }}-category-{{ category.slug }}">{{ category.name }}</label>
+                    </div>
+                {% endfor %}
+            </div>
+        </fieldset>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <p class="small text-body-secondary mb-0 me-auto" data-{{ kind }}-clicks>
+                <i class="bi bi-cursor" aria-hidden="true"></i> {{ clicks }}
+                reader {{ "click" if clicks == 1 else "clicks" }}
+            </p>
+            <button type="button" class="btn btn-sm btn-outline-danger" data-remove-{{ kind }}>
+                <i class="bi bi-trash" aria-hidden="true"></i> Remove link
+            </button>
         </div>
-        <div>
-            <label class="form-label" for="{{ kind }}-{{ link.id }}-url">Support URL</label>
-            <input class="form-control" id="{{ kind }}-{{ link.id }}-url" data-link-field="url"
-                   type="url" maxlength="2048" required value="{{ link.url }}" placeholder="https://…">
-        </div>
-        <p class="small text-body-secondary mb-0" data-{{ kind }}-clicks>
-            <i class="bi bi-cursor" aria-hidden="true"></i> {{ clicks }} reader {{ "click" if clicks == 1 else "clicks" }}
-        </p>
-        <button type="button" class="btn btn-outline-danger align-self-start" data-remove-{{ kind }}>
-            <i class="bi bi-trash" aria-hidden="true"></i> Remove link
-        </button>
     </fieldset>
 {% endmacro %}
-{% macro link_editor(kind, links) %}
+{% macro link_editor(kind, links, categories) %}
     <input type="hidden" name="{{ kind }}_links" data-form-ignore>
     <div id="{{ kind }}-links" class="d-flex flex-column gap-3">
-        {% for link in links %}{{ link_row(link, kind) }}{% endfor %}
+        {% for link in links %}{{ link_row(link, kind, categories) }}{% endfor %}
     </div>
     <template id="{{ kind }}-link-template">
-        {{ link_row({"id": "new-link", "name": "", "text": "", "url": ""}, kind) }}
+        {{ link_row({"id": "new-link", "name": "", "text": "", "url": "", "default_all_articles": false}, kind, categories) }}
     </template>
     <button type="button" id="add-{{ kind }}-link" class="btn btn-outline-primary align-self-start">
         <i class="bi bi-plus-lg" aria-hidden="true"></i> Add {{ kind }} link

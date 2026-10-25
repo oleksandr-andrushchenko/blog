@@ -2,7 +2,7 @@
 {% set support_owner_view = cur_user and cur_user.id == user.id %}
 {% set support = namespace(links=[]) %}
 {% for link in user.support_links %}
-    {% if not support_article | default(false) or article.support_providers is none or link.id in article.support_providers %}
+    {% if (support_article | default(false) and ((article.support_providers is none and (link.default_all_articles or article.category in link.default_categories)) or (article.support_providers is not none and link.id in article.support_providers))) or (not support_article | default(false) and link.show_on_user_page) %}
         {% set support.links = support.links + [link] %}
     {% endif %}
 {% endfor %}

@@ -297,7 +297,8 @@ codes are excluded from callback access logs. These credentials are separate fro
 Rebuild the API and test images after adding the API-only `cryptography` dependency.
 
 The **Earn** profile tab preserves Buy Me a Coffee and supports up to 20 additional named HTTPS support
-or membership links. Article forms can inherit all saved links or choose a subset. Profile editing shows
+or membership links. Links can default to all articles or selected categories and can be hidden from the public profile independently.
+Article forms can inherit these defaults or choose an explicit subset. Existing links default to all articles. Profile editing shows
 reader click totals; owners also see article-specific totals beside their article's support links. Counts
 exclude owner clicks and are best effort, not unique-visitor analytics. POST navigation rejects cross-origin
 submissions and prefetches; signed internal API notifications keep database mutations in the API Lambda.

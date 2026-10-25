@@ -188,7 +188,7 @@
                 <h2 class="h5">Other support links</h2>
                 <p>Add HTTPS support or membership pages. Counts exclude your own clicks.</p>
                 {% from "fragments/creator-link-editor.html" import link_editor %}
-                {{ link_editor('support', user.support_links if user else []) }}
+                {{ link_editor('support', user.support_links if user else [], categories) }}
             </section>
         </div>
         <div class="tab-pane py-3" id="notifications" role="tabpanel" aria-labelledby="notifications-tab" tabindex="0">
@@ -280,6 +280,13 @@
         container.append(row)
         row.querySelector("input").focus()
       })
+      container.addEventListener('change', event => {
+        if (event.target.dataset.linkOption !== 'default_all_articles') return
+        const row = event.target.closest('[data-support-link]')
+        row.querySelectorAll('[data-link-category]').forEach(input => {
+          input.checked = event.target.checked
+        })
+      })
       container.addEventListener("click", event => {
         if (event.target.closest(`[data-remove-${kind}]`)) {
           event.target.closest(`[data-${kind}-link]`).remove()
@@ -294,6 +301,9 @@
         for (const kind of linkKinds) {
           data[`${kind}_links`] = linkRows(kind).map(row => ({
             id: row.dataset.linkId,
+            default_all_articles: row.querySelector('[data-link-option="default_all_articles"]').checked,
+            show_on_user_page: row.querySelector('[data-link-option="show_on_user_page"]').checked,
+            default_categories: [...row.querySelectorAll('[data-link-category]:checked')].map(input => input.value),
             ...Object.fromEntries([...row.querySelectorAll("[data-link-field]")]
               .map(input => [input.dataset.linkField, input.value.trim()]))
           }))

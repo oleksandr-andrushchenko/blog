@@ -186,7 +186,8 @@
   access logs. Continuations are encrypted and bound to the account, article, and connection session.
 - Support-link navigation uses same-origin POST forms. The web Lambda sends signed, short-lived click notifications
   to the API; persistence stays API-owned. Guard link-list edits against concurrent click increments. Existing BMC
-  links remain compatible. `support_providers: null` inherits all profile links; `[]` hides them all.
+  links remain compatible. `support_providers: null` inherits category-aware profile defaults; `[]` hides them all.
+  Legacy support links default to all articles and stay visible on profiles; per-link profile visibility is independent.
 - Optional watermarks apply only through `upload-article-image`, used by the article editor. Generic uploads stay
   unmarked. Save originals before publishing branded bytes, outside the public static directory or in the separate
   private originals bucket. Preserve animated files.

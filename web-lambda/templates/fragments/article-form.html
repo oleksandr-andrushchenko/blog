@@ -41,11 +41,11 @@
                 <div class="form-check">
                     <input type="checkbox" class="form-check-input" id="inherit-support" name="inherit_support"
                            {% if not article or article.support_providers is none %}checked{% endif %}>
-                    <label class="form-check-label" for="inherit-support">Use all my profile support links</label>
+                    <label class="form-check-label" for="inherit-support">Use my profile support-link defaults</label>
                 </div>
                 {% for link in cur_user.support_links %}
                     <div class="form-check">
-                        <input type="checkbox" class="form-check-input" id="support-{{ link.id }}" data-support-id="{{ link.id }}"
+                        <input type="checkbox" class="form-check-input" id="support-{{ link.id }}" data-support-id="{{ link.id }}" data-default-all="{{ link.default_all_articles | tojson }}" data-default-categories='{{ link.default_categories | tojson }}'
                                {% if article and article.support_providers is not none and link.id in article.support_providers %}checked{% endif %}>
                         <label class="form-check-label" for="support-{{ link.id }}">{{ link.name }}</label>
                     </div>
@@ -69,6 +69,17 @@
 
 <script>
   document.addEventListener("DOMContentLoaded", () => {
+    const inheritSupport = document.getElementById('inherit-support')
+    const syncSupportDefaults = () => {
+      if (!inheritSupport?.checked) return
+      const category = document.querySelector('#article-form input[name="category"]:checked')?.value
+      document.querySelectorAll('[data-support-id]').forEach(input => {
+        input.checked = input.dataset.defaultAll === 'true' || JSON.parse(input.dataset.defaultCategories).includes(category)
+      })
+    }
+    inheritSupport?.addEventListener('change', syncSupportDefaults)
+    document.querySelectorAll('#article-form input[name="category"]').forEach(input => input.addEventListener('change', syncSupportDefaults))
+    syncSupportDefaults()
     handleFormSubmit("#article-form", {{ (url('update-article', article_id=article.id, absolute=True) if article else url('create-article', absolute=True)) | tojson }}, {
       method: "{{ 'PATCH' if article else 'POST' }}",
       prepareData: data => {

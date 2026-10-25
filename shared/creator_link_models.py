@@ -1,5 +1,5 @@
 """Typed creator links and common validation for affiliate and support destinations."""
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 import re
 from typing import TypeVar
 from urllib.parse import urlsplit
@@ -14,6 +14,9 @@ class CreatorLink:
     url: str
     text: str = ""
     clicks_count: int = 0
+    default_all_articles: bool = True
+    default_categories: list[str] = field(default_factory=list)
+    show_on_user_page: bool = True
 
 
 @dataclass(slots=True)
@@ -60,7 +63,7 @@ def validate_links(values: list[dict | LinkType], *, link_type: type[LinkType], 
         if isinstance(value, link_type):
             value = asdict(value)
             value.pop('clicks_count')
-        if not isinstance(value, dict) or set(value) - {'id', 'name', 'text', 'url'}:
+        if not isinstance(value, dict) or set(value) - {'id', 'name', 'text', 'url', 'default_all_articles', 'default_categories', 'show_on_user_page'}:
             raise ValueError(f'Each {kind} link needs an ID, name, button text, and URL')
         link_id = value.get('id')
         validate_link_ids([link_id], field_name=f'{kind}_links')
@@ -74,5 +77,11 @@ def validate_links(values: list[dict | LinkType], *, link_type: type[LinkType], 
         url = validate_link_url(value.get('url'), label=f'{kind.title()} link')
         if not url:
             raise ValueError(f'Each {kind} link needs a full HTTPS URL')
-        result.append(link_type(id=link_id, name=name, text=text, url=url))
+        all_articles, user_page = value.get('default_all_articles', True), value.get('show_on_user_page', True)
+        if type(all_articles) is not bool or type(user_page) is not bool:
+            raise ValueError('Link default options must be true or false')
+        categories = validate_link_ids(value.get('default_categories', []), field_name='default_categories')
+        result.append(link_type(id=link_id, name=name, text=text, url=url,
+                                default_all_articles=all_articles, default_categories=categories,
+                                show_on_user_page=user_page))
     return result

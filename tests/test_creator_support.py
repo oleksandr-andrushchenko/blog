@@ -120,3 +120,31 @@ def test_invalid_click_notification_returns_authentication_error():
     with pytest.raises(HTTPException) as error:
         api_utils.notify_creator_link_click('invalid', None)
     assert error.value.status_code == 401
+
+
+def test_support_defaults_preserve_legacy_and_allow_category_and_profile_controls(saved_support):
+    _, user, article = saved_support
+    article.category = 'caching'
+    article.support_providers = None
+    assert get_creator_link(user, 'support', 'membership', article)
+    link = user.support_links[0]
+    link.default_all_articles = False
+    link.default_categories = ['caching']
+    link.show_on_user_page = False
+    assert get_creator_link(user, 'support', 'membership', article)
+    with pytest.raises(ValueError):
+        get_creator_link(user, 'support', 'membership')
+    article.category = 'other'
+    with pytest.raises(ValueError):
+        get_creator_link(user, 'support', 'membership', article)
+    article.support_providers = ['membership']
+    assert get_creator_link(user, 'support', 'membership', article)
+    article.support_providers = []
+    with pytest.raises(ValueError):
+        get_creator_link(user, 'support', 'membership', article)
+
+
+@pytest.mark.parametrize('options', [{'default_all_articles': 'yes'}, {'show_on_user_page': 1}, {'default_categories': ['bad id']}])
+def test_support_default_options_are_validated(options):
+    with pytest.raises(ValueError):
+        UpdateUserDTO(support_links=[{'id': 'tip', 'name': 'Tip', 'url': 'https://support.example', **options}])
