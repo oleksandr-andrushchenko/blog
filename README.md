@@ -182,7 +182,8 @@ build/upload both Lambdas and run `make deploy-infra` (or use `make deploy`).
 The CloudFormation bot-token parameter uses `NoEcho`.
 
 Activity records cover newly saved users, articles, comments, contact messages,
-and article status changes. Existing-user logins do not log registration events.
+and article status changes. Resource events include canonical URLs in log context when
+a request is available; request-free commands retain identifier context. Existing-user logins do not log registration events.
 Web/API exception handlers log unexpected exceptions and HTTP 5xx exceptions at
 ERROR, and handled HTTP 4xx exceptions at INFO. Returning a 5xx response directly
 does not trigger an exception handler; log the failure where it occurs. Existing logged failures, including publication email failures, also

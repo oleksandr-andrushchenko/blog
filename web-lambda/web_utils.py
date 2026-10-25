@@ -37,7 +37,7 @@ def get_login_redirect_url(callback_url: str) -> str:
     return callback_url
 
 
-def get_user_token_by_code(code: str, callback_url: str) -> UserTokenDTO:
+def get_user_token_by_code(code: str, callback_url: str, *, req=None) -> UserTokenDTO:
     if is_prod():
         if not code:
             raise InvalidCodeError("Missing code")
@@ -84,7 +84,7 @@ def get_user_token_by_code(code: str, callback_url: str) -> UserTokenDTO:
             raise InvalidCodeError("Invalid code") from exc
         user_token = get_dummy_user_token(**token_args)
 
-    upsert_user_by_user_token(user_token)
+    upsert_user_by_user_token(user_token, req=req)
     return user_token
 
 

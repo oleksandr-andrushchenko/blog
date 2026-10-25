@@ -126,12 +126,12 @@ def create_dummy_fixtures(req=None) -> None:
         return random_figure(alt) + content
 
     user_token = get_dummy_user_token()
-    root_user = upsert_user_by_user_token(user_token)
+    root_user = upsert_user_by_user_token(user_token, req=req)
     created_users.append(root_user)
     update_dynamodb_item((f"USER#{root_user.id}", "META"), {"permissions": [Permission.ROOT]})
     root_user.permissions = [Permission.ROOT]
     for slug, name, description in fixture_categories:
-        create_category(slug, name, description, root_user)
+        create_category(slug, name, description, root_user, req=req)
     update_user_dto = UpdateUserDTO(
         name="John Doe",
         avatar_action="replace",
@@ -149,14 +149,14 @@ def create_dummy_fixtures(req=None) -> None:
     )
     update_user(root_user, update_user_dto, root_user, req)
     user_token3 = get_dummy_user_token(sub="p3", email="test3@example.com")
-    user3 = upsert_user_by_user_token(user_token3)
+    user3 = upsert_user_by_user_token(user_token3, req=req)
     created_users.append(user3)
     update_user(user3, UpdateUserDTO(
         name=unique_user_name(),
         avatar_action="delete",
     ), root_user, req)
     user_token4 = get_dummy_user_token(sub="p4", email="test4@example.com")
-    user4 = upsert_user_by_user_token(user_token4)
+    user4 = upsert_user_by_user_token(user_token4, req=req)
     created_users.append(user4)
     update_user(user4, UpdateUserDTO(
         name=unique_user_name(),
@@ -164,9 +164,9 @@ def create_dummy_fixtures(req=None) -> None:
         avatar_filename="5b027ec7-c018-4744-9eda-00abf75cf685_1111x712.png",
     ), root_user, req)
     user4.avatar_filename = "5b027ec7-c018-4744-9eda-00abf75cf685_1111x712.png"
-    create_tag_subscription(TagSubscriptionDTO(tags=["observability"]), root_user)
-    create_tag_subscription(TagSubscriptionDTO(tags=["event-driven"]), user3)
-    create_tag_subscription(TagSubscriptionDTO(tags=["databases", "reliability"]), user4)
+    create_tag_subscription(TagSubscriptionDTO(tags=["observability"]), root_user, req=req)
+    create_tag_subscription(TagSubscriptionDTO(tags=["event-driven"]), user3, req=req)
+    create_tag_subscription(TagSubscriptionDTO(tags=["databases", "reliability"]), user4, req=req)
 
     articles = [
         ArticleDTO(
@@ -193,7 +193,7 @@ def create_dummy_fixtures(req=None) -> None:
         update_article_status(created_article, UpdateArticleStatusDTO(status=ArticleStatus.PUBLISHED), root_user, req)
         created_articles.append(created_article)
     user_token2 = get_dummy_user_token(sub="p2", email="test2@example.com", name=unique_user_name())
-    user2 = upsert_user_by_user_token(user_token2)
+    user2 = upsert_user_by_user_token(user_token2, req=req)
     created_users.append(user2)
     update_user(user2, UpdateUserDTO(
         name=user2.name,

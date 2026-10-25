@@ -40,10 +40,12 @@ def run_sitemap_event(event):
 
     actor_user_id = payload["actor_user_id"]
     started = time.monotonic()
-    logger.info("Sitemap generation started: actor=%s", actor_user_id)
+    request = get_web_request()
+    logger.info("Sitemap generation started: actor=%s", actor_user_id,
+                extra={"context": get_static_url(request, "sitemap.xml", absolute=True)})
     try:
         # Reload the actor and recheck permission in generate_sitemap before any writes.
-        count, url = generate_sitemap(get_user(actor_user_id), get_web_request())
+        count, url = generate_sitemap(get_user(actor_user_id), request)
     except Exception:
         logger.exception("Sitemap generation failed: actor=%s duration_seconds=%.2f",
                          actor_user_id, time.monotonic() - started)

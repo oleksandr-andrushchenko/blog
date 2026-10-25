@@ -161,6 +161,13 @@
 - Provider usernames are authentication metadata, never fallback public slugs. Generated signup slugs must fit the
   same 30-character limit as profile edits.
 
+## Activity logging
+
+- Put canonical resource URLs in `logger.info`'s `extra={"context": ...}` when the request is available.
+  Comments link to their rendered anchor; categories and tag subscriptions link to matching article collections.
+  Pass requests explicitly rather than relying on template context. Request-free callers retain identifier context;
+  do not invent public links for resources without a public page or move success logs before persistence.
+
 ## Account email notifications
 
 - Account notification preferences default to enabled for existing users. Deliver status emails only for actual manual

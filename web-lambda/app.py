@@ -629,7 +629,8 @@ async def login_callback(request: Request) -> RedirectResponse:
 
         cognito_user_token = get_user_token_by_code(
             code=request.query_params.get("code"),
-            callback_url=callback_url
+            callback_url=callback_url,
+            req=request,
         )
         response = RedirectResponse(redirect_url, 302)
         response.delete_cookie("redirect_url")

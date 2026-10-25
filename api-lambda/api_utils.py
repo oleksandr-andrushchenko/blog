@@ -385,7 +385,7 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
     return count, sitemap_url
 
 
-def create_tag_subscription(dto: TagSubscriptionDTO, user: User) -> TagSubscription:
+def create_tag_subscription(dto: TagSubscriptionDTO, user: User, *, req=None) -> TagSubscription:
     tag_subscription_id, now, key = str(uuid.uuid4()), utc_now(), tag_subscription_key(dto.tags)
     transacts = []
     add_dynamodb_put_transact(transacts, (f"USER#{user.id}", f"ARTICLE_TAG_SUBSCRIPTION#{tag_subscription_id}"),
@@ -401,9 +401,10 @@ def create_tag_subscription(dto: TagSubscriptionDTO, user: User) -> TagSubscript
         if exc.is_conditional():
             raise SlugDuplicationError("Tag subscription already exists", "tags")
         raise
-    logger.info("New tag subscription created", extra={"context": {
+    context = get_articles_url(req, tags=dto.tags, absolute=True) if req is not None else {
         "tag_subscription_id": tag_subscription_id, "user_id": user.id,
-    }})
+    }
+    logger.info("New tag subscription created", extra={"context": context})
     return TagSubscription(tag_subscription_id, user.id, dto.tags, now)
 
 
@@ -497,7 +498,7 @@ def update_category(category: Category, dto: UpdateCategoryDTO, cur_user: User) 
         drop_public_file(old_image)
 
 
-def create_category(slug: str, name: str, description: str, cur_user: User) -> Category:
+def create_category(slug: str, name: str, description: str, cur_user: User, *, req=None) -> Category:
     verify_authorization(cur_user, Permission.UPDATE_CATEGORY)
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
@@ -525,7 +526,10 @@ def create_category(slug: str, name: str, description: str, cur_user: User) -> C
     transacts = []
     add_dynamodb_put_transact(transacts, ("CATEGORY", slug), values, new_pk_only=True)
     dynamodb_transact_write(transacts)
-    logger.info("New category created", extra={"context": {"category_slug": slug, "user_id": cur_user.id}})
+    context = get_articles_url(req, category=slug, absolute=True) if req is not None else {
+        "category_slug": slug, "user_id": cur_user.id,
+    }
+    logger.info("New category created", extra={"context": context})
     return category_from_dynamodb(slug, {**values, "pk": "CATEGORY", "sk": slug})
 
 
@@ -654,7 +658,6 @@ def create_article(article_dto: ArticleDTO, cur_user: User) -> Article:
             raise SlugDuplicationError(field="title")
         raise
 
-    logger.info("New article created", extra={"context": {"article_id": article_id}})
     return article_from_dynamodb(article_item)
 
 
@@ -835,7 +838,11 @@ def create_article_comment(article: Article, article_comment_dto: ArticleComment
             raise SlugDuplicationError(field="title")
         raise
 
-    logger.info("New comment added", extra={"context": {"article_id": article.id, "comment_id": comment_id}})
+    context = (
+        get_article_url(req, article, absolute=True) + "#comment-" + comment_id.replace("#", "-")
+        if req is not None else {"article_id": article.id, "comment_id": comment_id}
+    )
+    logger.info("New comment added", extra={"context": context})
     return article_comment_from_dynamodb(article_comment_item)
 
 

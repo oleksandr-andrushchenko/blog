@@ -1118,7 +1118,7 @@ def build_user_username(raw_name: str | None, raw_username: str | None, now: int
     return username + suffix
 
 
-def upsert_user_by_user_token(token: UserTokenDTO, status: UserStatus = UserStatus.ACTIVE) -> User:
+def upsert_user_by_user_token(token: UserTokenDTO, status: UserStatus = UserStatus.ACTIVE, *, req=None) -> User:
     now = utc_now()
 
     user = get_user_by_user_token(token)
@@ -1172,7 +1172,8 @@ def upsert_user_by_user_token(token: UserTokenDTO, status: UserStatus = UserStat
         raise
 
     if is_new_user:
-        logger.info("New user registered", extra={"context": {"user_id": user.id}})
+        context = get_user_url(req, user, absolute=True) if req is not None else {"user_id": user.id}
+        logger.info("New user registered", extra={"context": context})
     return user
 
 

@@ -242,6 +242,7 @@ async def upload_article_image(image_file_dto: ImageFileDTODep, cur_user: CurUse
 async def _create_article(article_dto: ArticleDTO, cur_user: CurUserDep, request: Request) -> str:
     try:
         article = create_article(article_dto, cur_user)
+        logger.info("New article created", extra={"context": get_article_url(request, article, absolute=True)})
         return get_article_url(request, article)
     except SlugDuplicationError as e:
         raise HTTPException(status_code=409, detail=e.to_dict())
@@ -344,7 +345,7 @@ async def _get_tag_subscriptions(cur_user: CurUserDep):
 
 
 @route("post", "create-tag-subscription", response_class=HTMLResponse)
-async def _create_tag_subscription(dto: TagSubscriptionDTODep, cur_user: CurUserDep):
+async def _create_tag_subscription(dto: TagSubscriptionDTODep, cur_user: CurUserDep, request: Request):
     try:
         async def get_tag():
             if len(dto.tags) == 1:
@@ -356,7 +357,7 @@ async def _create_tag_subscription(dto: TagSubscriptionDTODep, cur_user: CurUser
             tag_subscription,
         ) = await asyncio.gather(
             get_tag(),
-            to_thread(create_tag_subscription, dto, cur_user),
+            to_thread(create_tag_subscription, dto, cur_user, req=request),
         )
         return get_html_content("fragments/tag-subscription.html", {
             "cur_user": cur_user,
