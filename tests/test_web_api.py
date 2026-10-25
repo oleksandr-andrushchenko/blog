@@ -2133,3 +2133,38 @@ def test_engagement_endpoints_and_notifications_end_to_end(guest_client):
     before = set(directory.glob('*.eml'))
     assert post(actor, path + '/comments', json={'text': 'Another comment.'}).status_code == 200
     assert not set(directory.glob('*.eml')) - before
+
+
+@pytest.mark.parametrize('username', [None, 'chosen'])
+def test_display_name_and_username_can_be_edited_independently(guest_client, username):
+    suffix = uuid.uuid4().hex
+    identity = {'sub': f'name-edit-{suffix}', 'iss': 'example-provider',
+                'email': f'name-edit-{suffix}@example.com', 'name': 'Original Display Name'}
+    client = get_logged_in_client(identity)
+    user = get_dynamodb_user_by_email(identity['email'])
+    user_path = f'/users/{user["id"]}'
+    username = f'creator-{suffix[:12]}' if username else None
+    response = patch(client, user_path, json={'username': username})
+    assert response.status_code == 200, response.text
+    expected_url = f'/@{username}' if username else user_path
+    lock_key = {'pk': f'USER_SLUG#{username}', 'sk': 'META'}
+    original_lock = dynamodb_table.get_item(Key=lock_key).get('Item') if username else None
+
+    response = patch(client, user_path, json={'name': 'Updated Display Name'})
+    assert response.status_code == 200, response.text
+    assert response.json() == expected_url
+    saved = get_dynamodb_user(user['id'])
+    assert saved['name'] == 'Updated Display Name'
+    assert saved.get('username') == username
+    if username:
+        assert dynamodb_table.get_item(Key=lock_key).get('Item') == original_lock
+        assert 'Item' not in dynamodb_table.get_item(Key={'pk': f'USER_REDIRECT#{username}', 'sk': 'META'})
+    assert pq(get(guest_client, expected_url).text)('h1').text().startswith('Updated Display Name')
+
+    new_username = f'writer-{suffix[:12]}'
+    response = patch(client, user_path, json={'username': new_username})
+    assert response.status_code == 200, response.text
+    assert response.json() == f'/@{new_username}'
+    saved = get_dynamodb_user(user['id'])
+    assert saved['name'] == 'Updated Display Name'
+    assert saved['username'] == new_username

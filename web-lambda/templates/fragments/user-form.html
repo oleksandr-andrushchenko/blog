@@ -301,6 +301,8 @@
     handleFormSubmit("#user-form", {{ (url('update-user', user_id=user.id, absolute=True) if user else '') | tojson }}, {
       method: "{{ 'PATCH' if user else 'POST' }}",
       prepareData: data => {
+        const username = form.elements.username
+        if (data.username === (username.defaultValue.trim() || null)) delete data.username
         for (const kind of linkKinds) {
           data[`${kind}_links`] = linkRows(kind).map(row => ({
             id: row.dataset.linkId,

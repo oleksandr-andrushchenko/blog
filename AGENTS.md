@@ -216,5 +216,7 @@
 
 ## Cognito Apple sign-in and profile forms
 
+- Omit unchanged usernames from profile form requests so display-name edits do not trigger legacy username
+  validation. Preserve actual username edits and the existing support-link prepareData behavior.
 - Support-link POSTs return non-cacheable HTTP 303 redirects with the existing origin, prefetch, and referrer-policy
   checks. Keep background API click notification independent of navigation and omit noreferrer on POST forms.
