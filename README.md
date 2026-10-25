@@ -335,3 +335,10 @@ Infrastructure and API/static changes must be deployed together when deployment 
 The sitemap worker shares `ApiFuncS3Key`, so subsequent API bundle updates also require an infrastructure
 update to refresh the worker. No credentials, webhook registrations, deployment, or live posts are created
 by implementing or testing these features.
+
+## Feedback and community activity
+
+Article sidebars include an attribution-report link that opens Contacts with the canonical article URL
+and fields for the original creator and source. The navigation and Contacts page offer an improvement
+suggestion with a structured message. Prefills are escaped and limited to the form's 1000-character limit;
+they do not submit or send anything automatically.

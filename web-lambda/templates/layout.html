@@ -166,6 +166,9 @@
                            href="{{ url("contacts") }}"{% if current_route == "contacts" %}
                            aria-current="page"{% endif %}>Contacts</a>
                     </li>
+                    <li class="nav-item d-flex align-items-center py-2 py-xxl-0 ms-xxl-2">
+                        {% with proposal_compact=true %}{% include "fragments/improvement-proposal.html" %}{% endwith %}
+                    </li>
                     {% if cur_user and check_auth(cur_user, Permission.UTILS) %}
                         <li class="nav-item">
                             <a class="nav-link{% if current_route == "utils" %} active{% endif %}"

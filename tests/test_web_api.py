@@ -2058,3 +2058,25 @@ def test_support_links_roundtrip_public_navigation_and_owner_statistics(guest_cl
         assert get_dynamodb_user(user_id)['support_links'][0]['clicks_count'] == 1
     finally:
         assert patch(admin, path, json={'support_links': []}).status_code == 200
+
+
+def test_feedback_links_prefill_escaped_contact_form(guest_client):
+    article_id = functional_state['article_id']
+    page = get(guest_client, f'/articles/{article_id}')
+    assert page.status_code == 200, page.text
+    report = pq(page.text)('section[aria-labelledby="article-ownership-heading"] a')
+    assert report
+    message = parse_qs(urlsplit(report.attr('href')).query)['message'][0]
+    assert 'Original creator:' in message and 'Original source:' in message
+    assert '/@root-functional/' in message
+    form = get(guest_client, report.attr('href'))
+    assert pq(form.text)('#message').text().strip() == message.strip()
+    payload = '</textarea><script>window.unsafe = true</script>'
+    response = get(guest_client, '/contacts?' + urlencode({'message': payload}))
+    doc = pq(response.text)
+    assert doc('#message').text() == payload
+    assert not doc('script').filter(lambda i, el: 'window.unsafe = true' == pq(el).text())
+    assert doc('link[rel="canonical"]').attr('href') == WEB_TEST_BASE_URL + '/contacts'
+    long_prefill = get(guest_client, '/contacts?' + urlencode({'message': 'x' * 1500}))
+    assert len(pq(long_prefill.text)('#message').text()) == 1000
+    assert 'Suggest an improvement' in page.text

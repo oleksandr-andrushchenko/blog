@@ -36,6 +36,8 @@
     <h1>{{ title }}</h1>
     <p class="small text-secondary">Contact us</p>
 
+    {% include "fragments/improvement-proposal.html" %}
+
     <div class="row g-5">
         <div class="{{ ({"def": 12, "lg": 6, "xl": 8} if show_details else {"def": 12}) | col_classes }} d-flex flex-column gap-4">
             <form class="row g-3" id="contact-form" novalidate>
@@ -51,7 +53,7 @@
 
                 <label class="{{ {"def": 12} | col_classes }}">
                     <textarea class="form-control" id="message" name="message" placeholder="Your Message" rows="10"
-                              required></textarea>
+                              required maxlength="1000">{{ request.query_params.get('message', '')[:1000] if request else '' }}</textarea>
                 </label>
 
                 <div class="{{ {"def": 12} | col_classes }}">

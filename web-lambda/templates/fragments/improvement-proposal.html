@@ -1,0 +1,23 @@
+{% set proposal_message = "I'd like to suggest an improvement or request a feature.\n\nMy idea: \n\nHow it would help: " %}
+{% set proposal_url = url('contacts', message=proposal_message) ~ '#contact-form' %}
+{% if proposal_compact | default(false) %}
+    <a class="btn btn-warning btn-sm fw-semibold text-nowrap" href="{{ proposal_url }}">
+        <i class="bi bi-lightbulb" aria-hidden="true"></i>
+        Suggest an improvement
+    </a>
+{% else %}
+    <section class="card shadow-sm bg-success-subtle mb-4" aria-labelledby="improvement-proposal-heading">
+        <div class="card-body">
+            <h2 id="improvement-proposal-heading" class="h4 card-title">
+                <i class="bi bi-lightbulb" aria-hidden="true"></i>
+                Help us improve
+            </h2>
+            <p class="card-text">Have an idea, an improvement, or a feature you'd like to see? Tell us what would make
+                the site more useful for you.</p>
+            <a class="btn btn-dark" href="{{ proposal_url }}">
+                <i class="bi bi-chat-square-text" aria-hidden="true"></i>
+                Suggest an improvement
+            </a>
+        </div>
+    </section>
+{% endif %}

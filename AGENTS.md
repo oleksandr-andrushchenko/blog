@@ -192,3 +192,9 @@
   private originals bucket. Preserve animated files.
 - Sitemap generation returns 202 and runs in `sitemap_handler.handler`. Its worker shares the API artifact; refreshing
   that worker after API bundle changes requires an explicitly authorized infrastructure update.
+
+
+## Engagement statistics and feedback
+
+- Feedback and attribution reporting use escaped, bounded contact-form prefills. New page sections belong in their
+  own fragments. Functional HTTP tests route new API paths through `_is_api_request` in `tests/test_utils.py`.

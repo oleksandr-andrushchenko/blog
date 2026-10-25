@@ -1,0 +1,16 @@
+{% set ownership_message = "I believe this article is credited to the wrong creator.\n\nArticle: " ~ article_canonical_url ~ "\n\nOriginal creator: \nOriginal source: \n\nDetails: " %}
+<section class="card shadow-sm bg-danger-subtle my-4"
+         aria-labelledby="article-ownership-heading">
+    <div class="card-body">
+        <h2 id="article-ownership-heading" class="h4 card-title">
+            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+            Is the creator credit incorrect?
+        </h2>
+        <p class="card-text">Think this article belongs to you or someone else? Tell us who created it and
+            share the original source so we can review the credit.</p>
+        <a href="{{ url('contacts', message=ownership_message) }}" class="btn btn-dark">
+            <i class="bi bi-send" aria-hidden="true"></i>
+            Report an ownership issue
+        </a>
+    </div>
+</section>
