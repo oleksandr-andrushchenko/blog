@@ -347,3 +347,33 @@ they do not submit or send anything automatically.
 Telegram posts include a subscribe link when the connected channel has a public username. Threads posts
 include a link to follow the connected account. Truncation reserves the title, article URL, and footer,
 shortening only the preview. Private Telegram channels do not expose an invite link.
+
+Profiles have separate notification preferences for new article comments, comment reactions, and article
+shares. New preferences default to enabled. Emails follow successful persistence, skip self-notifications
+and inactive recipients, and never undo an action if delivery fails. Comment emails link to the comment's
+rendered anchor. Comment reactions toggle and switch like article reactions. Existing self-reaction
+behavior is preserved; follow/block actions on one's own account remain unchanged.
+
+The owner's profile includes given/received totals for article and comment reactions, comments, blocks,
+and sharing by channel. Social-share control clicks count only opening Twitter, Facebook, LinkedIn, or
+email sharing; they do not establish that a post was sent. Confirmed Telegram/Threads posts are counted
+separately. Server-issued publishing IDs and client event UUIDs prevent retries from counting the same
+event twice. Uncertain remote publishing results remain uncounted, and analytics failures never turn a
+successful remote post into a failed share. Reaction transactions check the previous saved action and
+return 409 when it changed concurrently rather than applying a stale counter transition.
+
+Directional reaction/comment counters need a historical backfill for complete totals. The maintenance
+command scans durable relations and comments separately for each selected user. It defaults to read-only,
+reports all intended counters, and guards writes against concurrent activity. It does not replay reactions,
+send emails, or reconstruct historic share counts from publication timestamps.
+
+```sh
+docker compose -f docker-compose.scripts.production.yml run --rm scripts-production \
+  python scripts/rebuild_engagement_statistics.py --table-name YOUR_TABLE --user-id USER_ID
+```
+
+Review dry-run output before adding `--apply`. Repeat `--user-id` for multiple accounts, or configure
+`DYNAMODB_TABLE` instead of supplying `--table-name`. Successful reruns skip unchanged counter sets;
+item errors remain retryable and cause a nonzero exit. A concurrent change leaves that user's counters
+untouched; rerun it after activity settles. Authentication, permission, and configuration failures stop
+execution. No new DynamoDB index is required.

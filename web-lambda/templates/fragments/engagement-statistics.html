@@ -1,0 +1,20 @@
+{% if cur_user and cur_user.id == user.id %}
+<section class="card card-body mt-4" aria-labelledby="engagement-heading">
+    <h2 class="h5" id="engagement-heading">Your community activity</h2>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead><tr><th scope="col">Activity</th><th scope="col">Given</th><th scope="col">Received</th></tr></thead>
+            <tbody>
+                {% for label, prefix in [('Article likes', 'article_likes'), ('Article dislikes', 'article_dislikes'), ('Comment likes', 'comment_likes'), ('Comment dislikes', 'comment_dislikes'), ('Comments', 'article_comments')] %}
+                    <tr><th scope="row">{{ label }}</th><td>{{ user | attr(prefix ~ '_given_count') }}</td><td>{{ user | attr(prefix ~ '_received_count') }}</td></tr>
+                {% endfor %}
+                <tr><th scope="row">Blocks</th><td>{{ user.blocking_count }}</td><td>{{ user.blockers_count }}</td></tr>
+                {% for channel, label in [('telegram_publish', 'Confirmed Telegram posts'), ('threads_publish', 'Confirmed Threads posts'), ('twitter_share_click', 'Twitter share clicks'), ('facebook_share_click', 'Facebook share clicks'), ('linkedin_share_click', 'LinkedIn share clicks'), ('email_share_click', 'Email share clicks')] %}
+                    <tr><th scope="row">{{ label }}</th><td>{{ user.article_shares_given_counts.get(channel, 0) }}</td><td>{{ user.article_shares_received_counts.get(channel, 0) }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="form-text mt-2 mb-0">Social-share clicks indicate that someone opened a sharing control. They do not confirm a completed post. Earlier activity may not yet be included in these totals.</p>
+</section>
+{% endif %}

@@ -358,7 +358,7 @@ def share_article(article, actor, request, *, continuation=None):
     if continuation is not None:
         state = _decode_media_share(continuation, article, actor, connection)
         return _remember_share(article, _advance_media_share(state, token, connection), token,
-                               get_article_url(request, article, absolute=True))
+                               get_article_url(request, article, absolute=True), actor, request)
     media = article_media(article, request)
     if any(item['format'] not in ('image', 'video') for item in media):
         raise HTTPException(422, 'Threads supports image and video attachments only. This article contains audio or text files')
@@ -385,7 +385,7 @@ def share_article(article, actor, request, *, continuation=None):
         state = {'user_id': actor.id, 'article_id': article.id, 'session_hash': connection['session_hash'],
                  'media': media, 'text': text, 'url': url, 'index': 0, 'children': [],
                  'expires_at': utc_now() + 60 * 60 * 1000}
-        return _remember_share(article, _advance_media_share(state, token, connection), token, url)
+        return _remember_share(article, _advance_media_share(state, token, connection), token, url, actor, request)
     started_at = utc_now()
     try:
         result = threads_call("/v1.0/me/threads", method="POST", token=token, timeout=PUBLISH_TIMEOUT_SECONDS,
@@ -398,7 +398,7 @@ def share_article(article, actor, request, *, continuation=None):
         return {"shared": False, "status": "unconfirmed", "username": connection["username"]}
     return _remember_share(article, {
         "shared": True, "post_id": str(result["id"]), "username": connection["username"],
-    }, token, url)
+    }, token, url, actor, request)
 
 
 def _post_permalink(post_id, token):
@@ -415,10 +415,10 @@ def _post_permalink(post_id, token):
     return None
 
 
-def _remember_share(article, result, token, article_url):
+def _remember_share(article, result, token, article_url, actor, request):
     if result.get('shared') is not True:
         return result
-    return remember_article_share(article, 'threads', result, article_url=article_url,
+    return remember_article_share(article, 'threads', result, actor=actor, request=request, article_url=article_url,
                                  post_url=_post_permalink(result['post_id'], token))
 
 

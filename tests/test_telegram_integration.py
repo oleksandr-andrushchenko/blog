@@ -38,7 +38,7 @@ def provider(monkeypatch, actor):
               'api_base_url': 'https://api.catalog.example'}
     monkeypatch.setattr(service, 'get_config', lambda: config)
     import article_sharing
-    monkeypatch.setattr(article_sharing, 'dynamodb_transact_write', Mock())
+    monkeypatch.setattr(article_sharing, 'record_article_share', Mock(return_value=True))
     with monkeypatch.context() as templates:
         templates.setattr(shared_utils, 'get_function_templates_dir',
                           lambda: str(ROOT / 'api-lambda/templates'))

@@ -9,12 +9,13 @@ from app_config import (
     get_static_files_dir, get_static_s3_bucket, get_web_base_url, is_prod,
 )
 from article_dtos import (
-    ArticleCommentDTO, ArticleDTO, ArticleImpressionAction, UpdateArticleCommentDTO, UpdateArticleDTO,
+    ArticleCommentDTO, ArticleDTO, ArticleCommentImpressionAction, UpdateArticleCommentImpressionDTO, ArticleImpressionAction, UpdateArticleCommentDTO, UpdateArticleDTO,
     UpdateArticleImpressionDTO, UpdateArticleStatusDTO, UpdateTagDTO,
 )
 from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO
 from category_dtos import UpdateCategoryDTO
 from email_service import send_email
+from engagement_service import add_statistics_update, guard_reaction, write_reaction
 from redirect_dtos import UpsertRedirectDTO
 from search_engine_submissions import notify_search_engines, submit_sitemap_to_search_engines
 from shared_utils import *
@@ -22,7 +23,7 @@ from shared_utils import (
     Article, Tag, User, find_article, find_article_by_slug_follow_redirects, find_user_by_username_follow_redirects,
     Category, Permission, Redirect, UserStatus, add_dynamodb_update_transact,
     add_update_category_published_count_transact, get_articles, get_dynamodb_item,
-    get_categories, get_tags, logger, get_user, get_article, ArticleNotFoundError,
+    get_categories, get_tags, logger, get_user, get_article, ArticleNotFoundError, ArticleComment,
     get_url, get_articles_url, get_article_url, get_users_url, get_user_url,
     get_static_url, get_latest_articles, get_latest_users, verify_authorization,
 )
@@ -827,6 +828,13 @@ def create_article_comment(article: Article, article_comment_dto: ArticleComment
         "post_comments_count": 1,
     })
 
+    statistics = {cur_user.id: {'article_comments_given_count': 1}}
+    statistics.setdefault(article.owner_id, {})['article_comments_received_count'] = 1
+    for user_id, deltas in statistics.items():
+        add_statistics_update(transacts, user_id, deltas, baselines={
+            'article_comments_given_count': cur_user.article_comments_count,
+        } if user_id == cur_user.id else None)
+
     if cur_user.id != article.owner_id:
         article_owner = get_user(article.owner_id)
         add_dynamodb_user_update_transact(transacts, article_owner)
@@ -843,7 +851,14 @@ def create_article_comment(article: Article, article_comment_dto: ArticleComment
         if req is not None else {"article_id": article.id, "comment_id": comment_id}
     )
     logger.info("New comment added", extra={"context": context})
-    return article_comment_from_dynamodb(article_comment_item)
+    comment = article_comment_from_dynamodb(article_comment_item)
+    if cur_user.id != article.owner_id:
+        safe_execute('Article comment email', _send_account_notification,
+                     article_owner, 'notify_article_comments', 'New comment on your article',
+                     f'{cur_user.name} commented on your article “{article.title}”.', article, req,
+                     detail=comment.text,
+                     target_url=get_article_url(req, article, absolute=True) + '#comment-' + comment.id.replace('#', '-') if req is not None else None)
+    return comment
 
 
 def update_article_comment(article: Article, article_comment: ArticleComment,
@@ -1202,8 +1217,16 @@ def update_article_impression(article: Article, update_article_impression_dto: U
         article_owner = get_user(article.owner_id)
         add_dynamodb_user_update_transact(transacts, article_owner)
 
-    logger.debug(transacts)
-    dynamodb_transact_write(transacts)
+    statistics = {}
+    for user_id, direction in ((cur_user.id, 'given'), (article.owner_id, 'received')):
+        statistics.setdefault(user_id, {}).update({
+            f'article_{name.removesuffix("_count")}_{direction}_count': delta
+            for name, delta in article_deltas.items() if name in ('likes_count', 'dislikes_count')
+        })
+    for user_id, deltas in statistics.items():
+        add_statistics_update(transacts, user_id, deltas)
+    guard_reaction(transacts, article_imp_key, current_action)
+    write_reaction(transacts, writer=dynamodb_transact_write)
 
     if current_impression is None and cur_user.id != article.owner_id:
         verb = 'liked' if action == ArticleImpressionAction.LIKE else 'disliked'
@@ -1277,7 +1300,13 @@ def update_user_impression(user: User, update_relation_dto: UpdateUserImpression
     add_dynamodb_user_update_transact(transacts, cur_user, deltas=cur_user_deltas)
     add_dynamodb_user_update_transact(transacts, user, deltas=user_deltas)
 
-    dynamodb_transact_write(transacts)
+    block_delta = int(action == UserImpressionAction.BLOCK and current_action != action) - int(
+        current_action == UserImpressionAction.BLOCK)
+    if block_delta:
+        add_statistics_update(transacts, cur_user.id, {'blocking_count': block_delta})
+        add_statistics_update(transacts, user.id, {'blockers_count': block_delta})
+    guard_reaction(transacts, relation_key, current_action)
+    write_reaction(transacts, writer=dynamodb_transact_write)
 
     if current_relation is None:
         verb = 'followed' if action == UserImpressionAction.FOLLOW else 'blocked'
@@ -1292,10 +1321,10 @@ def dispatch_article_published_event(article: Article) -> None:
 
 
 def _send_account_notification(user: User, preference: str, subject: str, message: str,
-                               target: Article | User, req, *, detail: str | None = None) -> None:
+                               target: Article | User, req, *, detail: str | None = None, target_url: str | None = None) -> None:
     if not user.email or user.status != UserStatus.ACTIVE or not getattr(user, preference):
         return
-    target_url = (get_article_url(req, target, absolute=True) if isinstance(target, Article)
+    target_url = target_url or (get_article_url(req, target, absolute=True) if isinstance(target, Article)
                   else get_user_url(req, target, absolute=True))
     settings_url = get_url(req, 'edit-user', user_id=user.id, absolute=True) + '#notifications'
     text = f'Hello {user.name or "there"},\n\n{message}\n'
@@ -1566,3 +1595,51 @@ def notify_creator_link_click(token: str, req) -> None:
 def _validate_article_support(providers, owner):
     if providers is not None and set(providers) - {link.id for link in owner.support_links}:
         raise RequestValidationError({'support_providers': 'Choose support links saved by the article author'})
+
+
+def update_article_comment_impression(article: Article, comment: ArticleComment,
+                                      dto: UpdateArticleCommentImpressionDTO, cur_user: User, req) -> None:
+    verify_authorization(cur_user, Permission.UPDATE_ARTICLE_IMPRESSION, article)
+    if cur_user.status == UserStatus.BANNED:
+        raise UserBannedError()
+    key = (f'POST#{article.id}', f'COMMENT_IMP#{comment.id}#{cur_user.id}')
+    current = get_dynamodb_item(*key, consistent_read=True)
+    previous = current['action'] if current else None
+    action = dto.action.value
+    next_action = None if previous == action else action
+    deltas = {
+        f'{reaction}s_count': int(next_action == reaction) - int(previous == reaction)
+        for reaction in ('like', 'dislike')
+    }
+    deltas = {field: value for field, value in deltas.items() if value}
+    transacts = []
+    if next_action is None:
+        add_dynamodb_delete_transact(transacts, key)
+    elif previous:
+        add_dynamodb_update_transact(transacts, key, changes={'action': next_action})
+    else:
+        add_dynamodb_put_transact(transacts, key, {
+            'article_id': article.id, 'comment_id': comment.id, 'user_id': cur_user.id,
+            'owner_id': comment.owner_id, 'action': next_action,
+        }, new_pk_only=True)
+    add_dynamodb_update_transact(transacts, (f'POST#{article.id}', f'COMMENT#{comment.id}'),
+                                 deltas={**deltas, 'rating_sk': deltas.get('likes_count', 0)
+                                         - deltas.get('dislikes_count', 0)}, add_updated_at=False)
+    transacts[-1]['Update']['ConditionExpression'] = 'attribute_exists(pk)'
+    statistics = {}
+    for user_id, direction in ((cur_user.id, 'given'), (comment.owner_id, 'received')):
+        statistics.setdefault(user_id, {}).update({
+            f'comment_{name.removesuffix("_count")}_{direction}_count': delta for name, delta in deltas.items()
+        })
+    for user_id, changes in statistics.items():
+        add_statistics_update(transacts, user_id, changes)
+    guard_reaction(transacts, key, previous)
+    write_reaction(transacts, writer=dynamodb_transact_write)
+    for field, delta in deltas.items():
+        setattr(comment, field, getattr(comment, field) + delta)
+    if previous is None and cur_user.id != comment.owner_id:
+        verb = 'liked' if action == ArticleCommentImpressionAction.LIKE else 'disliked'
+        safe_execute('Comment reaction email', lambda: _send_account_notification(
+            get_user(comment.owner_id), 'notify_comment_impressions', 'New reaction to your comment',
+            f'{cur_user.name} {verb} your comment on “{article.title}”.', article, req, detail=comment.text,
+        ))

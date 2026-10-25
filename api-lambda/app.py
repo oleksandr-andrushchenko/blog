@@ -62,6 +62,8 @@ from api_utils import (
 )
 from deps import (
     ImageFileDTODep,
+    SharePayloadDep,
+    UpdateArticleCommentImpressionDTODep,
     ArticleCommentQueryDep,
     UpdateUserDTODep,
     UpdateArticleDTODep,
@@ -640,3 +642,22 @@ async def creator_link_click(request: Request):
         raise HTTPException(401)
     await to_thread(notify_creator_link_click, header[7:], request)
     return JSONResponse({'recorded': True}, headers={'Cache-Control': 'no-store'})
+
+
+@route('post', 'record-article-share')
+async def record_article_share_click(article: ArticleDep, cur_user: OptCurUserDep, request: Request, payload: SharePayloadDep):
+    from engagement_service import record_article_share, validate_share_click
+    _integration_mutation(request)
+    channel, event_id = validate_share_click(payload)
+    recorded = await to_thread(record_article_share, article, cur_user, channel, event_id, request)
+    return JSONResponse({'recorded': recorded}, headers={'Cache-Control': 'no-store'})
+
+
+@route('post', 'update-article-comment-impression')
+async def article_comment_impression(article: ArticleDep, article_comment: ArticleCommentDep,
+                                     cur_user: CurUserDep, dto: UpdateArticleCommentImpressionDTODep, request: Request):
+    from api_utils import update_article_comment_impression
+    _integration_mutation(request)
+    await to_thread(update_article_comment_impression, article, article_comment, dto, cur_user, request)
+    return JSONResponse({'likes_count': int(article_comment.likes_count), 'dislikes_count': int(article_comment.dislikes_count)},
+                        headers={'Cache-Control': 'no-store'})

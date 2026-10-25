@@ -100,6 +100,23 @@ class User:
     notify_user_impressions: bool = True
     notify_article_impressions: bool = True
     notify_tag_articles: bool = True
+    notify_article_comments: bool = True
+    notify_comment_impressions: bool = True
+    notify_article_shares: bool = True
+    blockers_count: int = 0
+    blocking_count: int = 0
+    article_likes_received_count: int = 0
+    article_likes_given_count: int = 0
+    article_dislikes_received_count: int = 0
+    article_dislikes_given_count: int = 0
+    comment_likes_received_count: int = 0
+    comment_likes_given_count: int = 0
+    comment_dislikes_received_count: int = 0
+    comment_dislikes_given_count: int = 0
+    article_comments_received_count: int = 0
+    article_comments_given_count: int = 0
+    article_shares_received_counts: dict[str, int] = field(default_factory=dict)
+    article_shares_given_counts: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -299,6 +316,7 @@ class Article:
     threads_shared_at: int | None = None
     support_providers: list[str] | None = None
     support_link_click_counts: dict[str, int] = field(default_factory=dict)
+    shares_counts: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -1297,6 +1315,7 @@ def article_from_dynamodb(d_item: dict[str, Any]) -> Article:
         threads_shared_at=d_item.get("threads_shared_at"),
         support_providers=d_item.get("support_providers"),
         support_link_click_counts=d_item.get("support_link_click_counts", {}),
+        shares_counts=d_item.get("shares_counts", {}),
         redirect_to=d_item.get("redirect_to"),
         comments_count=d_item.get("comments_count", 0),
         created_at=d_item["created_at"],
@@ -1584,6 +1603,23 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         notify_user_impressions=d_item.get("notify_user_impressions", True),
         notify_article_impressions=d_item.get("notify_article_impressions", True),
         notify_tag_articles=d_item.get("notify_tag_articles", True),
+        notify_article_comments=d_item.get("notify_article_comments", True),
+        notify_comment_impressions=d_item.get("notify_comment_impressions", True),
+        notify_article_shares=d_item.get("notify_article_shares", True),
+        blockers_count=d_item.get("blockers_count", 0),
+        blocking_count=d_item.get("blocking_count", 0),
+        article_likes_received_count=d_item.get("article_likes_received_count", 0),
+        article_likes_given_count=d_item.get("article_likes_given_count", 0),
+        article_dislikes_received_count=d_item.get("article_dislikes_received_count", 0),
+        article_dislikes_given_count=d_item.get("article_dislikes_given_count", 0),
+        comment_likes_received_count=d_item.get("comment_likes_received_count", 0),
+        comment_likes_given_count=d_item.get("comment_likes_given_count", 0),
+        comment_dislikes_received_count=d_item.get("comment_dislikes_received_count", 0),
+        comment_dislikes_given_count=d_item.get("comment_dislikes_given_count", 0),
+        article_comments_received_count=d_item.get("article_comments_received_count", 0),
+        article_comments_given_count=d_item.get("article_comments_given_count", d_item.get("post_comments_count", 0)),
+        article_shares_received_counts=d_item.get("article_shares_received_counts", {}),
+        article_shares_given_counts=d_item.get("article_shares_given_counts", {}),
         redirect_to=d_item.get("redirect_to"),
         created_at=d_item["created_at"],
         updated_at=d_item.get("updated_at"),

@@ -1,6 +1,8 @@
 """Canonical API route names and path templates."""
 
 API_URL_ROUTES = {
+    'record-article-share': '/articles/{article_id}/share-click',
+    'update-article-comment-impression': '/articles/{article_id}/comments/{comment_id}/impression',
     "upload-article-image": "/article-images",
     "notify-creator-link-click": "/creator-link-click",
     "threads-connection": "/users/{user_id}/integrations/threads",

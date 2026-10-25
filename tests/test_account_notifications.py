@@ -20,7 +20,7 @@ from article_dtos import UpdateArticleImpressionDTO, UpdateArticleStatusDTO
 from shared_utils import article_from_dynamodb, user_from_dynamodb
 from user_dtos import UpdateUserDTO, UpdateUserImpressionDTO
 
-PREFERENCES = ('notify_article_status', 'notify_user_impressions', 'notify_article_impressions', 'notify_tag_articles')
+PREFERENCES = ('notify_article_status', 'notify_user_impressions', 'notify_article_impressions', 'notify_tag_articles', 'notify_article_comments', 'notify_comment_impressions', 'notify_article_shares')
 
 
 @pytest.mark.parametrize('preference', PREFERENCES)
@@ -59,6 +59,8 @@ def actions(monkeypatch):
     monkeypatch.setattr(api_utils, 'find_article_impression', Mock(return_value=None))
     monkeypatch.setattr(api_utils, 'find_user_impression', Mock(return_value=None))
     monkeypatch.setattr(api_utils, 'dynamodb_transact_write', write)
+    import engagement_service
+    monkeypatch.setattr(engagement_service, 'get_dynamodb_item', Mock(return_value={}))
     monkeypatch.setattr(api_utils, 'dispatch_article_published_event', Mock())
     monkeypatch.setattr(api_utils, '_notify_article_search_engines', Mock())
     monkeypatch.setattr(api_utils, 'send_email', send)

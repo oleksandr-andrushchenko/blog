@@ -34,7 +34,7 @@ def actor():
 
 @pytest.fixture
 def provider(monkeypatch):
-    monkeypatch.setattr(article_sharing, 'dynamodb_transact_write', Mock())
+    monkeypatch.setattr(article_sharing, 'record_article_share', Mock(return_value=True))
     monkeypatch.setattr(service, '_post_permalink', Mock(return_value='https://www.threads.com/@example_creator/post/example'))
     config = {'threads_app_id': 'example-app', 'threads_app_secret': 'synthetic-app-secret',
               'threads_token_encryption_key': Fernet.generate_key().decode(),
@@ -257,7 +257,7 @@ def test_slow_publish_is_confirmed_by_readback_without_reposting(actor, storage,
     provider[0].reset_mock()
     result = service.share_article(article(actor), actor, None)
     assert result == {'shared': True, 'post_id': 'confirmed-post', 'username': 'example_creator'}
-    article_sharing.dynamodb_transact_write.assert_called_once()
+    article_sharing.record_article_share.assert_called_once()
     assert payload['timeout'] == service.PUBLISH_TIMEOUT_SECONDS
     assert len(provider[0].call_args_list) == 2
     assert sum(call.kwargs.get('method') == 'POST' for call in provider[0].call_args_list) == 1
@@ -302,7 +302,7 @@ def test_unconfirmed_publish_never_reports_failure_or_reposts(actor, storage, pr
     assert service.share_article(article(actor), actor, None) == {
         'shared': False, 'status': 'unconfirmed', 'username': 'example_creator',
     }
-    article_sharing.dynamodb_transact_write.assert_not_called()
+    article_sharing.record_article_share.assert_not_called()
     assert len(provider[0].call_args_list) == 2
     assert sum(call.kwargs.get('method') == 'POST' for call in provider[0].call_args_list) == 1
 

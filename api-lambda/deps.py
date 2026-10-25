@@ -112,3 +112,15 @@ ImageFileDTODep = Annotated[ImageFileDTO, Depends(get_image_file)]
 UpdateUserImpressionDTODep = Annotated[UpdateUserImpressionDTO, Depends(get_update_user_impression_dto)]
 
 ArticleCommentQueryDep = Annotated[ArticleCommentQueryDTO, Depends()]
+
+
+async def get_share_payload(request: Request):
+    if len(await request.body()) > 4096:
+        raise HTTPException(413, 'Sharing event too large')
+    try:
+        return await request.json()
+    except ValueError:
+        raise HTTPException(422, 'Invalid sharing event') from None
+
+
+SharePayloadDep = Annotated[dict, Depends(get_share_payload)]

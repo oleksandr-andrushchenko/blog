@@ -1022,3 +1022,35 @@ $(document).on("click", ".btn-tag-subscription", function () {
       button.clearButtonLoading()
     })
 })
+
+
+$(document).on("click", ".share[data-share-url] .share-btn", function () {
+  const platform = ["twitter", "facebook", "linkedin", "email"].find(name => this.classList.contains(name))
+  if (!platform) return
+  fetch(this.closest(".share").dataset.shareUrl, {
+    method: "POST", credentials: "include", keepalive: true,
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({channel: `${platform}_share_click`, event_id: crypto.randomUUID()})
+  }).catch(() => {})
+})
+
+$(document).on("click", ".btn-comment-reaction", async function () {
+  const button = this
+  const block = button.closest(".comment-impressions")
+  const buttons = block.querySelectorAll("button")
+  buttons.forEach(value => { value.disabled = true })
+  try {
+    const response = await fetch(button.dataset.url, {
+      method: "POST", credentials: "include", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({action: button.dataset.action})
+    })
+    if (!response.ok) throw new Error("Could not update this reaction. Refresh the page and try again.")
+    const data = await response.json()
+    block.querySelector(".comment-likes-count").textContent = data.likes_count
+    block.querySelector(".comment-dislikes-count").textContent = data.dislikes_count
+  } catch (error) {
+    alert(error.message)
+  } finally {
+    buttons.forEach(value => { value.disabled = false })
+  }
+})

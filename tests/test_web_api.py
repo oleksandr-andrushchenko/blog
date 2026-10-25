@@ -857,7 +857,7 @@ def test_user_edit_update_and_fragment_endpoints_success_and_failure(root_user_c
     assert [tab.text() for tab in form('[role="tab"]').items()] == [
         'Personal info', 'Links', 'Earn', 'Notifications', 'Integrations',
     ]
-    assert len(form('#notifications input[type="checkbox"]:checked')) == 4
+    assert len(form('#notifications input[type="checkbox"]:checked')) == 7
     assert form('.tab-pane.active').attr('id') == 'personal-info'
     assert form('#personal-info [name="name"]') and form('#personal-info [name="avatar_action"]')
     assert form('#links [name="website"]') and form('#links [name="github_username"]')
@@ -2080,3 +2080,53 @@ def test_feedback_links_prefill_escaped_contact_form(guest_client):
     long_prefill = get(guest_client, '/contacts?' + urlencode({'message': 'x' * 1500}))
     assert len(pq(long_prefill.text)('#message').text()) == 1000
     assert 'Suggest an improvement' in page.text
+
+
+def test_engagement_endpoints_and_notifications_end_to_end(guest_client):
+    suffix = uuid.uuid4().hex
+    owner_data = {'sub': 'engagement-owner-' + suffix, 'iss': 'example-provider',
+                  'email': f'engagement-owner-{suffix}@example.com', 'name': 'Engagement Owner'}
+    actor_data = {'sub': 'engagement-actor-' + suffix, 'iss': 'example-provider',
+                  'email': f'engagement-actor-{suffix}@example.com', 'name': 'Engagement Reader'}
+    owner, actor = get_logged_in_client(owner_data), get_logged_in_client(actor_data)
+    admin = get_logged_in_client(root_user)
+    owner_id = get_dynamodb_user_by_email(owner_data['email'])['id']
+    actor_id = get_dynamodb_user_by_email(actor_data['email'])['id']
+    directory = Path('/app/.emails')
+    seen = set(directory.glob('*.eml'))
+    title = 'Engagement coverage ' + suffix
+    created = post(owner, '/articles', json={'title': title, 'content': ARTICLE_CONTENT,
+                                            'tags': ['engagement'], 'category': 'distributed-systems'})
+    assert created.status_code == 200, created.text
+    item = next(item for item in dynamodb_table.scan()['Items'] if item.get('title') == title)
+    path = '/articles/' + item['id']
+    assert post(admin, path + '/status', json={'status': 'published'}).status_code == 200
+    seen |= set(directory.glob('*.eml'))
+    comment_response = post(actor, path + '/comments', json={'text': 'A useful discussion.'})
+    assert comment_response.status_code == 200, comment_response.text
+    records = dynamodb_table.query(KeyConditionExpression='pk = :pk',
+                                   ExpressionAttributeValues={':pk': 'POST#' + item['id']})['Items']
+    comment = next(record for record in records if record['sk'].startswith('COMMENT#'))
+    reaction_path = path + '/comments/' + quote(comment['id'], safe='') + '/impression'
+    assert post(guest_client, reaction_path, json={'action': 'like'}).status_code == 401
+    for action, likes, dislikes in [('like', 1, 0), ('dislike', 0, 1), ('dislike', 0, 0)]:
+        result = post(owner, reaction_path, json={'action': action})
+        assert result.status_code == 200, result.text
+        assert result.json() == {'likes_count': likes, 'dislikes_count': dislikes}
+    assert get_dynamodb_user(owner_id)['article_comments_received_count'] == 1
+    assert get_dynamodb_user(actor_id)['article_comments_given_count'] == 1
+    event = {'channel': 'email_share_click', 'event_id': str(uuid.uuid4())}
+    assert post(guest_client, path + '/share-click', json=event).json() == {'recorded': True}
+    assert post(guest_client, path + '/share-click', json=event).json() == {'recorded': False}
+    assert post(guest_client, path + '/share-click', json={'channel': 'threads_publish', 'event_id': str(uuid.uuid4())}).status_code == 422
+    assert get_dynamodb_user(owner_id)['article_shares_received_counts']['email_share_click'] == 1
+    own_profile = pq(get(owner, '/users/' + owner_id).text)
+    assert own_profile('#engagement-heading')
+    assert not pq(get(guest_client, '/users/' + owner_id).text)('#engagement-heading')
+    messages = [BytesParser(policy=policy.default).parsebytes(file.read_bytes()) for file in set(directory.glob('*.eml')) - seen]
+    assert any(message['To'] == owner_data['email'] and message['Subject'] == 'New comment on your article' for message in messages)
+    assert any(message['To'] == owner_data['email'] and message['Subject'] == 'Your article was shared' for message in messages)
+    assert patch(owner, '/users/' + owner_id, json={'notify_article_comments': False}).status_code == 200
+    before = set(directory.glob('*.eml'))
+    assert post(actor, path + '/comments', json={'text': 'Another comment.'}).status_code == 200
+    assert not set(directory.glob('*.eml')) - before

@@ -25,11 +25,14 @@ class UpdateUserDTO(BaseDTO):
     notify_user_impressions: bool | object = UNSET
     notify_article_impressions: bool | object = UNSET
     notify_tag_articles: bool | object = UNSET
+    notify_article_comments: bool | object = UNSET
+    notify_comment_impressions: bool | object = UNSET
+    notify_article_shares: bool | object = UNSET
 
     def __post_init__(self):
         if self.support_links is not UNSET:
             self.support_links = validate_support_links(self.support_links)
-        for field in ('notify_article_status', 'notify_user_impressions', 'notify_article_impressions', 'notify_tag_articles'):
+        for field in ('notify_article_status', 'notify_user_impressions', 'notify_article_impressions', 'notify_tag_articles', 'notify_article_comments', 'notify_comment_impressions', 'notify_article_shares'):
             value = getattr(self, field)
             if value is not UNSET and type(value) is not bool:
                 raise ValueError(f'{field} must be true or false')

@@ -1,4 +1,4 @@
-<div class="share d-flex flex-wrap align-items-center">
+<div class="share d-flex flex-wrap align-items-center"{% if article and article.status == ArticleStatus.PUBLISHED %} data-share-url="{{ url('record-article-share', article_id=article.id, absolute=True) }}"{% endif %}>
     <small class="text-secondary">{{ share_label | default("Share this content") }}:</small>
     <div class="btn-group" role="group" aria-label="Share buttons">
         <a href="#" class="btn btn-light btn-sm share-btn twitter bi bi-twitter" target="_blank" rel="nofollow noopener noreferrer"

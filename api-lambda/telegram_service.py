@@ -386,7 +386,8 @@ def share_article(article, actor, request):
                                 link_preview_options={"url": url})
     return remember_article_share(article, 'telegram', {
         "shared": True, "message_id": message["message_id"], "channel_title": connection["channel_title"],
-    }, article_url=url, post_url=_message_url(message, connection))
+    }, actor=actor, request=request, article_url=url, post_url=_message_url(message, connection),
+       event_id=f"{connection['channel_id']}:{message['message_id']}")
 
 
 def _message_url(message, connection):

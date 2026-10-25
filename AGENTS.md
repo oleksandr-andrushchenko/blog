@@ -198,5 +198,17 @@
 
 ## Engagement statistics and feedback
 
+- Guard reaction updates/deletes against the previously read action. Handle both raw botocore `ClientError` and
+  wrapped `DynamoDBTransactionError` cancellation reasons; stale transitions return 409. Do not repeat uncertain
+  writes. Merge directional counter changes into existing user transactions so each item is updated only once.
+- Keep confirmed `telegram_publish` / `threads_publish` counts separate from `*_share_click` counts. Durable
+  `POST_SHARE#<article_id>` event markers deduplicate provider IDs (Telegram includes the channel ID) or client UUIDs.
+  Never record incomplete or uncertain provider responses as confirmed shares. Persistence failures must preserve
+  remote success and must not encourage a duplicate post.
+- Comment, comment-reaction, and share emails honor independent default-enabled preferences, skip self-notifications
+  and inactive recipients, and run after persistence. Detailed profile statistics are rendered only for the owner.
+- Historical engagement repairs use `scripts/rebuild_engagement_statistics.py` through scripts-production, dry-run
+  by default and `--apply` for guarded metadata writes. The backfill checks both engagement revision and update time
+  so scans cannot overwrite concurrent activity. It does not reconstruct historical sharing from saved timestamps.
 - Feedback and attribution reporting use escaped, bounded contact-form prefills. New page sections belong in their
   own fragments. Functional HTTP tests route new API paths through `_is_api_request` in `tests/test_utils.py`.
