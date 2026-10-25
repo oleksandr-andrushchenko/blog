@@ -253,8 +253,9 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 		--stack-name $(AWS_STACK) \
 		--profile $(AWS_PROJECT) \
 		--region $(AWS_REGION) \
-		--query "Stacks[0].Outputs" \
-		--output table
+		--query "Stacks[0].Outputs[].[OutputKey, OutputValue]" \
+		--output text \
+		--no-cli-pager
 
 .PHONY: get-infra
 get-infra: check-env check-aws ## Show CF stack events
