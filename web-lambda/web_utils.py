@@ -4,7 +4,7 @@ from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 from query_dtos import ArticleCommentQueryDTO
 from creator_links import encode_creator_click, get_creator_link
 from starlette.background import BackgroundTask
-from starlette.responses import HTMLResponse, Response
+from starlette.responses import RedirectResponse, Response
 from web import HTTPException
 from web_route_metadata import WEB_AUTH_URL_ROUTES
 
@@ -19,7 +19,7 @@ from shared_utils import (
     UserByOldSlugRequestedError, NotAuthenticatedError, Permission,
     find_article, find_article_by_slug_follow_redirects, find_user_by_username_follow_redirects,
     check_authorization, verify_authorization,
-    article_comment_from_dynamodb, decode_offset, get_html_content, get_url, get_article_url, get_user_url, logger,
+    article_comment_from_dynamodb, decode_offset, get_url, get_article_url, get_user_url, logger,
     query_dynamodb_table, Key,
 )
 
@@ -417,7 +417,4 @@ def redirect_creator_link(user: User, link_id: str, req, cur_user: User | None =
             notify_creator_link_click, user.id, kind, link_id,
             article.id if article is not None else None, cur_user.id if cur_user is not None else None, req,
         )
-    return HTMLResponse(get_html_content('creator-link-redirect.html', {
-        'request': req, 'destination_url': link.url, 'link_name': link.name,
-        'source_url': source_url, 'source_label': 'article' if article is not None else 'creator profile',
-    }), background=background, headers=headers)
+    return RedirectResponse(link.url, status_code=303, background=background, headers=headers)

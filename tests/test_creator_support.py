@@ -148,3 +148,41 @@ def test_support_defaults_preserve_legacy_and_allow_category_and_profile_control
 def test_support_default_options_are_validated(options):
     with pytest.raises(ValueError):
         UpdateUserDTO(support_links=[{'id': 'tip', 'name': 'Tip', 'url': 'https://support.example', **options}])
+
+
+def test_support_redirect_works_without_html_or_javascript(saved_support, monkeypatch):
+    import asyncio
+    _, user, _ = saved_support
+    user.support_links[0].url = 'https://support.example/?ref=creator&campaign=article%20example#membership'
+    monkeypatch.setattr(web_utils, 'get_web_base_url', lambda: 'https://site.example')
+    monkeypatch.setattr(web_utils, 'get_user_url', lambda *a, **kw: 'https://site.example/@creator')
+    import httpx
+    from app_config import get_config
+    monkeypatch.setitem(get_config(), 'app_secret', 'synthetic-test-secret')
+    client = Mock(side_effect=RuntimeError('Delivery unavailable'))
+    monkeypatch.setattr(httpx, 'Client', client)
+    request = Request({'type': 'http', 'method': 'POST', 'path': '/', 'headers': [(b'origin', b'https://site.example')]})
+    response = web_utils.redirect_creator_link(user, 'membership', request, kind='support')
+    assert response.status_code == 303
+    assert response.headers['location'] == user.support_links[0].url
+    assert response.headers['cache-control'] == 'no-store'
+    assert response.headers['referrer-policy'] == 'strict-origin-when-cross-origin'
+    assert response.headers['x-robots-tag'] == 'noindex, nofollow'
+    assert not response.body
+    assert response.background is not None
+    client.assert_not_called()
+    asyncio.run(response.background())
+    client.assert_called_once()
+    assert response.status_code == 303 and response.headers['location'] == user.support_links[0].url
+    response = web_utils.redirect_creator_link(user, 'membership', request, user, kind='support')
+    assert response.background is None
+
+
+def test_support_prefetch_does_not_redirect_or_count(saved_support, monkeypatch):
+    _, user, _ = saved_support
+    monkeypatch.setattr(web_utils, 'get_web_base_url', lambda: 'https://site.example')
+    request = Request({'type': 'http', 'method': 'POST', 'path': '/',
+                       'headers': [(b'origin', b'https://site.example'), (b'sec-purpose', b'prefetch')]})
+    response = web_utils.redirect_creator_link(user, 'membership', request, kind='support')
+    assert response.status_code == 204
+    assert 'location' not in response.headers and not response.body and response.background is None

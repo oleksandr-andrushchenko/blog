@@ -300,8 +300,8 @@ The **Earn** profile tab preserves Buy Me a Coffee and supports up to 20 additio
 or membership links. Links can default to all articles or selected categories and can be hidden from the public profile independently.
 Article forms can inherit these defaults or choose an explicit subset. Existing links default to all articles. Profile editing shows
 reader click totals; owners also see article-specific totals beside their article's support links. Counts
-exclude owner clicks and are best effort, not unique-visitor analytics. POST navigation rejects cross-origin
-submissions and prefetches; signed internal API notifications keep database mutations in the API Lambda.
+exclude owner clicks and are best effort, not unique-visitor analytics. POST navigation uses HTTP 303 redirects, rejects cross-origin
+submissions and prefetches, and works without JavaScript; signed internal API notifications keep database mutations in the API Lambda.
 Existing Buy Me a Coffee links retain their current behavior and are not included in the new counters.
 
 Optional article watermarks are disabled by default. Enable them in ignored `shared/data.json`:

@@ -212,3 +212,9 @@
   so scans cannot overwrite concurrent activity. It does not reconstruct historical sharing from saved timestamps.
 - Feedback and attribution reporting use escaped, bounded contact-form prefills. New page sections belong in their
   own fragments. Functional HTTP tests route new API paths through `_is_api_request` in `tests/test_utils.py`.
+
+
+## Cognito Apple sign-in and profile forms
+
+- Support-link POSTs return non-cacheable HTTP 303 redirects with the existing origin, prefetch, and referrer-policy
+  checks. Keep background API click notification independent of navigation and omit noreferrer on POST forms.

@@ -2043,10 +2043,13 @@ def test_support_links_roundtrip_public_navigation_and_owner_statistics(guest_cl
                                      headers={'Origin': 'https://outside.example'})
         assert external.status_code == 403
         opened = guest_client.post(os.getenv('WEB_TEST_BASE_URL') + action,
-                                   headers={'Origin': os.getenv('WEB_TEST_BASE_URL')})
-        assert opened.status_code == 200, opened.text
+                                   headers={'Origin': os.getenv('WEB_TEST_BASE_URL')}, allow_redirects=False)
+        assert opened.status_code == 303, opened.text
         assert opened.headers['X-Robots-Tag'] == 'noindex, nofollow'
-        assert 'window.location.replace("https://support.example/creator")' in opened.text
+        assert opened.headers['Location'] == 'https://support.example/creator'
+        assert not opened.content
+        assert opened.headers['Cache-Control'] == 'no-store'
+        assert opened.headers['Referrer-Policy'] == 'strict-origin-when-cross-origin'
         for _ in range(50):
             saved = get_dynamodb_user(user_id)
             if saved['support_links'][0]['clicks_count'] == 1:
