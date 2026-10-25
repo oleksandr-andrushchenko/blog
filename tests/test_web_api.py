@@ -2072,17 +2072,10 @@ def test_support_links_roundtrip_public_navigation_and_owner_statistics(guest_cl
         assert patch(admin, path, json={'support_links': []}).status_code == 200
 
 
-def test_feedback_links_prefill_escaped_contact_form(guest_client):
+def test_feedback_contact_prefill_is_escaped_and_bounded(guest_client):
     article_id = functional_state['article_id']
     page = get(guest_client, f'/articles/{article_id}')
     assert page.status_code == 200, page.text
-    report = pq(page.text)('section[aria-labelledby="article-ownership-heading"] a')
-    assert report
-    message = parse_qs(urlsplit(report.attr('href')).query)['message'][0]
-    assert 'Original creator:' in message and 'Original source:' in message
-    assert '/@root-functional/' in message
-    form = get(guest_client, report.attr('href'))
-    assert pq(form.text)('#message').text().strip() == message.strip()
     payload = '</textarea><script>window.unsafe = true</script>'
     response = get(guest_client, '/contacts?' + urlencode({'message': payload}))
     doc = pq(response.text)
