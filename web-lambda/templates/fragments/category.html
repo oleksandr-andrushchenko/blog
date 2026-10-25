@@ -17,10 +17,10 @@
             </a>
             <div class="{{ {"def": 8} | col_classes }} d-flex">
                 <div class="card-body d-flex flex-column">
-                    <h2 class="h5 card-title">
+                    <{{ category_heading_tag | default("h2") }} class="h5 card-title">
                         <a href="{{ articles_url(category=category.slug) }}"
                            class="link-body-emphasis text-decoration-none">{{ category.name }}</a>
-                    </h2>
+                    </{{ category_heading_tag | default("h2") }}>
                     <p class="card-text small flex-grow-1">{{ category.description }}</p>
                     <div class="d-flex align-items-center justify-content-between gap-2">
                         <span class="text-secondary small">

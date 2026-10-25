@@ -347,6 +347,7 @@ async def index(cur_user: OptCurUserDep) -> str:
     )
     return get_html_content("index.html", {
         "cur_user": cur_user,
+        "categories": get_categories(),
         "popular_tags": popular_tags,
         "latest_articles_query": latest_articles_query,
         "latest_articles": latest_articles,
