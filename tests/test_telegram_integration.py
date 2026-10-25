@@ -258,7 +258,8 @@ def test_share_checks_current_permissions_and_preserves_message_limits(actor, st
     assert call.call_args.kwargs['parse_mode'] == 'HTML'
     assert call.call_args.kwargs['link_preview_options'] == {'url': 'https://catalog.example/@creator/example'}
     assert text.startswith('<b>📚 New article in Photography</b>\n\n<b>Example</b>\n\n🌻')
-    assert doc('a').text() == 'Read article 👇'
+    assert doc('a').eq(0).text() == 'Read article 👇'
+    assert doc('a').eq(1).attr('href') == 'https://t.me/example_channel'
     assert doc('a').attr('href') == 'https://catalog.example/@creator/example'
     assert 'NEVER SHARE THIS CONTENT' not in text
     assert '<p>' not in text
@@ -490,12 +491,14 @@ def test_telegram_share_description_preview_and_category_fallback(actor, storage
     service.share_article(article, actor, None)
     assert provider[0].call_args.kwargs['text'] == (
         '<b>' + escape(heading) + '</b>\n\n<b>Example article</b>\n\nA useful description &amp; example.\n\n'
-        '<a href="https://catalog.example/article">Read article 👇</a>')
+        '<a href="https://catalog.example/article">Read article 👇</a>\n\n'
+        '<a href="https://t.me/example_channel">Subscribe to this channel 📣</a>')
     article.preview = ''
     service.share_article(article, actor, None)
     assert provider[0].call_args.kwargs['text'] == (
         '<b>' + escape(heading) + '</b>\n\n<b>Example article</b>\n\n'
-        '<a href="https://catalog.example/article">Read article 👇</a>')
+        '<a href="https://catalog.example/article">Read article 👇</a>\n\n'
+        '<a href="https://t.me/example_channel">Subscribe to this channel 📣</a>')
 
 
 def test_telegram_html_escapes_content_and_truncates_before_escaping(actor, storage, provider, monkeypatch):
@@ -521,7 +524,7 @@ def test_telegram_html_escapes_content_and_truncates_before_escaping(actor, stor
     assert len(text.encode('utf-16-le')) // 2 > 4096  # Escaped entities/markup do not consume visible text capacity.
     assert '…\n\nRead article 👇' in visible
     assert doc('a').attr('href') == url
-    assert text.endswith('Read article 👇</a>')
+    assert text.endswith('Subscribe to this channel 📣</a>')
 
 def test_article_cover_uses_caption_limit_and_preserves_uncertain_errors(actor, storage, provider, monkeypatch):
     import article_sharing

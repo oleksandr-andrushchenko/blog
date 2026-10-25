@@ -230,7 +230,8 @@ def test_share_contains_metadata_and_canonical_link_without_template(actor, stor
     text = call.kwargs['text']
     assert len(text) <= 500
     assert text.startswith('Example\nPhotography\n\n🌻')
-    assert text.endswith('Read the article: https://catalog.example/@creator/example')
+    assert 'Read the article: https://catalog.example/@creator/example' in text
+    assert text.endswith('Follow this account 📣\nhttps://www.threads.com/@example_creator')
     assert 'NEVER PUBLISH' not in text and '<p>' not in text
     service.share_article(article(actor, is_premium=True, preview=''), actor, None)
     text = provider[0].call_args.kwargs['text']

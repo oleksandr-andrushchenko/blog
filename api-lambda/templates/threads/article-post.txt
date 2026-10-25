@@ -4,3 +4,6 @@
 {{ description }}
 
 Read the article: {{ article_url }}
+
+Follow this account 📣
+{{ profile_url }}

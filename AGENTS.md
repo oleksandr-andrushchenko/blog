@@ -149,7 +149,8 @@
 - Only the active account owner may manage their channel connection. Keep onboarding nonces hashed, expiring, and
   transactionally bound to pending sessions and Telegram user IDs. Keep webhook secret verification and current
   channel posting permission checks for both the user and bot before sharing.
-- Sharing is an explicit user action on a published article. Post only title, category, preview, and canonical URL;
+- Sharing is an explicit user action on a published article. Post only title, category, preview, canonical URL,
+  and the connected account/channel follow footer;
   escape Telegram HTML and respect its visible UTF-16 text limit. Keep provider errors free of bot tokens.
 - Run webhook setup through scripts-production with `API_BASE_URL`; `scripts/configure_telegram_webhook.py` defaults
   to a redacted dry run and requires `--apply` to register. Registration and deployment require explicit authorization.

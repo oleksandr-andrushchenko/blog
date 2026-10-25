@@ -365,7 +365,8 @@ def share_article(article, actor, request, *, continuation=None):
     url = get_article_url(request, article, absolute=True)
     category = find_category(article.category) if article.category else None
     context = {"category_name": category.name if category else (article.category or "other").replace("-", " ").title(),
-               "title": article.title, "is_premium": article.is_premium, "article_url": url}
+               "title": article.title, "is_premium": article.is_premium, "article_url": url,
+               "profile_url": "https://www.threads.com/@" + connection["username"]}
     # A .txt template deliberately emits plain text, including literal ampersands in URLs.
     template = jinja2_env().get_template("threads/article-post.txt")
     description = html_to_text(article.preview) or ""

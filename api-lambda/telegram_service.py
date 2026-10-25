@@ -366,6 +366,7 @@ def share_article(article, actor, request):
     context = {
         "category_slug": article.category, "category_name": category_name,
         "title": article.title, "article_url": url,
+        "channel_url": f"https://t.me/{connection['channel_username']}" if connection.get("channel_username") else None,
     }
     description = html_to_text(article.preview) or ""
     text = template.render(context, description=description)

@@ -343,3 +343,7 @@ Article sidebars include an attribution-report link that opens Contacts with the
 and fields for the original creator and source. The navigation and Contacts page offer an improvement
 suggestion with a structured message. Prefills are escaped and limited to the form's 1000-character limit;
 they do not submit or send anything automatically.
+
+Telegram posts include a subscribe link when the connected channel has a public username. Threads posts
+include a link to follow the connected account. Truncation reserves the title, article URL, and footer,
+shortening only the preview. Private Telegram channels do not expose an invite link.

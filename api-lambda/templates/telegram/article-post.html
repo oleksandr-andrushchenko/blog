@@ -2,4 +2,4 @@
 
 <b>{{ title }}</b>{{ "\n\n" ~ description if description else "" }}
 
-<a href="{{ article_url }}">Read article 👇</a>
+<a href="{{ article_url }}">Read article 👇</a>{{ "\n\n" if channel_url else "" }}{% if channel_url %}<a href="{{ channel_url }}">Subscribe to this channel 📣</a>{% endif %}

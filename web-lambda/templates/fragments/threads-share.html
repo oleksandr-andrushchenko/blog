@@ -1,6 +1,8 @@
 {% if cur_user and cur_user.id == article.owner_id %}
     {% set share_enabled = cur_user.has_threads_integration and cur_user.status == UserStatus.ACTIVE and article.status == ArticleStatus.PUBLISHED %}
-    <div class="mt-3">
+    <section class="card shadow-sm bg-info-subtle my-3" aria-labelledby="threads-share-heading">
+        <div class="card-body">
+            <h2 class="h5 card-title" id="threads-share-heading"><i class="bi bi-threads me-1" aria-hidden="true"></i>Share to Threads</h2>
         <button type="button" class="btn {{ 'btn-outline-success' if article.threads_shared_at else 'btn-outline-secondary' }}" id="threads-share"
                 {% if not share_enabled %}disabled{% endif %}>
             <i class="bi bi-threads me-1" aria-hidden="true"></i><span>{{ "Share again to Threads" if article.threads_shared_at else "Share to my Threads account" }}</span>
@@ -15,7 +17,8 @@
             <i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>Open Threads profile
         </a>
         <a class="small link-body-emphasis" href="{{ url('edit-user', user_id=cur_user.id) }}#integrations">{{ "Manage Threads connection" if cur_user.has_threads_integration else "Connect Threads" }}</a>
-    </div>
+        </div>
+    </section>
     <script>
       document.addEventListener("DOMContentLoaded", () => {
         const button = document.getElementById("threads-share")
