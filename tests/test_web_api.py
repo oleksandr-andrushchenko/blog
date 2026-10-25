@@ -700,7 +700,7 @@ def test_public_page_seo_schema_and_metadata(guest_client, path, schema_type):
     ("/privacy-policy", "Privacy", "h1"),
     ("/rules", "Rules", "h1"),
     ("/terms-of-service", "Terms", "h1"),
-    ("/earn-with-us", "Earn", "h1"),
+    ("/earn-with-us", "Earn support", "h1"),
 ])
 def test_public_pages_render_main_content(guest_client, path, heading, selector):
     response = get(guest_client, path)
@@ -861,7 +861,8 @@ def test_user_edit_update_and_fragment_endpoints_success_and_failure(root_user_c
     assert form('.tab-pane.active').attr('id') == 'personal-info'
     assert form('#personal-info [name="name"]') and form('#personal-info [name="avatar_action"]')
     assert form('#links [name="website"]') and form('#links [name="github_username"]')
-    assert form('#earn [name="bmc_username"]')
+    assert not form('[name="bmc_username"]')
+    assert form('#earn #support-links')
     assert form('#integrations #telegram-connect').text() == 'Connect Telegram'
     assert not form('#integrations input')
     assert not form('#telegram-token')
@@ -997,8 +998,8 @@ def test_earn_page_seo(guest_client):
     doc = pq(response.text)
     schema = json.loads(doc('script[type="application/ld+json"]').text())
     assert schema["@type"] == "WebPage"
-    assert schema["breadcrumb"]["itemListElement"][-1]["name"] == "Earn with us"
-    assert doc('meta[name="description"]').attr("content").startswith("Learn how to publish")
+    assert schema["breadcrumb"]["itemListElement"][-1]["name"] == "For creators"
+    assert doc('meta[name="description"]').attr("content").startswith("Publish articles")
     assert doc('link[rel="canonical"]').attr("href").endswith("/earn-with-us")
 
 
@@ -1861,20 +1862,20 @@ def test_guest_article_controls_preserve_return_url_and_keep_support_public(gues
             assert parse_qs(login.query)["redirect_url"] == [destination]
             login_response = get(guest_client, link.attr("href"), allow_redirects=False)
             assert SimpleCookie(login_response.headers["Set-Cookie"])["redirect_url"].value == destination
-        support_section = doc(".border-start > #author-support")
-        assert len(doc("#author-support")) == len(support_section) == 1
+        support_section = doc(".border-start > .creator-support-link")
+        assert len(doc(".creator-support-link")) == len(support_section) == 1
         assert support_section.prev("section")("h2").text() == "Author"
-        assert not doc("#article-controls #author-support")
-        support = support_section("a")
+        assert not doc("#article-controls .creator-support-link")
+        support = support_section("form")
         assert len(support) == 1
-        assert support.attr("href") == "https://buymeacoffee.com/controls-author"
-        assert set(support.attr("rel").split()) == {"nofollow", "noopener", "noreferrer"}
+        assert support.attr("action").endswith(f"/articles/{article_id}/support/buy-me-a-coffee")
+        assert set(support.attr("rel").split()) == {"nofollow", "noopener"}
         signed_in = pq(get(root_client, destination).text)
         assert len(signed_in("#article-controls .article-impressions .btn-article-like")) == 1
         assert len(signed_in("#article-controls #comment")) == 1
         assert len(signed_in("#article-controls .bi-pencil")) == 1
-        assert len(signed_in('.border-start > #author-support')) == 1
-        assert not signed_in('#article-controls #author-support')
+        assert len(signed_in('.border-start > .creator-support-link')) == 1
+        assert not signed_in('#article-controls .creator-support-link')
     finally:
         dynamodb_table.update_item(
             Key={"pk": f"USER#{owner_id}", "sk": "META"},
@@ -2132,7 +2133,9 @@ def test_engagement_endpoints_and_notifications_end_to_end(guest_client):
     assert post(guest_client, path + '/share-click', json={'channel': 'threads_publish', 'event_id': str(uuid.uuid4())}).status_code == 422
     assert get_dynamodb_user(owner_id)['article_shares_received_counts']['email_share_click'] == 1
     own_profile = pq(get(owner, '/users/' + owner_id).text)
-    assert own_profile('#engagement-heading')
+    assert own_profile('#engagement-heading button').attr('aria-expanded') == 'false'
+    assert own_profile('#community-activity').hasClass('collapse')
+    assert not own_profile('#community-activity').hasClass('show')
     assert not pq(get(guest_client, '/users/' + owner_id).text)('#engagement-heading')
     messages = [BytesParser(policy=policy.default).parsebytes(file.read_bytes()) for file in set(directory.glob('*.eml')) - seen]
     assert any(message['To'] == owner_data['email'] and message['Subject'] == 'New comment on your article' for message in messages)

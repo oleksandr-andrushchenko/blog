@@ -186,3 +186,33 @@ def test_support_prefetch_does_not_redirect_or_count(saved_support, monkeypatch)
     response = web_utils.redirect_creator_link(user, 'membership', request, kind='support')
     assert response.status_code == 204
     assert 'location' not in response.headers and not response.body and response.background is None
+
+
+def test_legacy_bmc_link_is_materialized_and_remains_editable(saved_support, monkeypatch):
+    table, user, article = saved_support
+    key = {'pk': 'USER#' + user.id, 'sk': 'META'}
+    table.update_item(Key=key, UpdateExpression='SET bmc_username = :name REMOVE support_links',
+                      ExpressionAttributeValues={':name': 'legacy-author'})
+    legacy = user_from_dynamodb(table.get_item(Key=key, ConsistentRead=True)['Item'])
+    assert len(legacy.support_links) == 1
+    link = legacy.support_links[0]
+    assert link.url == 'https://buymeacoffee.com/legacy-author'
+    assert link.default_all_articles and link.show_on_user_page
+    article.support_providers = None
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        list(executor.map(lambda _: creator_click_service.record_creator_link_click(legacy, link.id, article), range(3)))
+    saved = table.get_item(Key=key, ConsistentRead=True)['Item']
+    assert saved['support_links'][0]['clicks_count'] == 3
+    assert saved['support_links'][0]['id'] == link.id
+    assert table.get_item(Key={'pk': 'POST#' + article.id, 'sk': 'META'}, ConsistentRead=True)['Item']['support_link_click_counts'][link.id] == 3
+    monkeypatch.setattr(api_utils, 'verify_authorization', Mock())
+    api_utils.update_user(legacy, UpdateUserDTO(support_links=[]), legacy, None)
+    assert not user_from_dynamodb(table.get_item(Key=key, ConsistentRead=True)['Item']).support_links
+
+
+def test_explicit_support_links_supersede_legacy_bmc_field():
+    item = {'id': 'legacy-author', 'name': 'Author', 'created_at': 1, 'bmc_username': 'old-page',
+            'support_links': [{'id': 'tip', 'name': 'Tip', 'url': 'https://support.example/new'}]}
+    assert [link.id for link in user_from_dynamodb(item).support_links] == ['tip']
+    item['support_links'] = []
+    assert user_from_dynamodb(item).support_links == []

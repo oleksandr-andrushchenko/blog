@@ -158,38 +158,17 @@
              aria-labelledby="earn-tab" tabindex="0">
             <div class="d-flex flex-column gap-3">
                 <p class="text-secondary mb-0">
-                    Add a Buy Me a Coffee profile so readers can support your work.
-                    <a href="{{ url('earn') }}" class="link-body-emphasis">Learn about earning</a>.
+                    Publish your articles, grow your audience, and invite readers to support your work.
+                    <a href="{{ url('earn') }}" class="link-body-emphasis">Explore creator tools</a>.
                 </p>
-                <div class="form-group row">
-                    <label for="bmc_username" class="col-form-label {{ {"def": 12, "md": 2} | col_classes }}">
-                        <i class="bi bi-currency-dollar"></i> Buy Me a Coffee
-                    </label>
-                    <div class="{{ {"def": 12, "md": 10} | col_classes }}">
-                        <div class="input-group">
-                            <span class="input-group-text">buymeacoffee.com/</span>
-                            <input type="text"
-                                   class="form-control"
-                                   id="bmc_username"
-                                   name="bmc_username"
-                                   placeholder="your-bmc-username"
-                                   value="{{ user.bmc_username if user and user.bmc_username else '' }}">
-                            <span class="input-group-text"><i class="bi bi-box-arrow-up-right"></i></span>
-                        </div>
-                        <div class="form-text">
-                            Don’t have an account?
-                            <a class="link-body-emphasis" href="https://www.buymeacoffee.com/"
-                               target="_blank" rel="nofollow noopener noreferrer">Create one here</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <section class="d-flex flex-column gap-3 border-top pt-3">
-                <h2 class="h5">Other support links</h2>
-                <p>Add HTTPS support or membership pages. Counts exclude your own clicks.</p>
+                <h2 class="h5 mb-0">Reader support</h2>
+                <p class="form-text mb-0">Add donation, tipping, membership, or sponsorship links, including Buy Me a Coffee.
+                    Give each platform a name, a full HTTPS URL, and an optional button label.
+                    Choose profile visibility and article defaults for each link, or select links for individual articles.
+                    Counts exclude your own clicks.</p>
                 {% from "fragments/creator-link-editor.html" import link_editor %}
                 {{ link_editor('support', user.support_links if user else [], categories) }}
-            </section>
+            </div>
         </div>
         <div class="tab-pane py-3" id="notifications" role="tabpanel" aria-labelledby="notifications-tab" tabindex="0">
             <h2 class="h5">Email notifications</h2>
@@ -386,25 +365,6 @@
             rule: "custom",
             validator: (value) => !value.includes("--"),
             errorMessage: "GitHub username cannot contain consecutive hyphens"
-          }
-        ],
-        bmc_username: [
-          {rule: "minLength", value: 1},
-          {rule: "maxLength", value: 50},
-          {
-            rule: "customRegexp",
-            value: /^[a-zA-Z0-9.]+$/,
-            errorMessage: "BMC username must contain only letters, numbers, and dots"
-          },
-          {
-            rule: "custom",
-            validator: (value) => !value.startsWith(".") && !value.endsWith("."),
-            errorMessage: "BMC username cannot start or end with a dot"
-          },
-          {
-            rule: "custom",
-            validator: (value) => !value.includes(".."),
-            errorMessage: "BMC username cannot contain consecutive dots"
           }
         ],
         headline: [

@@ -88,7 +88,6 @@ class User:
     comment: str | None
     article_comments_count: int
     tag_subscriptions_count: int
-    bmc_username: str | None
     redirect_to: str | None
     created_at: int
     updated_at: int | None
@@ -1572,6 +1571,12 @@ def get_article_comment(article_id: str, article_comment_id: str) -> ArticleComm
 
 def user_from_dynamodb(d_item: dict[str, Any]) -> User:
     owner_id = d_item["id"]
+    support_links = d_item.get("support_links")
+    # Explicit saved lists, including [], supersede the legacy donation field.
+    if support_links is None and d_item.get("bmc_username"):
+        support_links = [{"id": "buy-me-a-coffee", "name": "Buy Me a Coffee",
+                          "url": "https://buymeacoffee.com/" + d_item["bmc_username"],
+                          "text": "Buy me a coffee"}]
     return User(
         id=owner_id,
         owner_id=owner_id,
@@ -1596,10 +1601,9 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         comment=d_item.get("comment"),
         article_comments_count=d_item.get("post_comments_count", 0),
         tag_subscriptions_count=d_item.get("tag_subscriptions_count", d_item.get("article_tag_subscriptions_count", 0)),
-        bmc_username=d_item.get("bmc_username"),
         has_telegram_integration=d_item.get("has_telegram_integration", False),
         has_threads_integration=d_item.get("has_threads_integration", False),
-        support_links=[SupportLink(**link) for link in d_item.get("support_links", [])],
+        support_links=[SupportLink(**link) for link in support_links or []],
         notify_article_status=d_item.get("notify_article_status", True),
         notify_user_impressions=d_item.get("notify_user_impressions", True),
         notify_article_impressions=d_item.get("notify_article_impressions", True),

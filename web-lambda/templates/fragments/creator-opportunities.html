@@ -1,0 +1,37 @@
+<section aria-labelledby="creator-opportunities">
+    <h2 id="creator-opportunities" class="h3">Give readers a way to support your work</h2>
+    <p>Add donation, tipping, membership, or sponsorship links. Choose which appear on your profile,
+        set defaults by category, and select links for individual articles.</p>
+    <p>Payments go through the provider. {{ site_name }} currently takes no commission.</p>
+    {% set example_creator = {
+        "id": "example-creator", "name": "Alex", "status": UserStatus.ACTIVE,
+        "support_links": [
+            {"id": "support-page", "name": "Support page", "text": "Support my work", "show_on_user_page": true},
+            {"id": "membership", "name": "Membership", "text": "Become a member", "show_on_user_page": true},
+        ],
+    } %}
+    <div class="{{ {"def": 1, "md": 2} | row_classes }} g-3">
+        <div class="col">
+            <p class="small text-body-secondary">On your author profile · example support block</p>
+            <div inert>
+                {% with user=example_creator, cur_user=none, support_article=false %}
+                    {% include "fragments/creator-support-links.html" %}
+                {% endwith %}
+            </div>
+        </div>
+        <div class="col">
+            <p class="small text-body-secondary">On your article page · example support block</p>
+            <div inert>
+                {% with user=example_creator, cur_user=none, support_article=true,
+                        article={"id": "example-article", "support_providers": ["support-page", "membership"]} %}
+                    {% include "fragments/creator-support-links.html" %}
+                {% endwith %}
+            </div>
+        </div>
+    </div>
+    <p>Choose <strong>Support links</strong> in your account menu to manage your links.
+        Your profile editor shows reader clicks; your own clicks are excluded.</p>
+    <a href="{{ setup_url }}" class="btn btn-outline-primary"{% if not cur_user %} rel="nofollow"{% endif %}>
+        <i class="bi bi-cup-hot" aria-hidden="true"></i> Set up support links
+    </a>
+</section>

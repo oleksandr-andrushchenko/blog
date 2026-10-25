@@ -1,12 +1,14 @@
 {% extends "layout.html" %}
 
-{% set title = "Earn with us" %}
-{% set h1 = "Earn with " ~ site_name %}
+{% from "fragments/support-program-data.html" import programs as support_programs %}
+
+{% set title = "For creators" %}
+{% set h1 = "Share your knowledge. Earn support for your work." %}
 
 {% set meta_title = title ~ " | " ~ site_name %}
 {% set meta_robots = "index, follow" %}
 {% set meta_canonical_url = url("earn", absolute=True) %}
-{% set meta_desc = "Learn how to publish on " ~ site_name ~ ", grow your audience, and let readers support your work directly." %}
+{% set meta_desc = "Publish articles on " ~ site_name ~ ", grow your audience, invite reader support, and share your work on Telegram and Threads." %}
 
 {% block meta_schema %}
     {{- {
@@ -34,117 +36,76 @@
 {% endblock %}
 
 {% block content %}
-    <article>
-        <header>
-            <h1>{{ h1 }}</h1>
-            <p class="small text-secondary">
-                Share your content, grow your audience, and enable readers to support your work directly.
-            </p>
+    {% set share_url = url("new-article") if cur_user else url("login", redirect_url=url("new-article")) %}
+    {% set setup_url = url("edit-user", user_id=cur_user.id) ~ "#earn" if cur_user else url("login", redirect_url=url("earn")) %}
+    {% set integrations_url = url("edit-user", user_id=cur_user.id) ~ "#integrations" if cur_user else url("login", redirect_url=url("earn")) %}
+    <article class="d-flex flex-column gap-5">
+        <header class="bg-primary-subtle rounded-3 p-4 p-lg-5">
+            <p class="text-primary-emphasis fw-semibold">For creators</p>
+            <h1 class="display-5 fw-bold">{{ h1 }}</h1>
+            <p class="lead mt-3">Give your ideas a home and help readers discover your expertise.</p>
+            <p>Publish system design guides, explain your decisions, and build a portfolio of useful articles.
+                Invite readers to support your next piece and bring your work to your Telegram and Threads audiences.</p>
+            <div class="d-flex flex-wrap gap-3 text-primary-emphasis">
+                <span><i class="bi bi-cup-hot me-1" aria-hidden="true"></i> Reader support</span>
+                <span><i class="bi bi-people me-1" aria-hidden="true"></i> Community feedback</span>
+                <span><i class="bi bi-megaphone me-1" aria-hidden="true"></i> Tools to grow your audience</span>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mt-4">
+                <a href="{{ share_url }}" class="btn btn-primary"{% if not cur_user %} rel="nofollow"{% endif %}>
+                    <i class="bi bi-pencil-square" aria-hidden="true"></i> Write an article
+                </a>
+                <a href="{{ url('earn') }}#creator-tools" class="btn btn-outline-primary">
+                    <i class="bi bi-grid" aria-hidden="true"></i> Explore creator tools
+                </a>
+            </div>
         </header>
 
-        <section>
-            <h2>Overview</h2>
-            <p>{{ site_name }} allows authors to publish content and optionally include a donation link in their
-                profile.</p>
-            <p>Add Buy Me a Coffee or other HTTPS support and membership pages. Give each link a name and optional button text, then choose which links appear on each article.</p>
-            <p>Your profile editor shows reader clicks for each support link. Your own clicks are excluded; article pages also show you their individual totals.</p>
+        {% include "fragments/creator-tools.html" %}
+        {% include "fragments/creator-opportunities.html" %}
+        {% include "fragments/creator-promotion.html" %}
+
+        <section aria-labelledby="support-programs">
+            <h2 id="support-programs" class="h3">Popular reader support platforms</h2>
+            <p>Create a support page, then add its link to your profile. You can use any support platform.</p>
+            <div class="{{ {"def": 1, "md": 3} | row_classes }} g-3">
+                {% for program in support_programs %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-body d-flex flex-column align-items-start">
+                                <h3 class="h5">{{ program.name }}</h3>
+                                <p class="card-text">{{ program.description }}</p>
+                                <a href="{{ program.program_url }}" target="_blank" rel="nofollow noopener noreferrer"
+                                   class="link-body-emphasis mt-auto">
+                                    Explore {{ program.name }}
+                                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <p class="small text-secondary mt-3 mb-0">Providers set their own eligibility, fees, and payout terms.
+                Earnings are not guaranteed.</p>
         </section>
 
-        <section>
-            <h2>Who can contribute</h2>
-            <ul>
-                <li>Individuals who want to publish content</li>
-                <li>Creators sharing knowledge, guides, or insights</li>
-                <li>Anyone interested in building an audience</li>
-            </ul>
-        </section>
-
-        <section>
-            <h2>How it works</h2>
-            <ol>
-                {% if cur_user %}
-                    <li>Create an Account</li>
-                    <li><a href="{{ url("edit-user", user_id=cur_user.id) }}#earn" class="link-body-emphasis">Add</a> an
-                        support or membership links in your profile’s Earn tab
-                    </li>
-                    <li><a href="{{ url("new-article") }}" class="link-body-emphasis">Publish content</a></li>
-                {% else %}
-                    <li><a href="{{ url('login', redirect_url=url("earn")) }}" class="link-body-emphasis"
-                           rel="nofollow">Create an Account</a></li>
-                    <li>Add an support or membership links in your profile’s Earn tab</li>
-                    <li>Publish content</li>
-                {% endif %}
-                <li>Readers can support you directly</li>
+        <section class="bg-primary-subtle rounded-3 p-4 p-lg-5" aria-labelledby="start-sharing">
+            <h2 id="start-sharing" class="h3">Your next article could start a conversation</h2>
+            <ol class="ps-3 mb-4">
+                <li class="mb-2"><strong>Make it yours.</strong> Add your bio, website, and support links to your profile.</li>
+                <li class="mb-2"><strong>Share something useful.</strong> Publish a clear article with examples, a category, and tags.</li>
+                <li><strong>Bring people to your work.</strong> Share your published article, welcome feedback, and keep creating.</li>
             </ol>
-        </section>
-
-        <section>
-            <h2>Monetization</h2>
-            <p>
-                Authors may include a donation option in their profile. When enabled, a donation button can appear on
-                their content, allowing readers to contribute directly.
-            </p>
-
-            <p>
-                Payments are handled by third-party providers and go directly to the author.
-                {{ site_name }} does not take a commission unless explicitly stated otherwise.
-            </p>
-
-            <h3>Supported donation platforms</h3>
-            <ul>
-                <li>
-                    <strong>Buy Me a Coffee</strong> — add your username to enable a donation button on your profile and
-                    articles.
-                </li>
-            </ul>
-
-            <p class="text-secondary">
-                More donation providers may be supported in the future.
-            </p>
-        </section>
-
-        <section>
-            <h2>Content expectations</h2>
-            <p>You keep ownership of your work. Public content submitted under our current
-                <a href="{{ url('terms') }}#content-reuse" class="link-body-emphasis">Terms of Service</a>
-                may be reused or republished with credit and a link to its original {{ site_name }} page.
-                Only submit material you have the rights to share under those terms.</p>
-            <ul>
-                <li>Content should be original</li>
-                <li>Content should be clear and structured</li>
-                <li>Content should comply with applicable laws and platform rules</li>
-                <li>Avoid spam, misleading, or harmful material</li>
-            </ul>
-        </section>
-
-        <section>
-            <h2>Best practices</h2>
-            <ul>
-                <li>Provide value to readers</li>
-                <li>Use examples where helpful</li>
-                <li>Keep content readable and organized</li>
-                <li>Maintain consistency across your articles</li>
-            </ul>
-        </section>
-
-        {% if not cur_user %}
-            <section>
-                <h2>Get started</h2>
-                <p>
-                    Ready to contribute?
-                </p>
-                <a href="{{ url('login', redirect_url=url("earn")) }}" class="btn btn-primary" rel="nofollow">
-                    Create an Account
+            <p>You keep ownership of your work. Submit material you have the rights to share under our
+                <a href="{{ url('terms') }}#content-reuse" class="link-body-emphasis">content reuse terms</a>.</p>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ share_url }}" class="btn btn-primary"{% if not cur_user %} rel="nofollow"{% endif %}>
+                    <i class="bi bi-pencil-square" aria-hidden="true"></i> Write an article
                 </a>
-            </section>
-        {% endif %}
-
-        <section>
-            <h2>Questions</h2>
-            <p>
-                If you have questions about contributing, please contact us via the
-                <a href="{{ url('contacts') }}" class="link-body-emphasis">Contacts</a> page.
-            </p>
+                <a href="{{ articles_url() }}" class="btn btn-outline-primary">
+                    <i class="bi bi-compass" aria-hidden="true"></i> Browse articles
+                </a>
+            </div>
         </section>
     </article>
 {% endblock %}

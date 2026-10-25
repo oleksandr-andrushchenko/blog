@@ -1,0 +1,21 @@
+<section aria-labelledby="creator-tools">
+    <h2 id="creator-tools" class="h3">A home for your knowledge</h2>
+    {% set tools = [
+        {"icon": "journal-richtext", "title": "Publish useful articles", "text": "Explain architectures, tradeoffs, and lessons learned with formatted text, images, and code examples."},
+        {"icon": "person-badge", "title": "Build your author profile", "text": "Keep your articles together with your bio, website, GitHub, and reader support links."},
+        {"icon": "chat-dots", "title": "Learn with the community", "text": "Invite comments, build a following, and see how readers engage with your work."},
+        {"icon": "bar-chart", "title": "Understand reader interest", "text": "See your community activity and support-link clicks, including counts for individual articles."},
+    ] %}
+    <div class="{{ {"def": 1, "md": 2} | row_classes }} g-3">
+        {% for tool in tools %}
+            <div class="col">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h3 class="h5"><i class="bi bi-{{ tool.icon }} text-primary" aria-hidden="true"></i> {{ tool.title }}</h3>
+                        <p class="mb-0">{{ tool.text }}</p>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</section>

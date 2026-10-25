@@ -1,0 +1,25 @@
+<section aria-labelledby="creator-promotion">
+    <h2 id="creator-promotion" class="h3">Create here. Reach readers everywhere.</h2>
+    <p>Give each article a home, then bring readers back to your work and your author profile.</p>
+    {% set tools = [
+        {"icon": "telegram", "title": "Share to your Telegram channel", "text": "Connect your channel and share published articles with a cover, preview, and link back to the full article."},
+        {"icon": "threads", "title": "Bring your ideas to Threads", "text": "Connect your Threads account and share published articles with your audience."},
+        {"icon": "share", "title": "Make your work easy to pass along", "text": "Use the social and email sharing controls on article pages, and add your author profile link to your website or social bio."},
+        {"icon": "search", "title": "Help readers discover your expertise", "text": "Published articles appear in category and tag listings, plus latest and popular collections. Readers can follow your profile to keep exploring your work."},
+    ] %}
+    <div class="{{ {"def": 1, "md": 2} | row_classes }} g-3">
+        {% for tool in tools %}
+            <div class="col">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h3 class="h5"><i class="bi bi-{{ tool.icon }} text-primary" aria-hidden="true"></i> {{ tool.title }}</h3>
+                        <p class="mb-0">{{ tool.text }}</p>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    <a href="{{ integrations_url }}" class="btn btn-outline-primary mt-3"{% if not cur_user %} rel="nofollow"{% endif %}>
+        <i class="bi bi-megaphone" aria-hidden="true"></i> Connect Telegram and Threads
+    </a>
+</section>

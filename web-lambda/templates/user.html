@@ -82,7 +82,7 @@
 {% block content %}
     <section class="py-5 text-bg-light overflow-hidden mb-4">
         <div class="container">
-            <div class="row align-items-center g-4">
+            <div class="row align-items-start g-4">
                 <div class="{{ {"def": 12, "sm": 3, "lg": 2} | col_classes }}">
                     {% include "fragments/user-avatar.html" %}
                 </div>
@@ -120,18 +120,6 @@
                                    href="https://github.com/{{ user.github_username }}" target="_blank"
                                    rel="nofollow noopener noreferrer">
                                     {{ user.github_username }}
-                                    <i class="bi bi-box-arrow-up-right"></i>
-                                </a>
-                            </div>
-                        {% endif %}
-
-                        {% if user.bmc_username and user.published_articles_count %}
-                            <div>
-                                <small class="bi bi-currency-dollar"> Buy Me a Coffee:</small>
-                                <a class="text-decoration-none link-body-emphasis d-inline-block me-2"
-                                   href="https://buymeacoffee.com/{{ user.bmc_username }}" target="_blank"
-                                   rel="nofollow noopener noreferrer">
-                                    {{ user.bmc_username }}
                                     <i class="bi bi-box-arrow-up-right"></i>
                                 </a>
                             </div>
@@ -201,19 +189,16 @@
             </div>
 
             <div class="{{ {"def": 12, "lg": 4} | col_classes }} border-start">
-                {% if user.published_articles_count %}
-                    {% with header="Enjoy this author’s work?" %}
-                        {% include "fragments/bmc-donate.html" %}
-                {% with support_article=false %}{% include "fragments/creator-support-links.html" %}{% endwith %}
-                    {% endwith %}
-                {% endif %}
+                {% with support_article=false %}
+                    {% include "fragments/creator-support-links.html" %}
+                {% endwith %}
 
                 {% include "fragments/user-tag-subscriptions.html" %}
             </div>
         </div>
 
-        <section>
-            <h2 class="h5 mb-2 text-decoration-underline">
+        <section id="my-articles">
+            <h2 class="h5 mb-2">
                 {{ articles_title }}
             </h2>
 

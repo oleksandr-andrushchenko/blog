@@ -126,8 +126,8 @@
 
 <body class="d-flex flex-column min-vh-100">
 
-<header>
-    <nav class="navbar navbar-expand-lg bg-dark" data-bs-theme="dark">
+<header class="position-relative" style="z-index: 1030;">
+    <nav class="navbar navbar-expand-xxl bg-dark" data-bs-theme="dark">
         <div class="container">
             <a class="navbar-brand" style="outline:none" href="{{ index_url }}">
                 {{ site_name }} <i class="bi bi-{{ site_icon }}"></i>
@@ -154,12 +154,12 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link{% if users_active %} active{% endif %}" href="{{ users_url() }}"
-                                {% if users_active %} aria-current="page"{% endif %}>Users</a>
+                                {% if users_active %} aria-current="page"{% endif %}>Community</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link bi bi-currency-dollar{% if current_route == "earn" %} active{% endif %}"
+                        <a class="nav-link bi bi-stars{% if current_route == "earn" %} active{% endif %}"
                            href="{{ url("earn") }}"{% if current_route == "earn" %} aria-current="page"{% endif %}>
-                            Earn</a>
+                            Creators</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link{% if current_route == "contacts" %} active{% endif %}"
@@ -188,8 +188,12 @@
                                 </a>
                             </li>
                         {% endif %}
-                        <li class="nav-item">
-                            <a class="nav-link bi bi-person-circle" href="{{ user_url(cur_user) }}">
+                        {% set profile_url = user_url(cur_user) %}
+                        {% set edit_profile_url = url("edit-user", user_id=cur_user.id) %}
+                        <li class="nav-item dropdown">
+                            <button class="nav-link dropdown-toggle" type="button" id="user-menu-toggle"
+                                    data-bs-toggle="dropdown" aria-expanded="false" aria-controls="user-menu">
+                                <i class="bi bi-person-circle" aria-hidden="true"></i>
                                 {{ cur_user.name }}
                                 {% if check_auth(cur_user, Permission.ROOT) %}
                                     <span class="badge text-bg-success">root</span>
@@ -197,12 +201,37 @@
                                 {% if cur_user.status == UserStatus.BANNED %}
                                     <span class="badge text-bg-danger" title="{{ cur_user.comment }}">banned</span>
                                 {% endif %}
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url("logout") }}" rel="nofollow">
-                                Sign out <i class="bi bi-box-arrow-right"></i>
-                            </a>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" id="user-menu"
+                                aria-labelledby="user-menu-toggle">
+                                <li><a class="dropdown-item" href="{{ profile_url }}">
+                                    <i class="bi bi-person me-2" aria-hidden="true"></i>Profile
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ edit_profile_url }}">
+                                    <i class="bi bi-pencil me-2" aria-hidden="true"></i>Edit profile
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ profile_url }}#my-articles">
+                                    <i class="bi bi-collection me-2" aria-hidden="true"></i>My articles
+                                </a></li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li><a class="dropdown-item" href="{{ edit_profile_url }}#earn">
+                                    <i class="bi bi-currency-dollar me-2" aria-hidden="true"></i>Support links
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ edit_profile_url }}#notifications">
+                                    <i class="bi bi-bell me-2" aria-hidden="true"></i>Notifications
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ edit_profile_url }}#integrations">
+                                    <i class="bi bi-plug me-2" aria-hidden="true"></i>Integrations
+                                </a></li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li><a class="dropdown-item" href="{{ url("logout") }}" rel="nofollow">
+                                    <i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>Sign out
+                                </a></li>
+                            </ul>
                         </li>
                     {% else %}
                         <li class="nav-item">
@@ -244,7 +273,7 @@
     <div class="container py-1 d-flex flex-column flex-md-row justify-content-between align-items-center text-center text-md-start">
         <ul class="nav justify-content-center mb-2 mb-md-0">
             <li class="nav-item">
-                <a class="nav-link px-2 text-muted bi bi-currency-dollar" href="{{ url("earn") }}"> Earn</a>
+                <a class="nav-link px-2 text-muted bi bi-stars" href="{{ url("earn") }}"> Creators</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link px-2 text-muted" href="{{ url("contacts") }}">Contacts</a>

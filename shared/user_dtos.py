@@ -19,7 +19,6 @@ class UpdateUserDTO(BaseDTO):
     website: str | None | object = UNSET
     address: str | None | object = UNSET
     github_username: str | None | object = UNSET
-    bmc_username: str | None | object = UNSET
     support_links: list | object = UNSET
     notify_article_status: bool | object = UNSET
     notify_user_impressions: bool | object = UNSET
@@ -48,7 +47,7 @@ class UpdateUserDTO(BaseDTO):
         if self.avatar_action is not UNSET and self.avatar_action not in (None, "delete", "replace", "keep"):
             raise ValueError("invalid avatar action")
         for value, maximum in ((self.headline, 150), (self.about, 2000), (self.website, 255), (self.address, 255),
-                               (self.github_username, 39), (self.bmc_username, 50)):
+                               (self.github_username, 39)):
             if value is not UNSET and value is not None and len(value) > maximum:
                 raise ValueError("value is too long")
         if self.website is not UNSET:
@@ -58,11 +57,6 @@ class UpdateUserDTO(BaseDTO):
             if not re.fullmatch(r"[a-z0-9-]+", value) or value.startswith("-") or value.endswith("-") or "--" in value:
                 raise ValueError("invalid GitHub username")
             self.github_username = value
-        if self.bmc_username is not UNSET and self.bmc_username is not None:
-            value = self.bmc_username.split("buymeacoffee.com/", 1)[-1].strip("/").lower()
-            if not re.fullmatch(r"[a-z0-9.]+", value) or value.startswith(".") or value.endswith(".") or ".." in value:
-                raise ValueError("invalid BMC username")
-            self.bmc_username = value
 
 
 class UserImpressionAction(StrEnum):

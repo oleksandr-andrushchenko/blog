@@ -225,3 +225,7 @@
   checks. Keep background API click notification independent of navigation and omit noreferrer on POST forms.
 - Owner-only Telegram/Threads cards show a dimmed preview when unconnected and a separate setup link below it;
   keep them in the article sidebar before related articles.
+
+- Legacy `bmc_username` records without a saved `support_links` list are read as a standard Buy Me a Coffee
+  support link. The first tracked click or profile link save persists the list; an explicit list (including `[]`)
+  takes precedence so removing a legacy link does not restore it.

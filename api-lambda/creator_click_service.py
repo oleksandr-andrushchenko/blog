@@ -111,7 +111,7 @@ def record_creator_link_click(user, link_id, article=None, *, kind='support'):
         _write_transaction(initialization)
 
     for attempt in range(5):
-        _, current = _read_creator(user.id)
+        item, current = _read_creator(user.id)
         try:
             get_creator_link(current, kind, link_id, article)
         except ValueError as error:
@@ -119,16 +119,23 @@ def record_creator_link_click(user, link_id, article=None, *, kind='support'):
         links = get_creator_links(current, kind)
         index = next(index for index, link in enumerate(links) if link.id == link_id)
         transacts = []
-        add_dynamodb_update_transact(transacts, (f'USER#{user.id}', 'META'),
-                                     deltas={field: 1}, add_updated_at=False)
-        update = transacts[0]['Update']
-        path = f'#delta_{field}[{index}]'
-        update['UpdateExpression'] = (
-            f'SET {path}.#clicks = if_not_exists({path}.#clicks, :zero) + :delta_{field}'
-        )
-        update['ExpressionAttributeNames'].update({'#clicks': 'clicks_count', '#link_id': 'id'})
-        update['ExpressionAttributeValues'].update({':zero': 0, ':link_id': link_id})
-        update['ConditionExpression'] = f'attribute_exists(pk) AND {path}.#link_id = :link_id'
+        if item.get(field) is None:
+            # Materialize a legacy support link on its first tracked click.
+            links[index].clicks_count += 1
+            add_dynamodb_update_transact(transacts, (f'USER#{user.id}', 'META'),
+                                         changes={field: [asdict(link) for link in links]}, add_updated_at=False)
+            _guard_link_lists(transacts[0]['Update'], item, [field])
+        else:
+            add_dynamodb_update_transact(transacts, (f'USER#{user.id}', 'META'),
+                                         deltas={field: 1}, add_updated_at=False)
+            update = transacts[0]['Update']
+            path = f'#delta_{field}[{index}]'
+            update['UpdateExpression'] = (
+                f'SET {path}.#clicks = if_not_exists({path}.#clicks, :zero) + :delta_{field}'
+            )
+            update['ExpressionAttributeNames'].update({'#clicks': 'clicks_count', '#link_id': 'id'})
+            update['ExpressionAttributeValues'].update({':zero': 0, ':link_id': link_id})
+            update['ConditionExpression'] = f'attribute_exists(pk) AND {path}.#link_id = :link_id'
         if article is not None:
             add_dynamodb_update_transact(transacts, (f'POST#{article.id}', 'META'),
                                          deltas={article_field: 1}, add_updated_at=False)
