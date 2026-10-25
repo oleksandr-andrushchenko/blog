@@ -1,21 +1,39 @@
 {% if cur_user and cur_user.id == article.owner_id %}
+    {% set telegram_preview = not cur_user.has_telegram_integration %}
     {% set share_enabled = cur_user.has_telegram_integration and cur_user.status == UserStatus.ACTIVE and article.status == ArticleStatus.PUBLISHED %}
-    <section class="card shadow-sm bg-info-subtle my-3" aria-labelledby="telegram-share-heading">
-        <div class="card-body">
-            <h2 class="h5 card-title" id="telegram-share-heading"><i class="bi bi-telegram me-1" aria-hidden="true"></i>Share to Telegram</h2>
-        <button type="button" class="btn {{ 'btn-outline-success' if article.telegram_shared_at else 'btn-outline-secondary' }}" id="telegram-share"
-                {% if not share_enabled %}disabled{% endif %}>
-            <i class="bi bi-telegram me-1" aria-hidden="true"></i><span>{{ "Share again to Telegram" if article.telegram_shared_at else "Share to my Telegram channel" }}</span>
-        </button>
-        <p class="small mt-2 mb-0" id="telegram-share-status" role="status" aria-live="polite">
-            {% if not cur_user.has_telegram_integration %}Connect Telegram to share this article.
-            {% elif cur_user.status != UserStatus.ACTIVE %}An active account is required to share articles.
-            {% elif article.status != ArticleStatus.PUBLISHED %}Publish this article to share it.
-            {% elif article.telegram_shared_at %}Previously shared to Telegram.{% endif %}
-        </p>
-        <a class="small link-body-emphasis" href="{{ url('edit-user', user_id=cur_user.id) }}#integrations">{{ "Manage Telegram connection" if cur_user.has_telegram_integration else "Connect Telegram" }}</a>
-        </div>
-    </section>
+    <div class="article-telegram-sharing my-4">
+        <section class="card shadow-sm bg-info-subtle{% if telegram_preview %} opacity-50{% endif %}"
+                 aria-labelledby="telegram-share-heading">
+            <div class="card-body">
+                <h2 id="telegram-share-heading" class="h5 card-title">
+                    <i class="bi bi-telegram" aria-hidden="true"></i>
+                    Share to Telegram
+                </h2>
+                <button type="button"
+                        class="btn {{ 'btn-dark' if telegram_preview else 'btn-outline-success' if article.telegram_shared_at else 'btn-outline-secondary' }}"
+                        id="telegram-share"
+                        {% if not share_enabled %}disabled{% endif %}>
+                    <i class="bi bi-telegram me-1"
+                       aria-hidden="true"></i><span>{{ "Share again to Telegram" if article.telegram_shared_at else "Share to my Telegram channel" }}</span>
+                </button>
+                <p class="small mt-2 mb-0" id="telegram-share-status" role="status" aria-live="polite">
+                    {% if not cur_user.has_telegram_integration %}Connect Telegram to share this article.
+                    {% elif cur_user.status != UserStatus.ACTIVE %}An active account is required to share articles.
+                    {% elif article.status != ArticleStatus.PUBLISHED %}Publish this article to share it.
+                    {% elif article.telegram_shared_at %}Previously shared to Telegram.{% endif %}
+                </p>
+                {% if not telegram_preview %}
+                    <a class="small link-body-emphasis"
+                       href="{{ url('edit-user', user_id=cur_user.id) }}#integrations">Manage Telegram connection</a>
+                {% endif %}
+            </div>
+        </section>
+        {% if telegram_preview %}
+            <div class="mt-2">
+                <a href="{{ url('edit-user', user_id=cur_user.id) }}#integrations" class="link-body-emphasis">Connect Telegram</a>
+            </div>
+        {% endif %}
+    </div>
     <script>
       document.addEventListener("DOMContentLoaded", () => {
         const button = document.getElementById("telegram-share")

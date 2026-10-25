@@ -1111,6 +1111,12 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     assert status_success.status_code == 200, status_success.text
     published_admin_doc = pq(get(root_client, f"/articles/{article_id}").text)
     assert published_admin_doc('#telegram-share').attr('disabled') is not None
+    for platform in ('telegram', 'threads'):
+        preview = published_admin_doc(f'.article-{platform}-sharing')
+        assert preview('section.opacity-50')
+        assert preview(f'#{platform}-share').attr('disabled') is not None
+        assert not preview('section a[href$="#integrations"]')
+        assert preview('div.mt-2 > a[href$="#integrations"]').text() == f'Connect {platform.title()}'
     owner_key = {"pk": f"USER#{functional_state['root_id']}", "sk": "META"}
     dynamodb_table.update_item(Key=owner_key, UpdateExpression="SET has_telegram_integration = :connected",
                                ExpressionAttributeValues={":connected": True})
@@ -1120,6 +1126,8 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
         connected_doc = pq(connected_page.text)
         assert connected_doc('#telegram-share i.bi-telegram')
         assert connected_doc('#telegram-share').attr('disabled') is None
+        assert not connected_doc('.article-telegram-sharing section.opacity-50')
+        assert connected_doc('.article-telegram-sharing section a[href$="#integrations"]').text() == 'Manage Telegram connection'
         assert f"/users/{functional_state['root_id']}/integrations/telegram" not in connected_page.text
         assert not pq(get(regular_client, f"/articles/{article_id}").text)('#telegram-share')
         assert not pq(get(guest_client, f"/articles/{article_id}").text)('#telegram-share')

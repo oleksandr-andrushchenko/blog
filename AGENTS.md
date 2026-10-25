@@ -220,3 +220,5 @@
   validation. Preserve actual username edits and the existing support-link prepareData behavior.
 - Support-link POSTs return non-cacheable HTTP 303 redirects with the existing origin, prefetch, and referrer-policy
   checks. Keep background API click notification independent of navigation and omit noreferrer on POST forms.
+- Owner-only Telegram/Threads cards show a dimmed preview when unconnected and a separate setup link below it;
+  keep them in the article sidebar before related articles.
