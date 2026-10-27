@@ -1103,7 +1103,7 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
                      article, req, detail=article.comment)
 
 
-def create_contact_message(message_dto: ContactMessageDTO, user: User = None) -> ContactMessage:
+def create_contact_message(message_dto: ContactMessageDTO, user: User = None, *, req=None) -> ContactMessage:
     user and verify_authorization(user, Permission.CREATE_CONTACT_MESSAGE)
 
     now = utc_now()
@@ -1141,7 +1141,9 @@ def create_contact_message(message_dto: ContactMessageDTO, user: User = None) ->
 
     get_dynamodb_table().put_item(Item=message_item)
     logger.info("New contact message", extra={"context": {
+        "message_id": message_id,
         "name": name, "email": message_dto.email, "message": message,
+        **({"by": get_user_url(req, user, absolute=True)} if req and user else {}),
     }})
 
     return ContactMessage(

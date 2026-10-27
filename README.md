@@ -446,3 +446,7 @@ Review dry-run output before adding `--apply`. Repeat `--user-id` for multiple a
 item errors remain retryable and cause a nonzero exit. A concurrent change leaves that user's counters
 untouched; rerun it after activity settles. Authentication, permission, and configuration failures stop
 execution. No new DynamoDB index is required.
+
+Structured action context appears in console/CloudWatch logs as well as Telegram.
+Sign-in and sign-out events include the profile URL; contact submissions include
+the message ID and, for signed-in senders, their profile URL.

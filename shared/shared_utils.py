@@ -41,7 +41,7 @@ from app_config import (
 )
 from article_dtos import (ArticleCommentImpressionAction, ArticleImpressionAction)
 from basic_dtos import UserTokenDTO
-from notifications import configure_telegram_logging
+from notifications import ContextFormatter, configure_telegram_logging
 from query_dtos import (BaseQueryDTO, ArticleCommentQueryDTO, ArticleQueryDTO, ArticleQueryType, ArticleStatus,
                         TagQueryDTO, TagQueryType, UserQueryDTO, UserQueryType, UserStatus)
 from tag_subscription_dtos import TagSubscription
@@ -650,7 +650,7 @@ def get_logger():
     if not lg.handlers:
         lg.setLevel(logging.INFO if is_prod() else logging.DEBUG)
         handler = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter(
+        formatter = ContextFormatter(
             "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
         )
         handler.setFormatter(formatter)

@@ -78,3 +78,19 @@ def test_requestless_comment_notification_retains_identifiers(resources):
     user, article, logger = resources
     comment = api_utils.create_article_comment(article, ArticleCommentDTO(text='A comment'), user, None)
     assert logger.info.call_args.kwargs['extra']['context'] == {'article_id': article.id, 'comment_id': comment.id}
+
+
+def test_contact_submission_logs_message_identity_and_authenticated_sender(resources, monkeypatch):
+    user, _, logger = resources
+    table = Mock()
+    monkeypatch.setattr(api_utils, 'get_dynamodb_table', lambda: table)
+    monkeypatch.setattr(api_utils, 'is_prod', lambda: False)
+    message = api_utils.create_contact_message(
+        api_utils.ContactMessageDTO(name='Reader', email='reader@example.com', message='A useful message'),
+        user, req=get_web_request(),
+    )
+    assert table.put_item.call_args.kwargs['Item']['message_id'] == message.id
+    assert logger.info.call_args.kwargs['extra']['context'] == {
+        'message_id': message.id, 'name': 'Reader', 'email': 'reader@example.com',
+        'message': 'A useful message', 'by': 'https://site.example/@author',
+    }

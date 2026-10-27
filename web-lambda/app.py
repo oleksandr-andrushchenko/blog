@@ -639,13 +639,17 @@ async def login_callback(request: Request) -> RedirectResponse:
         token = create_auth_jwt_token(cognito_user_token)
         set_token_cookie(token, response)
         user = get_user_by_auth_token(token)
+        if user:
+            logger.info('User signed in', extra={'context': {
+                'url': get_user_url(request, user, absolute=True),
+            }})
         return response
     except (InvalidCodeError, CodeExchangeFailedError, InvalidTokenError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @route("get", "logout", response_class=RedirectResponse)
-async def logout(request: Request) -> RedirectResponse:
+async def logout(request: Request, cur_user: OptCurUserDep) -> RedirectResponse:
     from web_utils import get_logout_redirect_url
 
     redirect_url = get_redirect_url(request)
@@ -655,6 +659,10 @@ async def logout(request: Request) -> RedirectResponse:
     response.set_cookie("redirect_url", redirect_url, httponly=True, secure=True)
     drop_token_cookie(response)
     request.state.cur_user = None
+    if cur_user:
+        logger.info('User signed out', extra={'context': {
+            'url': get_user_url(request, cur_user, absolute=True),
+        }})
     return response
 
 

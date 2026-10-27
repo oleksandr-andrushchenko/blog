@@ -45,6 +45,16 @@ def get_access_log(request, status: int) -> tuple[int, str]:
     return level, message
 
 
+class ContextFormatter(logging.Formatter):
+    """Expose structured action context in console/CloudWatch as well as Telegram."""
+
+    def format(self, record):
+        text = super().format(record)
+        if hasattr(record, 'context'):
+            text += ' ' + json.dumps(record.context, ensure_ascii=False, default=str)
+        return text
+
+
 class TelegramFormatter(logging.Formatter):
     """Include only the log record's context as JSON alongside the message."""
 

@@ -343,8 +343,8 @@ async def _update_article_comment(article: ArticleDep, article_comment: ArticleC
 
 
 @route("post", "create-contact-message", status_code=204)
-async def _create_contact_message(message_dto: ContactMessageDTO, cur_user: OptCurUserDep) -> None:
-    create_contact_message(message_dto, cur_user)
+async def _create_contact_message(message_dto: ContactMessageDTO, cur_user: OptCurUserDep, request: Request) -> None:
+    create_contact_message(message_dto, cur_user, req=request)
 
 
 @route("get", "tag-subscriptions", response_class=JSONResponse)
