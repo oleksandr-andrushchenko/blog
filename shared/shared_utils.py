@@ -55,7 +55,8 @@ def Key(*args, **kwargs):
 
 
 def is_aws_client_error(exc: Exception) -> bool:
-    return exc.__class__.__name__ == "ClientError" and hasattr(exc, "response")
+    from botocore.exceptions import ClientError
+    return isinstance(exc, ClientError)
 
 
 def to_thread(func, *args, **kwargs):
@@ -1063,42 +1064,20 @@ def to_datetime(ts: Any) -> datetime:
 
 
 def get_user_by_user_token(token: UserTokenDTO) -> User | None:
-    provider_user_item = None
-    user_item = None
-    user_id = None
-
-    # 1: Lookup provider user record
-    if token.sub:
-        iss = token.iss.split("/")[-1]
-        provider_user_item = get_dynamodb_item(f"PROVIDER_USER#{iss}#{token.sub}", "META")
-        if provider_user_item:
-            user_id = provider_user_item["user_id"]
-
-            # Fetch user record
-            user_item = get_dynamodb_item(f"USER#{user_id}", "META")
-
-    # 2: Fallback: lookup user by email
-    # todo: user_item instead of provider_user_item (?)
-    if not provider_user_item and token.email:
-        resp = query_dynamodb_table(
-            index_name="USERS_BY_EMAIL",
-            key_condition_expr=Key("user_email_pk").eq(token.email),
-            limit=1
-        )
-        items = resp.get("Items", [])
-        if items:
-            user_item = items[0]
-            user_id = user_item["id"]
-
-    # 3: Not found
-    if not user_item:
+    if not token.sub or not token.iss:
         return None
-
+    issuer = token.iss.split("/")[-1]
+    provider = get_dynamodb_item(f"PROVIDER_USER#{issuer}#{token.sub}", "META")
+    if not provider:
+        return None
+    user_id = provider["user_id"]
+    item = get_dynamodb_item(f"USER#{user_id}", "META")
+    if not item:
+        return None
     return user_from_dynamodb({
-        "id": user_id,
-        **user_item,
-        "user_email_pk": user_item.get("user_email_pk") or token.email,
-        "name": user_item.get("name") or token.name,
+        "id": user_id, **item,
+        "user_email_pk": item.get("user_email_pk") or token.email,
+        "name": item.get("name") or token.name,
     })
 
 
@@ -1159,7 +1138,6 @@ def upsert_user_by_user_token(token: UserTokenDTO, status: UserStatus = UserStat
         name = build_user_name(token.name, now)
         user_item = {
             "id": user_id,
-            "user_email_pk": token.email,
             "name": name,
             "providers": providers,
             "status": status,
@@ -1167,6 +1145,8 @@ def upsert_user_by_user_token(token: UserTokenDTO, status: UserStatus = UserStat
             "created_at": now,
             "user_status_pk": f"USER#{status}",
         }
+        if token.email:
+            user_item["user_email_pk"] = token.email
         username = build_user_username(token.name, token.username, now)
         if username:
             user_item["username"] = username
@@ -1177,15 +1157,25 @@ def upsert_user_by_user_token(token: UserTokenDTO, status: UserStatus = UserStat
 
     add_dynamodb_put_transact(transacts, (f"PROVIDER_USER#{iss}#{token.sub}", "META"), {
         "user_id": user_id,
-        "email": token.email,
+        **({"email": token.email} if token.email else {}),
         "created_at": now,
         "updated_at": now
-    })
+    }, new_pk_only=is_new_user)
+    if not is_new_user:
+        operation = transacts[-1]["Put"]
+        operation["ConditionExpression"] = "user_id = :owner"
+        operation["ExpressionAttributeValues"] = {":owner": user_id}
 
     try:
         dynamodb_transact_write(transacts)
     except DynamoDBTransactionError as e:
         if e.is_conditional():
+            if is_new_user:
+                # An explicit connection or another sign-in can win this identity
+                # while signup is in flight. Never overwrite that association.
+                existing_user = get_user_by_user_token(token)
+                if existing_user is not None:
+                    return existing_user
             raise SlugDuplicationError(field="username")
         raise
 
@@ -1274,7 +1264,7 @@ def get_user_token_by_auth_jwt_token(token: str | None) -> UserTokenDTO | None:
 
         return UserTokenDTO(
             sub=payload.get("sub"),
-            iss="internal_auth",
+            iss=payload.get("origin_iss") or "internal_auth",
             email=payload.get("email"),
             name=payload.get("name"),
             username=payload.get("username"),

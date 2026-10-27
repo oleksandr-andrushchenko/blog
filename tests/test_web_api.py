@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import base64
 import json
 import os
 import time
@@ -2172,3 +2173,122 @@ def test_display_name_and_username_can_be_edited_independently(guest_client, use
     saved = get_dynamodb_user(user['id'])
     assert saved['name'] == 'Updated Display Name'
     assert saved['username'] == new_username
+
+
+@pytest.mark.parametrize('email', [None, 'same-email'])
+def test_facebook_sessions_keep_provider_account_isolated_even_without_email(email):
+    suffix = uuid.uuid4().hex
+    shared_email = f'facebook-identity-{suffix}@example.com'
+    issuer = 'facebook-identity-tests'
+    google = get_logged_in_client({'sub': 'google-' + suffix, 'iss': issuer, 'email': shared_email,
+                                   'name': 'Existing Google Creator'})
+    original = get_dynamodb_user_by_email(shared_email)
+    facebook_sub = 'facebook-' + suffix
+    facebook = get_logged_in_client({
+        'sub': facebook_sub, 'iss': issuer, 'email': shared_email if email else None,
+        'name': 'Facebook Creator', 'username': 'Facebook_' + suffix,
+    })
+    provider = dynamodb_table.get_item(Key={'pk': f'PROVIDER_USER#{issuer}#{facebook_sub}', 'sk': 'META'})['Item']
+    facebook_id = provider['user_id']
+    assert facebook_id != original['id']
+    saved = get_dynamodb_user(facebook_id)
+    if email:
+        assert saved['user_email_pk'] == shared_email
+    else:
+        assert 'user_email_pk' not in saved
+        contact_page = get(facebook, '/contacts')
+        assert contact_page.status_code == 200, contact_page.text
+        assert pq(contact_page.text)('input[name=email]').attr('value') == ''
+    assert patch(facebook, f'/users/{original["id"]}', json={'name': 'Wrong account'}).status_code == 403
+    edited = patch(facebook, f'/users/{facebook_id}', json={'name': 'Updated Facebook Creator'})
+    assert edited.status_code == 200, edited.text
+    assert get_dynamodb_user(facebook_id)['name'] == 'Updated Facebook Creator'
+    assert get_dynamodb_user(original['id'])['name'] == 'Existing Google Creator'
+    own_edit = patch(google, f'/users/{original["id"]}', json={'name': 'Still Google Creator'})
+    assert own_edit.status_code == 200, own_edit.text
+    assert get_dynamodb_user(facebook_id)['name'] == 'Updated Facebook Creator'
+
+
+def test_google_signin_does_not_claim_facebook_account_by_unverified_email():
+    suffix = uuid.uuid4().hex
+    issuer, email = 'facebook-first-tests', f'facebook-first-{suffix}@example.com'
+    facebook = get_logged_in_client({'sub': 'facebook-' + suffix, 'iss': issuer, 'email': email,
+                                     'name': 'Facebook First'})
+    original = get_dynamodb_user_by_email(email)
+    assert 'email_match' not in original
+    google_sub = 'google-' + suffix
+    google = get_logged_in_client({'sub': google_sub, 'iss': issuer, 'email': email,
+                                   'name': 'Separate Google'})
+    provider = dynamodb_table.get_item(Key={'pk': f'PROVIDER_USER#{issuer}#{google_sub}', 'sk': 'META'})['Item']
+    assert provider['user_id'] != original['id']
+    assert patch(google, f'/users/{original["id"]}', json={'name': 'Wrong account'}).status_code == 403
+    assert patch(facebook, f'/users/{original["id"]}', json={'name': 'Still Facebook'}).status_code == 200
+
+
+def test_owner_can_connect_unused_login_and_sign_in_through_either_identity(guest_client):
+    suffix = uuid.uuid4().hex
+    issuer, original_sub = 'explicit-login-tests', 'original-' + suffix
+    email = f'original-login-{suffix}@example.com'
+    original_identity = {'sub': original_sub, 'iss': issuer, 'email': email, 'name': 'Original Login Creator'}
+    owner = get_logged_in_client(original_identity)
+    original = get_dynamodb_user_by_email(email)
+    user_id = original['id']
+    endpoint = f'/users/{user_id}/login-methods'
+    assert post(guest_client, endpoint, json={}).status_code == 401
+    outsider = get_logged_in_client({'sub': 'outsider-' + suffix, 'iss': issuer,
+                                     'email': f'outsider-login-{suffix}@example.com', 'name': 'Outsider'})
+    assert post(outsider, endpoint, json={}).status_code == 403
+    assert not pq(get(outsider, f'/users/{user_id}/edit').text)('#connect-login-method')
+    editor = get(owner, f'/users/{user_id}/edit')
+    assert editor.status_code == 200, editor.text
+    assert pq(editor.text)('#connect-login-method')
+    secondary = {'sub': 'secondary-' + suffix, 'iss': issuer,
+                 'email': f'secondary-login-{suffix}@example.com', 'name': 'Secondary Provider Name'}
+    fake_code = base64.urlsafe_b64encode(json.dumps(secondary).encode()).decode()
+    begun = post(owner, endpoint, json={})
+    assert begun.status_code == 200, begun.text
+    assert begun.headers['Cache-Control'] == 'no-store'
+    cookie = begun.headers['Set-Cookie']
+    assert 'HttpOnly' in cookie and 'SameSite=lax' in cookie and 'Path=/auth/login-link/callback' in cookie
+    state = parse_qs(urlsplit(begun.json()['connect_url']).query)['state'][0]
+    callback = '/auth/login-link/callback?' + urlencode({'state': state, 'code': fake_code})
+    before = get_dynamodb_user(user_id)
+    connected = get(owner, callback, allow_redirects=False)
+    assert connected.status_code == 303, connected.text
+    assert connected.headers['Location'].endswith(f'/users/{user_id}/edit?login_link=connected#integrations')
+    assert connected.headers['Cache-Control'] == 'no-store'
+    assert connected.headers['Referrer-Policy'] == 'no-referrer'
+    assert 'Max-Age=0' in connected.headers['Set-Cookie']
+    assert get_dynamodb_user(user_id) == before
+    mapping = dynamodb_table.get_item(Key={'pk': f'PROVIDER_USER#{issuer}#{secondary["sub"]}', 'sk': 'META'})['Item']
+    assert mapping['user_id'] == user_id
+    replay = get(owner, callback, allow_redirects=False)
+    assert replay.status_code == 303 and 'login_link=expired' in replay.headers['Location']
+    secondary_client = get_logged_in_client(secondary)
+    own_editor = get(secondary_client, f'/users/{user_id}/edit')
+    assert own_editor.status_code == 200, own_editor.text
+    assert pq(own_editor.text)('h1').text() == 'Edit Original Login Creator'
+    assert patch(secondary_client, f'/users/{user_id}', json={'name': 'Connected Creator'}).status_code == 200
+    assert get_dynamodb_user(user_id)['name'] == 'Connected Creator'
+    assert get(get_logged_in_client(original_identity), f'/users/{user_id}/edit').status_code == 200
+
+
+@pytest.mark.parametrize('providers', [('Google', 'SignInWithApple'), ('SignInWithApple', 'Google'),
+                                       ('Google', 'Facebook'), ('COGNITO', 'Google')])
+def test_same_email_signins_create_separate_accounts_without_explicit_connection(providers):
+    suffix = uuid.uuid4().hex
+    issuer, email = 'no-email-merge-tests', f'no-email-merge-{suffix}@example.com'
+    first_sub, second_sub = [provider + '-' + suffix for provider in providers]
+    first_identity = {'sub': first_sub, 'iss': issuer, 'email': email, 'name': 'First Creator'}
+    first = get_logged_in_client(first_identity)
+    first_user = get_dynamodb_user_by_email(email)
+    second_identity = {'sub': second_sub, 'iss': issuer, 'email': email, 'name': 'Second Creator'}
+    second = get_logged_in_client(second_identity)
+    second_mapping = dynamodb_table.get_item(Key={'pk': f'PROVIDER_USER#{issuer}#{second_sub}', 'sk': 'META'})['Item']
+    second_id = second_mapping['user_id']
+    assert second_id != first_user['id']
+    assert patch(second, f'/users/{first_user["id"]}', json={'name': 'Wrong account'}).status_code == 403
+    assert patch(first, f'/users/{second_id}', json={'name': 'Wrong account'}).status_code == 403
+    assert get_dynamodb_user(second_id)['name'] == 'Second Creator'
+    assert get(get_logged_in_client(first_identity), f'/users/{first_user["id"]}/edit').status_code == 200
+    assert get(get_logged_in_client(second_identity), f'/users/{second_id}/edit').status_code == 200

@@ -122,6 +122,8 @@ def _is_api_request(method: str, url: str) -> bool:
         return True
     if method == "POST" and (re.fullmatch(r"/articles/[^/]+/share/telegram", path) or path == "/integrations/telegram/webhook"):
         return True
+    if re.fullmatch(r"/users/[^/]+/login-methods", path) or path == "/auth/login-link/callback":
+        return True
     if method == "GET":
         return path in {"/tag-subscriptions", "/tags"}
     if method == "POST":

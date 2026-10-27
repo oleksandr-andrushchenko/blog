@@ -7,7 +7,8 @@ from unittest.mock import Mock
 import pytest
 
 ROOT = Path(os.environ.get('PROJECT_ROOT', Path(__file__).resolve().parents[1]))
-sys.path.insert(0, str(ROOT / 'shared'))
+for directory in ('shared', 'web-lambda'):
+    sys.path.insert(0, str(ROOT / directory))
 
 import shared_utils
 from basic_dtos import UserTokenDTO
@@ -30,9 +31,13 @@ def test_authenticated_user_uses_only_saved_application_username(monkeypatch, pr
 
     user = shared_utils.get_user_by_user_token(token)
 
-    assert user.id == item['id']
-    assert user.username == item.get('username')
-    assert user.name == 'Example Creator'
+    if provider_match:
+        assert user.id == item['id']
+        assert user.username == item.get('username')
+        assert user.name == 'Example Creator'
+    else:
+        assert user is None
+    shared_utils.query_dynamodb_table.assert_not_called()
 
 
 @pytest.mark.parametrize('raw_username', [
@@ -51,3 +56,43 @@ def test_generated_signup_username_passes_profile_validation(raw_username):
 @pytest.mark.parametrize('name, username', [(None, None), ('你好', None), (None, '___'), (None, 'SignInWithApple_001234.example'), (None, 'Google_123456789')])
 def test_signup_can_leave_username_unset_when_no_usable_slug_exists(name, username):
     assert shared_utils.build_user_username(name, username, 1_700_000_000_000) is None
+
+
+@pytest.mark.parametrize('provider', ['Google', 'SignInWithApple', 'Facebook', 'COGNITO'])
+@pytest.mark.parametrize('email', [None, 'same@example.com'])
+def test_signin_never_falls_back_to_email_matching(monkeypatch, provider, email):
+    read = Mock(return_value=None)
+    query = Mock(return_value={'Items': [{'id': 'other-user', 'user_email_pk': email}]})
+    monkeypatch.setattr(shared_utils, 'get_dynamodb_item', read)
+    monkeypatch.setattr(shared_utils, 'query_dynamodb_table', query)
+    token = UserTokenDTO(sub=provider + '-sub', iss='https://issuer.example/pool', email=email)
+    assert shared_utils.get_user_by_user_token(token) is None
+    read.assert_called_once_with('PROVIDER_USER#pool#' + provider + '-sub', 'META')
+    query.assert_not_called()
+
+
+@pytest.mark.parametrize('issuer', ['https://issuer.example/pool', 'example-provider'])
+@pytest.mark.parametrize('email', [None, 'same@example.com'])
+def test_session_cookie_retains_original_provider_identity(monkeypatch, issuer, email):
+    from web_utils import create_auth_jwt_token
+
+    monkeypatch.setitem(shared_utils.get_config(), 'auth_jwt_secret', 'test-session-secret')
+    token = UserTokenDTO(sub='provider-sub', iss=issuer, email=email)
+    session = shared_utils.get_user_token_by_auth_jwt_token(create_auth_jwt_token(token))
+    assert session.iss == token.iss and session.sub == token.sub
+    record = {'id': 'saved-user', 'name': 'Saved Creator', 'created_at': 1}
+    read = Mock(side_effect=[{'user_id': record['id']}, record])
+    monkeypatch.setattr(shared_utils, 'get_dynamodb_item', read)
+    query = Mock()
+    monkeypatch.setattr(shared_utils, 'query_dynamodb_table', query)
+    assert shared_utils.get_user_by_user_token(session).id == 'saved-user'
+    assert read.call_args_list[0].args == ('PROVIDER_USER#' + issuer.split('/')[-1] + '#provider-sub', 'META')
+    query.assert_not_called()
+
+
+def test_deleted_provider_target_cannot_fall_back_to_another_account(monkeypatch):
+    monkeypatch.setattr(shared_utils, 'get_dynamodb_item', Mock(side_effect=[{'user_id': 'deleted-user'}, None]))
+    query = Mock()
+    monkeypatch.setattr(shared_utils, 'query_dynamodb_table', query)
+    assert shared_utils.get_user_by_user_token(UserTokenDTO(sub='known-sub', iss='issuer', email='same@example.com')) is None
+    query.assert_not_called()

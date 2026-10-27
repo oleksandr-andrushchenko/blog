@@ -1,0 +1,47 @@
+<section aria-labelledby="login-methods-heading" class="d-flex flex-column gap-3 mb-4">
+    <h2 class="h5 mb-0" id="login-methods-heading"><i class="bi bi-person-lock me-1" aria-hidden="true"></i>Login methods</h2>
+    <p class="mb-0">Connect another login method to use it with this profile and keep access to your articles.</p>
+    <div id="login-method-status" role="status" aria-live="polite"></div>
+    <button type="button" class="btn btn-outline-primary align-self-start" id="connect-login-method">
+        <i class="bi bi-person-plus me-1" aria-hidden="true"></i><span>Connect another login method</span>
+    </button>
+</section>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const button = document.getElementById("connect-login-method")
+    const status = document.getElementById("login-method-status")
+    const current = new URL(window.location.href)
+    const outcome = current.searchParams.get("login_link")
+    const messages = {
+      connected: "Login method connected. You can now use it to sign in to this account.",
+      already_connected: "This login method is already connected to your account.",
+      denied: "Connection cancelled. You can try again whenever you're ready.",
+      expired: "The connection expired or your sign-in session changed. Please try again.",
+      in_use: "This login belongs to another account. Sign in with it to access that account's articles.",
+      failed: "We couldn't connect this login method. Please try again."
+    }
+    if (outcome) {
+      status.textContent = messages[outcome] || messages.failed
+      status.className = ["connected", "already_connected"].includes(outcome) ? "text-success" : "text-secondary"
+      current.searchParams.delete("login_link")
+      window.history.replaceState(null, "", current)
+    }
+    button.addEventListener("click", async () => {
+      if (button.disabled) return
+      button.disabled = true
+      status.textContent = "Opening sign-in…"
+      try {
+        const response = await fetch({{ url('login-connection', user_id=user.id, absolute=True) | tojson }}, {
+          method: "POST", credentials: "include", headers: {"Content-Type": "application/json"}, body: "{}"
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(typeof data.details === "string" ? data.details : "Could not start the connection. Please try again.")
+        window.location.assign(data.connect_url)
+      } catch (error) {
+        status.textContent = error.message
+        status.className = "text-danger"
+        button.disabled = false
+      }
+    })
+  })
+</script>

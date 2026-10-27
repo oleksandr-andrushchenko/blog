@@ -229,3 +229,15 @@
 - Legacy `bmc_username` records without a saved `support_links` list are read as a standard Buy Me a Coffee
   support link. The first tracked click or profile link save persists the list; an explicit list (including `[]`)
   takes precedence so removing a legacy link does not restore it.
+
+## Connected login identities
+
+- Resolve authentication through saved issuer/subject mappings only; never merge accounts by email. Preserve
+  `origin_iss` in session cookies, and omit email index attributes when no email is supplied.
+- Login connections are an explicit active-owner API flow in `login_link_service.py`. Bind pending state to the
+  authenticated session, browser cookie, PKCE verifier, and nonce; claim callbacks once before exchanging codes.
+  Atomically associate only unassigned identities, guarded against replacement attempts and account bans.
+- Verify Cognito ID-token signatures, issuer, audience, expiry, nonce, and optional access-token hashes through
+  `shared/cognito_auth.py`. Pass the exchanged access token to verification; never disable `at_hash` validation.
+- Redact login/logout, login-link, and Threads callback queries from request and referrer logs.
+- Ship web/API code with the Cognito callback and API environment configuration together.

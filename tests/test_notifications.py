@@ -12,6 +12,44 @@ project_root = Path(os.environ.get("PROJECT_ROOT", Path(__file__).resolve().pare
 sys.path.insert(0, str(project_root / "shared"))
 import notifications
 from app_config import config as app_config
+from web import Request
+
+
+class AccessLogTests(unittest.TestCase):
+    def test_web_callback_codes_are_redacted_from_requests_and_referrers(self):
+        for path in ('/login-callback', '/logout-callback', '/login-callback/',
+                     '/auth/login-link/callback', '/integrations/threads/callback'):
+            with self.subTest(path=path):
+                request = self.request(path)
+                request.scope['query_string'] = b'code=private-code&state=private-state'
+                request.scope['headers'] = [(b'referer',
+                    b'https://catalog.example/login-callback?code=referrer-code&state=referrer-state')]
+                level, message = notifications.get_access_log(request, 400)
+                self.assertEqual(level, logging.WARNING)
+                self.assertIn(f'GET https://catalog.example{path} HTTP/1.1', message)
+                self.assertNotIn('private-', message)
+                self.assertNotIn('referrer-', message)
+                self.assertNotIn('?', message)
+
+    def request(self, path, method='GET'):
+        return Request({'type': 'http', 'method': method, 'scheme': 'https',
+                        'server': ('catalog.example', 443), 'path': path,
+                        'query_string': b'source=discovery', 'headers': []})
+
+    def test_all_404s_log_at_debug_without_changing_message(self):
+        for path in ('/articles/missing', '/users/missing', '/.well-known/future-discovery.json'):
+            for method in ('GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS'):
+                with self.subTest(path=path, method=method):
+                    level, message = notifications.get_access_log(self.request(path, method), 404)
+                    self.assertEqual(level, logging.DEBUG)
+                    self.assertIn(f'{method} https://catalog.example{path}?source=discovery', message)
+                    self.assertIn('404', message)
+
+    def test_other_error_statuses_keep_their_severity(self):
+        for status in (400, 401, 403, 405, 429, 500, 502, 503):
+            with self.subTest(status=status):
+                self.assertEqual(notifications.get_access_log(self.request('/articles/missing'), status)[0],
+                                 logging.ERROR if status >= 500 else logging.WARNING)
 
 
 class NotificationTests(unittest.TestCase):

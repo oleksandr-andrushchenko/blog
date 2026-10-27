@@ -10,7 +10,7 @@ from web_route_metadata import WEB_AUTH_URL_ROUTES
 
 from app_config import (
     get_auth_jwt_secret, get_auth_token_max_age, get_cognito_client_id,
-    get_cognito_client_secret, get_cognito_domain, get_web_base_url, is_prod,
+    get_cognito_domain, get_web_base_url, is_prod,
 )
 from shared_utils import *
 from shared_utils import (
@@ -38,52 +38,9 @@ def get_login_redirect_url(callback_url: str) -> str:
 
 
 def get_user_token_by_code(code: str, callback_url: str, *, req=None) -> UserTokenDTO:
-    if is_prod():
-        if not code:
-            raise InvalidCodeError("Missing code")
+    from cognito_auth import exchange_login_code
 
-        token_url = f"https://{get_cognito_domain()}/oauth2/token"
-        cognito_client_id = get_cognito_client_id()
-        cognito_client_secret = get_cognito_client_secret()
-        data = {
-            "grant_type": "authorization_code",
-            "client_id": cognito_client_id,
-            "code": code,
-            "redirect_uri": callback_url,
-        }
-        headers = {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": "Basic " + base64.b64encode(
-                f"{cognito_client_id}:{cognito_client_secret}".encode()
-            ).decode()
-        }
-
-        import httpx
-        with httpx.Client() as client:
-            token_resp = client.post(token_url, data=data, headers=headers)
-            if token_resp.status_code != 200:
-                logger.error(f"Token exchange failed: {token_resp.status_code} {token_resp.text}")
-                raise CodeExchangeFailedError("Failed to exchange code")
-            tokens = token_resp.json()
-            # logger.debug(f"Cognito token response: {tokens}")
-
-        id_token = tokens.get("id_token")
-        if not id_token:
-            raise InvalidTokenError("Missing id_token in Cognito response")
-        from jose import jwt
-        claims = jwt.get_unverified_claims(id_token)
-        if claims.get("token_use") != "id":
-            raise InvalidTokenError(f"Unexpected token_use: {claims.get('token_use')}")
-
-        tokens = {"id_token": id_token}
-        user_token = user_token_from_jwt_claims(claims, encode_offset(tokens))
-    else:
-        try:
-            token_args = decode_offset(code) if code else {}
-        except (ValueError, UnicodeError) as exc:
-            raise InvalidCodeError("Invalid code") from exc
-        user_token = get_dummy_user_token(**token_args)
-
+    user_token = exchange_login_code(code, callback_url)
     upsert_user_by_user_token(user_token, req=req)
     return user_token
 

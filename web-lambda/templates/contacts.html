@@ -48,7 +48,7 @@
 
                 <label class="{{ {"def": 12} | col_classes }}">
                     <input type="email" class="form-control" id="email" name="email" placeholder="Your Email"
-                           value="{{ cur_user.email if cur_user else '' }}" required>
+                           value="{{ (cur_user.email or '') if cur_user else '' }}" required>
                 </label>
 
                 <label class="{{ {"def": 12} | col_classes }}">

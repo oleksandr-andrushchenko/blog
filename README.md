@@ -102,6 +102,26 @@ the infrastructure. Updating only a secret's value does not cause CloudFormation
 to refresh an unchanged Cognito resource. Verify Apple sign-in before revoking
 the old key.
 
+## Connecting login methods
+
+Sign in to the profile you want to keep, open **Edit profile → Integrations**, and
+select **Connect another login method**. Authenticate with another configured
+Cognito sign-in option. Future sign-ins through either identity use the same
+profile and articles, even when their email addresses differ.
+
+Sign-in resolves saved provider identities. Matching email addresses do not merge
+accounts. Identities already assigned to another application account cannot be
+connected; this flow does not merge profiles or move content. Accounts without
+email can use the site but cannot receive email notifications.
+
+Release the web and API code together with the infrastructure configuration. The
+Cognito client allows `https://api.${DomainName}/auth/login-link/callback`, and the
+API receives the existing Cognito domain, user-pool ID, client ID, and client
+secret for code exchange. Provider credentials remain in Cognito. Normal sign-in
+and login connections verify token signatures, issuer, audience, expiry, and any
+access-token hash; connections also verify the nonce. Callback queries are
+redacted from request and referrer logs.
+
 ## AWS deployment
 
 Use `.env.example` as the template for both environment files. Keep local

@@ -1,6 +1,8 @@
 """Canonical API route names and path templates."""
 
 API_URL_ROUTES = {
+    "login-connection": "/users/{user_id}/login-methods",
+    "login-link-callback": "/auth/login-link/callback",
     'record-article-share': '/articles/{article_id}/share-click',
     'update-article-comment-impression': '/articles/{article_id}/comments/{comment_id}/impression',
     "upload-article-image": "/article-images",

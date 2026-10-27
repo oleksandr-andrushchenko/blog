@@ -7,6 +7,8 @@ import sys
 from urllib.request import Request, urlopen
 
 from app_config import get_telegram_bot_token, get_telegram_chat_id, get_telegram_log_level
+from api_route_metadata import API_URL_ROUTES
+from web_route_metadata import WEB_AUTH_URL_ROUTES
 
 
 def _access_log_url(value):
@@ -15,8 +17,11 @@ def _access_log_url(value):
         parts = urlsplit(str(value))
     except ValueError:
         # Referrers are untrusted and must never break access logging.
-        return str(value).split('?', 1)[0]
-    if parts.path.rstrip('/') == '/integrations/threads/callback':
+        return "[invalid URL]"
+    if parts.path.rstrip("/") in {
+        API_URL_ROUTES["threads-callback"], API_URL_ROUTES["login-link-callback"],
+        WEB_AUTH_URL_ROUTES["login-callback"], WEB_AUTH_URL_ROUTES["logout-callback"],
+    }:
         return urlunsplit((parts.scheme, parts.netloc, parts.path, '', ''))
     return str(value)
 

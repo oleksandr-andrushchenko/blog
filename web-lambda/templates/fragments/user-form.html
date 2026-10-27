@@ -191,6 +191,7 @@
         </div>
         {% if user and cur_user and user.id == cur_user.id %}
             <div class="tab-pane py-3" id="integrations" role="tabpanel" aria-labelledby="integrations-tab" tabindex="0">
+                {% include "fragments/login-methods.html" %}
                 {% include "fragments/telegram-integration.html" %}
                 {% include "fragments/threads-integration.html" %}
             </div>

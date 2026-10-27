@@ -1,12 +1,15 @@
 import asyncio
 import json
 from dataclasses import replace
+from urllib.parse import urlencode
+
+import login_link_service
 
 import telegram_service
 import threads_sharing_service
 
 from shared_utils import template_request
-from app_config import get_allowed_origins
+from app_config import get_allowed_origins, is_prod
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import PlainTextResponse
 
@@ -96,6 +99,7 @@ from shared_deps import (
     CategoryDep,
 )
 from shared_utils import (
+    CodeExchangeFailedError, InvalidCodeError, InvalidTokenError,
     find_tag,
     get_categories,
     get_article_url,
@@ -140,9 +144,11 @@ async def add_no_robots_to_api(request: Request, call_next):
     response = await call_next(request)
 
     response.headers["X-Robots-Tag"] = "noindex, nofollow"
-    if request.url.path == API_URL_ROUTES["threads-callback"]:
+    if request.url.path in {API_URL_ROUTES["threads-callback"], API_URL_ROUTES["login-link-callback"]}:
         response.headers["Cache-Control"] = "no-store"
         response.headers["Referrer-Policy"] = "no-referrer"
+    if request.url.path.startswith("/users/") and request.url.path.rstrip("/").endswith("/login-methods"):
+        response.headers["Cache-Control"] = "no-store"
     return response
 
 
@@ -514,6 +520,33 @@ def _integration_mutation(request):
         raise HTTPException(403, "Untrusted request origin")
     if request.method != "DELETE" and request.headers.get("content-type", "").split(";")[0] != "application/json":
         raise HTTPException(415, "Use application/json")
+
+
+@route("post", "login-connection")
+async def connect_login_method(user: UserDep, cur_user: CurUserDep, request: Request):
+    _integration_mutation(request)
+    result, binding = await to_thread(login_link_service.begin_connection, user, cur_user, request)
+    response = JSONResponse(result, headers={"Cache-Control": "no-store"})
+    response.set_cookie(login_link_service.COOKIE_NAME, binding,
+                        max_age=login_link_service.CONNECT_LIFETIME_MS // 1000,
+                        path=API_URL_ROUTES["login-link-callback"], secure=is_prod(), httponly=True, samesite="lax")
+    return response
+
+
+@route("get", "login-link-callback")
+async def login_link_callback(cur_user: CurUserDep, request: Request):
+    try:
+        outcome = await to_thread(login_link_service.complete_connection, cur_user, request)
+    except login_link_service.LoginLinkError as error:
+        outcome = error.reason
+    except (InvalidCodeError, CodeExchangeFailedError, InvalidTokenError):
+        outcome = "failed"
+    destination = get_url(request, "edit-user", user_id=cur_user.id, absolute=True)
+    response = RedirectResponse(destination + "?" + urlencode({"login_link": outcome}) + "#integrations",
+                                status_code=303, headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
+    response.delete_cookie(login_link_service.COOKIE_NAME, path=API_URL_ROUTES["login-link-callback"],
+                           secure=is_prod(), httponly=True, samesite="lax")
+    return response
 
 
 @route("get", "telegram-connection")

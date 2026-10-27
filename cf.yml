@@ -687,6 +687,10 @@ Resources:
           SES_FROM_EMAIL: !Sub "no-reply@${DomainName}"
           STATIC_S3_BUCKET: !Ref SiteBucket
           AUTH_JWT_SECRET: !Ref AuthJwtSecret
+          COGNITO_DOMAIN: !Sub "${CognitoUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
+          COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient
+          COGNITO_CLIENT_SECRET: !GetAtt CognitoUserPoolClient.ClientSecret
+          COGNITO_USER_POOL_ID: !Ref CognitoUserPoolV2
           CLOUDFRONT_DISTRIBUTION_ID: !Ref CloudFrontDistribution
           INDEXNOW_KEY: !Ref IndexNowKey
           GOOGLE_SEARCH_CONSOLE_CREDENTIALS_SECRET_ARN: !Ref GoogleSearchConsoleCredentialsSecret
@@ -997,6 +1001,7 @@ Resources:
         - openid
         - profile
       CallbackURLs:
+        - !Sub "https://api.${DomainName}/auth/login-link/callback"
         - !Sub "https://${DomainName}/login-callback"
         - !Sub "https://${DomainName}"
       LogoutURLs:
