@@ -240,4 +240,6 @@
 - Verify Cognito ID-token signatures, issuer, audience, expiry, nonce, and optional access-token hashes through
   `shared/cognito_auth.py`. Pass the exchanged access token to verification; never disable `at_hash` validation.
 - Redact login/logout, login-link, and Threads callback queries from request and referrer logs.
-- Ship web/API code with the Cognito callback and API environment configuration together.
+- Ship web/API code with the Cognito callback and API environment configuration together. Infrastructure deployment
+  uses the existing code bucket with the `cloudformation` prefix to support templates larger than 51,200 bytes.
+- The test runner explicitly sets both `DYNAMODB_TABLE` and `TEST_DYNAMODB_TABLE` to `app_test`.

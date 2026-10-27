@@ -101,6 +101,7 @@ services:
       WEB_TEST_BASE_URL: "http://web-lambda:5000"
       API_TEST_BASE_URL: "http://api-lambda:5000"
       TEST_DYNAMODB_TABLE: app_test
+      DYNAMODB_TABLE: app_test
       PROJECT_ROOT: "/project"
       AWS_REGION: us-west-2
       AWS_ACCESS_KEY_ID: dummy

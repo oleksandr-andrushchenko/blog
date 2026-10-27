@@ -65,6 +65,9 @@ TINYMCE_API_KEY := $(shell sed -n "s/^TINYMCE_API_KEY=//p" $(PROD_ENV_FILE) 2>/d
 CSS_CACHE_COUNTER := $(shell sed -n "s/^CSS_CACHE_COUNTER=//p" $(PROD_ENV_FILE) 2>/dev/null)
 JS_CACHE_COUNTER := $(shell sed -n "s/^JS_CACHE_COUNTER=//p" $(PROD_ENV_FILE) 2>/dev/null)
 AUTH_JWT_SECRET := $(shell sed -n "s/^AUTH_JWT_SECRET=//p" $(PROD_ENV_FILE) 2>/dev/null)
+THREADS_APP_ID := $(shell sed -n "s/^THREADS_APP_ID=//p" $(PROD_ENV_FILE) 2>/dev/null)
+THREADS_APP_SECRET := $(shell sed -n "s/^THREADS_APP_SECRET=//p" $(PROD_ENV_FILE) 2>/dev/null)
+THREADS_TOKEN_ENCRYPTION_KEY := $(shell sed -n "s/^THREADS_TOKEN_ENCRYPTION_KEY=//p" $(PROD_ENV_FILE) 2>/dev/null)
 
 CODE_STACK_NAME = $(AWS_STACK)-code
 CERT_STACK_NAME = $(AWS_STACK)-cert
@@ -205,6 +208,8 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 		--profile $(AWS_PROJECT) \
 		--region $(AWS_REGION) \
 		--template-file cf.yml \
+		--s3-bucket $(CODE_STACK_NAME) \
+		--s3-prefix cloudformation \
 		--stack-name $(AWS_STACK) \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--no-fail-on-empty-changeset \
