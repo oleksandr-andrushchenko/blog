@@ -979,13 +979,21 @@ $(function () {
 })
 
 $(function () {
-  const pageUrl = encodeURIComponent(window.location.href)
+  const canonicalUrl = document.querySelector('link[rel="canonical"]')?.href || window.location.href
+  const pageUrl = encodeURIComponent(canonicalUrl)
   const pageTitle = encodeURIComponent(document.title)
 
-  $(".share-btn.twitter").attr("href", `https://twitter.com/intent/tweet?url=${pageUrl}&text=${pageTitle}`)
+  const shareText = encodeURIComponent(`${document.title}\n${canonicalUrl}`)
+
+  $(".share-btn.whatsapp").attr("href", `https://wa.me/?text=${shareText}`)
+  $(".share-btn.telegram").attr("href", `https://t.me/share/url?url=${pageUrl}&text=${pageTitle}`)
+  $(".share-btn.twitter").attr("href", `https://x.com/intent/tweet?url=${pageUrl}&text=${pageTitle}`)
+  $(".share-btn.bluesky").attr("href", `https://bsky.app/intent/compose?text=${shareText}`)
+  $(".share-btn.threads").attr("href", `https://www.threads.com/intent/post?text=${shareText}`)
   $(".share-btn.facebook").attr("href", `https://www.facebook.com/sharer/sharer.php?u=${pageUrl}`)
-  $(".share-btn.linkedin").attr("href", `https://www.linkedin.com/shareArticle?mini=true&url=${pageUrl}&title=${pageTitle}`)
-  $(".share-btn.email").attr("href", `mailto:?subject=${pageTitle}&body=Check out this article: ${pageUrl}`)
+  $(".share-btn.linkedin").attr("href", `https://www.linkedin.com/sharing/share-offsite/?url=${pageUrl}`)
+  $(".share-btn.reddit").attr("href", `https://www.reddit.com/submit?url=${pageUrl}&title=${pageTitle}`)
+  $(".share-btn.email").attr("href", `mailto:?subject=${pageTitle}&body=${shareText}`)
 })
 
 // Tag subscriptions
@@ -1025,7 +1033,7 @@ $(document).on("click", ".btn-tag-subscription", function () {
 
 
 $(document).on("click", ".share[data-share-url] .share-btn", function () {
-  const platform = ["twitter", "facebook", "linkedin", "email"].find(name => this.classList.contains(name))
+  const platform = this.dataset.sharePlatform
   if (!platform) return
   fetch(this.closest(".share").dataset.shareUrl, {
     method: "POST", credentials: "include", keepalive: true,

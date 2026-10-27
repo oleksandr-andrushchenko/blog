@@ -2107,6 +2107,24 @@ def test_engagement_endpoints_and_notifications_end_to_end(guest_client):
     item = next(item for item in dynamodb_table.scan()['Items'] if item.get('title') == title)
     path = '/articles/' + item['id']
     assert post(admin, path + '/status', json={'status': 'published'}).status_code == 200
+    page = get(guest_client, path)
+    assert page.status_code == 200, page.text
+    share_controls = pq(page.text)('.share[data-share-url] [data-share-platform]')
+    platforms = ['whatsapp', 'telegram', 'twitter', 'bluesky', 'threads',
+                 'facebook', 'linkedin', 'reddit', 'email']
+    assert [control.attr('data-share-platform') for control in share_controls.items()] == platforms
+    for control in share_controls.items():
+        assert control.attr('title') == control.attr('aria-label')
+        assert not control.text()
+        assert control('i[aria-hidden="true"]')
+        assert set(control.attr('rel').split()) == {'nofollow', 'noopener', 'noreferrer'}
+        if control.attr('data-share-platform') != 'email':
+            assert control.attr('target') == '_blank'
+    for platform in ['whatsapp', 'telegram', 'bluesky', 'threads', 'reddit']:
+        event = {'channel': platform + '_share_click', 'event_id': str(uuid.uuid4())}
+        assert post(guest_client, path + '/share-click', json=event).json() == {'recorded': True}
+        assert post(guest_client, path + '/share-click', json=event).json() == {'recorded': False}
+        assert get_dynamodb_article(item['id'])['shares_counts'][platform + '_share_click'] == 1
     seen |= set(directory.glob('*.eml'))
     comment_response = post(actor, path + '/comments', json={'text': 'A useful discussion.'})
     assert comment_response.status_code == 200, comment_response.text

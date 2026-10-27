@@ -1,13 +1,22 @@
-<div class="share d-flex flex-wrap align-items-center"{% if article and article.status == ArticleStatus.PUBLISHED %} data-share-url="{{ url('record-article-share', article_id=article.id, absolute=True) }}"{% endif %}>
+<div class="share d-flex flex-wrap align-items-center gap-2"{% if article and article.status == ArticleStatus.PUBLISHED %}
+     data-share-url="{{ url('record-article-share', article_id=article.id, absolute=True) }}"{% endif %}>
     <small class="text-secondary">{{ share_label | default("Share this content") }}:</small>
-    <div class="btn-group" role="group" aria-label="Share buttons">
-        <a href="#" class="btn btn-light btn-sm share-btn twitter bi bi-twitter" target="_blank" rel="nofollow noopener noreferrer"
-           title="Share on Twitter"></a>
-        <a href="#" class="btn btn-light btn-sm share-btn facebook bi bi-facebook" target="_blank" rel="nofollow noopener noreferrer"
-           title="Share on Facebook"></a>
-        <a href="#" class="btn btn-light btn-sm share-btn linkedin bi bi-linkedin" target="_blank" rel="nofollow noopener noreferrer"
-           title="Share on LinkedIn"></a>
-        <a href="#" class="btn btn-light btn-sm share-btn email bi bi-envelope" target="_blank" rel="nofollow noopener noreferrer"
-           title="Share via Email"></a>
-    </div>
+    {% for platform, label, icon in [
+            ('whatsapp', 'WhatsApp', 'whatsapp'),
+            ('telegram', 'Telegram', 'telegram'),
+            ('twitter', 'X', 'twitter-x'),
+            ('bluesky', 'Bluesky', 'bluesky'),
+            ('threads', 'Threads', 'threads'),
+            ('facebook', 'Facebook', 'facebook'),
+            ('linkedin', 'LinkedIn', 'linkedin'),
+            ('reddit', 'Reddit', 'reddit'),
+            ('email', 'Email', 'envelope'),
+        ] %}
+        <a href="#" class="btn btn-light btn-sm share-btn {{ platform }}" data-share-platform="{{ platform }}"
+           {% if platform != 'email' %}target="_blank" {% endif %}rel="nofollow noopener noreferrer"
+           title="Share {{ 'via' if platform == 'email' else 'on' }} {{ label }}"
+           aria-label="Share {{ 'via' if platform == 'email' else 'on' }} {{ label }}">
+            <i class="bi bi-{{ icon }}" aria-hidden="true"></i>{% if not share_icons_only %} <span>{{ label }}</span>{% endif %}
+        </a>
+    {% endfor %}
 </div>

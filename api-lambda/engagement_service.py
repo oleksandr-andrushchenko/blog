@@ -16,6 +16,8 @@ from botocore.exceptions import ClientError
 SHARE_CHANNELS = {
     'telegram_publish', 'threads_publish', 'twitter_share_click',
     'facebook_share_click', 'linkedin_share_click', 'email_share_click',
+    'whatsapp_share_click', 'telegram_share_click', 'bluesky_share_click',
+    'threads_share_click', 'reddit_share_click',
 }
 
 

@@ -424,10 +424,10 @@ rendered anchor. Comment reactions toggle and switch like article reactions. Exi
 behavior is preserved; follow/block actions on one's own account remain unchanged.
 
 The owner's profile includes given/received totals for article and comment reactions, comments, blocks,
-and sharing by channel. Social-share control clicks count only opening Twitter, Facebook, LinkedIn, or
-email sharing; they do not establish that a post was sent. Confirmed Telegram/Threads posts are counted
-separately. Server-issued publishing IDs and client event UUIDs prevent retries from counting the same
-event twice. Uncertain remote publishing results remain uncounted, and analytics failures never turn a
+and sharing by channel. Share controls support WhatsApp, Telegram, X, Bluesky, Threads, Facebook,
+LinkedIn, Reddit, and email using the canonical page URL. Clicks count opening a sharing control; they
+do not establish that a post was sent. Confirmed Telegram/Threads posts are counted separately.
+Server-issued publishing IDs and client event UUIDs prevent retries from counting the same event twice. Uncertain remote publishing results remain uncounted, and analytics failures never turn a
 successful remote post into a failed share. Reaction transactions check the previous saved action and
 return 409 when it changed concurrently rather than applying a stale counter transition.
 
