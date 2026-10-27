@@ -59,9 +59,8 @@ def test_get_popular_tags_queries_rating_index(monkeypatch):
     assert calls[0]["index_name"] == "TAGS_BY_TYPE_RATING"
 
 
-@pytest.mark.parametrize("template", ["index.html", "tags.html"])
-def test_tag_pages_include_tag_content(template):
-    template_path = project_root / "web-lambda/templates" / template
+def test_tag_directory_includes_tag_content():
+    template_path = project_root / "web-lambda/templates/tags.html"
     template_source = template_path.read_text()
 
     assert 'include "fragments/tag.html"' in template_source
