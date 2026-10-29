@@ -35,13 +35,10 @@ def create_dummy_fixtures(req=None) -> None:
     created_articles = []
     created_users = []
     generated_image_filenames = [
-        "3d7af01f-819e-4c2f-bc69-eb7245b76a74_1809x1247.png",
-        "45e97e68-a321-4657-9956-e942d9d757a7_1279x518.png",
-        "4fdd2dcc-8c7d-40ac-80a6-647c828af338_1000x376.png",
-        "5b027ec7-c018-4744-9eda-00abf75cf685_1111x712.png",
-        "6a5118c0-a073-483b-ac5b-79e0a554e703_988x494.png",
-        "a167891d-7e91-40d6-a5c4-1a3ddb27dcc2_1575x842.png",
-        "ebdbe93d-99ec-4a47-b821-f4dfe0da769b_798x475.png",
+        "dummy-herbs_640x640.webp",
+        "dummy-herbs-alternate_640x640.webp",
+        "dummy-night-garden_540x960.webp",
+        "dummy-coastal_960x540.webp",
     ]
     used_user_names = {"John Doe"}
     used_article_titles = set()
@@ -135,7 +132,7 @@ def create_dummy_fixtures(req=None) -> None:
     update_user_dto = UpdateUserDTO(
         name="John Doe",
         avatar_action="replace",
-        avatar_filename="5b027ec7-c018-4744-9eda-00abf75cf685_1111x712.png",
+        avatar_filename="dummy-herbs_640x640.webp",
         username="j-doe",
         headline="Software Engineer",
         website="https://example.com",
@@ -161,9 +158,9 @@ def create_dummy_fixtures(req=None) -> None:
     update_user(user4, UpdateUserDTO(
         name=unique_user_name(),
         avatar_action="replace",
-        avatar_filename="5b027ec7-c018-4744-9eda-00abf75cf685_1111x712.png",
+        avatar_filename="dummy-herbs_640x640.webp",
     ), root_user, req)
-    user4.avatar_filename = "5b027ec7-c018-4744-9eda-00abf75cf685_1111x712.png"
+    user4.avatar_filename = "dummy-herbs_640x640.webp"
     create_tag_subscription(TagSubscriptionDTO(tags=["observability"]), root_user, req=req)
     create_tag_subscription(TagSubscriptionDTO(tags=["event-driven"]), user3, req=req)
     create_tag_subscription(TagSubscriptionDTO(tags=["databases", "reliability"]), user4, req=req)
@@ -240,8 +237,10 @@ def create_dummy_fixtures(req=None) -> None:
         )
         created_articles.append(generated_article)
 
-    for tag_name, image_filename in [("distributed-systems", "45e97e68-a321-4657-9956-e942d9d757a7_1279x518.png"),
-                                     ("event-driven", "a167891d-7e91-40d6-a5c4-1a3ddb27dcc2_1575x842.png") ]:
+    for tag_name, image_filename in [
+        ("distributed-systems", "dummy-coastal_960x540.webp"),
+        ("event-driven", "dummy-night-garden_540x960.webp"),
+    ]:
         tag = find_tag(tag_name)
         update_tag(tag, UpdateTagDTO(
             name=tag_name,

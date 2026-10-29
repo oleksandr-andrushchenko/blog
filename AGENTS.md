@@ -103,6 +103,15 @@
 
 ## Templates and static assets
 
+- The `dummy-` filename prefix is reserved for local/test assets. Static builds
+  must exclude these files at every directory depth while retaining the source
+  files under `static` for local fixtures. Uploading a corrected build does not
+  remove previously uploaded objects from S3; any production cleanup requires
+  an explicit command and must target only the specific affected keys.
+- Local fixtures use the six tracked `static/dummy-*` files (four WebP images and
+  two MP4 clips). Keep fixture image references within this set; legacy UUID-named
+  fixture PNGs have been removed.
+
 - Store layouts and page templates in the owning Lambda's templates root; store reusable partial HTML templates in
   `fragments`.
 - Build internal links with named route helpers (`url(...)`, `article_url(...)`, etc.). Append section fragments to a
@@ -139,10 +148,11 @@
 - Run production maintenance and import commands through `scripts-production` in
   `docker-compose.scripts.production.yml`. Default new maintenance commands to a read-only dry run and require explicit
   `--apply` for writes.
-- Assign reviewed category illustrations with `python scripts/set_category_images.py scripts/fixtures/category-images.json
+- Assign reviewed category illustrations with `python scripts/set_category_images.py PATH_TO_REVIEWED_ASSIGNMENTS.json
   --user-id USER_ID` through that service. Review the default dry-run output before adding `--apply`; production requires
   `STATIC_S3_BUCKET`. The command preserves other assigned images, skips completed assignments, and verifies existing
-  public bytes before reusing a filename. The manifest maps only categories with a matching reviewed illustration.
+  public bytes before reusing a filename. Supply a reviewed manifest mapping category slugs to available image files;
+  no default assignments are bundled.
 - Reuse application services and persistence helpers so imports preserve validation, counters, side effects, and domain
   invariants. Search for an existing operation before adding direct DynamoDB, S3, or filesystem writes; reserve direct
   writes for explicitly scoped migrations, repairs, or metadata that existing services cannot express.

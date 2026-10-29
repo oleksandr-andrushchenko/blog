@@ -22,7 +22,7 @@ else:
     output_dir.mkdir(parents=True)
 
 
-# 🪄 Custom copy function that skips UUID-prefixed files
+# 🪄 Copy deployable assets, excluding local fixtures and generated files.
 def copy_static_files(src: Path, dst: Path):
     for item in src.iterdir():
         target = dst / item.name
@@ -30,6 +30,10 @@ def copy_static_files(src: Path, dst: Path):
             target.mkdir(exist_ok=True)
             copy_static_files(item, target)
         elif item.is_file():
+            # Synthetic media is used only by local/test fixtures.
+            if item.name.startswith("dummy-"):
+                print(f"⏭️  Skipping local fixture: {item.name}")
+                continue
             # The API generates the live sitemap from production data. Local test
             # runs also write this file; never deploy that copy over production.
             if re.fullmatch(r"sitemap(?:-\d+)?\.xml", item.name):
@@ -40,6 +44,6 @@ def copy_static_files(src: Path, dst: Path):
             shutil.copy2(item, target)
 
 
-# 📦 Copy static assets except generated UUID-named files
+# 📦 Copy production assets without local fixtures or generated catalog files.
 copy_static_files(assets_dir, output_dir)
-print("🎉 Copied static files successfully (skipped UUID-prefixed ones)")
+print("🎉 Copied static files successfully (excluded local fixtures and generated files)")

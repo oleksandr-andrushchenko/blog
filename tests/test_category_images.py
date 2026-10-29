@@ -20,7 +20,7 @@ from basic_dtos import ImageFileDTO
 
 @pytest.fixture
 def assignments(tmp_path, monkeypatch):
-    filename = "category-other_512x512.webp"
+    filename = "dummy-herbs_640x640.webp"
     (tmp_path / filename).write_bytes((project_root / "static" / filename).read_bytes())
     path = tmp_path / "assignments.json"
     path.write_text(json.dumps({"other": filename}))
@@ -86,7 +86,7 @@ def test_category_image_permission_failures_stop_immediately(assignments, monkey
 
 
 def test_public_image_upload_is_idempotent_and_refuses_different_bytes(monkeypatch):
-    image = ImageFileDTO((project_root / "static/category-other_512x512.webp").read_bytes(), "reviewed.webp")
+    image = ImageFileDTO((project_root / "static/dummy-herbs_640x640.webp").read_bytes(), "reviewed.webp")
     monkeypatch.setattr(command, "is_prod", lambda: True)
     monkeypatch.setattr(command, "get_static_s3_bucket", lambda: "test-bucket")
     client = Mock()
@@ -103,10 +103,3 @@ def test_public_image_upload_is_idempotent_and_refuses_different_bytes(monkeypat
     client.get_object.side_effect = ClientError({"Error": {"Code": "NoSuchKey"}}, "GetObject")
     command.ensure_public_image(image)
     save.assert_called_once_with(image, filename=image.filename)
-
-
-def test_reviewed_category_assets_are_valid():
-    mapping = json.loads((project_root / "scripts/fixtures/category-images.json").read_text())
-    for filename in mapping.values():
-        image = ImageFileDTO((project_root / "static" / filename).read_bytes(), filename)
-        assert image.extension == "webp"

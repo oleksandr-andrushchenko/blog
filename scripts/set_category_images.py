@@ -1,7 +1,7 @@
 """Assign reviewed category illustrations; dry-run by default.
 
 Run with the scripts-production service in docker-compose.scripts.production.yml:
-    python scripts/set_category_images.py scripts/fixtures/category-images.json --user-id USER_ID
+    python scripts/set_category_images.py PATH_TO_REVIEWED_ASSIGNMENTS.json --user-id USER_ID
 Add --apply only after reviewing the output. Existing category images are preserved.
 """
 
