@@ -243,3 +243,5 @@
 - Ship web/API code with the Cognito callback and API environment configuration together. Infrastructure deployment
   uses the existing code bucket with the `cloudformation` prefix to support templates larger than 51,200 bytes.
 - The test runner explicitly sets both `DYNAMODB_TABLE` and `TEST_DYNAMODB_TABLE` to `app_test`.
+- Main-site HTTPS redirects use a separate, uncached CloudFront distribution. Deploy the certificate stack in
+  `us-east-1` before the main stack so `WebCertificateArn` is available; see `docs/https-redirect.md`.

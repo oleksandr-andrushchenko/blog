@@ -204,6 +204,16 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 		arn:*:acm:us-east-1:*:certificate/*) ;; \
 		*) echo "❌ CloudFront certificate ARN not found. Run make deploy-cert-infra first."; exit 1 ;; \
 	esac; \
+	WEB_CERTIFICATE_ARN=$$(aws cloudformation describe-stacks \
+		--stack-name $(CERT_STACK_NAME) \
+		--region us-east-1 \
+		--profile $(AWS_PROJECT) \
+		--query "Stacks[0].Outputs[?OutputKey=='WebCertificateArn'].OutputValue | [0]" \
+		--output text) || exit $$?; \
+	case "$$WEB_CERTIFICATE_ARN" in \
+		arn:*:acm:us-east-1:*:certificate/*) ;; \
+		*) echo "❌ Web CloudFront certificate ARN not found. Run make deploy-cert-infra first."; exit 1 ;; \
+	esac; \
 	aws cloudformation deploy \
 		--profile $(AWS_PROJECT) \
 		--region $(AWS_REGION) \
@@ -223,6 +233,7 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 			DomainName="$(DOMAIN_NAME)" \
 			HostedZoneId="$(HOSTED_ZONE_ID)" \
 			CertificateArn="$$CERTIFICATE_ARN" \
+			WebCertificateArn="$$WEB_CERTIFICATE_ARN" \
 			TelegramBotToken="$(TELEGRAM_BOT_TOKEN)" \
 			ThreadsAppId="$(THREADS_APP_ID)" \
 			ThreadsAppSecret="$(THREADS_APP_SECRET)" \
