@@ -5,7 +5,7 @@ from http import HTTPStatus
 from starlette.responses import HTMLResponse
 
 from shared_deps import OptCurUserDep
-from query_dtos import ArticleListingQueryDTO, UserQueryDTO
+from query_dtos import ArticleListingQueryDTO, UserQueryDTO, UserQueryType
 from shared_utils import Article, User, ArticleNotFoundError, UserNotFoundError, get_html_content
 from web import Depends, HTTPException, Request, parse_dto
 from web_utils import (
@@ -34,8 +34,12 @@ def get_error_response(status_code: int, details: dict | str = None, request: Re
 
 
 def get_user_query_by_slugs(request: Request, type: str) -> UserQueryDTO:
+    try:
+        query_type = UserQueryType(type)
+    except ValueError:
+        raise HTTPException(status_code=404) from None
     data = dict(request.query_params)
-    data.update({"type": type})
+    data.update({"type": query_type})
     return parse_dto(UserQueryDTO, data)
 
 

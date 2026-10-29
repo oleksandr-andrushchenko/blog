@@ -716,16 +716,40 @@ def test_public_pages_render_main_content(guest_client, path, heading, selector)
 
 @pytest.mark.parametrize("path", [
     "/articles?limit=invalid",
+    "/articles?type=invalid",
+    "/articles?status=invalid",
+    "/latest/articles?limit=invalid",
+    "/popular/articles?status=invalid",
+    "/rest/articles?type=invalid",
     "/articles?category=Invalid category",
     "/articles-fragment?limit=0",
     "/users?type=invalid",
-    "/invalid/users",
+    "/latest/users?limit=invalid",
+    "/popular/users?status=invalid",
     "/users-fragment?status=invalid",
     "/tags?prefix=",
+    "/tags?type=invalid",
 ])
 def test_public_query_endpoints_reject_invalid_parameters(guest_client, path):
     response = get(guest_client, path)
     assert response.status_code == 422, (path, response.status_code, response.text)
+
+
+@pytest.mark.parametrize("method", ["GET", "HEAD"])
+@pytest.mark.parametrize("path", ["/rest/users", "/invalid/users", "/rest/users?limit=invalid"])
+def test_unknown_user_listing_paths_return_not_found(guest_client, method, path):
+    response = get(guest_client, path) if method == "GET" else guest_client.head(WEB_TEST_BASE_URL + path)
+    assert response.status_code == 404, (path, response.status_code)
+
+
+@pytest.mark.parametrize("path", [
+    "/latest/articles", "/popular/articles", "/rest/articles",
+    "/popular/rest/articles", "/rest/latest/articles",
+    "/latest/users", "/popular/users",
+])
+def test_supported_listing_paths_and_article_tags_remain_valid(guest_client, path):
+    response = get(guest_client, path)
+    assert response.status_code == 200, (path, response.status_code, response.text)
 
 
 def test_tags_fragment_endpoint_success(guest_client):
