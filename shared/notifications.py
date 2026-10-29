@@ -6,8 +6,8 @@ import logging
 import sys
 from urllib.request import Request, urlopen
 
-from app_config import get_telegram_bot_token, get_telegram_chat_id, get_telegram_log_level
 from api_route_metadata import API_URL_ROUTES
+from app_config import get_telegram_bot_token, get_telegram_chat_id, get_telegram_log_level
 from web_route_metadata import WEB_AUTH_URL_ROUTES
 
 
@@ -29,7 +29,7 @@ def _access_log_url(value):
 def get_access_log(request, status: int) -> tuple[int, str]:
     if status >= 500:
         level = logging.ERROR
-    elif status >= 400 and status != 404:
+    elif status >= 400 and status not in [404, 405]:
         level = logging.WARNING
     else:
         level = logging.DEBUG

@@ -36,17 +36,18 @@ class AccessLogTests(unittest.TestCase):
                         'server': ('catalog.example', 443), 'path': path,
                         'query_string': b'source=discovery', 'headers': []})
 
-    def test_all_404s_log_at_debug_without_changing_message(self):
-        for path in ('/articles/missing', '/users/missing', '/.well-known/future-discovery.json'):
-            for method in ('GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS'):
-                with self.subTest(path=path, method=method):
-                    level, message = notifications.get_access_log(self.request(path, method), 404)
-                    self.assertEqual(level, logging.DEBUG)
-                    self.assertIn(f'{method} https://catalog.example{path}?source=discovery', message)
-                    self.assertIn('404', message)
+    def test_all_404s_and_405s_log_at_debug_without_changing_message(self):
+        for status in (404, 405):
+            for path in ('/articles/missing', '/users/missing', '/.well-known/future-discovery.json'):
+                for method in ('GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS'):
+                    with self.subTest(status=status, path=path, method=method):
+                        level, message = notifications.get_access_log(self.request(path, method), status)
+                        self.assertEqual(level, logging.DEBUG)
+                        self.assertIn(f'{method} https://catalog.example{path}?source=discovery', message)
+                        self.assertIn(f' {status} - ', message)
 
     def test_other_error_statuses_keep_their_severity(self):
-        for status in (400, 401, 403, 405, 429, 500, 502, 503):
+        for status in (400, 401, 403, 429, 500, 502, 503):
             with self.subTest(status=status):
                 self.assertEqual(notifications.get_access_log(self.request('/articles/missing'), status)[0],
                                  logging.ERROR if status >= 500 else logging.WARNING)
