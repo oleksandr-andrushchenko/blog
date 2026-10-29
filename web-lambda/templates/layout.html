@@ -169,13 +169,6 @@
                     <li class="nav-item d-flex align-items-center py-2 py-xxl-0 ms-xxl-2">
                         {% with proposal_compact=true %}{% include "fragments/improvement-proposal.html" %}{% endwith %}
                     </li>
-                    {% if cur_user and check_auth(cur_user, Permission.UTILS) %}
-                        <li class="nav-item">
-                            <a class="nav-link{% if current_route == "utils" %} active{% endif %}"
-                               href="{{ url("utils") }}"{% if current_route == "utils" %}
-                               aria-current="page"{% endif %}>Utils</a>
-                        </li>
-                    {% endif %}
                 </ul>
 
                 <ul class="navbar-nav">
@@ -225,6 +218,13 @@
                                 <li><a class="dropdown-item" href="{{ edit_profile_url }}#integrations">
                                     <i class="bi bi-plug me-2" aria-hidden="true"></i>Integrations
                                 </a></li>
+                                {% if check_auth(cur_user, Permission.UTILS) %}
+                                    <li><a class="dropdown-item{% if current_route == "utils" %} active{% endif %}"
+                                           href="{{ url("utils") }}"{% if current_route == "utils" %}
+                                           aria-current="page"{% endif %}>
+                                        <i class="bi bi-tools me-2" aria-hidden="true"></i>Utils
+                                    </a></li>
+                                {% endif %}
                                 <li>
                                     <hr class="dropdown-divider">
                                 </li>
