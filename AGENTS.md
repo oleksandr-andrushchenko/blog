@@ -7,6 +7,44 @@
   deployments, and other publishing actions require an explicit user command for that specific action.
 - Implementation requests, passing checks, and guidance about organizing commits do not authorize these actions.
   Authorization for one action does not authorize another; a commit command does not authorize a push.
+- Questions about commands (for example, "make deploy-site-files?") request an
+  explanation or validation, not execution. Do not treat them as deployment authorization.
+- CDN cache invalidations must list only the exact paths of specific changed files.
+  Never invalidate `/*`, directory wildcards, or an entire distribution. The production
+  CDN contains thousands of unrelated assets; preserve their cached copies.
+  Do not run the current `make drop-cdn-cache` target: it uses `--paths "/*"`.
+  Upload authorization does not authorize a separate cache invalidation; obtain an
+  explicit instruction for that action, then use only the specific affected paths.
+
+## Committing and deploying alongside unrelated changes
+
+- When the user authorizes committing and deploying only the current task, prefer
+  the straightforward stash → isolate → commit → deploy → stash-apply workflow.
+  Keep the authorization rules above; this workflow does not itself authorize publishing.
+- Coordinate a pause in parallel edits during the swap. Record the starting commit,
+  index state, and changed/untracked file contents so restoration can be verified.
+  If task changes already share files with unrelated work, save a task-only patch
+  outside the stash (for example under ignored `.tmp`) and reverse only that patch
+  first. Include new task files in the patch. This leaves only unrelated work to stash
+  and avoids restoring untracked task files over files committed during the workflow.
+- Use `git stash push --include-untracked` with a descriptive message, record the
+  resulting stash commit ID, and verify success and a clean working tree before
+  applying the task patch. Do not use `--all`: ignored environment files and local
+  configuration must remain available. Stop dependent steps if any command fails.
+- Apply only the task patch, run the required checks, inspect the staged diff,
+  and commit only its explicit files/hunks. Keep commits focused by logical concern.
+- Deploy from that isolated state. For infrastructure-only CloudFormation updates,
+  compare the starting template with production, preserve existing stack parameters
+  (especially Lambda ZIP keys) and stack tags, and override only intended values.
+  Review a change set before executing it; do not blindly run `make deploy-infra`
+  when local `.env.prod` values could introduce unrelated updates. Preserve the
+  existing template-upload bucket for templates exceeding the inline size limit.
+- Restore unrelated work with `git stash apply <recorded-stash-id>`, including if
+  deployment fails or is blocked. Retain the stash until restoration is verified;
+  resolve conflicts without discarding parallel edits. Verify original file contents
+  and index state, leaving originally unstaged work unstaged. Restoration can happen
+  while AWS finishes deploying once all deployment inputs have been captured and
+  uploaded. Verify deployment completion and live behavior before reporting success.
 
 ## Change scope and verification
 
