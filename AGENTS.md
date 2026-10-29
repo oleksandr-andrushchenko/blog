@@ -111,6 +111,9 @@
 - Local fixtures use the six tracked `static/dummy-*` files (four WebP images and
   two MP4 clips). Keep fixture image references within this set; legacy UUID-named
   fixture PNGs have been removed.
+- The default social image is `sysdespro_1200x630.png`; keep `site_img_filename`
+  aligned in local site configuration and `tests/site-config.json`. Its white
+  diagram-tree icon on blue is also used by the tracked favicon and manifest assets.
 
 - Store layouts and page templates in the owning Lambda's templates root; store reusable partial HTML templates in
   `fragments`.

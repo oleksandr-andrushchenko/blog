@@ -39,6 +39,14 @@ static/*
 !static/robots.txt
 !static/dummy-*.webp
 !static/dummy-*.mp4
+!static/sysdespro_1200x630.png
+!static/favicon.ico
+!static/favicon.svg
+!static/favicon-96x96.png
+!static/apple-touch-icon.png
+!static/web-app-manifest-192x192.png
+!static/web-app-manifest-512x512.png
+!static/site.webmanifest
 
 dynamodb-data/
 # Development email sink

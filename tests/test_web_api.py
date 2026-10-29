@@ -1054,13 +1054,13 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     dynamodb_table.update_item(
         Key={"pk": f"POST#{article_id}", "sk": "META"},
         UpdateExpression="SET image_filename = :filename",
-        ExpressionAttributeValues={":filename": "sysdespro_1161x515.png"},
+        ExpressionAttributeValues={":filename": "sysdespro_1200x630.png"},
     )
     image_doc = pq(get(root_client, f"/articles/{article_id}").text)
     image_schema = json.loads(image_doc('script[type="application/ld+json"]').text())
-    assert image_schema["image"][0].endswith("/sysdespro_1161x515.png")
-    assert image_schema["thumbnailUrl"].endswith("/sysdespro_1161x515.png")
-    assert image_doc('meta[property="og:image"]').attr("content").endswith("/sysdespro_1161x515.png")
+    assert image_schema["image"][0].endswith("/sysdespro_1200x630.png")
+    assert image_schema["thumbnailUrl"].endswith("/sysdespro_1200x630.png")
+    assert image_doc('meta[property="og:image"]').attr("content").endswith("/sysdespro_1200x630.png")
     dynamodb_table.update_item(
         Key={"pk": f"POST#{article_id}", "sk": "META"},
         UpdateExpression="REMOVE image_filename",
