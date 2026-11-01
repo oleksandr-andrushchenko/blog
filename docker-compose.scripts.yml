@@ -8,6 +8,8 @@ services:
     environment:
       APP_STAGE: local
       APP_ENV: dev
+      WEB_BASE_URL: "http://localhost:${WEB_LAMBDA_PORT}"
+      API_BASE_URL: "http://localhost:${API_LAMBDA_PORT}"
       AWS_REGION: us-west-2
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy

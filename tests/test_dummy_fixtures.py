@@ -49,6 +49,9 @@ def test_dummy_fixture_cli_completes_without_http_request(tmp_path):
                 "shared", "api-lambda", "scripts")),
             "DYNAMODB_TABLE": TEST_DYNAMODB_TABLE,
             "APP_STAGE": "local",
+            "FUNCTION_TEMPLATES_DIR": str(project_root / "api-lambda/templates"),
+            "WEB_BASE_URL": os.environ['WEB_TEST_BASE_URL'],
+            "API_BASE_URL": os.environ['API_TEST_BASE_URL'],
             "EMAIL_FILES_DIR": str(tmp_path / "emails"),
             "TELEGRAM_BOT_TOKEN": "",
             "TELEGRAM_CHAT_ID": "",
@@ -56,6 +59,9 @@ def test_dummy_fixture_cli_completes_without_http_request(tmp_path):
         capture_output=True, text=True, timeout=120,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+    email_failures = [line for line in (result.stdout + result.stderr).splitlines() if 'email failed' in line]
+    assert not email_failures, email_failures
+    assert list((tmp_path / 'emails').glob('*.eml'))
 
     statuses = Counter()
     articles_with_images = 0

@@ -857,7 +857,7 @@ def create_article_comment(article: Article, article_comment_dto: ArticleComment
                      article_owner, 'notify_article_comments', 'New comment on your article',
                      f'{cur_user.name} commented on your article “{article.title}”.', article, req,
                      detail=comment.text,
-                     target_url=get_article_url(req, article, absolute=True) + '#comment-' + comment.id.replace('#', '-') if req is not None else None)
+                     target_url=get_article_url(req, article, absolute=True) + '#comment-' + comment.id.replace('#', '-'))
     return comment
 
 

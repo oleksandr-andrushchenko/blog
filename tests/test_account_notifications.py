@@ -16,7 +16,8 @@ for directory in ('shared', 'api-lambda'):
 
 import api_utils
 import email_service
-from article_dtos import UpdateArticleImpressionDTO, UpdateArticleStatusDTO
+import shared_utils
+from article_dtos import ArticleCommentDTO, UpdateArticleImpressionDTO, UpdateArticleStatusDTO
 from shared_utils import article_from_dynamodb, user_from_dynamodb
 from user_dtos import UpdateUserDTO, UpdateUserImpressionDTO
 
@@ -167,3 +168,25 @@ def test_production_delivery_uses_ses_with_both_bodies(monkeypatch):
     assert payload['Destination'] == {'ToAddresses': ['owner@example.com']}
     assert payload['Message']['Body']['Text']['Data'] == 'Plain text'
     assert payload['Message']['Body']['Html']['Data'] == '<p>HTML body</p>'
+
+
+@pytest.mark.parametrize('event', ['comment', 'reaction'])
+def test_request_free_actions_save_notifications_with_named_route_links(actions, monkeypatch, caplog, event):
+    monkeypatch.setattr(api_utils, 'get_url', shared_utils.get_url)
+    monkeypatch.setattr(api_utils, 'get_article_url', shared_utils.get_article_url)
+    monkeypatch.setattr(shared_utils, 'get_web_base_url', lambda: 'https://example.com')
+    if event == 'comment':
+        comment = api_utils.create_article_comment(actions.article, ArticleCommentDTO(text='Useful article'),
+                                                   actions.actor, None)
+        target_url = 'https://example.com/articles/article#comment-' + comment.id.replace('#', '-')
+    else:
+        api_utils.update_article_impression(actions.article, UpdateArticleImpressionDTO(action='like'),
+                                             actions.actor, None)
+        target_url = 'https://example.com/articles/article'
+    actions.write.assert_called_once()
+    actions.send.assert_called_once()
+    recipient, subject, text, html = actions.send.call_args.args
+    assert recipient == 'owner@example.com'
+    assert target_url in text and target_url in html
+    assert 'https://example.com/users/owner/edit#notifications' in text
+    assert 'email failed' not in caplog.text

@@ -25,7 +25,10 @@ from zoneinfo import ZoneInfo
 
 from jinja2 import Environment, FileSystemLoader, pass_context, select_autoescape
 
+from starlette.routing import Route
+
 from api_route_metadata import API_URL_ROUTES
+from web_route_metadata import WEB_URL_ROUTES
 from app_config import (
     get_config,
     get_api_base_url,
@@ -808,14 +811,20 @@ def get_url(req, name: str, absolute: bool = False, **params) -> str:
     """
     Generate a URL for a named route.
     By default, returns path-only URLs; set absolute=True to prepend the configured route base URL.
+    Request-free callers resolve paths from the canonical route metadata.
     """
     # Find an executable route first, then URL-only metadata routes used by
     # the web Lambda for API links. Metadata routes never handle requests.
-    route = next((r for r in req.app.routes if getattr(r, "name", None) == name), None)
+    route = (next((r for r in req.app.routes if getattr(r, "name", None) == name), None)
+             if req is not None else None)
     is_metadata_route = route is None
-    if route is None:
+    if route is None and req is not None:
         route = next((r for r in getattr(req.app, "url_routes", [])
                       if getattr(r, "name", None) == name), None)
+    if route is None and req is None:
+        path = API_URL_ROUTES.get(name) or WEB_URL_ROUTES.get(name)
+        if path is not None:
+            route = Route(path, lambda request: None, name=name)
     if route is None:
         raise LookupError(f"Unknown route: {name}")
     path_param_names = getattr(route, "param_convertors", {}).keys()

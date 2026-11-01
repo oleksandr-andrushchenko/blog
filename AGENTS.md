@@ -227,6 +227,7 @@
 
 - Account notification preferences default to enabled for existing users. Deliver status emails only for actual manual
   status changes and reaction emails only for newly created reactions; skip self reactions and inactive recipients.
+- Request-free scripts resolve notification links through canonical route metadata and configured base URLs.
 - Send account emails after successful persistence through the API's `email_service`; delivery failures must not fail
   the committed action. Tag subscription emails honor `notify_tag_articles`. Development emails are saved as `.eml`.
 
