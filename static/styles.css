@@ -1,3 +1,16 @@
+/* Keep wide layouts readable while retaining Bootstrap's fluid behavior below xl. */
+@media (min-width: 1200px) {
+    .container {
+        max-width: 960px;
+    }
+}
+
+@media (min-width: 1400px) {
+    .container {
+        max-width: 1080px;
+    }
+}
+
 .tox-tinymce {
     border: 0 !important;
 }
