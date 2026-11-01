@@ -20,7 +20,7 @@ from basic_dtos import ImageFileDTO
 
 @pytest.fixture
 def assignments(tmp_path, monkeypatch):
-    filename = "dummy-herbs_640x640.webp"
+    filename = "aedecb19-0624-4dc0-a40a-226099cca935_640x640.webp"
     (tmp_path / filename).write_bytes((project_root / "static" / filename).read_bytes())
     path = tmp_path / "assignments.json"
     path.write_text(json.dumps({"other": filename}))
@@ -86,7 +86,7 @@ def test_category_image_permission_failures_stop_immediately(assignments, monkey
 
 
 def test_public_image_upload_is_idempotent_and_refuses_different_bytes(monkeypatch):
-    image = ImageFileDTO((project_root / "static/dummy-herbs_640x640.webp").read_bytes(), "reviewed.webp")
+    image = ImageFileDTO((project_root / "static/aedecb19-0624-4dc0-a40a-226099cca935_640x640.webp").read_bytes(), "reviewed.webp")
     monkeypatch.setattr(command, "is_prod", lambda: True)
     monkeypatch.setattr(command, "get_static_s3_bucket", lambda: "test-bucket")
     client = Mock()

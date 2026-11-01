@@ -108,9 +108,9 @@
   files under `static` for local fixtures. Uploading a corrected build does not
   remove previously uploaded objects from S3; any production cleanup requires
   an explicit command and must target only the specific affected keys.
-- Local fixtures use the six tracked `static/dummy-*` files (four WebP images and
-  two MP4 clips). Keep fixture image references within this set; legacy UUID-named
-  fixture PNGs have been removed.
+- Local fixtures use six tracked UUID-named files under `static` (four WebP images and two MP4 clips),
+  listed in `tests/test_dummy_fixtures.py`. Keep fixture references within this set and preserve dimensions
+  in image filenames so the existing article cover extractor recognizes them. Static builds exclude UUID assets.
 - The default social image is `sysdespro_1200x630.png`; keep `site_img_filename`
   aligned in local site configuration and `tests/site-config.json`. Its white
   diagram-tree icon on blue is also used by the tracked favicon and manifest assets.

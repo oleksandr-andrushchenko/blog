@@ -37,8 +37,12 @@ static/*
 !static/styles.css
 !static/scripts.js
 !static/robots.txt
-!static/dummy-*.webp
-!static/dummy-*.mp4
+!static/8e0cfa67-ec77-4175-a26a-5c58f4876959.mp4
+!static/f1f76e3c-1e14-46a5-ac93-4318e28c462c_960x540.webp
+!static/a7ad8a2f-a10b-42ab-949a-2f0289b51198_640x640.webp
+!static/aedecb19-0624-4dc0-a40a-226099cca935_640x640.webp
+!static/414f4b09-0464-4df9-8909-b509f537d163.mp4
+!static/bf170c2e-8569-464e-bd60-52007808d166_540x960.webp
 !static/sysdespro_1200x630.png
 !static/favicon.ico
 !static/favicon.svg

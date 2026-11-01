@@ -35,10 +35,10 @@ def create_dummy_fixtures(req=None) -> None:
     created_articles = []
     created_users = []
     generated_image_filenames = [
-        "dummy-herbs_640x640.webp",
-        "dummy-herbs-alternate_640x640.webp",
-        "dummy-night-garden_540x960.webp",
-        "dummy-coastal_960x540.webp",
+        "aedecb19-0624-4dc0-a40a-226099cca935_640x640.webp",
+        "a7ad8a2f-a10b-42ab-949a-2f0289b51198_640x640.webp",
+        "bf170c2e-8569-464e-bd60-52007808d166_540x960.webp",
+        "f1f76e3c-1e14-46a5-ac93-4318e28c462c_960x540.webp",
     ]
     used_user_names = {"John Doe"}
     used_article_titles = set()
@@ -132,7 +132,7 @@ def create_dummy_fixtures(req=None) -> None:
     update_user_dto = UpdateUserDTO(
         name="John Doe",
         avatar_action="replace",
-        avatar_filename="dummy-herbs_640x640.webp",
+        avatar_filename="aedecb19-0624-4dc0-a40a-226099cca935_640x640.webp",
         username="j-doe",
         headline="Software Engineer",
         website="https://example.com",
@@ -158,9 +158,9 @@ def create_dummy_fixtures(req=None) -> None:
     update_user(user4, UpdateUserDTO(
         name=unique_user_name(),
         avatar_action="replace",
-        avatar_filename="dummy-herbs_640x640.webp",
+        avatar_filename="aedecb19-0624-4dc0-a40a-226099cca935_640x640.webp",
     ), root_user, req)
-    user4.avatar_filename = "dummy-herbs_640x640.webp"
+    user4.avatar_filename = "aedecb19-0624-4dc0-a40a-226099cca935_640x640.webp"
     create_tag_subscription(TagSubscriptionDTO(tags=["observability"]), root_user, req=req)
     create_tag_subscription(TagSubscriptionDTO(tags=["event-driven"]), user3, req=req)
     create_tag_subscription(TagSubscriptionDTO(tags=["databases", "reliability"]), user4, req=req)
@@ -238,8 +238,8 @@ def create_dummy_fixtures(req=None) -> None:
         created_articles.append(generated_article)
 
     for tag_name, image_filename in [
-        ("distributed-systems", "dummy-coastal_960x540.webp"),
-        ("event-driven", "dummy-night-garden_540x960.webp"),
+        ("distributed-systems", "f1f76e3c-1e14-46a5-ac93-4318e28c462c_960x540.webp"),
+        ("event-driven", "bf170c2e-8569-464e-bd60-52007808d166_540x960.webp"),
     ]:
         tag = find_tag(tag_name)
         update_tag(tag, UpdateTagDTO(
