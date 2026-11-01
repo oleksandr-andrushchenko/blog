@@ -159,7 +159,7 @@
                 </a>
             </h2>
             {% if latest_articles %}
-                <div id="articles" class="{{ {"def": 1, "sm": 2, "lg": 3, "xl": 4} | row_classes }} g-3 mb-2"
+                <div id="articles" class="{{ {"def": 1, "sm": 2, "lg": 3} | row_classes }} g-3 mb-2"
                      data-masonry-options='{"percentPosition": true }'>
                     {% with articles=latest_articles,
                             article_img_sizes={"1400px": "306px", "1200px": "261px", "992px": "296px", "768px": "336px", "576px": "246px", "default": "calc(100vw - 26px)"}, eager_article_images=1 %}
