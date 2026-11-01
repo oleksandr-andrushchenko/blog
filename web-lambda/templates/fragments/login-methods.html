@@ -1,13 +1,15 @@
-<section aria-labelledby="login-methods-heading" class="d-flex flex-column gap-3 mb-4">
+<section id="login-integration" aria-labelledby="login-methods-heading" class="d-none d-flex flex-column gap-3 mb-4">
     <h2 class="h5 mb-0" id="login-methods-heading"><i class="bi bi-person-lock me-1" aria-hidden="true"></i>Login methods</h2>
     <p class="mb-0">Connect another login method to use it with this profile and keep access to your articles.</p>
     <div id="login-method-status" role="status" aria-live="polite"></div>
-    <button type="button" class="btn btn-outline-primary align-self-start" id="connect-login-method">
+    <button type="button" class="btn btn-outline-primary align-self-start" id="connect-login-method" disabled>
         <i class="bi bi-person-plus me-1" aria-hidden="true"></i><span>Connect another login method</span>
     </button>
 </section>
 <script>
   document.addEventListener("DOMContentLoaded", () => {
+    const endpoint = {{ url('login-connection', user_id=user.id, absolute=True) | tojson }}
+    const section = document.getElementById("login-integration")
     const button = document.getElementById("connect-login-method")
     const status = document.getElementById("login-method-status")
     const current = new URL(window.location.href)
@@ -26,12 +28,23 @@
       current.searchParams.delete("login_link")
       window.history.replaceState(null, "", current)
     }
+    fetch(endpoint, {credentials: "include", cache: "no-store"})
+      .then(async response => {
+        if (!response.ok) throw new Error("Could not load available login methods. Reload the page to try again.")
+        const data = await response.json()
+        section.classList.toggle("d-none", !data.configured)
+        button.disabled = !data.configured
+      })
+      .catch(error => {
+        status.textContent = error.message
+        status.className = "text-danger"
+      })
     button.addEventListener("click", async () => {
       if (button.disabled) return
       button.disabled = true
       status.textContent = "Opening sign-in…"
       try {
-        const response = await fetch({{ url('login-connection', user_id=user.id, absolute=True) | tojson }}, {
+        const response = await fetch(endpoint, {
           method: "POST", credentials: "include", headers: {"Content-Type": "application/json"}, body: "{}"
         })
         const data = await response.json()

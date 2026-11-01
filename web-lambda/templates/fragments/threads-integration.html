@@ -1,4 +1,4 @@
-<section aria-labelledby="threads-heading" class="d-flex flex-column gap-3 border-top mt-4 pt-4">
+<section id="threads-integration" aria-labelledby="threads-heading" class="d-none d-flex flex-column gap-3 border-top mt-4 pt-4">
     <h2 class="h5 mb-0" id="threads-heading"><i class="bi bi-threads me-1" aria-hidden="true"></i>Threads account</h2>
     <p class="mb-0">Connect your Threads account, then share articles from a article page. Nothing is posted automatically.</p>
     <div id="threads-status" role="status" aria-live="polite">Loading connection…</div>
@@ -49,6 +49,7 @@
       try {
         const data = await request("GET")
         configured = data.configured
+        document.getElementById("threads-integration").classList.toggle("d-none", !configured)
         connected = data.connected
         pending = data.pending || data.reconnect_required
         label.textContent = connected ? "Connect another account" : "Connect Threads"

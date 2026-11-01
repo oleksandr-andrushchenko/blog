@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import sys
 from urllib.parse import parse_qs, urlencode, urlsplit
+from types import SimpleNamespace
 from unittest.mock import Mock
 import uuid
 
@@ -209,3 +210,27 @@ def test_concurrent_signup_cannot_overwrite_an_explicit_connection(account, monk
         assert all('Item' not in table.get_item(Key=key, ConsistentRead=True) for key in created_user_keys)
     finally:
         table.delete_item(Key=provider_key)
+
+
+@pytest.mark.parametrize('missing', [None, 'cognito_domain', 'cognito_client_id', 'cognito_client_secret',
+                                    'cognito_user_pool_id', 'aws_region'])
+def test_connection_availability_requires_all_production_settings(monkeypatch, missing):
+    settings = dict.fromkeys(('cognito_domain', 'cognito_client_id', 'cognito_client_secret',
+                              'cognito_user_pool_id', 'aws_region'), 'configured')
+    if missing:
+        settings[missing] = ''
+    monkeypatch.setattr(service, 'config', settings)
+    monkeypatch.setattr(service, 'is_prod', lambda: True)
+    actor = SimpleNamespace(id='owner', status='active')
+    assert service.connection_status(actor, actor) == {'configured': missing is None}
+    if missing:
+        with pytest.raises(HTTPException) as error:
+            service.begin_connection(actor, actor, request())
+        assert error.value.status_code == 503
+
+
+def test_local_login_settings_are_hidden_without_cognito(monkeypatch):
+    monkeypatch.setattr(service, 'config', {})
+    monkeypatch.setattr(service, 'is_prod', lambda: False)
+    actor = SimpleNamespace(id='owner', status='active')
+    assert service.connection_status(actor, actor) == {'configured': False}

@@ -888,6 +888,9 @@ def test_user_edit_update_and_fragment_endpoints_success_and_failure(root_user_c
     assert form('#links [name="website"]') and form('#links [name="github_username"]')
     assert not form('[name="bmc_username"]')
     assert form('#earn #support-links')
+    assert form('#integrations-tab-item').has_class('d-none')
+    assert not form('[id$="-availability-error"]')
+    assert 'Could not check available' not in edit_success.text
     assert form('#integrations #telegram-connect').text() == 'Connect Telegram'
     assert not form('#integrations input')
     assert not form('#telegram-token')
@@ -2277,9 +2280,15 @@ def test_owner_can_connect_unused_login_and_sign_in_through_either_identity(gues
     user_id = original['id']
     endpoint = f'/users/{user_id}/login-methods'
     assert post(guest_client, endpoint, json={}).status_code == 401
+    assert get(guest_client, endpoint).status_code == 401
+    availability = get(owner, endpoint)
+    assert availability.status_code == 200
+    assert availability.json() == {'configured': False}
+    assert availability.headers['Cache-Control'] == 'no-store'
     outsider = get_logged_in_client({'sub': 'outsider-' + suffix, 'iss': issuer,
                                      'email': f'outsider-login-{suffix}@example.com', 'name': 'Outsider'})
     assert post(outsider, endpoint, json={}).status_code == 403
+    assert get(outsider, endpoint).status_code == 403
     assert not pq(get(outsider, f'/users/{user_id}/edit').text)('#connect-login-method')
     editor = get(owner, f'/users/{user_id}/edit')
     assert editor.status_code == 200, editor.text

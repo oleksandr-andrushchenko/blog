@@ -205,6 +205,9 @@
   escape Telegram HTML and respect its visible UTF-16 text limit. Keep provider errors free of bot tokens.
 - Run webhook setup through scripts-production with `API_BASE_URL`; `scripts/configure_telegram_webhook.py` defaults
   to a redacted dry run and requires `--apply` to register. Registration and deployment require explicit authorization.
+- Profile integration sections use the API connection status `configured` flag for visibility. Hide the Integrations
+  tab when none are configured; failed availability checks must not reveal provider names or settings. Keep provider
+  secrets API-owned; do not copy credentials into the web Lambda to decide which settings to show.
 - Profile tabs share one profile save button; Telegram connections are saved separately through the API. Preserve
   hash-based tab selection and reveal invalid fields in hidden tabs before focusing them.
 

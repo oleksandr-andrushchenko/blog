@@ -41,13 +41,18 @@ def _guard(operation, pending):
                                               ':binding': pending['binding_hash'], ':auth': pending['auth_hash']}
 
 
+def connection_status(user, actor):
+    _authorize(user, actor)
+    return {'configured': all(config.get(key) for key in (
+        'cognito_domain', 'cognito_client_id', 'cognito_client_secret', 'cognito_user_pool_id', 'aws_region'))}
+
+
 def begin_connection(user, actor, request):
     _authorize(user, actor)
     auth_cookie = request.cookies.get('token')
     if not auth_cookie:
         raise HTTPException(401, 'Sign in before connecting another login method')
-    if is_prod() and not all(config.get(key) for key in (
-            'cognito_domain', 'cognito_client_id', 'cognito_client_secret', 'cognito_user_pool_id', 'aws_region')):
+    if is_prod() and not connection_status(user, actor)['configured']:
         raise HTTPException(503, 'Login connections are not configured yet')
     state, binding, verifier = (secrets.token_urlsafe(32) for _ in range(3))
     now = utc_now()

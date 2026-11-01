@@ -29,7 +29,7 @@
             </button>
         </li>
         {% if user and cur_user and user.id == cur_user.id %}
-            <li class="nav-item" role="presentation">
+            <li class="nav-item d-none" id="integrations-tab-item" role="presentation">
                 <button class="nav-link" id="integrations-tab" data-bs-toggle="tab"
                         data-bs-target="#integrations" type="button" role="tab" aria-controls="integrations"
                         aria-selected="false" tabindex="-1">
@@ -212,7 +212,7 @@
     const tabButtons = Array.from(tabs.querySelectorAll('[data-bs-toggle="tab"]'))
     const selectTabFromHash = () => {
       const tab = tabButtons.find(button => button.dataset.bsTarget === window.location.hash)
-      if (tab) bootstrap.Tab.getOrCreateInstance(tab).show()
+      if (tab && !tab.closest("li").classList.contains("d-none")) bootstrap.Tab.getOrCreateInstance(tab).show()
     }
     tabs.addEventListener("shown.bs.tab", event => {
       const currentUrl = new URL(window.location.href)
@@ -220,6 +220,23 @@
       history.replaceState(history.state, "", currentUrl)
     })
     window.addEventListener("hashchange", selectTabFromHash)
+    const integrations = document.getElementById("integrations")
+    const integrationsTabItem = document.getElementById("integrations-tab-item")
+    if (integrations && integrationsTabItem) {
+      const updateIntegrationsTab = () => {
+        const available = Boolean(integrations.querySelector('section[id$="-integration"]:not(.d-none)'))
+        integrationsTabItem.classList.toggle("d-none", !available)
+        if (!available && integrations.classList.contains("active")) {
+          bootstrap.Tab.getOrCreateInstance(document.getElementById("personal-info-tab")).show()
+        } else if (available) {
+          selectTabFromHash()
+        }
+      }
+      new MutationObserver(updateIntegrationsTab).observe(integrations, {
+        subtree: true, attributes: true, attributeFilter: ["class"]
+      })
+      updateIntegrationsTab()
+    }
     selectTabFromHash()
 
     // Client and API validation both add is-invalid. Reveal the field before focusing it.

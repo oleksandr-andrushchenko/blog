@@ -1,4 +1,4 @@
-<section aria-labelledby="telegram-heading" class="d-flex flex-column gap-3">
+<section id="telegram-integration" aria-labelledby="telegram-heading" class="d-none d-flex flex-column gap-3">
     <h2 class="h5 mb-0" id="telegram-heading"><i class="bi bi-telegram me-1" aria-hidden="true"></i>Telegram channel</h2>
     <p class="mb-0">Share articles to your Telegram channel.</p>
     <ol class="mb-0">
@@ -51,6 +51,7 @@
       busy = true
       try {
         const data = await request("GET")
+        document.getElementById("telegram-integration").classList.toggle("d-none", !data.configured)
         connect.disabled = !data.configured
         connectLabel.textContent = data.connected ? "Connect another channel" : "Connect Telegram"
         disconnect.disabled = !(data.connected || data.pending)

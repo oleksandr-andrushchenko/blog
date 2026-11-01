@@ -522,6 +522,12 @@ def _integration_mutation(request):
         raise HTTPException(415, "Use application/json")
 
 
+@route("get", "login-connection")
+async def login_connection(user: UserDep, cur_user: CurUserDep):
+    result = login_link_service.connection_status(user, cur_user)
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+
 @route("post", "login-connection")
 async def connect_login_method(user: UserDep, cur_user: CurUserDep, request: Request):
     _integration_mutation(request)
