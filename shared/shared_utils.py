@@ -93,6 +93,7 @@ class User:
     created_at: int
     updated_at: int | None
     offset: str | None
+    has_medium_integration: bool = False
     has_threads_integration: bool = False
     support_links: list[SupportLink] = field(default_factory=list)
     has_telegram_integration: bool = False
@@ -313,6 +314,7 @@ class Article:
     is_premium: bool | None
     offset: str | None
     telegram_shared_at: int | None = None
+    medium_shared_at: int | None = None
     threads_shared_at: int | None = None
     support_providers: list[str] | None = None
     support_link_click_counts: dict[str, int] = field(default_factory=dict)
@@ -1302,6 +1304,7 @@ def article_from_dynamodb(d_item: dict[str, Any]) -> Article:
         dislikes_count=d_item.get("dislikes_count", 0),
         image_filename=d_item.get("image_filename"),
         telegram_shared_at=d_item.get("telegram_shared_at"),
+        medium_shared_at=d_item.get("medium_shared_at"),
         threads_shared_at=d_item.get("threads_shared_at"),
         support_providers=d_item.get("support_providers"),
         support_link_click_counts=d_item.get("support_link_click_counts", {}),
@@ -1592,6 +1595,7 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         article_comments_count=d_item.get("post_comments_count", 0),
         tag_subscriptions_count=d_item.get("tag_subscriptions_count", d_item.get("article_tag_subscriptions_count", 0)),
         has_telegram_integration=d_item.get("has_telegram_integration", False),
+        has_medium_integration=d_item.get("has_medium_integration", False),
         has_threads_integration=d_item.get("has_threads_integration", False),
         support_links=[SupportLink(**link) for link in support_links or []],
         notify_article_status=d_item.get("notify_article_status", True),

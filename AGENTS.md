@@ -299,3 +299,12 @@
 - The test runner explicitly sets both `DYNAMODB_TABLE` and `TEST_DYNAMODB_TABLE` to `app_test`.
 - Main-site HTTPS redirects use a separate, uncached CloudFront distribution. Deploy the certificate stack in
   `us-east-1` before the main stack so `WebCertificateArn` is available; see `docs/https-redirect.md`.
+
+## Medium publishing
+
+- Medium publishing requires an existing integration token; Medium no longer issues new tokens. Keep encrypted
+  tokens and `MEDIUM_TOKEN_ENCRYPTION_KEY` API-owned. Validate tokens through `/v1/me` and bind ciphertext to both
+  local and Medium identities. Only active owners manage connections and post their published articles.
+- Export only the public preview, category, title, cover, and canonical article link. Record `medium_publish` and
+  `medium_shared_at` only after a confirmed public post; preserve remote success if local history fails and disable
+  browser retries for uncertain responses.

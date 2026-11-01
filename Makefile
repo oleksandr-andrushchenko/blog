@@ -67,6 +67,7 @@ JS_CACHE_COUNTER := $(shell sed -n "s/^JS_CACHE_COUNTER=//p" $(PROD_ENV_FILE) 2>
 AUTH_JWT_SECRET := $(shell sed -n "s/^AUTH_JWT_SECRET=//p" $(PROD_ENV_FILE) 2>/dev/null)
 THREADS_APP_ID := $(shell sed -n "s/^THREADS_APP_ID=//p" $(PROD_ENV_FILE) 2>/dev/null)
 THREADS_APP_SECRET := $(shell sed -n "s/^THREADS_APP_SECRET=//p" $(PROD_ENV_FILE) 2>/dev/null)
+MEDIUM_TOKEN_ENCRYPTION_KEY := $(shell sed -n "s/^MEDIUM_TOKEN_ENCRYPTION_KEY=//p" $(PROD_ENV_FILE) 2>/dev/null)
 THREADS_TOKEN_ENCRYPTION_KEY := $(shell sed -n "s/^THREADS_TOKEN_ENCRYPTION_KEY=//p" $(PROD_ENV_FILE) 2>/dev/null)
 
 CODE_STACK_NAME = $(AWS_STACK)-code
@@ -237,6 +238,7 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 			TelegramBotToken="$(TELEGRAM_BOT_TOKEN)" \
 			ThreadsAppId="$(THREADS_APP_ID)" \
 			ThreadsAppSecret="$(THREADS_APP_SECRET)" \
+			MediumTokenEncryptionKey="$(MEDIUM_TOKEN_ENCRYPTION_KEY)" \
 			ThreadsTokenEncryptionKey="$(THREADS_TOKEN_ENCRYPTION_KEY)" \
 			TelegramPublisherBotToken="$(TELEGRAM_PUBLISHER_BOT_TOKEN)" \
 			TelegramPublisherWebhookSecret="$(TELEGRAM_PUBLISHER_WEBHOOK_SECRET)" \

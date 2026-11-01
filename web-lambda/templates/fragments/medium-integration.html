@@ -1,0 +1,75 @@
+<section id="medium-integration" aria-labelledby="medium-heading" class="d-none d-flex flex-column gap-3 mt-4">
+    <h2 class="h5 mb-0" id="medium-heading"><i class="bi bi-medium me-1" aria-hidden="true"></i>Medium</h2>
+    <p class="mb-0">Post short article previews to your Medium profile.</p>
+    <p class="form-text mb-0">Requires an existing Medium integration token. Medium no longer issues new tokens.
+        <a href="https://help.medium.com/hc/en-us/articles/213480228-API-Importing" target="_blank" rel="nofollow noopener noreferrer">Medium API availability</a></p>
+    <div>
+        <label for="medium-token" class="form-label">Medium integration token</label>
+        <input type="password" id="medium-token" class="form-control" autocomplete="off" maxlength="4096"
+               aria-describedby="medium-token-help">
+        <div id="medium-token-help" class="form-text">Saved separately from your profile. Your saved token is never displayed.</div>
+    </div>
+    <div id="medium-status" role="status" aria-live="polite">Loading connection…</div>
+    <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-primary" id="medium-connect" disabled>Connect Medium</button>
+        <button type="button" class="btn btn-outline-danger" id="medium-disconnect" disabled>Disconnect</button>
+    </div>
+    <p class="form-text mb-0">Disconnecting leaves existing Medium posts in place.</p>
+</section>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const endpoint = {{ url('medium-connection', user_id=user.id, absolute=True) | tojson }}
+    const status = document.getElementById("medium-status")
+    const token = document.getElementById("medium-token")
+    const connect = document.getElementById("medium-connect")
+    const disconnect = document.getElementById("medium-disconnect")
+    let configured = false, connected = false, removable = false, busy = false
+    function controls() {
+      connect.disabled = busy || !configured || !token.value.trim()
+      disconnect.disabled = busy || !removable
+      token.disabled = busy || !configured
+      connect.textContent = connected ? "Replace Medium connection" : "Connect Medium"
+    }
+    async function request(method) {
+      const response = await fetch(endpoint, {
+        method, credentials: "include", cache: "no-store", headers: {"Content-Type": "application/json"},
+        ...(method === "POST" ? {body: JSON.stringify({token: token.value})} : {})
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(typeof data.details === "string" ? data.details : "Could not update your Medium connection.")
+      return data
+    }
+    async function run(method) {
+      if (busy) return
+      busy = true
+      controls()
+      try {
+        const data = await request(method)
+        if (method === "GET") configured = data.configured
+        document.getElementById("medium-integration").classList.toggle("d-none", !configured)
+        connected = data.connected
+        removable = connected || data.reconnect_required
+        if (method !== "GET") token.value = ""
+        status.textContent = !configured ? "Medium connections are not configured yet." :
+          connected ? `Connected to ${data.username}.` : data.reconnect_required ? "Reconnect Medium with your existing token." : "No Medium account connected."
+        status.className = connected ? "text-success" : "text-secondary"
+      } catch (error) {
+        status.textContent = error.message
+        status.className = "text-danger"
+      } finally {
+        busy = false
+        controls()
+      }
+    }
+    token.addEventListener("input", controls)
+    token.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault()
+        if (!connect.disabled) run("POST")
+      }
+    })
+    connect.addEventListener("click", () => run("POST"))
+    disconnect.addEventListener("click", () => run("DELETE"))
+    run("GET")
+  })
+</script>

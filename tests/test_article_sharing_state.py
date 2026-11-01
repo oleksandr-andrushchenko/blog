@@ -22,7 +22,8 @@ from notifications import TelegramFormatter
 
 PROMPT_URL = 'https://example.com/@owner/example-article'
 POST_URLS = {'telegram': 'https://t.me/example_channel/42',
-             'threads': 'https://www.threads.com/@example_creator/post/example'}
+             'threads': 'https://www.threads.com/@example_creator/post/example',
+             'medium': 'https://medium.com/@example_creator/example'}
 
 
 @pytest.fixture
@@ -53,7 +54,7 @@ def stored_article(monkeypatch):
         dynamodb_table.delete_item(Key={'pk': event['pk'], 'sk': event['sk']})
 
 
-@pytest.mark.parametrize('platform', ['telegram', 'threads'])
+@pytest.mark.parametrize('platform', ['telegram', 'threads', 'medium'])
 def test_successful_shares_and_reshares_persist_without_changing_article_content(stored_article, monkeypatch, platform):
     table, before, article = stored_article
     assert article.telegram_shared_at is None and article.threads_shared_at is None

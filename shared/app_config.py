@@ -27,6 +27,7 @@ def _get_live_config() -> dict[str, Any]:
         "indexnow_key": os.getenv("INDEXNOW_KEY"),
         "tinymce_api_key": os.getenv("TINYMCE_API_KEY"),
         "sitemap_function_name": os.getenv("SITEMAP_FUNCTION_NAME", ""),
+        "medium_token_encryption_key": os.getenv("MEDIUM_TOKEN_ENCRYPTION_KEY", ""),
         "threads_app_id": os.getenv("THREADS_APP_ID", ""),
         "threads_app_secret": os.getenv("THREADS_APP_SECRET", ""),
         "threads_token_encryption_key": os.getenv("THREADS_TOKEN_ENCRYPTION_KEY", ""),

@@ -1,0 +1,70 @@
+{% if cur_user and cur_user.id == article.owner_id %}
+    {% set medium_preview = not cur_user.has_medium_integration %}
+    {% set share_enabled = cur_user.has_medium_integration and cur_user.status == UserStatus.ACTIVE and article.status == ArticleStatus.PUBLISHED %}
+    <div class="article-medium-sharing my-4">
+        <section class="card shadow-sm bg-body-tertiary{% if medium_preview %} opacity-50{% endif %}"
+                 aria-labelledby="medium-share-heading">
+            <div class="card-body">
+                <h2 id="medium-share-heading" class="h5 card-title">
+                    <i class="bi bi-medium" aria-hidden="true"></i>
+                    Share to Medium
+                </h2>
+                <p class="small">Post the preview, cover, and a link to the full article on your Medium profile.</p>
+                <button type="button"
+                        class="btn {{ 'btn-dark' if medium_preview else 'btn-outline-success' if article.medium_shared_at else 'btn-outline-secondary' }}"
+                        id="medium-share"
+                        {% if not share_enabled %}disabled{% endif %}>
+                    <i class="bi bi-medium me-1"
+                       aria-hidden="true"></i><span>{{ "Share again to Medium" if article.medium_shared_at else "Post short version to Medium" }}</span>
+                </button>
+                <p class="small mt-2 mb-0" id="medium-share-status" role="status" aria-live="polite">
+                    {% if not cur_user.has_medium_integration %}Connect Medium to share this article.
+                    {% elif cur_user.status != UserStatus.ACTIVE %}An active account is required to share articles.
+                    {% elif article.status != ArticleStatus.PUBLISHED %}Publish this article to share it.
+                    {% elif article.medium_shared_at %}Previously shared to Medium.{% endif %}
+                </p>
+                {% if not medium_preview %}
+                    <a class="small link-body-emphasis"
+                       href="{{ url('edit-user', user_id=cur_user.id) }}#integrations">Manage Medium connection</a>
+                {% endif %}
+            </div>
+        </section>
+        {% if medium_preview %}
+            <div class="mt-2">
+                <a href="{{ url('edit-user', user_id=cur_user.id) }}#integrations" class="link-body-emphasis">Connect Medium</a>
+            </div>
+        {% endif %}
+    </div>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const button = document.getElementById("medium-share")
+        if (button.disabled) return
+        const label = button.querySelector("span")
+        const status = document.getElementById("medium-share-status")
+        button.addEventListener("click", async () => {
+          button.disabled = true
+          status.textContent = "Sharing to Medium…"
+          try {
+            const response = await fetch({{ url('share-article-medium', article_id=article.id, absolute=True) | tojson }}, {
+              method: "POST", credentials: "include", headers: {"Content-Type": "application/json"}, body: "{}"
+            })
+            const data = await response.json()
+            if (!response.ok) {
+              const error = new Error(typeof data.details === "string" ? data.details : "Could not share this article.")
+              error.canRetry = [401, 403, 404, 409, 413, 415, 422, 429].includes(response.status)
+              throw error
+            }
+            if (data.shared !== true) throw new Error("Unconfirmed share")
+            status.textContent = "Short version posted to Medium."
+            label.textContent = "Share again to Medium"
+            button.classList.replace("btn-outline-secondary", "btn-outline-success")
+            button.disabled = false
+          } catch (error) {
+            status.textContent = error.canRetry ? error.message :
+              "Could not confirm this share. Check your Medium profile before trying again."
+            button.disabled = !error.canRetry
+          }
+        })
+      })
+    </script>
+{% endif %}

@@ -1,0 +1,5 @@
+<h1>{{ title }}</h1>
+{% if category_name %}<p>{{ category_name }}</p>{% endif %}
+{% if cover_url %}<figure><img src="{{ cover_url }}" alt="{{ title }}"></figure>{% endif %}
+{% if description %}<p>{{ description }}</p>{% endif %}
+<p><a href="{{ article_url }}" rel="nofollow">Read the full article</a></p>

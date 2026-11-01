@@ -450,3 +450,22 @@ execution. No new DynamoDB index is required.
 Structured action context appears in console/CloudWatch logs as well as Telegram.
 Sign-in and sign-out events include the profile URL; contact submissions include
 the message ID and, for signed-in senders, their profile URL.
+
+### Medium publishing
+
+Article owners can connect an existing Medium integration token under **Edit profile → Integrations**
+then use **Post short version to Medium** on a published article. This publishes publicly to the connected
+profile: title, category, cover, public preview, and a link to the full article. The full body is never sent,
+and `canonicalUrl` points to the original article. Tokens are validated with Medium's `/v1/me` endpoint,
+encrypted in API-owned integration records, and never returned to the browser.
+
+Configure `MEDIUM_TOKEN_ENCRYPTION_KEY` in the API environment (and ignored `.env.prod` for deployment),
+using a Fernet key generated with `cryptography.fernet.Fernet.generate_key()`. Deploy the API, web,
+and infrastructure configuration together. Changing this key requires users to reconnect. No new dependencies
+or indexes are required. Medium no longer issues new integration tokens or accepts new API integrations;
+this feature requires a working existing token, as described in
+[Medium's API guidance](https://help.medium.com/hc/en-us/articles/213480228-API-Importing).
+
+Confirmed posts update Medium share history and engagement counts without changing article timestamps.
+Uncertain requests are never automatically repeated; check the Medium profile before retrying. Disconnecting
+removes the local credentials without deleting remote posts or revoking the token at Medium.
