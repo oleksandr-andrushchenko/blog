@@ -91,7 +91,8 @@
                     </a>
                 </h2>
                 {% if popular_articles %}
-                    <div id="popular-articles" class="{{ {"def": 1, "md": 2} | row_classes }} g-2 mb-2">
+                    <div id="popular-articles" class="{{ {"def": 1, "md": 2} | row_classes }} g-2 mb-2"
+                         data-masonry-options='{"percentPosition": true }'>
                         {% with articles=popular_articles,
                         preview=False,
                         vert_gap=0,
