@@ -29,7 +29,7 @@
                     <input type="radio" class="btn-check" id="crypto-{{ wallet.id }}-currency-{{ code }}"
                            name="crypto-{{ wallet.id }}-currency-choice" value="{{ code }}" data-wallet-currency data-form-ignore
                            {% if currency == code or (code == 'Other' and custom_currency) %}checked{% endif %}>
-                    <label class="btn btn-outline-primary btn-sm" for="crypto-{{ wallet.id }}-currency-{{ code }}">
+                    <label class="btn btn-outline-dark btn-sm" for="crypto-{{ wallet.id }}-currency-{{ code }}">
                         {% with currency=code %}{% include "fragments/crypto-currency-icon.html" %}{% endwith %}
                         {{ code }}
                     </label>
@@ -123,6 +123,6 @@
 <template id="crypto-link-template">
     {{ wallet_row({"id": "new-link"}) }}
 </template>
-<button type="button" id="add-crypto-link" class="btn btn-outline-primary align-self-start">
+<button type="button" id="add-crypto-link" class="btn btn-outline-dark align-self-start">
     <i class="bi bi-plus-lg" aria-hidden="true"></i> Add crypto wallet
 </button>

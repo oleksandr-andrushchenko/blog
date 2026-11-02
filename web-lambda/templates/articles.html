@@ -179,14 +179,14 @@
 
         {% if tag and cur_user and check_auth(cur_user, Permission.UPDATE_TAG) %}
             <a href="{{ url("edit-tag", slug=article_query.tags[0]) }}"
-               class="btn btn-light btn-sm bi bi-pencil">
+               class="btn btn-light btn-sm bi bi-pencil-square">
                 Edit tag
             </a>
         {% endif %}
 
         {% if category and cur_user and check_auth(cur_user, Permission.UPDATE_CATEGORY) %}
             <a href="{{ url('edit-category', slug=category.slug) }}"
-               class="btn btn-light btn-sm bi bi-pencil"> Edit category</a>
+               class="btn btn-light btn-sm bi bi-pencil-square"> Edit category</a>
         {% endif %}
     </form>
 

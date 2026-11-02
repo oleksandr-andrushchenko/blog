@@ -8,10 +8,10 @@
 } %}
 {% set report_details_limit = [1, 1000 - (article_canonical_url | length) - 100] | max %}
 <div class="dropdown article-report">
-    <button type="button" class="btn btn-outline-secondary dropdown-toggle{% if btn_size %} btn-{{ btn_size }}{% endif %}" id="article-report-toggle"
+    <button type="button" class="btn btn-light dropdown-toggle{% if btn_size %} btn-{{ btn_size }}{% endif %}" id="article-report-toggle"
             data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
             aria-controls="article-report-menu">
-        <i class="bi bi-pencil-square" aria-hidden="true"></i> Report
+        <i class="bi bi-flag" aria-hidden="true"></i> Report
     </button>
     <div class="dropdown-menu p-3" id="article-report-menu" aria-labelledby="article-report-toggle"
          style="width: 24rem; max-width: calc(100vw - 2rem);">
@@ -31,7 +31,7 @@
             <label class="form-label" for="article-report-email">Your email</label>
             <input class="form-control mb-3" type="email" id="article-report-email" name="email" autocomplete="email"
                    value="{{ (cur_user.email or '') if cur_user else '' }}">
-            <button type="submit" class="btn btn-primary">
+            <button type="submit" class="btn btn-dark">
                 <i class="bi bi-send" aria-hidden="true"></i> <span>Send report</span>
             </button>
         </form>

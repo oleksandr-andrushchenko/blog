@@ -164,7 +164,7 @@
                     {% if cur_user %}
                         {% if check_auth(cur_user, Permission.CREATE_ARTICLE) %}
                             <li class="nav-item">
-                                <a class="nav-link{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %} bi bi-pencil-fill"
+                                <a class="nav-link{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %} bi bi-pencil-square"
                                    href="{{ url("new-article") }}">
                                     New article
                                 </a>
@@ -189,17 +189,17 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end" id="user-menu"
                                 aria-labelledby="user-menu-toggle">
-                                <li><a class="dropdown-item{% if current_route in ['direct-messages', 'direct-conversation'] %} active{% endif %}" href="{{ url('direct-messages') }}"{% if current_route in ['direct-messages', 'direct-conversation'] %} aria-current="page"{% endif %}>
-                                    <i class="bi bi-chat-dots me-2" aria-hidden="true"></i>Messages
-                                </a></li>
                                 <li><a class="dropdown-item" href="{{ profile_url }}">
                                     <i class="bi bi-person me-2" aria-hidden="true"></i>Profile
                                 </a></li>
                                 <li><a class="dropdown-item" href="{{ edit_profile_url }}">
-                                    <i class="bi bi-pencil me-2" aria-hidden="true"></i>Edit profile
+                                    <i class="bi bi-pencil-square me-2" aria-hidden="true"></i>Edit profile
                                 </a></li>
                                 <li><a class="dropdown-item" href="{{ profile_url }}#my-articles">
                                     <i class="bi bi-collection me-2" aria-hidden="true"></i>My articles
+                                </a></li>
+                                <li><a class="dropdown-item{% if current_route in ['direct-messages', 'direct-conversation'] %} active{% endif %}" href="{{ url('direct-messages') }}"{% if current_route in ['direct-messages', 'direct-conversation'] %} aria-current="page"{% endif %}>
+                                    <i class="bi bi-chat-dots me-2" aria-hidden="true"></i>Messages
                                 </a></li>
                                 <li>
                                     <hr class="dropdown-divider">
@@ -230,7 +230,7 @@
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link bi bi-pencil-fill"
+                            <a class="nav-link bi bi-pencil-square"
                                href="{{ url("login", redirect_url=url("new-article")) }}" rel="nofollow">
                                 New article
                             </a>

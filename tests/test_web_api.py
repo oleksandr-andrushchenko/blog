@@ -1973,7 +1973,9 @@ def test_guest_article_controls_preserve_return_url_and_keep_support_public(gues
         signed_in = pq(get(root_client, destination).text)
         assert len(signed_in("#article-controls .article-impressions .btn-article-like")) == 1
         assert len(signed_in("#article-controls #article-status-comment")) == 1
-        assert len(signed_in("#article-controls .bi-pencil")) == 1
+        edit_link = signed_in(f'#article-controls a[href$="/articles/{article_id}/edit"]')
+        assert len(edit_link) == 1
+        assert edit_link.text() == 'Edit article'
         assert len(signed_in('aside > .creator-support-link')) == 1
         assert not signed_in('#article-controls .creator-support-link')
     finally:
