@@ -50,6 +50,19 @@
                         <label class="form-check-label" for="support-{{ link.id }}">{{ link.name }}</label>
                     </div>
                 {% endfor %}
+                <h3 class="h6 mt-3">Crypto support wallets</h3>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="inherit-wallets" name="inherit_wallets"
+                           {% if not article or article.support_wallets is none %}checked{% endif %}>
+                    <label class="form-check-label" for="inherit-wallets">Use my profile wallet defaults</label>
+                </div>
+                {% for wallet in cur_user.crypto_wallets %}
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="wallet-{{ wallet.id }}" data-wallet-id="{{ wallet.id }}"
+                               {% if article and article.support_wallets is not none and wallet.id in article.support_wallets %}checked{% endif %}>
+                        <label class="form-check-label" for="wallet-{{ wallet.id }}">{{ wallet.currency }}{% if wallet.network %} ({{ wallet.network }}){% endif %}</label>
+                    </div>
+                {% endfor %}
                 <p class="form-text">Manage support pages in your <a href="{{ url('edit-user', user_id=cur_user.id) }}#earn">profile</a>.</p>
             </fieldset>
         {% endif %}
@@ -59,7 +72,7 @@
                 <a href="{{ url('terms') }}" class="link-body-emphasis" target="_blank" rel="noopener noreferrer">Terms
                     of Service <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i><span class="visually-hidden"> (opens in a new tab)</span></a>.
             </p>
-            <button type="submit" class="btn btn-light">
+            <button type="submit" class="btn btn-outline-secondary">
                 <i class="bi {% if article %}bi-arrow-clockwise{% else %}bi-plus-lg{% endif %}"></i>
                 {% if article %}Update{% else %}Create{% endif %} article
             </button>
@@ -86,6 +99,8 @@
         if (document.getElementById('inherit-support')) {
           data.support_providers = data.inherit_support ? null :
             [...document.querySelectorAll('[data-support-id]:checked')].map(input => input.dataset.supportId)
+          data.support_wallets = data.inherit_wallets ? null : [...document.querySelectorAll('[data-wallet-id]:checked')].map(input => input.dataset.walletId)
+          delete data.inherit_wallets
           delete data.inherit_support
         }
         return data

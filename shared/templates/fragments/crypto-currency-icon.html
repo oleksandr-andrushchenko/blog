@@ -1,0 +1,4 @@
+{% set currency_icon = {"BTC": "currency-bitcoin", "USDT": "currency-dollar", "USDC": "currency-dollar"}.get(currency | upper) %}
+{% if currency_icon %}
+    <i class="bi bi-{{ currency_icon }}" aria-hidden="true"></i>
+{% endif %}

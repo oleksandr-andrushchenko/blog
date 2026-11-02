@@ -621,6 +621,7 @@ def create_article(article_dto: ArticleDTO, cur_user: User) -> Article:
     transacts = []
 
     _validate_article_support(article_dto.support_providers, cur_user)
+    _validate_article_wallets(article_dto.support_wallets, cur_user)
     article_item = {
         "id": article_id,
         "title": title,
@@ -637,6 +638,7 @@ def create_article(article_dto: ArticleDTO, cur_user: User) -> Article:
         "post_user_status_pk": f"POST#{cur_user.id}#{status}",
         "post_category_status_pk": f"POST#{category}#{status}",
         "support_providers": article_dto.support_providers,
+        "support_wallets": article_dto.support_wallets,
     }
     if preview:
         article_item["preview"] = preview
@@ -674,6 +676,8 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
     if not changes:
         return
 
+    if "support_wallets" in changes:
+        _validate_article_wallets(changes["support_wallets"], get_user(article.owner_id))
     if "support_providers" in changes:
         _validate_article_support(changes["support_providers"], get_user(article.owner_id))
 
@@ -1627,3 +1631,8 @@ def update_article_comment_impression(article: Article, comment: ArticleComment,
             get_user(comment.owner_id), 'notify_comment_impressions', 'New reaction to your comment',
             f'{cur_user.name} {verb} your comment on “{article.title}”.', article, req, detail=comment.text, action=action,
         ))
+
+
+def _validate_article_wallets(wallets, owner):
+    if wallets is not None and set(wallets) - {wallet['id'] for wallet in owner.crypto_wallets}:
+        raise RequestValidationError({'support_wallets': 'Choose wallets saved by the article author'})

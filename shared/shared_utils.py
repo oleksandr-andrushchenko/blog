@@ -105,6 +105,7 @@ class User:
     unread_notifications_count: int = 0
     notifications_revision: int = 0
     notify_direct_messages: bool = True
+    crypto_wallets: list[dict] = field(default_factory=list)
     notify_article_status: bool = True
     notify_user_impressions: bool = True
     notify_article_impressions: bool = True
@@ -324,6 +325,7 @@ class Article:
     telegram_shared_at: int | None = None
     threads_shared_at: int | None = None
     linkedin_shared_at: int | None = None
+    support_wallets: list[str] | None = None
     support_providers: list[str] | None = None
     support_link_click_counts: dict[str, int] = field(default_factory=dict)
     shares_counts: dict[str, int] = field(default_factory=dict)
@@ -1329,6 +1331,7 @@ def article_from_dynamodb(d_item: dict[str, Any]) -> Article:
         telegram_shared_at=d_item.get("telegram_shared_at"),
         threads_shared_at=d_item.get("threads_shared_at"),
         linkedin_shared_at=d_item.get("linkedin_shared_at"),
+        support_wallets=d_item.get("support_wallets"),
         support_providers=d_item.get("support_providers"),
         support_link_click_counts=d_item.get("support_link_click_counts", {}),
         shares_counts=d_item.get("shares_counts", {}),
@@ -1629,6 +1632,7 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         unread_notifications_count=d_item.get("unread_notifications_count", 0),
         notifications_revision=d_item.get("notifications_revision", 0),
         notify_direct_messages=d_item.get("notify_direct_messages", True),
+        crypto_wallets=d_item.get("crypto_wallets", []),
         notify_article_status=d_item.get("notify_article_status", True),
         notify_user_impressions=d_item.get("notify_user_impressions", True),
         notify_article_impressions=d_item.get("notify_article_impressions", True),

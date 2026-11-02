@@ -2404,6 +2404,102 @@ def test_same_email_signins_create_separate_accounts_without_explicit_connection
     assert get(get_logged_in_client(second_identity), f'/users/{second_id}/edit').status_code == 200
 
 
+def test_crypto_support_wallets_save_select_and_render(guest_client):
+    identity = uuid.uuid4().hex
+    owner = get_logged_in_client({"sub": identity, "iss": "crypto-wallets", "email": f"{identity}@example.com"})
+    owner_id = get_dynamodb_user_by_email(f"{identity}@example.com")["id"]
+    profile = f"/users/{owner_id}"
+    wallets = [
+        {"id": "btc", "currency": "BTC", "network": "Bitcoin", "address": "bc1qexample",
+         "instructions": "Bitcoin only <script>alert(1)</script>", "show_on_user_page": False},
+        {"id": "eth", "currency": "ETH", "network": "Ethereum", "address": "0xExample", "instructions": ""},
+        {"id": "custom", "currency": "CUSTOM", "network": "Custom chain", "address": "DExample", "instructions": ""},
+    ]
+    response = patch(owner, profile, json={"crypto_wallets": wallets})
+    assert response.status_code == 200, response.text
+    assert [wallet["address"] for wallet in get_dynamodb_user(owner_id)["crypto_wallets"]] == [wallet["address"] for wallet in wallets]
+    editor = pq(get(owner, profile + "/edit").text)
+    assert editor("#crypto-links [data-crypto-link]").length == 3
+    assert editor('#crypto-btc-network option[selected]').attr("value") == "Bitcoin"
+    assert editor('#crypto-new-link-network').attr("disabled") is not None
+    assert editor('#crypto-new-link-currency-BTC').attr("checked") is None
+    assert editor('[data-wallet-currency]:not([data-form-ignore])').length == 0
+    assert editor('#crypto-custom-currency-Other').attr("checked") is not None
+    assert editor('#crypto-custom-currency').attr("type") == "text"
+    assert editor('#crypto-custom-currency').attr("value") == "CUSTOM"
+    assert editor('#crypto-custom-custom-network').attr("value") == "Custom chain"
+    assert editor('#crypto-custom-custom-network').attr("disabled") is None
+    assert editor('#crypto-custom-network').attr("disabled") is not None
+    assert editor('#crypto-btc-address').attr("placeholder")
+    assert editor('label[for="crypto-btc-currency-BTC"] i.bi-currency-bitcoin[aria-hidden="true"]')
+    assert editor('label[for="crypto-btc-currency-USDC"] i.bi-currency-dollar')
+    assert not editor('label[for="crypto-btc-currency-ETH"] i')
+    assert not editor('label[for="crypto-btc-currency-Other"] i')
+    assert editor('#crypto-custom-currency').closest('[data-wallet-custom-currency]')('i.bi-coin')
+    assert editor('#crypto-btc-currency').closest('[data-wallet-custom-currency]').attr('hidden') is not None
+    assert editor('#crypto-btc-network').closest('.input-group')('i.bi-diagram-3')
+    networks = json.loads(editor('#crypto-links [data-crypto-link]').eq(0).attr('data-wallet-networks'))
+    for code, network in [('BNB', 'BNB Smart Chain'), ('XRP', 'XRP Ledger'), ('DOGE', 'Dogecoin'),
+                          ('ADA', 'Cardano'), ('TRX', 'Tron'), ('AVAX', 'Avalanche C-Chain'), ('XMR', 'Monero')]:
+        assert editor(f'#crypto-btc-currency-{code}')
+        assert network in networks[code]
+    assert patch(guest_client, profile, json={"crypto_wallets": []}).status_code == 401
+    assert patch(owner, profile, json={"crypto_wallets": [{**wallets[0], "address": "bad address"}]}).status_code == 422
+
+    data = {"title": "Crypto support " + identity, "content": "<p>Article with crypto support wallets.</p>" * 150, "category": "other",
+            "tags": ["crypto"], "support_providers": [], "support_wallets": ["btc"]}
+    assert post(owner, "/articles", json={**data, "support_wallets": ["not-owned"]}).status_code == 422
+    created = post(owner, "/articles", json=data)
+    assert created.status_code == 200, created.text
+    article_id = json.loads(pq(get(owner, created.json()).text)('script[type="application/ld+json"]').text())["identifier"]
+    endpoint = f"/articles/{article_id}"
+    assert get_dynamodb_article(article_id)["support_wallets"] == ["btc"]
+    admin = get_logged_in_client(root_user)
+    assert patch(admin, endpoint, json={"support_wallets": ["not-owned"]}).status_code == 422
+    assert post(admin, endpoint + "/status", json={"status": "published"}).status_code == 200
+
+    def support():
+        page = get(guest_client, created.json())
+        assert page.status_code == 200, page.text
+        return pq(page.text)("#creator-wallets")
+
+    block = support()
+    assert block('input[id^="support-wallet-"][readonly]').attr("value") == "bc1qexample"
+    assert not block("script")
+    assert "<script>alert(1)</script>" in block.text()
+    assert block('button[aria-label="Copy BTC address"] i.bi-copy')
+    assert block('label[for="support-wallet-btc"]').text() == 'Address:'
+    toggle = block('#support-wallet-toggle-btc')
+    assert toggle.text().strip() == "BTC wallet"
+    assert toggle.attr('data-bs-toggle') == 'dropdown'
+    assert toggle.attr('data-bs-auto-close') == 'outside'
+    assert toggle.attr('aria-expanded') == 'false'
+    panel = block('#support-wallet-menu-btc')
+    assert toggle.attr('aria-controls') == panel.attr('id')
+    assert panel.attr('aria-labelledby') == toggle.attr('id')
+    assert panel('input[id^="support-wallet-"][readonly]').attr('value') == 'bc1qexample'
+    assert panel('button[aria-label="Copy BTC address"]')
+    assert panel('i.bi-diagram-3')
+    assert panel('#support-network-btc').attr('value') == 'Bitcoin'
+    assert panel('#support-instructions-btc[readonly]').text() == wallets[0]['instructions']
+    assert panel('.input-group').length == 3
+    assert panel('label[for="support-network-btc"]').text() == 'Network:'
+    assert panel('label[for="support-instructions-btc"]').text() == 'Instructions:'
+    assert "Bitcoin only <script>alert(1)</script>" in panel.text()
+    assert not toggle('input')
+    assert not block('#support-wallet-eth')
+    profile_page = pq(get(guest_client, profile).text)
+    assert not profile_page('#support-wallet-btc')
+    assert profile_page('#support-wallet-eth')
+    assert not profile_page('#support-instructions-eth')
+    assert patch(owner, endpoint, json={"support_wallets": []}).status_code == 200
+    assert not support()
+    assert patch(owner, endpoint, json={"support_wallets": None}).status_code == 200
+    assert support()('input[id^="support-wallet-"][readonly]').length == 3
+    assert patch(owner, profile, json={"crypto_wallets": []}).status_code == 200
+    assert not support()
+
+
 def test_direct_messages_are_private_idempotent_paginated_and_block_aware(guest_client):
     from concurrent.futures import ThreadPoolExecutor
 

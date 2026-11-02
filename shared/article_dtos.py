@@ -49,9 +49,12 @@ class ArticleDTO(BaseDTO):
     content: str
     tags: list[str]
     category: str
+    support_wallets: list[str] | None = None
     support_providers: list[str] | None = None
 
     def __post_init__(self):
+        if self.support_wallets is not None:
+            self.support_wallets = validate_support_providers(self.support_wallets)
         if self.support_providers is not None:
             self.support_providers = validate_support_providers(self.support_providers)
         _validate_title(self.title)
@@ -66,9 +69,12 @@ class UpdateArticleDTO(BaseDTO):
     content: str | None | object = UNSET
     tags: list[str] | None | object = UNSET
     category: str | None | object = UNSET
+    support_wallets: list[str] | None | object = UNSET
     support_providers: list[str] | None | object = UNSET
 
     def __post_init__(self):
+        if self.support_wallets is not UNSET and self.support_wallets is not None:
+            self.support_wallets = validate_support_providers(self.support_wallets)
         if self.support_providers is not UNSET and self.support_providers is not None:
             self.support_providers = validate_support_providers(self.support_providers)
         if self.title is not UNSET:

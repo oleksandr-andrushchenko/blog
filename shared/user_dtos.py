@@ -5,6 +5,7 @@ from enum import StrEnum
 from basic_dtos import BaseDTO, UNSET
 from query_dtos import UserStatus
 from validation import validate_http_url
+from crypto_wallets import validate_crypto_wallets
 from support_links import validate_support_links
 
 
@@ -19,6 +20,7 @@ class UpdateUserDTO(BaseDTO):
     website: str | None | object = UNSET
     address: str | None | object = UNSET
     github_username: str | None | object = UNSET
+    crypto_wallets: list | object = UNSET
     support_links: list | object = UNSET
     notify_direct_messages: bool | object = UNSET
     notify_article_status: bool | object = UNSET
@@ -30,6 +32,8 @@ class UpdateUserDTO(BaseDTO):
     notify_article_shares: bool | object = UNSET
 
     def __post_init__(self):
+        if self.crypto_wallets is not UNSET:
+            self.crypto_wallets = validate_crypto_wallets(self.crypto_wallets)
         if self.support_links is not UNSET:
             self.support_links = validate_support_links(self.support_links)
         for field in ('notify_direct_messages', 'notify_article_status', 'notify_user_impressions', 'notify_article_impressions', 'notify_tag_articles', 'notify_article_comments', 'notify_comment_impressions', 'notify_article_shares'):

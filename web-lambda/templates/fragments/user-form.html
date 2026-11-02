@@ -168,6 +168,9 @@
                     Counts exclude your own clicks.</p>
                 {% from "fragments/creator-link-editor.html" import link_editor %}
                 {{ link_editor('support', user.support_links if user else [], categories) }}
+                <h2 class="h5 mb-0">Crypto support wallets</h2>
+                <p class="form-text mb-0">Add a receiving address, its network, and any instructions for readers.</p>
+                {% include "fragments/crypto-wallet-editor.html" %}
             </div>
         </div>
         <div class="tab-pane py-3" id="notifications" role="tabpanel" aria-labelledby="notifications-tab" tabindex="0">
@@ -266,6 +269,60 @@
     avatarRadios.forEach(radio => radio.addEventListener("change", updateAvatarUpload))
     updateAvatarUpload()
 
+    function initializeWalletRow(row) {
+      const networks = JSON.parse(row.dataset.walletNetworks)
+      const currency = row.querySelector('[data-link-field="currency"]')
+      const network = row.querySelector("[data-wallet-network]")
+      const customNetwork = row.querySelector("[data-wallet-custom-network]")
+      const selectSingleNetwork = () => {
+        const choices = networks[currency.value] || []
+        if (!network.disabled && !network.value && choices.length === 1) network.value = choices[0]
+      }
+      row.querySelectorAll("[data-wallet-currency]").forEach(radio => {
+        radio.addEventListener("change", () => {
+          if (!radio.checked) return
+          const custom = radio.value === "Other"
+          row.querySelector("[data-wallet-custom-currency]").hidden = !custom
+          currency.type = custom ? "text" : "hidden"
+          currency.required = custom
+          currency.value = custom ? "" : radio.value
+          currency.setCustomValidity("")
+          network.disabled = custom
+          network.hidden = custom
+          network.required = !custom
+          network.replaceChildren(new Option("Choose network", ""),
+            ...(networks[radio.value] || []).map(value => new Option(value, value)))
+          selectSingleNetwork()
+          customNetwork.disabled = !custom
+          customNetwork.hidden = !custom
+          customNetwork.value = ""
+          row.querySelector("[data-wallet-network-label]").htmlFor = custom ? customNetwork.id : network.id
+          if (custom) currency.focus()
+        })
+      })
+      selectSingleNetwork()
+    }
+
+    const cryptoContainer = document.getElementById('crypto-links')
+    const cryptoRows = () => [...cryptoContainer.querySelectorAll('[data-crypto-link]')]
+    cryptoRows().forEach(initializeWalletRow)
+    document.getElementById('add-crypto-link').addEventListener('click', () => {
+      const row = document.getElementById('crypto-link-template').content.firstElementChild.cloneNode(true)
+      const id = crypto.randomUUID()
+      row.dataset.linkId = id
+      row.querySelectorAll('[id], [for], [name], [aria-labelledby]').forEach(element => {
+        if (element.id) element.id = element.id.replaceAll('new-link', id)
+        if (element.htmlFor) element.htmlFor = element.htmlFor.replaceAll('new-link', id)
+        if (element.name) element.name = element.name.replaceAll('new-link', id)
+        if (element.hasAttribute('aria-labelledby')) element.setAttribute('aria-labelledby', element.getAttribute('aria-labelledby').replaceAll('new-link', id))
+      })
+      cryptoContainer.append(row)
+      initializeWalletRow(row)
+      row.querySelector('[data-wallet-currency]').focus()
+    })
+    cryptoContainer.addEventListener('click', event => {
+      if (event.target.closest('[data-remove-crypto]')) event.target.closest('[data-crypto-link]').remove()
+    })
     const linkKinds = ["support"]
     const linkRows = kind => [...document.getElementById(`${kind}-links`).querySelectorAll(`[data-${kind}-link]`)]
     for (const kind of linkKinds) {
@@ -312,7 +369,25 @@
               .map(input => [input.dataset.linkField, input.value.trim()]))
           }))
         }
+        data.crypto_wallets = cryptoRows().map(row => ({
+          id: row.dataset.linkId,
+          show_on_user_page: row.querySelector('[data-link-option="show_on_user_page"]').checked,
+          default_all_articles: row.querySelector('[data-link-option="default_all_articles"]').checked,
+          default_categories: [...row.querySelector('[data-link-scopes="default_categories"]').selectedOptions].map(option => option.value),
+          ...Object.fromEntries([...row.querySelectorAll('[data-link-field]:not(:disabled)')].map(input => [input.dataset.linkField, input.value.trim()]))
+        }))
         return data
+      },
+      beforeSubmit: () => {
+        for (const row of cryptoRows()) {
+          for (const input of row.querySelectorAll('input:not(:disabled), select:not(:disabled)')) {
+            if (input.checkValidity()) continue
+            input.classList.add('is-invalid')
+            bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#earn"]')).show()
+            input.focus()
+            throw new Error(input.validationMessage || 'Check the highlighted wallet field.')
+          }
+        }
       },
       rules: {
         avatar_file: [

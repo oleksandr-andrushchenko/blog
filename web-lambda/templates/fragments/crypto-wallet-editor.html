@@ -1,0 +1,129 @@
+{# Common network choices: https://tether.to/en/supported-protocols/ and https://www.circle.com/usdc #}
+{% set wallet_networks = {
+    "BTC": ["Bitcoin"],
+    "ETH": ["Ethereum", "Arbitrum", "Base", "Optimism"],
+    "USDT": ["Ethereum", "Tron", "Solana"],
+    "USDC": ["Ethereum", "Solana", "Base", "Arbitrum", "Polygon"],
+    "SOL": ["Solana"],
+    "LTC": ["Litecoin"],
+    "BNB": ["BNB Smart Chain"],
+    "XRP": ["XRP Ledger"],
+    "DOGE": ["Dogecoin"],
+    "ADA": ["Cardano"],
+    "TRX": ["Tron"],
+    "AVAX": ["Avalanche C-Chain"],
+    "XMR": ["Monero"]
+} %}
+{% macro wallet_row(wallet) %}
+    {% set kind = "crypto" %}
+    {% set link = wallet %}
+    {% set currency = wallet.get('currency', '') %}
+    {% set custom_currency = currency and currency not in wallet_networks %}
+    <fieldset class="card card-body p-3 gap-2" data-crypto-link data-link-id="{{ wallet.id }}"
+              data-wallet-networks="{{ wallet_networks | tojson | forceescape }}">
+        <legend class="float-none w-auto h6 px-1 mb-0">Crypto wallet</legend>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <span class="small fw-semibold" id="crypto-{{ wallet.id }}-currency-label">Currency</span>
+            <div class="d-flex flex-wrap gap-1" role="group" aria-labelledby="crypto-{{ wallet.id }}-currency-label">
+                {% for code in wallet_networks.keys() | list + ['Other'] %}
+                    <input type="radio" class="btn-check" id="crypto-{{ wallet.id }}-currency-{{ code }}"
+                           name="crypto-{{ wallet.id }}-currency-choice" value="{{ code }}" data-wallet-currency data-form-ignore required
+                           {% if currency == code or (code == 'Other' and custom_currency) %}checked{% endif %}>
+                    <label class="btn btn-outline-primary btn-sm" for="crypto-{{ wallet.id }}-currency-{{ code }}">
+                        {% with currency=code %}{% include "fragments/crypto-currency-icon.html" %}{% endwith %}
+                        {{ code }}
+                    </label>
+                {% endfor %}
+            </div>
+            <div class="input-group input-group-sm w-auto" data-wallet-custom-currency {% if not custom_currency %}hidden{% endif %}>
+                <span class="input-group-text"><i class="bi bi-coin" aria-hidden="true"></i></span>
+                <input type="{{ 'text' if custom_currency else 'hidden' }}" class="form-control form-control-sm w-auto"
+                       id="crypto-{{ wallet.id }}-currency" data-link-field="currency" maxlength="50"
+                       aria-label="Custom currency" placeholder="Currency name or ticker" value="{{ currency }}"
+                       {% if custom_currency %}required{% endif %}>
+            </div>
+        </div>
+        <div class="{{ {"def": 1, "md": 2} | row_classes }} g-2">
+            <div class="col">
+                <label class="form-label small mb-1" data-wallet-network-label for="crypto-{{ wallet.id }}-{{ 'custom-network' if custom_currency else 'network' }}">Network</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-diagram-3" aria-hidden="true"></i></span>
+                    <select class="form-select form-select-sm" id="crypto-{{ wallet.id }}-network" data-wallet-network
+                            data-link-field="network" {% if custom_currency %}hidden disabled{% elif not currency %}disabled{% else %}required{% endif %}>
+                        <option value="">{{ 'Choose network' if currency else 'Select a currency first' }}</option>
+                        {% for network in wallet_networks.get(currency, []) %}
+                            <option value="{{ network }}" {% if network == wallet.get('network', '') %}selected{% endif %}>{{ network }}</option>
+                        {% endfor %}
+                        {% if currency and not custom_currency and wallet.get('network') and wallet.network not in wallet_networks.get(currency, []) %}
+                            <option value="{{ wallet.network }}" selected>{{ wallet.network }} (saved network)</option>
+                        {% endif %}
+                    </select>
+                    <input type="text" class="form-control form-control-sm" id="crypto-{{ wallet.id }}-custom-network"
+                           data-wallet-custom-network data-link-field="network" maxlength="100" aria-label="Custom network"
+                           placeholder="Network name (optional)" value="{{ wallet.get('network', '') if custom_currency else '' }}"
+                           {% if not custom_currency %}hidden disabled{% endif %}>
+                </div>
+            </div>
+            <div class="col">
+                <label class="form-label small mb-1" for="crypto-{{ wallet.id }}-address">Wallet address</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-wallet2" aria-hidden="true"></i></span>
+                    <input type="text" class="form-control" id="crypto-{{ wallet.id }}-address" data-link-field="address"
+                           maxlength="512" required placeholder="Paste your receiving address" value="{{ wallet.get('address', '') }}"
+                           spellcheck="false" autocomplete="off">
+                </div>
+            </div>
+        </div>
+        <div>
+            <label class="form-label small mb-1" for="crypto-{{ wallet.id }}-instructions">Brief instructions (optional)</label>
+            <div class="input-group input-group-sm">
+                <span class="input-group-text"><i class="bi bi-pencil-square" aria-hidden="true"></i></span>
+                <input type="text" class="form-control" id="crypto-{{ wallet.id }}-instructions"
+                       data-link-field="instructions" maxlength="500" placeholder="e.g. Send only on the selected network; include a memo if needed"
+                       value="{{ wallet.get('instructions', '') }}">
+            </div>
+        </div>
+        <details class="small">
+            <summary class="fw-semibold">Visibility and article defaults</summary>
+            <div class="d-flex flex-column gap-2 mt-2">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="{{ kind }}-{{ link.id }}-profile"
+                           data-link-option="show_on_user_page" {% if link.get('show_on_user_page', true) %}checked{% endif %}>
+                    <label class="form-check-label" for="{{ kind }}-{{ link.id }}-profile">Show on my profile</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="{{ kind }}-{{ link.id }}-default"
+                           data-link-option="default_all_articles" {% if link.get('default_all_articles', kind == 'crypto' and 'default_categories' not in link) %}checked{% endif %}>
+                    <label class="form-check-label" for="{{ kind }}-{{ link.id }}-default">Select for all new articles</label>
+                </div>
+                {% for field, label, choices in [('default_categories', 'categories', categories)] %}
+                    <div>
+                        <label class="form-label" for="{{ kind }}-{{ link.id }}-{{ field }}">Or select for these {{ label }}</label>
+                        <select class="form-select" multiple id="{{ kind }}-{{ link.id }}-{{ field }}" data-link-scopes="{{ field }}">
+                            {% for choice in choices %}
+                                {% set scope = choice.slug if field == 'default_categories' else choice.id %}
+                                <option value="{{ scope }}" {% if scope in link.get(field, []) %}selected{% endif %}>{{ choice.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endfor %}
+                <p class="form-text mb-0">Defaults apply to new article forms. Existing articles keep their saved selections.</p>
+            </div>
+        </details>
+        <button type="button" class="btn btn-outline-danger btn-sm align-self-end" data-remove-crypto>
+            <i class="bi bi-trash" aria-hidden="true"></i> Remove wallet
+        </button>
+    </fieldset>
+{% endmacro %}
+<input type="hidden" name="crypto_wallets" data-form-ignore>
+<div id="crypto-links" class="d-flex flex-column gap-3">
+    {% for wallet in user.crypto_wallets %}
+        {{ wallet_row(wallet) }}
+    {% endfor %}
+</div>
+<template id="crypto-link-template">
+    {{ wallet_row({"id": "new-link"}) }}
+</template>
+<button type="button" id="add-crypto-link" class="btn btn-outline-primary align-self-start">
+    <i class="bi bi-plus-lg" aria-hidden="true"></i> Add crypto wallet
+</button>
