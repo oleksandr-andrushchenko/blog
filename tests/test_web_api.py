@@ -2208,13 +2208,21 @@ def test_engagement_endpoints_and_notifications_end_to_end(guest_client):
     assert post(admin, path + '/status', json={'status': 'published'}).status_code == 200
     page = get(guest_client, path)
     assert page.status_code == 200, page.text
-    share_controls = pq(page.text)('.share[data-share-url] [data-share-platform]')
+    page_doc = pq(page.text)
+    share_toggle = page_doc('#article-controls #article-share-toggle')
+    assert share_toggle.text() == 'Share'
+    assert share_toggle.attr('data-bs-toggle') == 'dropdown'
+    assert share_toggle.attr('aria-controls') == 'article-share-options'
+    share_menu = page_doc('#article-share-options.dropdown-menu[data-share-url]')
+    assert share_menu.attr('aria-labelledby') == 'article-share-toggle'
+    share_controls = share_menu('[data-share-platform]')
     platforms = ['whatsapp', 'telegram', 'twitter', 'bluesky', 'threads',
                  'facebook', 'linkedin', 'reddit', 'email']
     assert [control.attr('data-share-platform') for control in share_controls.items()] == platforms
     for control in share_controls.items():
         assert control.attr('title') == control.attr('aria-label')
-        assert not control.text()
+        assert control.text()
+        assert control.has_class('dropdown-item')
         assert control('i[aria-hidden="true"]')
         assert set(control.attr('rel').split()) == {'nofollow', 'noopener', 'noreferrer'}
         if control.attr('data-share-platform') != 'email':

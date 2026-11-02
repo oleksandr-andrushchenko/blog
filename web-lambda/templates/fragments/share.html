@@ -1,22 +1,27 @@
-<div class="share d-flex flex-wrap align-items-center gap-2"{% if article and article.status == ArticleStatus.PUBLISHED %}
-     data-share-url="{{ url('record-article-share', article_id=article.id, absolute=True) }}"{% endif %}>
-    <small class="text-secondary">{{ share_label | default("Share this content") }}:</small>
-    {% for platform, label, icon in [
-            ('whatsapp', 'WhatsApp', 'whatsapp'),
-            ('telegram', 'Telegram', 'telegram'),
-            ('twitter', 'X', 'twitter-x'),
-            ('bluesky', 'Bluesky', 'bluesky'),
-            ('threads', 'Threads', 'threads'),
-            ('facebook', 'Facebook', 'facebook'),
-            ('linkedin', 'LinkedIn', 'linkedin'),
-            ('reddit', 'Reddit', 'reddit'),
-            ('email', 'Email', 'envelope'),
-        ] %}
-        <a href="#" class="btn btn-light btn-sm share-btn {{ platform }}" data-share-platform="{{ platform }}"
-           {% if platform != 'email' %}target="_blank" {% endif %}rel="nofollow noopener noreferrer"
-           title="Share {{ 'via' if platform == 'email' else 'on' }} {{ label }}"
-           aria-label="Share {{ 'via' if platform == 'email' else 'on' }} {{ label }}">
-            <i class="bi bi-{{ icon }}" aria-hidden="true"></i>{% if not share_icons_only %} <span>{{ label }}</span>{% endif %}
-        </a>
-    {% endfor %}
+<div class="dropdown article-social-sharing">
+    <button type="button" class="btn btn-light dropdown-toggle{% if btn_size %} btn-{{ btn_size }}{% endif %}" id="article-share-toggle"
+            data-bs-toggle="dropdown" aria-expanded="false" aria-controls="article-share-options">
+        <i class="bi bi-share" aria-hidden="true"></i> Share
+    </button>
+    <div class="share dropdown-menu" id="article-share-options" aria-labelledby="article-share-toggle"{% if article and article.status == ArticleStatus.PUBLISHED %}
+         data-share-url="{{ url('record-article-share', article_id=article.id, absolute=True) }}"{% endif %}>
+        {% for platform, label, icon in [
+                ('whatsapp', 'WhatsApp', 'whatsapp'),
+                ('telegram', 'Telegram', 'telegram'),
+                ('twitter', 'X', 'twitter-x'),
+                ('bluesky', 'Bluesky', 'bluesky'),
+                ('threads', 'Threads', 'threads'),
+                ('facebook', 'Facebook', 'facebook'),
+                ('linkedin', 'LinkedIn', 'linkedin'),
+                ('reddit', 'Reddit', 'reddit'),
+                ('email', 'Email', 'envelope'),
+            ] %}
+            <a href="#" class="dropdown-item share-btn {{ platform }}" data-share-platform="{{ platform }}"
+               {% if platform != 'email' %}target="_blank" {% endif %}rel="nofollow noopener noreferrer"
+               title="Share {{ 'via' if platform == 'email' else 'on' }} {{ label }}"
+               aria-label="Share {{ 'via' if platform == 'email' else 'on' }} {{ label }}">
+                <i class="bi bi-{{ icon }}" aria-hidden="true"></i> <span>{{ label }}</span>
+            </a>
+        {% endfor %}
+    </div>
 </div>
