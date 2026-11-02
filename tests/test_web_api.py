@@ -9,7 +9,7 @@ from email import policy
 from email.parser import BytesParser
 from http.cookies import SimpleCookie
 from pathlib import Path
-from urllib.parse import parse_qs, quote, urlencode, urlsplit
+from urllib.parse import parse_qsl, parse_qs, quote, urlencode, urlsplit
 
 import pytest
 from pyquery import PyQuery as pq
@@ -1179,8 +1179,15 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     assert "Updated functional endpoint coverage article" in pq(published_tag_page.text)("#articles").text()
 
     published_admin_doc = pq(get(root_client, f"/articles/{article_id}").text)
-    assert published_admin_doc('.btn-article-unpublish')
-    assert not published_doc('.btn-article-unpublish')
+    assert published_admin_doc('#article-status-form input[name="status"][value="unpublished"]')
+    assert published_admin_doc('#article-status-form input[name="status"][value="published"][checked]')
+    assert not published_doc('#article-status-form')
+    report = published_doc('#article-report-form')
+    assert report.attr('action') == os.environ['API_TEST_BASE_URL'] + '/contacts/message'
+    assert report('select[name="reason"] option[value="spam"]')
+    assert report('input[name="name"]').attr('value') == ''
+    assert report('input[name="email"]').attr('value') == ''
+    assert not published_admin_doc('.btn-article-publish, .btn-article-unpublish, .btn-article-reject')
     before_owner = get_dynamodb_user_by_email(root_user["email"])
     before_article = get_dynamodb_article(article_id)
     before_category = dynamodb_table.get_item(Key={"pk": "CATEGORY", "sk": "distributed-systems"})["Item"]
@@ -1959,7 +1966,7 @@ def test_guest_article_controls_preserve_return_url_and_keep_support_public(gues
         assert set(support.attr("rel").split()) == {"nofollow", "noopener"}
         signed_in = pq(get(root_client, destination).text)
         assert len(signed_in("#article-controls .article-impressions .btn-article-like")) == 1
-        assert len(signed_in("#article-controls #comment")) == 1
+        assert len(signed_in("#article-controls #article-status-comment")) == 1
         assert len(signed_in("#article-controls .bi-pencil")) == 1
         assert len(signed_in('.border-start > .creator-support-link')) == 1
         assert not signed_in('#article-controls .creator-support-link')
@@ -2499,7 +2506,6 @@ def test_crypto_support_wallets_save_select_and_render(guest_client):
     assert patch(owner, profile, json={"crypto_wallets": []}).status_code == 200
     assert not support()
 
-
 def test_direct_messages_are_private_idempotent_paginated_and_block_aware(guest_client):
     from concurrent.futures import ThreadPoolExecutor
 
@@ -2645,8 +2651,6 @@ def test_direct_messages_are_private_idempotent_paginated_and_block_aware(guest_
     assert get(sender, endpoint).status_code == 200
     assert get(recipient, '/messages').status_code == 403
 
-
-
 def test_new_direct_message_email_delivery_preferences_and_retries(guest_client):
     suffix = uuid.uuid4().hex
     sender_email = f'dm-email-sender-{suffix}@example.com'
@@ -2717,8 +2721,6 @@ def test_new_direct_message_email_delivery_preferences_and_retries(guest_client)
     blocked = post(sender, endpoint, json={'text': 'Blocked message', 'message_id': str(uuid.uuid4())})
     assert blocked.status_code == 403, blocked.text
     assert emails().keys() == enabled_messages.keys()
-
-
 
 def test_presence_routes_all_account_updates_to_site_notifications_with_atomic_cached_counts(guest_client):
     from concurrent.futures import ThreadPoolExecutor
@@ -2829,8 +2831,6 @@ def test_presence_routes_all_account_updates_to_site_notifications_with_atomic_c
     assert patch(receiver, f'/users/{receiver_id}', json={'notify_direct_messages': False}).status_code == 200
     assert post(sender, endpoint, json={'text': 'Opted out of both channels', 'message_id': str(uuid.uuid4())}).status_code == 200
     assert get(receiver, '/notifications/status').json()['unread_count'] == before_count
-
-
 
 def test_notification_center_autoloads_private_shared_rows_with_scoped_cursors(guest_client):
     suffix = uuid.uuid4().hex

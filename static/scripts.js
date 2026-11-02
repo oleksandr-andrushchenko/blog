@@ -664,60 +664,6 @@ document.querySelectorAll("input[name='avatar_action']").forEach(radio => {
 const tooltipTriggerList = document.querySelectorAll("[title], [data-bs-toggle=\"tooltip\"]")
 const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
 
-// Publish article
-$(".btn-article-publish, .btn-article-unpublish").on("click", function () {
-  const $btn = $(this)
-  const articleId = $btn.data("article-id")
-  const status = $btn.data("status")
-  const url = formatUrl(window.CONFIG.update_article_status_url, {article_id: articleId})
-
-  $btn.setButtonLoading()
-
-  $.ajax({
-    url, method: "POST", contentType: "application/json", data: JSON.stringify({status}), success: function () {
-      window.location.reload()
-    }, error: function (xhr) {
-      console.error(`Error on article ${status}:`, xhr.responseText)
-      alert(`Failed to ${status} article.`)
-    }, complete: function () {
-      $btn.clearButtonLoading()
-    }
-  })
-})
-
-// Reject article
-$(".btn-article-reject").on("click", function () {
-  const $btn = $(this)
-  const articleId = $btn.data("article-id")
-  const status = $btn.data("status")
-  const url = formatUrl(window.CONFIG.update_article_status_url, {article_id: articleId})
-  const comment = $btn.closest(".input-group").find("input[name='comment']").val().trim()
-
-  if (!comment) {
-    alert("Please enter a rejection reason.")
-    return
-  }
-
-  $btn.setButtonLoading()
-
-  $.ajax({
-    url,
-    method: "POST",
-    contentType: "application/json",
-    data: JSON.stringify({status, comment}),
-    success: function () {
-      window.location.reload()
-    },
-    error: function (xhr) {
-      console.error("Error rejecting article:", xhr.responseText)
-      alert("Failed to reject article.")
-    },
-    complete: function () {
-      $btn.clearButtonLoading()
-    }
-  })
-})
-
 // Like/dislike article (article impression)
 $(document).on("click", ".btn-article-like, .btn-article-dislike", function () {
   const $btn = $(this)

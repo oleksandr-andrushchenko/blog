@@ -1,0 +1,54 @@
+{% set extended = extended | default(false) %}
+{% set metadata_author = author if extended and author is defined else article_user if article_user is defined else article.get_user() %}
+{% set category_label = article.category | replace('-', ' ') %}
+{% if category is defined and category and category.slug == article.category %}
+    {% set category_label = category.name %}
+{% elif metadata_categories is defined %}
+    {% set matched_category = metadata_categories | selectattr('slug', 'equalto', article.category) | first %}
+    {% if matched_category is defined %}{% set category_label = matched_category.name %}{% endif %}
+{% endif %}
+<div class="article-meta d-flex flex-wrap align-items-center gap-2 {{ meta_class | default('') }}">
+    {% if article.category %}
+        <a href="{{ articles_url(category=article.category) }}" title="Browse articles in {{ category_label }}"
+           class="{{ 'btn btn-outline-secondary btn-sm' if extended else 'badge text-bg-light border text-wrap text-break text-decoration-none' }}">
+            <i class="bi bi-collection" aria-hidden="true"></i> {{ category_label }}
+        </a>
+    {% endif %}
+    {% set visible_tags = article.tags if extended else article.tags[:1] %}
+    {% for tag in visible_tags %}
+        {% set display_tag = tag %}
+        <a href="{{ articles_url(tags=[tag]) }}" title="Browse articles tagged {{ display_tag }}"
+           class="{{ 'btn btn-outline-secondary btn-sm' if extended else 'badge text-bg-light border text-wrap text-break text-decoration-none' }}">
+            <i class="bi bi-tags" aria-hidden="true"></i> {{ display_tag }}
+        </a>
+    {% endfor %}
+    {% if not extended and article.tags | length > 1 %}
+        <a href="{{ article_url(article) }}" class="badge text-bg-light border text-wrap text-break text-decoration-none"
+           title="View all {{ article.tags | length }} tags">
+            <i class="bi bi-tags" aria-hidden="true"></i> +{{ article.tags | length - 1 }}
+        </a>
+    {% endif %}
+    {% if metadata_author %}
+        <small class="text-secondary"><i class="bi bi-person" aria-hidden="true"></i>
+            <a href="{{ user_url(metadata_author) }}" class="link-secondary">{{ metadata_author.name }}</a>
+        </small>
+    {% endif %}
+    <small class="text-secondary"><i class="bi bi-calendar2" aria-hidden="true"></i>
+        {% if extended and article.published_at %}Published on {% elif extended %}Created on {% endif %}
+        <time datetime="{{ (article.published_at if extended and article.published_at else article.created_at) | iso_utc }}">{{ ((article.published_at if extended and article.published_at else article.created_at) / 1000) | unix_to_full_date }}</time>
+        {% if extended and article.updated_at and (not article.published_at or article.updated_at > article.published_at) %}
+            &mdash; Modified on <time datetime="{{ article.updated_at | iso_utc }}">{{ (article.updated_at / 1000) | unix_to_full_date }}</time>
+        {% endif %}
+    </small>
+    {% if article.status == ArticleStatus.REJECTED %}
+        <span class="badge text-bg-danger" title="{{ article.comment or 'Rejected' }}">Rejected</span>
+    {% elif article.status == ArticleStatus.UNPUBLISHED %}
+        <span class="badge text-bg-warning" title="Pending">Unpublished</span>
+    {% endif %}
+    {% if article.likes_count or article.dislikes_count %}
+        <small class="text-secondary">
+            {% if article.likes_count %}<span title="Likes"><i class="bi bi-hand-thumbs-up" aria-hidden="true"></i> {{ article.likes_count }}</span>{% endif %}
+            {% if article.dislikes_count %}<span title="Dislikes"><i class="bi bi-hand-thumbs-down" aria-hidden="true"></i> {{ article.dislikes_count }}</span>{% endif %}
+        </small>
+    {% endif %}
+</div>

@@ -2,7 +2,7 @@
             {% if cur_user and cur_user.status == UserStatus.ACTIVE %}
                 <div class="btn-group btn-group-sm" role="group" aria-label="Comment reactions">
                     {% for action, icon, count in [('like', 'hand-thumbs-up', article_comment.likes_count), ('dislike', 'hand-thumbs-down', article_comment.dislikes_count)] %}
-                        <button type="button" class="btn btn-light btn-comment-reaction" data-action="{{ action }}"
+                        <button type="button" class="btn btn-outline-secondary btn-comment-reaction" data-action="{{ action }}"
                                 data-url="{{ url('update-article-comment-impression', article_id=article_comment.article_id, comment_id=article_comment.id, absolute=True) }}">
                             <i class="bi bi-{{ icon }}" aria-hidden="true"></i>
                             {{ action | title }} <span class="comment-{{ action }}s-count">{{ count }}</span>

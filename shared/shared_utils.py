@@ -1039,6 +1039,7 @@ def get_jinja2_env():
         "article_sentiment_rating": article_sentiment_rating,
         "html_to_text": html_to_text,
         "img_dims": extract_image_filename_dimensions,
+        "get_categories": get_categories,
     })
     return jinja2_env
 

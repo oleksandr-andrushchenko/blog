@@ -1,0 +1,20 @@
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('article-status-form')
+    if (!form) return
+    const comment = form.elements.comment
+    const syncComment = () => {comment.required = form.elements.status.value === 'rejected'}
+    form.addEventListener('change', syncComment)
+    syncComment()
+    handleFormSubmit('#article-status-form', form.action, {
+      resetOnSuccess: false,
+      prepareData: data => ({status: data.status, comment: data.comment || null}),
+      beforeSubmit: data => {
+        if (data.status === 'rejected' && !data.comment) throw new Error('A rejection reason is required.')
+      },
+      onSuccess: () => window.location.reload(),
+      successMessage: '',
+      errorMessage: 'Could not save the status. Please try again.'
+    })
+  })
+</script>

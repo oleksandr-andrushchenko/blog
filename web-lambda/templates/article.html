@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% set layout_assets = {"prism": true} %}
+{% set layout_assets = {"prism": true, "validation": true} %}
 
 {% set article_canonical_url = article_url(article, absolute=True) %}
 {% set author_canonical_url = user_url(author, absolute=True) %}
@@ -112,68 +112,29 @@
     <div class="row gx-3 gx-lg-5 gy-5">
         <div class="{{ {"def": 12, "lg": 8} | col_classes }} overflow-auto article-content">
             <article class="mb-4">
-                <header>
-                    <small class="text-secondary bi bi-collection"> Category:</small>
-                    <a href="{{ articles_url(category=article.category) }}"
-                       class="btn btn-light btn-sm">{{ category.name }}</a>
-
-                    {% if article.tags %}
-                        <small class="text-secondary bi bi-tags"> Tags:</small>
-                        {% for tag in article.tags %}
-                            <a href="{{ articles_url(tags=[tag]) }}" class="btn btn-light btn-sm">
-                                {{ tag }}
-                            </a>
-                        {% endfor %}
-                    {% endif %}
-
-                    <h1 class="mb-0">{{ article.title }}</h1>
-
-                    {% with rating_size="fs-3", rating_extended=True %}
+                <header class="mb-3">
+                    <h1 class="mb-3">{{ article.title }}</h1>
+                    {% with star_size=4, rating_extended=True, rating_class='mb-3' %}
                         {% include "fragments/article-rating.html" %}
                     {% endwith %}
+                    {% with extended=true %}{% include "fragments/article-meta.html" %}{% endwith %}
                 </header>
-
-                <div class="d-flex flex-wrap align-items-center gap-3 mb-2">
-                    <div>
-                        By <a href="{{ user_url(author) }}" class="link-secondary">{{ author.name }}</a>
-                        {% if article.published_at %}
-                            &mdash;
-                            Published on
-                            <time>{{ (article.published_at / 1000) | unix_to_full_date }}</time>
-                            {% if article.updated_at and article.updated_at > article.published_at %}
-                                &mdash; Modified on
-                                <time>{{ (article.updated_at / 1000) | unix_to_full_date }}</time>
-                            {% endif %}
-                        {% endif %}
-                    </div>
-
-                    {% if article.status == ArticleStatus.REJECTED %}
-                        <div>
-                            <small class="text-secondary">Status:</small>
-                            <span class="badge text-bg-danger fs-5" title="{{ article.comment }}">Rejected</span>
-                        </div>
-                    {% elif article.status == ArticleStatus.UNPUBLISHED %}
-                        <div>
-                            <small class="text-secondary">Status:</small>
-                            <span class="badge text-bg-warning fs-6">Unpublished (Pending)</span>
-                        </div>
-                    {% endif %}
-
-                </div>
 
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-3" id="article-controls"
                      role="group" aria-label="Article controls">
-                    {% include "fragments/article-status.html" %}
+                    {% with btn_size="sm" %}{% include "fragments/article-status.html" %}{% endwith %}
                     {% include "fragments/article-impressions.html" %}
 
                     {% if cur_user and check_auth(cur_user, Permission.UPDATE_ARTICLE, article) %}
                         <div>
                             <a href="{{ url("edit-article", article_id=article.id) }}"
-                               class="btn btn-light btn-sm bi bi-pencil">
+                               class="btn btn-outline-secondary btn-sm bi bi-pencil">
                                 Edit article
                             </a>
                         </div>
                     {% endif %}
+
+                    {% with btn_size="sm" %}{% include "fragments/article-report.html" %}{% endwith %}
 
                     {% with share_label="Share this article", share_icons_only=True %}
                         {% include "fragments/share.html" %}
@@ -186,7 +147,7 @@
 
         <div class="{{ {"def": 12, "lg": 4} | col_classes }} border-start">
             <section class="mb-4">
-                <h2 class="h5 mb-2 text-decoration-underline">
+                <h2 class="h5 mb-2 ">
                     Author
                 </h2>
                 {% with user=author, h_tag_size=3 %}
@@ -206,7 +167,7 @@
 
             {% if related_articles %}
                 <section class="mb-4">
-                    <h2 class="h5 mb-2 text-decoration-underline">
+                    <h2 class="h5 mb-2 ">
                         Related articles
                     </h2>
                     <div id="related-articles" class="{{ {"def": 1} | row_classes }} g-2">
@@ -227,7 +188,7 @@
     </div>
 
     <section class="article-comments">
-        <h3 class="h5 mb-2 text-decoration-underline">Comments ({{ article.comments_count }})</h3>
+        <h3 class="h5 mb-2 ">Comments ({{ article.comments_count }})</h3>
 
         <div class="d-flex flex-column gap-4">
             {% include "fragments/article-comment-form.html" %}
@@ -248,4 +209,7 @@
             {% endif %}
         </div>
     </section>
+    {% if cur_user and check_auth(cur_user, Permission.UPDATE_ARTICLE_STATUS) %}
+        {% include "fragments/article-status-script.html" %}
+    {% endif %}
 {% endblock %}

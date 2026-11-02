@@ -10,25 +10,25 @@
             <div class="btn-group btn-group-sm" role="group">
                 {% set is_published = article_query.status == ArticleStatus.PUBLISHED %}
                 <a href="{{ user_url(user, **article_query.get_dict({"status": None if is_published else ArticleStatus.PUBLISHED.value, "offset": None})) }}"
-                   class="btn {% if is_published %}btn-success active{% else %}btn-light{% endif %}">
+                   class="btn {% if is_published %}btn-success active{% else %}btn-outline-secondary{% endif %}">
                     {{ ArticleStatus.PUBLISHED | title }} ({{ user.published_articles_count }})
                 </a>
 
                 {% set is_unpublished = article_query.status == ArticleStatus.UNPUBLISHED %}
                 <a href="{{ user_url(user, **article_query.get_dict({"status": None if is_unpublished else ArticleStatus.UNPUBLISHED.value, "offset": None})) }}"
-                   class="btn {% if is_unpublished %}btn-warning active{% else %}btn-light{% endif %}">
+                   class="btn {% if is_unpublished %}btn-warning active{% else %}btn-outline-secondary{% endif %}">
                     {{ ArticleStatus.UNPUBLISHED | title }} ({{ user.unpublished_articles_count }})
                 </a>
 
                 {% set is_rejected = article_query.status == ArticleStatus.REJECTED %}
                 <a href="{{ user_url(user, **article_query.get_dict({"status": None if is_rejected else ArticleStatus.REJECTED.value, "offset": None})) }}"
-                   class="btn {% if is_rejected %}btn-danger active{% else %}btn-light{% endif %}">
+                   class="btn {% if is_rejected %}btn-danger active{% else %}btn-outline-secondary{% endif %}">
                     {{ ArticleStatus.REJECTED | title }} ({{ user.rejected_articles_count }})
                 </a>
             </div>
 
             {% if article_query.has_params() %}
-                <a href="{{ user_url(user) }}" class="btn btn-light btn-sm bi bi-x-lg"> Reset</a>
+                <a href="{{ user_url(user) }}" class="btn btn-outline-secondary btn-sm bi bi-x-lg"> Reset</a>
             {% endif %}
         </div>
     {% endif %}

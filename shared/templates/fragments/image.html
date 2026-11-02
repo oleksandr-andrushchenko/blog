@@ -1,5 +1,6 @@
 {% if filename %}
     {% set figure = figure | default(False) %}
+    {% set caption = caption | default(alt) %}
     {% set figure_class = figure_class | default("figure") %}
     {% set img_class = img_class | default("img-fluid figure-img rounded") %}
     {% set img_style = img_style | default(None) %}
@@ -75,7 +76,7 @@
 
 {% if figure %}
     <figcaption class="figure-caption">
-        {{ alt or '' }}
+        {{ caption or '' }}
     </figcaption>
     </figure>
 {% endif %}

@@ -28,7 +28,7 @@
                         </span>
                         {% if cur_user and check_auth(cur_user, Permission.UPDATE_CATEGORY) %}
                             <a href="{{ url('edit-category', slug=category.slug) }}"
-                               class="btn btn-light btn-sm bi bi-pencil" aria-label="Edit {{ category.name }}"></a>
+                               class="btn btn-outline-secondary btn-sm bi bi-pencil" aria-label="Edit {{ category.name }}"></a>
                         {% endif %}
                     </div>
                 </div>

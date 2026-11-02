@@ -15,11 +15,11 @@
         ] %}
     {% endif %}
     <div class="creator-support-link mb-4">
-        <section class="card shadow-sm text-bg-warning{% if support_preview %} opacity-50{% endif %}">
+        <section class="card shadow-sm{% if support_preview %} opacity-50{% endif %}">
             <div class="card-body">
                 <div class="h4 card-title">
                     <i class="bi bi-lightbulb" aria-hidden="true"></i>
-                    {{ "Want more articles like this?" if support_article | default(false) else "Support " ~ user.name ~ "’s work" }}
+                    {{ "Support the author" if support_article | default(false) else "Support " ~ user.name ~ "’s work" }}
                 </div>
                 <p class="card-text">
                     {% if support_article | default(false) %}

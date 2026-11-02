@@ -51,7 +51,7 @@
             <section class="mb-4" aria-labelledby="categories-heading">
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
                     <h2 class="h5 mb-0" id="categories-heading">Browse by category</h2>
-                    <a href="{{ url('categories') }}" class="btn btn-light btn-sm">View all categories</a>
+                    <a href="{{ url('categories') }}" class="btn btn-outline-secondary btn-sm">View all categories</a>
                 </div>
                 <div id="categories" class="{{ {"def": 1, "lg": 3} | row_classes }} g-3">
                     {% for category in homepage_categories[:6] %}
@@ -67,15 +67,15 @@
             <h2 class="h5 mb-2">Popular tags</h2>
             {% if popular_tags %}
                 {% for tag in popular_tags %}
-                    <a href="{{ articles_url(tags=[tag.slug]) }}" class="btn btn-light btn-sm tag mb-1">
+                    <a href="{{ articles_url(tags=[tag.slug]) }}" class="btn btn-outline-secondary btn-sm tag mb-1">
                         <h3 class="h6 fw-normal mb-0">{{ tag.name }} &mdash; {{ tag.articles_count }}</h3>
                     </a>
                 {% endfor %}
 
-                <a href="{{ url("tags") }}?type=popular" class="btn btn-light btn-sm bi bi-tags">
+                <a href="{{ url("tags") }}?type=popular" class="btn btn-outline-secondary btn-sm bi bi-tags">
                     See all popular tags
                 </a>
-                <a href="{{ url("tags") }}" class="btn btn-light btn-sm bi bi-tags">
+                <a href="{{ url("tags") }}" class="btn btn-outline-secondary btn-sm bi bi-tags">
                     See all tags
                 </a>
             {% else %}
@@ -104,11 +104,11 @@
                     </div>
 
                     <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}"
-                       class="btn btn-light btn-sm bi bi-star">
+                       class="btn btn-outline-secondary btn-sm bi bi-star">
                         See all popular articles
                     </a>
                     <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}"
-                       class="btn btn-light btn-sm bi bi-tags">
+                       class="btn btn-outline-secondary btn-sm bi bi-tags">
                         Search popular articles by tags
                     </a>
                 {% else %}
@@ -141,7 +141,7 @@
                     {% endwith %}
                 </div>
 
-                <a href="{{ users_url(type=UserQueryType.POPULAR) }}" class="btn btn-light btn-sm bi bi-heart">
+                <a href="{{ users_url(type=UserQueryType.POPULAR) }}" class="btn btn-outline-secondary btn-sm bi bi-heart">
                     See all popular authors
                 </a>
             {% else %}
@@ -178,11 +178,11 @@
 
                 <div>
                     <a href="{{ articles_url(type=ArticleQueryType.LATEST) }}"
-                       class="btn btn-light btn-sm bi bi-clock">
+                       class="btn btn-outline-secondary btn-sm bi bi-clock">
                         See all latest articles
                     </a>
                     <a href="{{ articles_url(type=ArticleQueryType.LATEST) }}"
-                       class="btn btn-light btn-sm bi bi-tags">
+                       class="btn btn-outline-secondary btn-sm bi bi-tags">
                         Search latest articles by tags
                     </a>
                 </div>
