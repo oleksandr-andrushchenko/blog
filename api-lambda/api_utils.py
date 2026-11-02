@@ -465,7 +465,8 @@ def update_tag(tag: Tag, update_tag_dto: UpdateTagDTO, cur_user: User,
         drop_public_file(old_image)
 
 
-def update_category(category: Category, dto: UpdateCategoryDTO, cur_user: User) -> None:
+def update_category(category: Category, dto: UpdateCategoryDTO, cur_user: User, *,
+                    preserve_previous_image: bool = False) -> None:
     verify_authorization(cur_user, Permission.UPDATE_CATEGORY)
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
@@ -496,7 +497,7 @@ def update_category(category: Category, dto: UpdateCategoryDTO, cur_user: User) 
     for key, value in changes.items():
         if hasattr(category, key):
             setattr(category, key, value)
-    if old_image and image_action in {"delete", "replace"}:
+    if old_image and image_action in {"delete", "replace"} and not preserve_previous_image:
         drop_public_file(old_image)
 
 

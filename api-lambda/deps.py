@@ -29,7 +29,7 @@ async def get_image_file(request: Request):
     if file is None or not hasattr(file, "read"):
         raise HTTPException(status_code=422, detail="Missing file")
     try:
-        return ImageFileDTO(content=await file.read(), filename=file.filename)
+        return ImageFileDTO(content=await file.read(ImageFileDTO.MAX_IMAGE_SIZE + 1), filename=file.filename)
     except ValueError as exc:
         raise RequestValidationError({"file": str(exc)}) from exc
 
