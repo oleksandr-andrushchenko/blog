@@ -341,3 +341,40 @@
 - New worktrees use ignored `.env.test.local` with isolated ports, Compose projects, and databases. Keep
   `.env.test` as a legacy fallback and `.env.test.example` generic. Shared production environment links must
   resolve before updates, and production tooling must take the common lock before rereading settings.
+
+## Private messaging, website notifications, and wallets
+
+- Participant-scoped message reads live in `shared/direct_messages.py`; API-only writes live in
+  `direct_message_service.py`. Keep message bodies out of emails, notifications, public activity and logs.
+  Stable client UUIDs acknowledge uncertain sends without duplicating them. Blocks in either direction prevent
+  new sends. Account deletion erases the entire participant conversation and both inbox/read pointers.
+- Website notification history and unread counters commit together. Presence is server-timed and throttled
+  to five minutes, with a six-minute online window. Online recipients get website updates; offline recipients
+  with an address also get email. Preferences control both channels. Never apply this routing to authentication
+  or operator emails. Keep private endpoint responses and errors `private, no-store`.
+- Guard message, presence and notification writes against pending account deletion. Presence and unread/read
+  updates never change profile `updated_at`, activity, engagement counters or profile synchronization state.
+- Crypto wallets are plain receiving addresses with stable IDs, not credentials or payment integrations.
+  Validate article selections against its actual owner. `support_wallets: null` inherits category-aware profile
+  defaults, while `[]` hides wallets. Profile visibility is independent. Never fabricate connected accounts or keys.
+- Neutral actions use `btn-outline-secondary`. See `docs/examme-ports.md` for source commits, maintenance setup,
+  delivery behavior, and JavaScript regression harnesses. Run those harnesses when changing their features.
+- Category image normalization uses `scripts/normalize_public_images.py` through scripts-production. Review the
+  dry run before `--apply`; retain host-mounted checkpoints, preserve prior shared objects, and verify variants
+  before replacing references. The script does not register webhooks, invalidate caches, or delete public assets.
+- In the shared semicolonless JavaScript, prefix standalone IIFEs with `;` when they follow an expression.
+  The notification harness includes a whole-script startup case: testing only the extracted initializer
+  misses earlier runtime errors that prevent its DOMContentLoaded handler from registering.
+
+## Article metadata and dropdown controls
+
+- Cards and article pages reuse `shared/templates/fragments/article-meta.html`; compact cards show one tag
+  plus an overflow count. Preserve display-name casing. Article-list fragments load missing category metadata
+  once, including API fragments, rather than querying it per card.
+- Article moderation and reporting use owning web template fragments and the shared JSON form helper.
+  Rejection reasons remain required by the API. Report submissions use the public contact API with the
+  canonical article URL and a bounded message; do not introduce a web proxy or restore global moderation handlers.
+- The shared image fragment accepts independent `caption` and `alt` values. Omitted captions inherit alt;
+  explicit empty captions stay empty. Keep both values escaped. See `docs/promptcatalog-presentation-ports.md`.
+- Run `node tests/test_article_controls_ui.cjs` when changing moderation/report scripts, alongside the shared
+  form and notification startup harnesses and the required isolated Python suite.
