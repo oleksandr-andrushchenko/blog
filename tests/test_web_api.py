@@ -1956,7 +1956,7 @@ def test_guest_article_controls_preserve_return_url_and_keep_support_public(gues
             assert parse_qs(login.query)["redirect_url"] == [destination]
             login_response = get(guest_client, link.attr("href"), allow_redirects=False)
             assert SimpleCookie(login_response.headers["Set-Cookie"])["redirect_url"].value == destination
-        support_section = doc(".border-start > .creator-support-link")
+        support_section = doc("aside > .creator-support-link")
         assert len(doc(".creator-support-link")) == len(support_section) == 1
         assert support_section.prev("section")("h2").text() == "Author"
         assert not doc("#article-controls .creator-support-link")
@@ -1968,7 +1968,7 @@ def test_guest_article_controls_preserve_return_url_and_keep_support_public(gues
         assert len(signed_in("#article-controls .article-impressions .btn-article-like")) == 1
         assert len(signed_in("#article-controls #article-status-comment")) == 1
         assert len(signed_in("#article-controls .bi-pencil")) == 1
-        assert len(signed_in('.border-start > .creator-support-link')) == 1
+        assert len(signed_in('aside > .creator-support-link')) == 1
         assert not signed_in('#article-controls .creator-support-link')
     finally:
         dynamodb_table.update_item(

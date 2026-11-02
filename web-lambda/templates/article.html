@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% set layout_assets = {"prism": true, "validation": true} %}
+{% set layout_assets = {"prism": true, "validation": true, "masonry": true} %}
 
 {% set article_canonical_url = article_url(article, absolute=True) %}
 {% set author_canonical_url = user_url(author, absolute=True) %}
@@ -109,15 +109,19 @@
 {% endblock %}
 
 {% block content %}
-    <div class="row gx-3 gx-lg-5 gy-5">
+    <div class="row">
         <div class="{{ {"def": 12, "lg": 8} | col_classes }} overflow-auto article-content">
             <article class="mb-4">
                 <header class="mb-3">
+                    {% with extended=True %}
+                        {% include "fragments/article-meta.html" %}
+                    {% endwith %}
+
                     <h1 class="mb-3">{{ article.title }}</h1>
+
                     {% with star_size=4, rating_extended=True, rating_class='mb-3' %}
                         {% include "fragments/article-rating.html" %}
                     {% endwith %}
-                    {% with extended=true %}{% include "fragments/article-meta.html" %}{% endwith %}
                 </header>
 
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-3" id="article-controls"
@@ -143,72 +147,77 @@
 
                 {{ render_article_content(article.content) | safe }}
             </article>
+
+            <section class="article-comments mb-4">
+                <h3 class="h5 mb-2 ">Comments ({{ article.comments_count }})</h3>
+
+                <div class="d-flex flex-column gap-4">
+                    {% include "fragments/article-comment-form.html" %}
+
+                    {% if comments %}
+                        <div id="article-comments" class="{{ {"def": 1} | row_classes }} g-2 mb-2">
+                            {% with article_comments=comments %}
+                                {% include "fragments/article-comments.html" %}
+                            {% endwith %}
+                        </div>
+
+                        {% with limit=comments_query.limit,
+                            offset=comments[-1].offset,
+                            url=url("article-comments-fragment", article_id=article.id, absolute=True, **comments_query.get_dict()),
+                            container="#article-comments" %}
+                            {% include "fragments/load-more-button.html" %}
+                        {% endwith %}
+                    {% endif %}
+                </div>
+            </section>
         </div>
 
-        <div class="{{ {"def": 12, "lg": 4} | col_classes }} border-start">
-            <section class="mb-4">
-                <h2 class="h5 mb-2 ">
-                    Author
-                </h2>
-                {% with user=author, h_tag_size=3 %}
-                    {% include "fragments/user.html" %}
-                {% endwith %}
-            </section>
-
-            {% with user=author %}
-                {% with support_article=true %}{% include "fragments/creator-support-links.html" %}{% endwith %}
-            {% endwith %}
-
-            {% if cur_user and cur_user.id == article.owner_id %}
-                <div class="mb-4">
-                    {% include "fragments/article-sharing.html" %}
-                </div>
-            {% endif %}
-
-            {% if related_articles %}
+        <div class="{{ {"def": 12, "lg": 4} | col_classes }}">
+            <aside class="sticky-lg-top" style="top:1rem">
                 <section class="mb-4">
                     <h2 class="h5 mb-2 ">
-                        Related articles
+                        Author
                     </h2>
-                    <div id="related-articles" class="{{ {"def": 1} | row_classes }} g-2">
-                        {% with articles=related_articles %}
-                            {% include "fragments/related-articles.html" %}
-                        {% endwith %}
+                    {% with user=author, h_tag_size=3 %}
+                        {% include "fragments/user.html" %}
+                    {% endwith %}
+                </section>
+
+                {% with user=author %}
+                    {% with support_article=true %}{% include "fragments/creator-support-links.html" %}{% endwith %}
+                {% endwith %}
+
+                {% if cur_user and cur_user.id == article.owner_id %}
+                    <div class="mb-4">
+                        {% include "fragments/article-sharing.html" %}
                     </div>
-                    {% with limit=10,
+                {% endif %}
+            </aside>
+        </div>
+    </div>
+
+    {% if related_articles %}
+        <section class="mb-4">
+            <h2 class="h5 mb-2 ">
+                Related articles
+            </h2>
+            <div id="related-articles" class="{{ {"def": 1, "sm": 2, "lg": 3} | row_classes }} g-3 mb-2"
+                 data-masonry-options='{"percentPosition": true }'>
+                {% with articles=related_articles,
+                            article_img_sizes={"1400px": "306px", "1200px": "261px", "992px": "296px", "768px": "336px", "576px": "246px", "default": "calc(100vw - 26px)"}, eager_article_images=1 %}
+                    {% include "fragments/articles.html" %}
+                {% endwith %}
+            </div>
+            {% with limit=10,
                         offset=related_articles[-1].offset,
                         url=url("related-articles-fragment", article_id=article.id, absolute=True),
                         container="#related-articles",
                         auto_click=True %}
-                        {% include "fragments/load-more-button.html" %}
-                    {% endwith %}
-                </section>
-            {% endif %}
-        </div>
-    </div>
+                {% include "fragments/load-more-button.html" %}
+            {% endwith %}
+        </section>
+    {% endif %}
 
-    <section class="article-comments">
-        <h3 class="h5 mb-2 ">Comments ({{ article.comments_count }})</h3>
-
-        <div class="d-flex flex-column gap-4">
-            {% include "fragments/article-comment-form.html" %}
-
-            {% if comments %}
-                <div id="article-comments" class="{{ {"def": 1} | row_classes }} g-2 mb-2">
-                    {% with article_comments=comments %}
-                        {% include "fragments/article-comments.html" %}
-                    {% endwith %}
-                </div>
-
-                {% with limit=comments_query.limit,
-                            offset=comments[-1].offset,
-                            url=url("article-comments-fragment", article_id=article.id, absolute=True, **comments_query.get_dict()),
-                            container="#article-comments" %}
-                    {% include "fragments/load-more-button.html" %}
-                {% endwith %}
-            {% endif %}
-        </div>
-    </section>
     {% if cur_user and check_auth(cur_user, Permission.UPDATE_ARTICLE_STATUS) %}
         {% include "fragments/article-status-script.html" %}
     {% endif %}
