@@ -9,7 +9,7 @@ services:
       - "${WEB_LAMBDA_PORT}:5000"
     env_file:
       - .env
-      - .env.test
+      - ${TEST_ENV_FILE:-.env.test}
     environment:
       APP_STAGE: local
       LINKEDIN_APP_ID: ""
@@ -55,7 +55,7 @@ services:
       - "${API_LAMBDA_PORT}:5000"
     env_file:
       - .env
-      - .env.test
+      - ${TEST_ENV_FILE:-.env.test}
     environment:
       APP_STAGE: local
       LINKEDIN_APP_ID: ""
@@ -103,7 +103,7 @@ services:
       - dynamodb
     env_file:
       - .env
-      - .env.test
+      - ${TEST_ENV_FILE:-.env.test}
     environment:
       PYTHONPATH: "/tests:/scripts"
       WEB_TEST_BASE_URL: "http://web-lambda:5000"

@@ -495,3 +495,22 @@ confirmed remote success. No new dependencies or DynamoDB indexes are required.
 Provider references: [OAuth2](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow),
 [OpenID Connect profile](https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/sign-in-with-linkedin-v2),
 and [Posts API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api).
+
+### Independent development worktrees
+
+Run `python3 scripts/create_worktree.py FEATURE_NAME` from the main checkout.
+It creates a sibling checkout from committed HEAD, assigns separate Docker
+projects and available development/test ports, copies local configuration and
+ignored media, initializes its local database, and runs the tests. Use
+`--prepare-only` to configure without starting services and `--resume` to
+continue interrupted setup. Uncommitted application changes stay in the source
+checkout. Use separate browser profiles because localhost cookies are shared
+across ports.
+
+Each worktree uses ignored `.env.test.local`; its settings take precedence over
+the tracked legacy `.env.test`. For your own local test settings, copy
+`.env.test.example` to `.env.test.local` and adjust ports. Production `.env.prod`
+is a link to the main checkout's file. Production build/deployment commands
+acquire a shared lock before rereading settings, preventing timestamp races.
+The invoking checkout still supplies its code; sharing configuration does not
+authorize deployment. `PROD_ENV_FILE` can select another environment explicitly.

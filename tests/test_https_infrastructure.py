@@ -84,7 +84,7 @@ esac
         binary.chmod(0o755)
     env = dict(os.environ, PATH=str(binaries) + os.pathsep + os.environ.get('PATH', ''))
     env.pop('TEST_WEB_CERT', None)
-    command = ['make', '--file', str(ROOT / 'Makefile'), 'deploy-infra']
+    command = ['make', '--file', str(ROOT / 'Makefile'), 'PRODUCTION_LOCK_HELD=1', 'deploy-infra']
     missing = subprocess.run(command, cwd=tmp_path, env=env, capture_output=True, text=True, timeout=15)
     assert missing.returncode != 0
     assert 'Run make deploy-cert-infra first.' in missing.stdout

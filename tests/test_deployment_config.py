@@ -32,7 +32,7 @@ def test_deployment_reads_credentials_from_production_env(tmp_path):
         binary.chmod(0o755)
     env = {key: value for key, value in os.environ.items() if key not in values}
     env['PATH'] = str(binaries) + os.pathsep + env.get('PATH', '')
-    result = subprocess.run(['make', '--dry-run', '--file', str(ROOT / 'Makefile'), 'deploy-infra'],
+    result = subprocess.run(['make', '--dry-run', 'PRODUCTION_LOCK_HELD=1', '--file', str(ROOT / 'Makefile'), 'deploy-infra'],
                             cwd=tmp_path, env=env, capture_output=True, text=True, timeout=15)
     assert result.returncode == 0, result.stderr
     assert '--s3-bucket example-stack-code' in result.stdout

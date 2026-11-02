@@ -22,6 +22,8 @@ env/
 # Environment files
 .env
 .env.prod
+.env.test
+.env.test.local
 
 # Custom
 scripts/import_*
