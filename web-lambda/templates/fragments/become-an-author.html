@@ -2,19 +2,21 @@
     <div class="card-body">
         <h2 class="h4 card-title">
             <i class="bi bi-star-fill"></i>
-            Become an author
+            Become an Author
         </h2>
 
         <p class="card-text">
             Share your ideas and earn money from your content.
         </p>
 
-        <a href="{{ url('new-article') if cur_user else url('login', redirect_url=url('new-article')) }}"
-           class="btn btn-dark bi bi-pencil-fill"{% if not cur_user %} rel="nofollow"{% endif %}>
-            Write an article
-        </a>
-        <a href="{{ url("earn") }}" class="btn btn-dark btn-sm bi bi-stars">
-            Explore creator tools
-        </a>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <a href="{{ url('new-article') if cur_user else url('login', redirect_url=url('new-article')) }}"
+               class="btn btn-dark bi bi-pencil-fill"{% if not cur_user %} rel="nofollow"{% endif %}>
+                Write an article
+            </a>
+            <a href="{{ url("earn") }}" class="btn btn-dark btn-sm bi bi-stars">
+                Explore creator tools
+            </a>
+        </div>
     </div>
 </section>
