@@ -122,12 +122,12 @@
             <div class="btn-group btn-group-sm" role="group" aria-label="Sort articles">
                 {% set is_latest = article_query.type == ArticleQueryType.LATEST %}
                 <a href="{{ articles_url(**article_query.get_dict({"type": None if is_latest else ArticleQueryType.LATEST, "offset": None})) }}"
-                   class="btn {% if is_latest %}btn-secondary active{% else %}btn-outline-secondary{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
+                   class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
                     {{ ArticleQueryType.LATEST | title }} first
                 </a>
                 {% set is_popular = article_query.type == ArticleQueryType.POPULAR %}
                 <a href="{{ articles_url(**article_query.get_dict({"type": None if is_popular else ArticleQueryType.POPULAR, "offset": None})) }}"
-                   class="btn {% if is_popular %}btn-primary active{% else %}btn-outline-secondary{% endif %} bi bi-star{{ "-fill" if is_popular else "" }}">
+                   class="btn {% if is_popular %}btn-primary active{% else %}btn-light{% endif %} bi bi-star{{ "-fill" if is_popular else "" }}">
                     {{ ArticleQueryType.POPULAR | title }} first
                 </a>
             </div>
@@ -152,19 +152,19 @@
                 <div class="btn-group btn-group-sm" role="group" aria-label="Article status">
                     {% set is_published = article_query.status == ArticleStatus.PUBLISHED %}
                     <a href="{{ articles_url(**article_query.get_dict({"status": None if is_published else ArticleStatus.PUBLISHED, "offset": None})) }}"
-                       class="btn {% if is_published %}btn-success active{% else %}btn-outline-secondary{% endif %}">
+                       class="btn {% if is_published %}btn-success active{% else %}btn-light{% endif %}">
                         {{ ArticleStatus.PUBLISHED | title }}
                     </a>
 
                     {% set is_unpublished = article_query.status == ArticleStatus.UNPUBLISHED %}
                     <a href="{{ articles_url(**article_query.get_dict({"status": None if is_unpublished else ArticleStatus.UNPUBLISHED, "offset": None})) }}"
-                       class="btn {% if is_unpublished %}btn-warning active{% else %}btn-outline-secondary{% endif %}">
+                       class="btn {% if is_unpublished %}btn-warning active{% else %}btn-light{% endif %}">
                         {{ ArticleStatus.UNPUBLISHED | title }}
                     </a>
 
                     {% set is_rejected = article_query.status == ArticleStatus.REJECTED %}
                     <a href="{{ articles_url(**article_query.get_dict({"status": None if is_rejected else ArticleStatus.REJECTED, "offset": None})) }}"
-                       class="btn {% if is_rejected %}btn-danger active{% else %}btn-outline-secondary{% endif %}">
+                       class="btn {% if is_rejected %}btn-danger active{% else %}btn-light{% endif %}">
                         {{ ArticleStatus.REJECTED | title }}
                     </a>
                 </div>
@@ -173,20 +173,20 @@
 
         {% if article_query.has_params() %}
             <div>
-                <a href="{{ articles_url() }}" class="btn btn-outline-secondary btn-sm bi bi-x-lg"> Reset</a>
+                <a href="{{ articles_url() }}" class="btn btn-light btn-sm bi bi-x-lg"> Reset</a>
             </div>
         {% endif %}
 
         {% if tag and cur_user and check_auth(cur_user, Permission.UPDATE_TAG) %}
             <a href="{{ url("edit-tag", slug=article_query.tags[0]) }}"
-               class="btn btn-outline-secondary btn-sm bi bi-pencil">
+               class="btn btn-light btn-sm bi bi-pencil">
                 Edit tag
             </a>
         {% endif %}
 
         {% if category and cur_user and check_auth(cur_user, Permission.UPDATE_CATEGORY) %}
             <a href="{{ url('edit-category', slug=category.slug) }}"
-               class="btn btn-outline-secondary btn-sm bi bi-pencil"> Edit category</a>
+               class="btn btn-light btn-sm bi bi-pencil"> Edit category</a>
         {% endif %}
     </form>
 

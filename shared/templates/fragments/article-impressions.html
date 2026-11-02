@@ -3,7 +3,7 @@
         <!-- Like / Unlike Button -->
         {% set is_liked = article_impression and article_impression.action == ArticleImpressionAction.LIKE %}
         <button type="button"
-                class="btn btn-article-like btn-sm {% if is_liked %}btn-success active{% else %}btn-outline-secondary{% endif %}{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}"
+                class="btn btn-article-like btn-sm {% if is_liked %}btn-success active{% else %}btn-light{% endif %}{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}"
                 data-article-id="{{ article.id }}"
                 data-action="{{ ArticleImpressionAction.LIKE.value }}"
                 title="{% if is_liked %}Unlike this article{% else %}Like this article{% endif %}">
@@ -14,7 +14,7 @@
         <!-- Dislike / Undislike Button -->
         {% set is_disliked = article_impression and article_impression.action == ArticleImpressionAction.DISLIKE %}
         <button type="button"
-                class="btn btn-article-dislike btn-sm {% if is_disliked %}btn-danger active{% else %}btn-outline-secondary{% endif %}{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}"
+                class="btn btn-article-dislike btn-sm {% if is_disliked %}btn-danger active{% else %}btn-light{% endif %}{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %}"
                 data-article-id="{{ article.id }}"
                 data-action="{{ ArticleImpressionAction.DISLIKE.value }}"
                 title="{% if is_disliked %}Undislike this article{% else %}Dislike this article{% endif %}">
@@ -23,11 +23,11 @@
         </button>
     {% elif not cur_user %}
         {% set impression_login_url = url('login', redirect_url=request.url.path ~ ("?" ~ request.url.query if request.url.query else "")) %}
-        <a class="btn btn-outline-secondary btn-sm" href="{{ impression_login_url }}" rel="nofollow"
+        <a class="btn btn-light btn-sm" href="{{ impression_login_url }}" rel="nofollow"
            title="Sign in to like this article" aria-label="Sign in to like this article">
             <i aria-hidden="true" class="bi bi-hand-thumbs-up"></i> {{ article.likes_count }}
         </a>
-        <a class="btn btn-outline-secondary btn-sm" href="{{ impression_login_url }}" rel="nofollow"
+        <a class="btn btn-light btn-sm" href="{{ impression_login_url }}" rel="nofollow"
            title="Sign in to dislike this article" aria-label="Sign in to dislike this article">
             <i aria-hidden="true" class="bi bi-hand-thumbs-down"></i> {{ article.dislikes_count }}
         </a>

@@ -12,7 +12,7 @@
             ('reddit', 'Reddit', 'reddit'),
             ('email', 'Email', 'envelope'),
         ] %}
-        <a href="#" class="btn btn-outline-secondary btn-sm share-btn {{ platform }}" data-share-platform="{{ platform }}"
+        <a href="#" class="btn btn-light btn-sm share-btn {{ platform }}" data-share-platform="{{ platform }}"
            {% if platform != 'email' %}target="_blank" {% endif %}rel="nofollow noopener noreferrer"
            title="Share {{ 'via' if platform == 'email' else 'on' }} {{ label }}"
            aria-label="Share {{ 'via' if platform == 'email' else 'on' }} {{ label }}">

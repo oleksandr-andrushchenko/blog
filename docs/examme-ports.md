@@ -17,7 +17,8 @@ The application vocabulary and ownership checks are adapted to articles.
 - `c252986`: creator-owned receiving wallets, currency/network controls, copyable public addresses,
   profile visibility and category-aware article defaults. Explicit article wallet selections override defaults.
   Wallets store destinations, not payment keys or an external connection. `[]` hides all wallets.
-- `b35e7b8`: neutral controls use Bootstrap's `btn-outline-secondary`.
+- `b35e7b8`: neutral controls were initially ported with outline styling; they now retain Bootstrap's
+  `btn-light` at the user's request.
 - `f2934cf`: reviewed, resumable category image normalization. Certification references are excluded.
 
 The existing DynamoDB table and indexes support these features. No table recreation or migration is required.

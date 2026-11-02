@@ -357,8 +357,8 @@
 - Crypto wallets are plain receiving addresses with stable IDs, not credentials or payment integrations.
   Validate article selections against its actual owner. `support_wallets: null` inherits category-aware profile
   defaults, while `[]` hides wallets. Profile visibility is independent. Never fabricate connected accounts or keys.
-- Neutral actions use `btn-outline-secondary`. See `docs/examme-ports.md` for source commits, maintenance setup,
-  delivery behavior, and JavaScript regression harnesses. Run those harnesses when changing their features.
+- Neutral actions use `btn-light`; preserve existing semantic and intentional outline button styles.
+  See `docs/examme-ports.md` for source commits, maintenance setup, delivery behavior, and JavaScript regression harnesses. Run those harnesses when changing their features.
 - Category image normalization uses `scripts/normalize_public_images.py` through scripts-production. Review the
   dry run before `--apply`; retain host-mounted checkpoints, preserve prior shared objects, and verify variants
   before replacing references. The script does not register webhooks, invalidate caches, or delete public assets.

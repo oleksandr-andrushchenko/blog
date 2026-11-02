@@ -81,12 +81,12 @@
             <div class="btn-group btn-group-sm" role="group" aria-label="Sort tags">
                 {% set is_latest = tags_query.type == TagQueryType.LATEST %}
                 <a href="{{ url("tags", **tags_query.get_dict({"type": None if is_latest else TagQueryType.LATEST, "offset": None})) }}"
-                   class="btn {% if is_latest %}btn-secondary active{% else %}btn-outline-secondary{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
+                   class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
                     {{ TagQueryType.LATEST | title }} first
                 </a>
                 {% set is_popular = tags_query.type == TagQueryType.POPULAR %}
                 <a href="{{ url("tags", **tags_query.get_dict({"type": None if is_popular else TagQueryType.POPULAR, "offset": None})) }}"
-                   class="btn {% if is_popular %}btn-primary active{% else %}btn-outline-secondary{% endif %} bi bi-star{{ "-fill" if is_popular else "" }}">
+                   class="btn {% if is_popular %}btn-primary active{% else %}btn-light{% endif %} bi bi-star{{ "-fill" if is_popular else "" }}">
                     {{ TagQueryType.POPULAR | title }} first
                 </a>
             </div>
@@ -94,7 +94,7 @@
 
         {% if tags_query.has_params() %}
             <div>
-                <a href="{{ url("tags") }}" class="btn btn-outline-secondary btn-sm bi bi-x-lg"> Reset</a>
+                <a href="{{ url("tags") }}" class="btn btn-light btn-sm bi bi-x-lg"> Reset</a>
             </div>
         {% endif %}
     </form>

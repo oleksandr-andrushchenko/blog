@@ -10,7 +10,7 @@
                     {% if cur_user and cur_user.id == user.id %}
                         <div class="tag-subscription-item"
                              data-tag-subscription-id="{{ subscription.id }}">
-                            <button class="btn btn-outline-secondary btn-sm fw-semibold btn-tag-subscription bi bi-bell-slash"
+                            <button class="btn btn-light btn-sm fw-semibold btn-tag-subscription bi bi-bell-slash"
                                     type="button"
                                     data-tag-subscription-id="{{ subscription.id }}"
                                     title="Unsubscribe from {{ subscription.tags | join(' + ') }}">
