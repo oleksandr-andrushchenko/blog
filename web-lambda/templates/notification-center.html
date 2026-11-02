@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+{% set title = "Notifications" %}
+{% set meta_robots = "noindex, nofollow" %}
+{% block breadcrumbs %}
+    {% with breadcrumbs = {"Home": url("index"), "Notifications": None} %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
+{% endblock %}
+{% block content %}
+    <h1>{{ title }}</h1>
+    <p class="text-body-secondary mb-4">Your updates about messages, people, and articles. Manage notification types in your profile settings.</p>
+    <div class="list-group mb-3" id="notification-history">
+        {% if notifications %}
+            {% include "fragments/site-notification-list.html" %}
+        {% else %}
+            <div class="card card-body text-center py-5">
+                <i class="bi bi-bell fs-1 text-body-secondary" aria-hidden="true"></i>
+                <h2 class="h5 mt-3">You're all caught up</h2>
+                <p class="mb-0 text-body-secondary">New updates will appear here.</p>
+            </div>
+        {% endif %}
+    </div>
+    {% with url = url('notification-history', format='html', absolute=True), container = '#notification-history', limit = limit %}
+        {% include "fragments/load-more-button.html" %}
+    {% endwith %}
+{% endblock %}

@@ -20,6 +20,7 @@ class UpdateUserDTO(BaseDTO):
     address: str | None | object = UNSET
     github_username: str | None | object = UNSET
     support_links: list | object = UNSET
+    notify_direct_messages: bool | object = UNSET
     notify_article_status: bool | object = UNSET
     notify_user_impressions: bool | object = UNSET
     notify_article_impressions: bool | object = UNSET
@@ -31,7 +32,7 @@ class UpdateUserDTO(BaseDTO):
     def __post_init__(self):
         if self.support_links is not UNSET:
             self.support_links = validate_support_links(self.support_links)
-        for field in ('notify_article_status', 'notify_user_impressions', 'notify_article_impressions', 'notify_tag_articles', 'notify_article_comments', 'notify_comment_impressions', 'notify_article_shares'):
+        for field in ('notify_direct_messages', 'notify_article_status', 'notify_user_impressions', 'notify_article_impressions', 'notify_tag_articles', 'notify_article_comments', 'notify_comment_impressions', 'notify_article_shares'):
             value = getattr(self, field)
             if value is not UNSET and type(value) is not bool:
                 raise ValueError(f'{field} must be true or false')

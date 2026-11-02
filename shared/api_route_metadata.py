@@ -1,6 +1,14 @@
 """Canonical API route names and path templates."""
 
 API_URL_ROUTES = {
+    "direct-conversations-fragment": "/messages/inbox/fragment",
+    "notification-status": "/notifications/status",
+    "notification-history": "/notifications/history",
+    "read-notification": "/notifications/{notification_id}/read",
+    "record-presence": "/presence",
+    "api-direct-messages": "/messages/{user_id}/history",
+    "send-direct-message": "/messages/{user_id}",
+    "read-direct-messages": "/messages/{user_id}/read",
     "delete-account": "/users/{user_id}/deletion",
     "provider-data-deletion": "/auth/{provider}/data-deletion",
     "linkedin-connection": "/users/{user_id}/integrations/linkedin",

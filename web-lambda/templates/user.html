@@ -163,6 +163,11 @@
                     {% include "fragments/user-status.html" %}
                     {% include "fragments/engagement-statistics.html" %}
                     {% include "fragments/user-impressions.html" %}
+                    {% if cur_user and cur_user.id != user.id and cur_user.status == UserStatus.ACTIVE and user.status == UserStatus.ACTIVE %}
+                        <a href="{{ url('direct-conversation', user_id=user.id) }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-chat-dots" aria-hidden="true"></i> Message
+                        </a>
+                    {% endif %}
 
                     {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER, user) %}
                         <a href="{{ url("edit-user", user_id=user.id) }}"

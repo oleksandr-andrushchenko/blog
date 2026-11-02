@@ -1095,3 +1095,265 @@ $(document).on("click", ".btn-comment-reaction", async function () {
     buttons.forEach(value => { value.disabled = false })
   }
 })
+
+
+function initializeSiteNotifications(root) {
+  const pollInterval = 30000
+  let presenceInterval = 300000
+  const statusKey = "sysdespro-notifications-status:" + root.dataset.userId
+  const presenceKey = "sysdespro-presence:" + root.dataset.userId
+  const seenKey = "sysdespro-notifications-seen:" + root.dataset.userId
+  const load = key => {try {return JSON.parse(localStorage.getItem(key))} catch (_) {return null}}
+  const save = (key, value) => {try {localStorage.setItem(key, JSON.stringify(value))} catch (_) {}}
+  const previous = load(statusKey)
+  const initialRevision = Number(root.dataset.revision) || 0
+  let unread = Number(root.dataset.unread) || 0
+  let revision = initialRevision
+  let lastSeen = Number(root.dataset.lastSeen) || 0
+  let lastPresenceAt = Math.max(lastSeen, Number(load(presenceKey)) || 0)
+  let lastStatusAt = Date.now()
+  let activityAt = Date.now()
+  let menuOpen = false
+  let loading = false
+  let toastWanted = false
+  let polling = false
+  let beating = false
+  let closed = false
+  const seenValues = load(seenKey)
+  const seen = new Set(Array.isArray(seenValues) ? seenValues : [])
+  const items = root.querySelector("#site-notification-items")
+  const toggle = root.querySelector("#site-notifications-toggle")
+  const request = async (url, data, keepalive = false) => {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 20000)
+    try {
+      const options = {credentials: "include", cache: "no-store", signal: controller.signal,
+        headers: {Accept: "application/json"}, keepalive}
+      if (data) {
+        options.method = "POST"
+        options.headers["Content-Type"] = "application/json"
+        options.body = JSON.stringify(data)
+      }
+      const response = await fetch(url, options)
+      if (!response.ok) throw new Error("Please try again.")
+      const result = await response.json()
+      if (result.user_id !== root.dataset.userId) {
+        closed = true
+        window.location.reload()
+        throw new Error("The account changed. Reload this page.")
+      }
+      return result
+    } finally {clearTimeout(timer)}
+  }
+  const icon = name => {
+    const element = document.createElement("i")
+    element.className = "bi bi-" + name
+    element.setAttribute("aria-hidden", "true")
+    return element
+  }
+  const toast = notification => {
+    let container = document.getElementById("site-notification-toasts")
+    if (!container) {
+      container = document.createElement("div")
+      container.id = "site-notification-toasts"
+      container.className = "toast-container position-fixed bottom-0 end-0 p-3"
+      container.setAttribute("aria-live", "polite")
+      document.body.append(container)
+    }
+    const card = document.createElement("div")
+    card.className = "toast show mb-2"
+    card.setAttribute("role", "status")
+    const header = document.createElement("div")
+    header.className = "toast-header gap-2"
+    const title = document.createElement("strong")
+    title.className = "me-auto text-break"
+    title.textContent = notification.title
+    const dismiss = document.createElement("button")
+    dismiss.type = "button"
+    dismiss.className = "btn btn-sm btn-link p-0"
+    dismiss.setAttribute("aria-label", "Dismiss notification")
+    dismiss.append(icon("x-lg"))
+    dismiss.addEventListener("click", () => card.remove())
+    header.append(icon(notification.icon || "bell"), title, dismiss)
+    const body = document.createElement("div")
+    body.className = "toast-body text-break"
+    const text = document.createElement("p")
+    text.className = "mb-2"
+    text.textContent = notification.message
+    body.append(text)
+    if (notification.url) {
+      const link = document.createElement("a")
+      link.href = notification.url
+      link.className = "btn btn-primary btn-sm"
+      link.dataset.notificationLink = notification.id
+      link.append(icon("arrow-right"), document.createTextNode(" Open"))
+      body.append(link)
+    }
+    card.append(header, body)
+    container.append(card)
+    setTimeout(() => card.remove(), 10000)
+  }
+  const render = notifications => {
+    const rows = notifications.map(notification => {
+      const row = document.createElement("div")
+      row.className = "d-flex align-items-start gap-2 border-bottom p-2"
+      row.dataset.notificationItem = notification.id
+      const link = document.createElement("a")
+      link.href = notification.url
+      link.className = "flex-grow-1 text-decoration-none link-body-emphasis text-break"
+      link.dataset.notificationLink = notification.id
+      const title = document.createElement("strong")
+      title.textContent = notification.title
+      const text = document.createElement("p")
+      text.className = "small mb-0"
+      text.textContent = notification.message
+      link.append(title, text)
+      row.append(icon(notification.icon), link)
+      if (!notification.is_read) {
+        row.dataset.notificationUnread = "true"
+        const read = document.createElement("button")
+        read.type = "button"
+        read.className = "btn btn-outline-secondary btn-sm"
+        read.dataset.readNotification = notification.id
+        read.setAttribute("aria-label", "Mark notification as read")
+        read.append(icon("check2"))
+        row.append(read)
+      }
+      return row
+    })
+    if (rows.length) items.replaceChildren(...rows)
+    else {
+      const empty = document.createElement("p")
+      empty.className = "small text-body-secondary px-2 mb-0"
+      empty.textContent = "You're all caught up."
+      items.replaceChildren(empty)
+    }
+  }
+  const loadNotifications = async (showToasts = false) => {
+    toastWanted ||= showToasts
+    if (loading || closed) return
+    loading = true
+    items.setAttribute("aria-busy", "true")
+    if (menuOpen) items.textContent = "Loading notifications…"
+    try {
+      const url = new URL(root.dataset.historyUrl)
+      url.searchParams.set("limit", "10")
+      const data = await request(url)
+      if (closed) return
+      render(data.notifications)
+      const fresh = data.notifications.filter(item => !item.is_read && item.delivery === "web" && !seen.has(item.id))
+      if (toastWanted && !document.hidden && (!document.hasFocus || document.hasFocus())) fresh.slice(0, 3).forEach(toast)
+      data.notifications.forEach(item => seen.add(item.id))
+      save(seenKey, [...seen].slice(-100))
+    } catch (_) {
+      if (menuOpen) items.textContent = "Could not load notifications. Close and reopen to retry."
+    } finally {
+      items.setAttribute("aria-busy", "false")
+      loading = false
+      toastWanted = false
+    }
+  }
+  const paint = () => {
+    root.querySelectorAll("[data-unread-notifications]").forEach(badge => {
+      badge.textContent = unread > 99 ? "99+" : String(unread)
+      badge.hidden = unread === 0
+    })
+    toggle.setAttribute("aria-label", "Notifications, " + unread + " unread")
+  }
+  const apply = (state, announce = false, persist = true) => {
+    if (Number(state.revision) < revision) return
+    const changed = Number(state.revision) > revision
+    unread = Math.max(0, Number(state.unread_count) || 0)
+    revision = Number(state.revision) || 0
+    lastSeen = Math.max(lastSeen, Number(state.last_seen_at) || 0)
+    presenceInterval = Number(state.presence_interval_ms) || presenceInterval
+    lastStatusAt = persist ? Date.now() : Number(state.at) || Date.now()
+    if (persist) save(statusKey, {unread_count: unread, revision, last_seen_at: lastSeen, at: lastStatusAt})
+    paint()
+    if (changed && !document.hidden && (menuOpen || announce && unread > 0)) loadNotifications(announce)
+  }
+  const heartbeat = async () => {
+    const now = Date.now()
+    const last = Math.max(lastSeen, lastPresenceAt)
+    if (beating || closed || document.hidden || now - activityAt > 60000 || now - last < presenceInterval) return false
+    beating = true
+    lastStatusAt = now
+    try {
+      const state = await request(root.dataset.presenceUrl, {})
+      lastPresenceAt = Date.now()
+      save(presenceKey, lastPresenceAt)
+      apply(state, true)
+    } catch (_) {} finally {beating = false}
+    return true
+  }
+  const tick = async () => {
+    if (closed || document.hidden) return
+    if (await heartbeat()) return
+    const cached = load(statusKey)
+    if (cached && cached.revision > revision) apply(cached, false, false)
+    const last = Math.max(lastStatusAt, Number(cached?.at) || 0)
+    if (polling || Date.now() - last < pollInterval) return
+    polling = true
+    try {apply(await request(root.dataset.statusUrl), true)} catch (_) {} finally {polling = false}
+  }
+  const activity = () => {activityAt = Date.now(); heartbeat()}
+  const visibility = () => {if (!document.hidden) {activityAt = Date.now(); tick(); if (menuOpen) loadNotifications()}}
+  const storage = event => {
+    if (event.key === presenceKey) {
+      try {lastPresenceAt = Math.max(lastPresenceAt, Number(JSON.parse(event.newValue)) || 0)} catch (_) {}
+      return
+    }
+    if (event.key !== statusKey || !event.newValue) return
+    try {apply(JSON.parse(event.newValue), false, false)} catch (_) {}
+  }
+  const read = async (identifier, button) => {
+    if (button) button.disabled = true
+    try {
+      const state = await request(root.dataset.readUrl.replace("notification-id", identifier), {}, true)
+      apply(state)
+      document.querySelectorAll('[data-notification-item="' + identifier + '"]').forEach(row => {
+        delete row.dataset.notificationUnread
+        row.querySelectorAll("[data-read-notification], [data-notification-unread-badge]").forEach(item => item.remove())
+      })
+    } catch (_) {
+      if (button) button.disabled = false
+      toast({title: "Could not update notification", message: "Please try again.", icon: "exclamation-circle"})
+    }
+  }
+  const click = event => {
+    const button = event.target.closest("[data-read-notification]")
+    const link = event.target.closest("[data-notification-link]")
+    if (button) read(button.dataset.readNotification, button)
+    else if (link) read(link.dataset.notificationLink)
+  }
+  const openNotifications = () => {menuOpen = true; loadNotifications()}
+  toggle.addEventListener("click", () => {
+    if (toggle.getAttribute("aria-expanded") !== "true") openNotifications()
+  })
+  toggle.addEventListener("show.bs.dropdown", openNotifications)
+  toggle.addEventListener("hidden.bs.dropdown", () => {menuOpen = false})
+  document.addEventListener("click", click)
+  document.addEventListener("visibilitychange", visibility)
+  ;["pointerdown", "keydown", "scroll", "touchstart"].forEach(name => document.addEventListener(name, activity, {passive: true}))
+  window.addEventListener("storage", storage)
+  const changedOnNavigation = previous && initialRevision > previous.revision && unread > 0
+  if (previous && previous.revision > revision) apply(previous, false, false)
+  else apply({unread_count: unread, revision, last_seen_at: lastSeen})
+  if (changedOnNavigation) loadNotifications(true)
+  const timer = setInterval(tick, 15000)
+  window.addEventListener("pagehide", () => {
+    closed = true
+    clearInterval(timer)
+    document.removeEventListener("click", click)
+    document.removeEventListener("visibilitychange", visibility)
+    ;["pointerdown", "keydown", "scroll", "touchstart"].forEach(name => document.removeEventListener(name, activity))
+    window.removeEventListener("storage", storage)
+  }, {once: true})
+  window.addEventListener("pageshow", event => {if (event.persisted) window.location.reload()})
+  heartbeat()
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const root = document.getElementById("site-notifications")
+  if (root) initializeSiteNotifications(root)
+})

@@ -289,6 +289,8 @@ def _inventory(code, state, item):
         _mark(code, state, 'SLUG', item['username'])
     if item['pk'].startswith('USER_SLUG#') and item.get('user_id') == user_id:
         _mark(code, state, 'SLUG', item['pk'].removeprefix('USER_SLUG#'))
+    if item['pk'].startswith('DIRECT_MESSAGES#') and user_id in item.get('participant_ids', []):
+        _mark(code, state, 'DM', item['pk'])
     owned = item.get('user_id') == user_id or item['pk'] == f'USER#{user_id}' or _owned_article(code, item)
     if item['sk'].startswith('COMMENT#') and owned:
         _mark(code, state, 'COMMENT', f"{_article_id(item)}#{item['sk'].removeprefix('COMMENT#')}")
@@ -349,6 +351,8 @@ def _remove(code, state, item, phase):
     if pk.startswith('USER_REDIRECT#'):
         slug = pk.removeprefix('USER_REDIRECT#')
         personal |= bool(_marker(code, 'SLUG', slug))
+    personal |= pk.startswith('DIRECT_MESSAGES#') and bool(_marker(code, 'DM', pk))
+    personal |= (sk.startswith('DM_INBOX#') and item.get('peer_id') == uid) or sk == f'DM_READ#{uid}'
     personal |= pk in (f'USER#{uid}', f'USER_ACTIVITY#{uid}') or pk.startswith(f'POST_SLUG#{uid}#')
     if item.get('entity_type') == 'article' and item.get('entity_id'):
         own_article |= bool(_marker(code, 'POST', item['entity_id']))

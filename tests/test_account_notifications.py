@@ -21,7 +21,7 @@ from article_dtos import ArticleCommentDTO, UpdateArticleImpressionDTO, UpdateAr
 from shared_utils import article_from_dynamodb, user_from_dynamodb
 from user_dtos import UpdateUserDTO, UpdateUserImpressionDTO
 
-PREFERENCES = ('notify_article_status', 'notify_user_impressions', 'notify_article_impressions', 'notify_tag_articles', 'notify_article_comments', 'notify_comment_impressions', 'notify_article_shares')
+PREFERENCES = ('notify_direct_messages', 'notify_article_status', 'notify_user_impressions', 'notify_article_impressions', 'notify_tag_articles', 'notify_article_comments', 'notify_comment_impressions', 'notify_article_shares')
 
 
 @pytest.mark.parametrize('preference', PREFERENCES)
@@ -49,6 +49,8 @@ def actions(monkeypatch):
         'content': '<p>Example article.</p>', 'status': 'unpublished',
         'rating_sk': 0, 'created_at': 1,
     })
+    import site_notification_service
+    monkeypatch.setattr(site_notification_service, 'create_site_notification', Mock(return_value={'created': True, 'email': True}))
     write, send = Mock(), Mock()
     environment = Environment(loader=FileSystemLoader(ROOT / 'api-lambda/templates'))
     monkeypatch.setattr(api_utils, 'get_html_content', lambda name, data: environment.get_template(name).render(

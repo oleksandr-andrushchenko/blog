@@ -1086,7 +1086,7 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
         safe_execute('Article status email', _send_account_notification,
                      article_owner, 'notify_article_status', 'Your article status changed',
                      f'Your article “{article.title}” changed from {old_status} to {status}.',
-                     article, req, detail=article.comment)
+                     article, req, detail=article.comment, action=status)
 
 
 def create_contact_message(message_dto: ContactMessageDTO, user: User = None, *, req=None) -> ContactMessage:
@@ -1228,7 +1228,7 @@ def update_article_impression(article: Article, update_article_impression_dto: U
         safe_execute('Article reaction email', _send_account_notification,
                      article_owner, 'notify_article_impressions', 'New reaction to your article',
                      f'{cur_user.name} {verb} your article “{article.title}”.',
-                     article, req)
+                     article, req, action=action)
 
 
 def update_user_impression(user: User, update_relation_dto: UpdateUserImpressionDTO, cur_user: User, req) -> None:
@@ -1316,11 +1316,17 @@ def dispatch_article_published_event(article: Article) -> None:
 
 
 def _send_account_notification(user: User, preference: str, subject: str, message: str,
-                               target: Article | User, req, *, detail: str | None = None, target_url: str | None = None) -> None:
-    if not user.email or user.status != UserStatus.ACTIVE or not getattr(user, preference):
+                               target: Article | User, req=None, *, detail: str | None = None, target_url: str | None = None,
+                               event_id: str | None = None, action: str | None = None) -> None:
+    if user.status != UserStatus.ACTIVE or not getattr(user, preference):
         return
     target_url = target_url or (get_article_url(req, target, absolute=True) if isinstance(target, Article)
                   else get_user_url(req, target, absolute=True))
+    from site_notification_service import create_site_notification
+    delivery = create_site_notification(user, preference, subject, message, target_url,
+                                        detail=detail, event_id=event_id, action=action)
+    if not delivery['email'] or not user.email:
+        return
     settings_url = get_url(req, 'edit-user', user_id=user.id, absolute=True) + '#notifications'
     text = f'Hello {user.name or "there"},\n\n{message}\n'
     if detail:
@@ -1366,7 +1372,7 @@ def handle_article_published_event(event: ArticlePublishedEvent) -> None:
         if user_id == article.user_id:
             continue
         user = find_user(user_id)
-        if not user or not user.email or user.status != UserStatus.ACTIVE or not user.notify_tag_articles:
+        if not user or user.status != UserStatus.ACTIVE or not user.notify_tag_articles:
             continue
 
         tag_links = [
@@ -1393,7 +1399,14 @@ def handle_article_published_event(event: ArticlePublishedEvent) -> None:
             "tag_links": tag_links,
         })
         try:
-            send_email(user.email, subject, text_body, html_body)
+            from site_notification_service import create_site_notification
+            delivery = create_site_notification(
+                user, 'notify_tag_articles', subject,
+                f'A new article matching your interests was published: {article.title}', article_url,
+                event_id=f'article-published:{article.id}:{article.published_at or article.updated_at or article.created_at}',
+            )
+            if delivery['email'] and user.email:
+                send_email(user.email, subject, text_body, html_body)
         except Exception:
             logger.exception(
                 "Unable to send article publication notification",
@@ -1612,5 +1625,5 @@ def update_article_comment_impression(article: Article, comment: ArticleComment,
         verb = 'liked' if action == ArticleCommentImpressionAction.LIKE else 'disliked'
         safe_execute('Comment reaction email', lambda: _send_account_notification(
             get_user(comment.owner_id), 'notify_comment_impressions', 'New reaction to your comment',
-            f'{cur_user.name} {verb} your comment on “{article.title}”.', article, req, detail=comment.text,
+            f'{cur_user.name} {verb} your comment on “{article.title}”.', article, req, detail=comment.text, action=action,
         ))

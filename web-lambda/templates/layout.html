@@ -162,6 +162,9 @@
 
                 <ul class="navbar-nav">
                     {% if cur_user %}
+                        {% if cur_user.status == UserStatus.ACTIVE %}
+                            {% include "fragments/site-notification-menu.html" %}
+                        {% endif %}
                         {% if check_auth(cur_user, Permission.CREATE_ARTICLE) %}
                             <li class="nav-item">
                                 <a class="nav-link{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %} bi bi-pencil-fill"
@@ -186,6 +189,9 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end" id="user-menu"
                                 aria-labelledby="user-menu-toggle">
+                                <li><a class="dropdown-item{% if current_route in ['direct-messages', 'direct-conversation'] %} active{% endif %}" href="{{ url('direct-messages') }}"{% if current_route in ['direct-messages', 'direct-conversation'] %} aria-current="page"{% endif %}>
+                                    <i class="bi bi-chat-dots me-2" aria-hidden="true"></i>Messages
+                                </a></li>
                                 <li><a class="dropdown-item" href="{{ profile_url }}">
                                     <i class="bi bi-person me-2" aria-hidden="true"></i>Profile
                                 </a></li>

@@ -12,7 +12,7 @@ import threads_sharing_service
 from shared_utils import template_request
 from app_config import get_allowed_origins, get_auth_cookie_domain, is_prod
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.responses import PlainTextResponse
+from starlette.responses import PlainTextResponse, Response
 
 from api_deps import (
     get_error_response,
@@ -171,6 +171,8 @@ async def access_log_middleware(request: Request, call_next):
     try:
         response = await call_next(request)
         status = response.status_code
+        if request.url.path.startswith(('/messages', '/notifications')) or request.url.path == '/presence':
+            response.headers['Cache-Control'] = 'private, no-store'
         return response
     finally:
         logger.log(*get_access_log(request, status))
@@ -814,3 +816,114 @@ async def article_comment_impression(article: ArticleDep, article_comment: Artic
     await to_thread(update_article_comment_impression, article, article_comment, dto, cur_user, request)
     return JSONResponse({'likes_count': int(article_comment.likes_count), 'dislikes_count': int(article_comment.dislikes_count)},
                         headers={'Cache-Control': 'no-store'})
+
+
+async def _direct_message_body(request, fields):
+    _integration_mutation(request)
+    try:
+        body = await request.json()
+    except ValueError as exc:
+        raise HTTPException(422, "Expected message details as JSON") from exc
+    if not isinstance(body, dict) or set(body) != set(fields):
+        raise HTTPException(422, "Invalid message fields")
+    return body
+
+
+
+@route("get", "api-direct-messages")
+async def direct_message_history(user_id: str, request: Request, cur_user: CurUserDep):
+    from direct_messages import get_direct_messages, message_peer
+
+    await to_thread(message_peer, cur_user, user_id)
+    page = await to_thread(get_direct_messages, cur_user, user_id,
+                           limit=request.query_params.get("limit", 30), offset=request.query_params.get("offset"),
+                           after=request.query_params.get("after"))
+    html = get_html_content("fragments/direct-message-list.html", {"messages": page["messages"], "viewer": cur_user})
+    return JSONResponse({**page, "html": html}, headers={"Cache-Control": "private, no-store"})
+
+
+
+@route("post", "send-direct-message")
+async def direct_message_send(user_id: str, request: Request, cur_user: CurUserDep):
+    from direct_messages import DirectMessageDTO
+    from direct_message_service import send_direct_message
+    from web import parse_dto
+
+    body = await _direct_message_body(request, ("text", "message_id"))
+    dto = parse_dto(DirectMessageDTO, body)
+    item = await to_thread(send_direct_message, cur_user, user_id, dto)
+    message = {"id": item["message_id"], "key": item["sk"], "sender_id": item["sender_id"],
+               "text": item["text"], "created_at": int(item["created_at"])}
+    html = get_html_content("fragments/direct-message-list.html", {"messages": [message], "viewer": cur_user})
+    return JSONResponse({"message": message, "html": html}, headers={"Cache-Control": "private, no-store"})
+
+
+
+@route("post", "read-direct-messages", status_code=204)
+async def direct_message_read(user_id: str, request: Request, cur_user: CurUserDep):
+    from direct_message_service import mark_direct_messages_read
+
+    body = await _direct_message_body(request, ("message_key",))
+    await to_thread(mark_direct_messages_read, cur_user, user_id, body["message_key"])
+    return Response(status_code=204, headers={"Cache-Control": "private, no-store"})
+
+
+
+async def _empty_notification_mutation(request):
+    _integration_mutation(request)
+    try:
+        body = await request.json()
+    except ValueError as exc:
+        raise HTTPException(422, "Expected an empty JSON object") from exc
+    if body != {}:
+        raise HTTPException(422, "Expected an empty JSON object")
+
+
+
+@route("post", "record-presence")
+async def current_user_presence(request: Request, cur_user: CurUserDep):
+    from site_notification_service import record_presence
+
+    await _empty_notification_mutation(request)
+    return JSONResponse(await to_thread(record_presence, cur_user), headers={"Cache-Control": "private, no-store"})
+
+
+
+@route("get", "notification-status")
+async def current_notification_status(cur_user: CurUserDep):
+    from site_notifications import notification_status, require_notification_user
+
+    require_notification_user(cur_user)
+    return JSONResponse(notification_status(cur_user), headers={"Cache-Control": "private, no-store"})
+
+
+
+@route("get", "notification-history")
+async def current_notification_history(request: Request, cur_user: CurUserDep):
+    from site_notifications import get_site_notifications
+
+    page = await to_thread(get_site_notifications, cur_user, limit=request.query_params.get("limit", 20),
+                           offset=request.query_params.get("offset"))
+    if request.query_params.get("format") == "html":
+        return HTMLResponse(get_html_content("fragments/site-notification-list.html", page),
+                            headers={"Cache-Control": "private, no-store"})
+    return JSONResponse(page, headers={"Cache-Control": "private, no-store"})
+
+
+
+@route("post", "read-notification")
+async def read_site_notification(notification_id: str, request: Request, cur_user: CurUserDep):
+    from site_notification_service import mark_site_notification_read
+
+    await _empty_notification_mutation(request)
+    return JSONResponse(await to_thread(mark_site_notification_read, cur_user, notification_id), headers={"Cache-Control": "private, no-store"})
+
+
+
+@route('get', 'direct-conversations-fragment')
+async def direct_conversations_fragment(request: Request, cur_user: CurUserDep):
+    from direct_messages import get_message_inbox
+    page = await to_thread(get_message_inbox, cur_user, limit=request.query_params.get('limit', 20),
+                           offset=request.query_params.get('offset'))
+    return HTMLResponse(get_html_content('fragments/direct-conversation-list.html', {**page, 'viewer': cur_user}),
+                        headers={'Cache-Control': 'private, no-store'})

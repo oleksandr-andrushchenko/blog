@@ -8,6 +8,9 @@ WEB_AUTH_URL_ROUTES = {
 }
 
 WEB_URL_ROUTES = WEB_AUTH_URL_ROUTES | {
+    "notification-center": "/notifications",
+    "direct-messages": "/messages",
+    "direct-conversation": "/messages/{user_id}",
     "account-deletion": "/account-deletion",
     "account-deletion-status": "/account-deletion/status/{code}",
     "user-support-link": "/users/{user_id}/support/{link_id}",

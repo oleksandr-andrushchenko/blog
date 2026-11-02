@@ -1,0 +1,12 @@
+{% for message in messages %}
+    <article class="card {{ 'border-primary ms-md-5' if message.sender_id == viewer.id else 'me-md-5' }}"
+             id="message-{{ message.id }}" data-message-id="{{ message.id }}" data-message-key="{{ message.key }}">
+        <div class="card-body py-2 px-3">
+            <div class="d-flex justify-content-between gap-3 small text-body-secondary mb-1">
+                <span>{{ 'You' if message.sender_id == viewer.id else 'Received' }}</span>
+                <time datetime="{{ message.created_at | iso_utc }}">{{ (message.created_at / 1000) | unix_to_full_date }}</time>
+            </div>
+            <p class="mb-0 text-break" style="white-space: pre-wrap;">{{ message.text }}</p>
+        </div>
+    </article>
+{% endfor %}

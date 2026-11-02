@@ -259,6 +259,8 @@ async def access_log_middleware(request: Request, call_next):
     try:
         response = await call_next(request)
         status = response.status_code
+        if request.url.path.startswith(('/messages', '/notifications')) or request.url.path == '/presence':
+            response.headers['Cache-Control'] = 'private, no-store'
         return response
     finally:
         logger.log(*get_access_log(request, status))
@@ -751,3 +753,37 @@ async def article_support_link(article: ArticleDep, link_id: str, request: Reque
     from shared_utils import get_user
     from web_utils import redirect_creator_link
     return redirect_creator_link(get_user(article.owner_id), link_id, request, cur_user, article, kind='support')
+
+
+@route("get", "notification-center", response_class=HTMLResponse)
+async def notification_center(request: Request, cur_user: CurUserDep):
+    from site_notifications import get_site_notifications
+
+    page = await to_thread(get_site_notifications, cur_user, limit=request.query_params.get("limit", 20),
+                           offset=request.query_params.get("offset"))
+    context = {**page, "cur_user": cur_user, "limit": int(request.query_params.get("limit", 20))}
+    return HTMLResponse(get_html_content("notification-center.html", context),
+                        headers={"Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow"})
+
+
+@route("get", "direct-messages", response_class=HTMLResponse)
+async def direct_messages_page(request: Request, cur_user: CurUserDep):
+    from direct_messages import get_message_inbox
+
+    page = await to_thread(get_message_inbox, cur_user, limit=request.query_params.get("limit", 20),
+                           offset=request.query_params.get("offset"))
+    return HTMLResponse(get_html_content("direct-messages.html", {**page, "viewer": cur_user, "cur_user": cur_user, "limit": int(request.query_params.get("limit", 20))}),
+                        headers={"Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow"})
+
+
+@route("get", "direct-conversation", response_class=HTMLResponse)
+async def direct_conversation_page(user_id: str, request: Request, cur_user: CurUserDep):
+    from direct_messages import can_send_message, get_direct_messages, message_peer
+
+    peer = await to_thread(message_peer, cur_user, user_id)
+    page = await to_thread(get_direct_messages, cur_user, user_id, limit=request.query_params.get("limit", 30),
+                           offset=request.query_params.get("offset"))
+    return HTMLResponse(get_html_content("direct-conversation.html", {
+        **page, "peer": peer, "viewer": cur_user, "cur_user": cur_user,
+        "messaging_available": await to_thread(can_send_message, cur_user, peer),
+    }), headers={"Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow"})

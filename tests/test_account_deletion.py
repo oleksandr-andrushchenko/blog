@@ -392,3 +392,25 @@ def test_deletion_lifecycle_logs_once_without_account_or_receipt_credentials(acc
     assert all(not getattr(record, 'context', None) for record in records)
     serialized = json.dumps([getattr(record, 'context', {}) for record in records])
     assert uid not in serialized and code not in serialized
+
+
+def test_erasure_removes_conversation_history_peer_pointers_and_private_notifications(account):
+    from direct_messages import message_partition
+    uid, other, put, table, _ = account
+    partition = message_partition(uid, other)
+    message_key = 'MESSAGE#00000000000000000001#00000000-0000-4000-8000-000000000001'
+    put(partition, participant_ids=[uid, other], created_at=1, revision=1)
+    put(partition, message_key, sender_id=other, recipient_id=uid, text='Private erasure content')
+    put(partition, 'RECEIPT#receipt', sender_id=other, fingerprint='private-hash', message_key=message_key)
+    put(f'USER#{other}', f'DM_INBOX#00000000000000000001#{uid}', peer_id=uid, preview='Private erasure content')
+    put(f'USER#{other}', f'DM_READ#{uid}', last_read_key=message_key)
+    put(f'USER#{uid}', 'SITE_NOTIFICATION#00000000000000000001#alert', message='Private alert')
+    put(f'USER#{uid}', 'SITE_NOTIFICATION_ID#alert', notification_key='private-key')
+    code = service.request_deletion(uid)
+    run(code)
+    for pk, sk in ((partition, 'META'), (partition, message_key), (partition, 'RECEIPT#receipt'),
+                   (f'USER#{other}', f'DM_INBOX#00000000000000000001#{uid}'),
+                   (f'USER#{other}', f'DM_READ#{uid}'),
+                   (f'USER#{uid}', 'SITE_NOTIFICATION#00000000000000000001#alert')):
+        assert 'Item' not in table.get_item(Key={'pk': pk, 'sk': sk})
+    assert table.get_item(Key={'pk': f'USER#{other}', 'sk': 'META'})['Item']['name'] == 'Other creator'

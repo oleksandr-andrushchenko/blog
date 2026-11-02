@@ -898,7 +898,7 @@ def test_user_edit_update_and_fragment_endpoints_success_and_failure(root_user_c
     assert [tab.text() for tab in form('[role="tab"]').items()] == [
         'Personal info', 'Links', 'Earn', 'Notifications', 'Integrations',
     ]
-    assert len(form('#notifications input[type="checkbox"]:checked')) == 7
+    assert len(form('#notifications input[type="checkbox"]:checked')) == 8
     assert form('.tab-pane.active').attr('id') == 'personal-info'
     assert form('#personal-info [name="name"]') and form('#personal-info [name="avatar_action"]')
     assert form('#links [name="website"]') and form('#links [name="github_username"]')
@@ -2402,3 +2402,400 @@ def test_same_email_signins_create_separate_accounts_without_explicit_connection
     assert get_dynamodb_user(second_id)['name'] == 'Second Creator'
     assert get(get_logged_in_client(first_identity), f'/users/{first_user["id"]}/edit').status_code == 200
     assert get(get_logged_in_client(second_identity), f'/users/{second_id}/edit').status_code == 200
+
+
+def test_direct_messages_are_private_idempotent_paginated_and_block_aware(guest_client):
+    from concurrent.futures import ThreadPoolExecutor
+
+    suffix = uuid.uuid4().hex
+    people = []
+    for role in ("sender", "recipient", "outsider", "admin"):
+        identity = {"sub": f"{role}-{suffix}", "iss": "private-messages", "email": f"{role}-{suffix}@example.com"}
+        client = get_logged_in_client(identity)
+        people.append((client, get_dynamodb_user_by_email(identity["email"])["id"]))
+    (sender, sender_id), (recipient, recipient_id), (outsider, outsider_id), (admin, admin_id) = people
+    set_dynamodb_user_permissions(admin_id, ["root"])
+    endpoint = f"/messages/{recipient_id}"
+    history = endpoint + "/history"
+    assert get(guest_client, "/messages").status_code == 401
+    assert get(guest_client, endpoint).status_code == 401
+    assert get(guest_client, history).status_code == 401
+    assert post(guest_client, endpoint, json={"text": "hello", "message_id": str(uuid.uuid4())}).status_code == 401
+    empty = get(sender, endpoint)
+    assert empty.status_code == 200, empty.text
+    assert "no-store" in empty.headers["Cache-Control"]
+    assert empty.headers["X-Robots-Tag"] == "noindex, nofollow"
+    empty_doc = pq(empty.text)
+    assert empty_doc('#direct-message-text[maxlength="5000"]')
+    assert empty_doc('main h1').text() == 'Messages with ' + get_dynamodb_user(recipient_id)['name'].split()[0]
+    assert empty_doc('#direct-conversation > p.text-body-secondary').eq(0).text() == (
+        'Read and reply to your private messages with ' + get_dynamodb_user(recipient_id)['name'].split()[0] + '.'
+    )
+    assert empty_doc('#direct-conversation .user h2').text() == get_dynamodb_user(recipient_id)['name']
+    assert empty_doc(f'#direct-conversation .user a[href="{get_user_href(get_dynamodb_user(recipient_id))}"]')
+    assert not empty_doc('#direct-conversation a[href="/messages"]')
+    assert not empty_doc('#direct-conversation a:contains("View profile")')
+    assert get_dynamodb_user(sender_id)['name'] in empty_doc('#user-menu-toggle').text()
+    assert empty_doc(f'#user-menu a[href="{get_user_href(get_dynamodb_user(sender_id))}"]')
+    assert empty_doc('#user-menu a[href="/messages"]').attr('aria-current') == 'page'
+    breadcrumbs = empty_doc('nav[aria-label="breadcrumb"]')
+    assert breadcrumbs('a[href="/"]').text() == 'Home'
+    assert breadcrumbs('a[href="/messages"]').text() == 'Messages'
+    assert breadcrumbs('[aria-current="page"]').text() == get_dynamodb_user(recipient_id)['name']
+    profile = pq(get(sender, f"/users/{recipient_id}").text)
+    assert profile(f'a[href="{endpoint}"]').text() == 'Message'
+    original_timestamp = get_dynamodb_user(sender_id).get('updated_at')
+    payload = {"text": "Hello <script>alert(1)</script>\nHow is practice going?", "message_id": str(uuid.uuid4())}
+    sent = post(sender, endpoint, json=payload)
+    assert sent.status_code == 200, sent.text
+    first = sent.json()["message"]
+    assert get_dynamodb_user(sender_id).get('updated_at') == original_timestamp
+    assert post(sender, endpoint, json=payload).json()["message"] == first
+    assert post(sender, endpoint, json={**payload, "text": "changed"}).status_code == 409
+    assert post(sender, endpoint, json={**payload, "sender_id": outsider_id}).status_code == 422
+    assert post(sender, endpoint, json={"text": " ", "message_id": str(uuid.uuid4())}).status_code == 422
+    assert post(sender, endpoint, json={"text": "x" * 5001, "message_id": str(uuid.uuid4())}).status_code == 422
+    assert post(sender, endpoint, json={**payload, "message_id": "invalid"}).status_code == 422
+    assert post(sender, endpoint, json={**payload, "text": "bad\x00text"}).status_code == 422
+    assert post(sender, endpoint, json=payload, headers={"Origin": "https://untrusted.example"}).status_code == 403
+    assert post(sender, endpoint, data={"text": "form", "message_id": str(uuid.uuid4())}).status_code == 415
+    assert get(sender, history + '?limit=0').status_code == 422
+    assert get(sender, history + '?after=invalid').status_code == 422
+    assert get(sender, history + '?offset=garbage').status_code == 422
+    assert post(sender, f'/messages/{sender_id}', json=payload).status_code == 422
+    assert post(sender, '/messages/missing-user', json=payload).status_code == 404
+
+    def inbox(client):
+        page = get(client, '/messages')
+        assert page.status_code == 200, page.text
+        assert 'no-store' in page.headers['Cache-Control']
+        doc = pq(page.text)
+        assert doc('#user-menu-toggle')
+        assert doc('main h1').text() == 'Messages'
+        assert doc('main > p.text-body-secondary').text() == "Private messages with other members. Start a conversation from a user's profile."
+        assert doc('#user-menu a[href="/messages"]').attr('aria-current') == 'page'
+        breadcrumbs = doc('nav[aria-label="breadcrumb"]')
+        assert breadcrumbs('a[href="/"]').text() == 'Home'
+        assert breadcrumbs('[aria-current="page"]').text() == 'Messages'
+        return doc
+
+    assert inbox(recipient)(f'[data-conversation-user="{sender_id}"][data-unread="true"]')
+    page = pq(get(recipient, f'/messages/{sender_id}').text)
+    assert page('#direct-message-list').text().find('Hello <script>alert(1)</script>') >= 0
+    assert not page('#direct-message-list script')
+    assert len(get(sender, history).json()['messages']) == 1
+    for client in (outsider, admin):
+        assert get(client, history).json()['messages'] == []
+        assert not inbox(client)(f'[data-conversation-user="{sender_id}"]')
+        assert post(client, endpoint + '/read', json={'message_key': first['key']}).status_code == 404
+    read_endpoint = f'/messages/{sender_id}/read'
+    assert post(recipient, read_endpoint, json={'message_key': first['key']}).status_code == 204
+    assert not inbox(recipient)('[data-unread="true"]')
+    second_response = post(sender, endpoint, json={'text': 'Second message', 'message_id': str(uuid.uuid4())})
+    assert second_response.status_code == 200, second_response.text
+    second = second_response.json()['message']
+    reply = post(recipient, f'/messages/{sender_id}', json={'text': 'A reply', 'message_id': str(uuid.uuid4())})
+    assert reply.status_code == 200, reply.text
+    assert inbox(recipient)('[data-unread="true"]')  # Sending must not clear unseen incoming messages.
+    assert post(recipient, read_endpoint, json={'message_key': first['key']}).status_code == 204
+    assert inbox(recipient)('[data-unread="true"]')
+    assert post(recipient, read_endpoint, json={'message_key': second['key']}).status_code == 204
+    assert not inbox(recipient)('[data-unread="true"]')
+
+    newest = get(sender, history + '?limit=1').json()
+    assert newest['messages'][0]['text'] == 'A reply'
+    older = get(sender, history + '?limit=1&offset=' + quote(newest['offset'])).json()
+    assert older['messages'][0]['id'] == second['id']
+    assert get(sender, f'/messages/{outsider_id}/history?offset=' + quote(newest['offset'])).status_code == 422
+    newer = get(sender, history + '?after=' + quote(first['key'])).json()
+    assert [item['text'] for item in newer['messages']] == ['Second message', 'A reply']
+    third_thread = post(sender, f'/messages/{outsider_id}', json={'text': 'Separate conversation', 'message_id': str(uuid.uuid4())})
+    assert third_thread.status_code == 200
+    first_inbox = pq(get(sender, '/messages?limit=1').text)
+    next_button = first_inbox('.btn-load-more[data-container="#direct-conversations"]')
+    next_cursor = first_inbox('#direct-conversations > [data-offset]').attr('data-offset')
+    assert next_button and next_cursor
+    next_path = '/messages/inbox/fragment?limit=1&offset=' + quote(next_cursor)
+    assert get(sender, next_path).status_code == 200
+    assert get(recipient, next_path).status_code == 422
+    assert not first_inbox('a[href*="offset="]')
+    assert not inbox(recipient)(f'[data-conversation-user="{outsider_id}"]')
+
+    assert post(recipient, f'/users/{sender_id}/impression', json={'action': 'block'}).status_code == 200
+    for client, peer in ((sender, recipient_id), (recipient, sender_id)):
+        blocked = post(client, f'/messages/{peer}', json={'text': 'Blocked delivery', 'message_id': str(uuid.uuid4())})
+        assert blocked.status_code == 403, blocked.text
+        assert get(client, f'/messages/{peer}').status_code == 200
+        assert not pq(get(client, f'/messages/{peer}').text)('#direct-message-form')
+    assert post(recipient, f'/users/{sender_id}/impression', json={'action': 'block'}).status_code == 200
+
+    def concurrent_send(index):
+        client = get_guest_client()
+        client.cookies.update(sender.cookies)
+        response = post(client, endpoint, json={'text': f'Concurrent {index}', 'message_id': str(uuid.uuid4())})
+        return response.status_code, response.text
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        results = list(pool.map(concurrent_send, range(8)))
+    assert all(code == 200 for code, _ in results), results
+    all_messages = get(sender, history + '?limit=40').json()['messages']
+    assert len(all_messages) == 11
+    assert len({item['id'] for item in all_messages}) == 11
+    assert [item['key'] for item in all_messages] == sorted(item['key'] for item in all_messages)
+    assert inbox(recipient)(f'[data-conversation-user="{sender_id}"]').length == 1
+    status_change = post(admin, f'/users/{recipient_id}/status', json={'status': 'banned', 'comment': 'Test restriction'})
+    assert status_change.status_code == 200, status_change.text
+    assert post(sender, endpoint, json={'text': 'Inactive recipient', 'message_id': str(uuid.uuid4())}).status_code == 403
+    assert get(sender, endpoint).status_code == 200
+    assert get(recipient, '/messages').status_code == 403
+
+
+
+def test_new_direct_message_email_delivery_preferences_and_retries(guest_client):
+    suffix = uuid.uuid4().hex
+    sender_email = f'dm-email-sender-{suffix}@example.com'
+    recipient_email = f'dm-email-recipient-{suffix}@example.com'
+    sender = get_logged_in_client({'sub': 'sender-' + suffix, 'iss': 'direct-email-tests', 'email': sender_email})
+    recipient = get_logged_in_client({'sub': 'recipient-' + suffix, 'iss': 'direct-email-tests', 'email': recipient_email})
+    sender_id = get_dynamodb_user_by_email(sender_email)['id']
+    recipient_id = get_dynamodb_user_by_email(recipient_email)['id']
+    profile_url = f'/users/{recipient_id}'
+    endpoint = f'/messages/{recipient_id}'
+    settings = pq(get(recipient, profile_url + '/edit').text)
+    assert settings('#notifications #notify_direct_messages').is_(':checked')
+    assert settings('label[for="notify_direct_messages"]').text() == 'New private messages'
+    assert patch(sender, profile_url, json={'notify_direct_messages': False}).status_code == 403
+    assert patch(guest_client, profile_url, json={'notify_direct_messages': False}).status_code == 401
+    for invalid in (None, 0, 'false'):
+        assert patch(recipient, profile_url, json={'notify_direct_messages': invalid}).status_code == 422
+
+    directory = Path('/app/.emails')
+    existing_paths = {path.name for path in directory.glob('*.eml')}
+
+    def emails():
+        messages = {}
+        for path in directory.glob('*.eml'):
+            if path.name in existing_paths:
+                continue
+            item = BytesParser(policy=policy.default).parsebytes(path.read_bytes())
+            if item['To'] == recipient_email and item['Subject'] == 'You have a new direct message':
+                messages[path.name] = item
+        return messages
+
+    before = emails()
+    payload = {'text': f'Private content stays in the app <script>{suffix}</script>', 'message_id': str(uuid.uuid4())}
+    sent = post(sender, endpoint, json=payload)
+    assert sent.status_code == 200, sent.text
+    after = emails()
+    new_paths = after.keys() - before.keys()
+    assert len(new_paths) == 1
+    notification = after[next(iter(new_paths))]
+    plain = notification.get_body('plain').get_content()
+    html = notification.get_body('html').get_content()
+    assert get_dynamodb_user(sender_id)['name'] in plain
+    assert payload['text'] not in plain and payload['text'] not in html
+    assert f'/messages/{sender_id}' in plain
+    doc = pq(html)
+    assert any(urlsplit(link.attr('href')).path == f'/messages/{sender_id}' for link in doc('a[href]').items())
+    assert any(urlsplit(link.attr('href')).path == profile_url + '/edit'
+               and urlsplit(link.attr('href')).fragment == 'notifications' for link in doc('a[href]').items())
+    assert post(sender, endpoint, json=payload).status_code == 200
+    assert emails().keys() == after.keys()
+    assert post(sender, endpoint, json={**payload, 'text': 'Conflicting retry'}).status_code == 409
+    assert emails().keys() == after.keys()
+    assert post(sender, endpoint, json={'text': 'Invalid UUID', 'message_id': 'invalid'}).status_code == 422
+    assert emails().keys() == after.keys()
+
+    assert patch(recipient, profile_url, json={'notify_direct_messages': False}).status_code == 200
+    assert get_dynamodb_user(recipient_id)['notify_direct_messages'] is False
+    assert not pq(get(recipient, profile_url + '/edit').text)('#notify_direct_messages').is_(':checked')
+    disabled = post(sender, endpoint, json={'text': 'Still delivered in the app', 'message_id': str(uuid.uuid4())})
+    assert disabled.status_code == 200, disabled.text
+    assert emails().keys() == after.keys()
+    assert patch(recipient, profile_url, json={'notify_direct_messages': True}).status_code == 200
+    enabled = post(sender, endpoint, json={'text': 'Notifications are enabled again', 'message_id': str(uuid.uuid4())})
+    assert enabled.status_code == 200, enabled.text
+    enabled_messages = emails()
+    assert len(enabled_messages.keys() - after.keys()) == 1
+    assert post(recipient, f'/users/{sender_id}/impression', json={'action': 'block'}).status_code == 200
+    blocked = post(sender, endpoint, json={'text': 'Blocked message', 'message_id': str(uuid.uuid4())})
+    assert blocked.status_code == 403, blocked.text
+    assert emails().keys() == enabled_messages.keys()
+
+
+
+def test_presence_routes_all_account_updates_to_site_notifications_with_atomic_cached_counts(guest_client):
+    from concurrent.futures import ThreadPoolExecutor
+
+    suffix = uuid.uuid4().hex
+    receiver_email = f'site-receiver-{suffix}@example.com'
+    sender = get_logged_in_client({'sub': 'site-sender-' + suffix, 'iss': 'site-notifications',
+                                   'email': f'site-sender-{suffix}@example.com'})
+    receiver = get_logged_in_client({'sub': 'site-receiver-' + suffix, 'iss': 'site-notifications', 'email': receiver_email})
+    outsider = get_logged_in_client({'sub': 'site-outsider-' + suffix, 'iss': 'site-notifications',
+                                     'email': f'site-outsider-{suffix}@example.com'})
+    sender_id = get_dynamodb_user_by_email(f'site-sender-{suffix}@example.com')['id']
+    receiver_id = get_dynamodb_user_by_email(receiver_email)['id']
+    endpoint = f'/messages/{receiver_id}'
+    user_key = {'pk': f'USER#{receiver_id}', 'sk': 'META'}
+    initial = get_dynamodb_user(receiver_id)
+    initial_emails = {path.name for path in Path('/app/.emails').glob('*.eml')}
+    assert get(guest_client, '/notifications').status_code == 401
+    assert get(guest_client, '/notifications/status').status_code == 401
+    assert post(guest_client, '/presence', json={}).status_code == 401
+    assert post(receiver, '/presence', json={'last_seen_at': 9999999999999}).status_code == 422
+    assert post(receiver, '/presence', json={}, headers={'Origin': 'https://untrusted.example'}).status_code == 403
+    first_beat = post(receiver, '/presence', json={})
+    assert first_beat.status_code == 200, first_beat.text
+    heartbeat = first_beat.json()
+    assert heartbeat['user_id'] == receiver_id and heartbeat['last_seen_at'] > 0
+    repeated = post(receiver, '/presence', json={})
+    assert repeated.json()['last_seen_at'] == heartbeat['last_seen_at']
+    assert get_dynamodb_user(receiver_id).get('updated_at') == initial.get('updated_at')
+    assert heartbeat['unread_count'] == 0
+
+    payload = {'text': 'Online delivery without email ' + suffix, 'message_id': str(uuid.uuid4())}
+    sent = post(sender, endpoint, json=payload)
+    assert sent.status_code == 200, sent.text
+    history = get(receiver, '/notifications/history?limit=1')
+    assert history.status_code == 200, history.text
+    assert 'no-store' in history.headers['Cache-Control']
+    entry = history.json()['notifications'][0]
+    assert entry['delivery'] == 'web' and entry['is_read'] is False
+    assert entry['url'] == f'/messages/{sender_id}'
+    assert payload['text'] not in json.dumps(entry)
+    state = get(receiver, '/notifications/status').json()
+    assert state['unread_count'] == 1 and state['revision'] == 1
+    user = get_dynamodb_user(receiver_id)
+    assert user['unread_notifications_count'] == 1
+    assert user.get('updated_at') == initial.get('updated_at')
+    assert post(sender, endpoint, json=payload).status_code == 200
+    assert get(receiver, '/notifications/status').json()['unread_count'] == 1
+    bell = pq(get(receiver, '/').text)('#site-notifications')
+    assert bell.attr('data-unread') == '1'
+    assert bell('[data-unread-notifications]').text() == '1'
+    center = get(receiver, '/notifications')
+    doc = pq(center.text)
+    assert doc('main h1').text() == 'Notifications'
+    assert doc('nav[aria-label="breadcrumb"] [aria-current="page"]').text() == 'Notifications'
+    assert center.headers['X-Robots-Tag'] == 'noindex, nofollow'
+    assert doc(f'[data-notification-item="{entry["id"]}"]')
+    assert get(outsider, '/notifications/history').json()['notifications'] == []
+    read_url = f'/notifications/{entry["id"]}/read'
+    assert post(outsider, read_url, json={}).status_code == 404
+
+    def read_once(_):
+        client = get_guest_client()
+        client.cookies.update(receiver.cookies)
+        return post(client, read_url, json={}).status_code
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        assert all(code == 200 for code in pool.map(read_once, range(6)))
+    assert get(receiver, '/notifications/status').json()['unread_count'] == 0
+    assert get(receiver, '/notifications/status').json()['revision'] == 2
+    assert get(receiver, '/notifications/history').json()['notifications'][0]['is_read'] is True
+
+    # Other account notification types use the same online routing.
+    followed = post(sender, f'/users/{receiver_id}/impression', json={'action': 'follow'})
+    assert followed.status_code == 200, followed.text
+    assert get(receiver, '/notifications/status').json()['unread_count'] == 1
+    assert post(receiver, '/articles', json={'title': 'Site notifications ' + suffix,
+        'content': '<p>An article for live notification routing.</p>' * 150, 'category': 'other', 'tags': ['site-alerts']}).status_code == 200
+    owned = get_dynamodb_user(receiver_id)
+    # No notification delivery is allowed to overwrite profile timestamps.
+    before_presence = owned.get('updated_at')
+    assert post(receiver, '/presence', json={}).status_code == 200
+    assert get_dynamodb_user(receiver_id).get('updated_at') == before_presence
+    newer = post(sender, endpoint, json={'text': 'A second online message', 'message_id': str(uuid.uuid4())})
+    assert newer.status_code == 200
+    page = get(receiver, '/notifications/history?limit=1').json()
+    assert page['offset']
+    assert get(outsider, '/notifications/history?offset=' + quote(page['offset'])).status_code == 422
+    assert get(receiver, '/notifications/history?limit=1000').status_code == 422
+
+    # Expire only the test fixture's presence: the next event should also produce email.
+    dynamodb_table.update_item(Key=user_key, UpdateExpression='SET last_seen_at = :seen',
+                               ExpressionAttributeValues={':seen': int(time.time() * 1000) - 10 * 60 * 1000})
+    offline_payload = {'text': 'Offline delivery ' + suffix, 'message_id': str(uuid.uuid4())}
+    assert post(sender, endpoint, json=offline_payload).status_code == 200
+    latest = get(receiver, '/notifications/history?limit=1').json()['notifications'][0]
+    assert latest['delivery'] == 'email'
+    delivered = []
+    for path in Path('/app/.emails').glob('*.eml'):
+        if path.name in initial_emails:
+            continue
+        message = BytesParser(policy=policy.default).parsebytes(path.read_bytes())
+        if message['To'] == receiver_email:
+            delivered.append(message)
+    assert len(delivered) == 1
+    assert delivered[0]['Subject'] == 'You have a new direct message'
+    before_count = get(receiver, '/notifications/status').json()['unread_count']
+    assert patch(receiver, f'/users/{receiver_id}', json={'notify_direct_messages': False}).status_code == 200
+    assert post(sender, endpoint, json={'text': 'Opted out of both channels', 'message_id': str(uuid.uuid4())}).status_code == 200
+    assert get(receiver, '/notifications/status').json()['unread_count'] == before_count
+
+
+
+def test_notification_center_autoloads_private_shared_rows_with_scoped_cursors(guest_client):
+    suffix = uuid.uuid4().hex
+    email = f'notification-scroll-{suffix}@example.com'
+    owner = get_logged_in_client({'sub': 'notification-scroll-' + suffix, 'iss': 'notification-scroll', 'email': email})
+    outsider = get_logged_in_client({'sub': 'notification-scroll-outsider-' + suffix,
+                                    'iss': 'notification-scroll', 'email': f'outsider-{email}'})
+    user_id = get_dynamodb_user_by_email(email)['id']
+    partition = f'USER#{user_id}'
+    timestamp = int(time.time() * 1000)
+    ids = []
+    with dynamodb_table.batch_writer() as batch:
+        for index in range(25):
+            identifier = f'{index:064x}'
+            ids.append(identifier)
+            key = f'SITE_NOTIFICATION#{timestamp + index:020d}#{identifier}'
+            batch.put_item(Item={'pk': partition, 'sk': key, 'id': identifier, 'title': f'Update {index}',
+                                 'message': 'Private <script>notification</script>', 'detail': 'Details <safe>',
+                                 'url': '/notifications', 'icon': 'bell', 'is_read': False,
+                                 'delivery': 'web', 'created_at': timestamp + index,
+                                 **({'title': 'New reaction to your article', 'message': 'Member disliked your article “Example”.',
+                                     'icon': 'hand-thumbs-up'} if index == 4 else {})})
+            batch.put_item(Item={'pk': partition, 'sk': f'SITE_NOTIFICATION_ID#{identifier}',
+                                 'notification_key': key})
+    dynamodb_table.update_item(Key={'pk': partition, 'sk': 'META'},
+                               UpdateExpression='SET unread_notifications_count = :count, notifications_revision = :count',
+                               ExpressionAttributeValues={':count': 25})
+    page = get(owner, '/notifications')
+    assert page.status_code == 200, page.text
+    doc = pq(page.text)
+    first = doc('#notification-history [data-notification-item]')
+    assert len(first) == 20
+    button = doc('.btn-load-more[data-auto-click]')
+    assert button.attr('data-limit') == '20'
+    assert button.attr('data-container') == '#notification-history'
+    assert dict(parse_qsl(urlsplit(button.attr('data-url')).query))['format'] == 'html'
+    assert first.eq(-1).attr('data-offset') == button.attr('data-offset')
+    assert not first.eq(0).attr('data-offset')
+    endpoint = '/notifications/history?format=html&limit=20&offset=' + quote(button.attr('data-offset'))
+    remaining = get(owner, endpoint)
+    assert remaining.status_code == 200, remaining.text
+    assert remaining.headers['Content-Type'].startswith('text/html')
+    assert 'no-store' in remaining.headers['Cache-Control']
+    rows = pq(remaining.text)('[data-notification-item]')
+    assert len(rows) == 5
+    assert rows.eq(0)('.bi-hand-thumbs-down')
+    json_page = get(owner, endpoint.replace('format=html&', '')).json()
+    assert json_page['notifications'][0]['icon'] == 'hand-thumbs-down'
+    rendered_ids = [row.get('data-notification-item') for row in first] + [row.get('data-notification-item') for row in rows]
+    assert rendered_ids == list(reversed(ids))
+    assert not rows.eq(-1).attr('data-offset')
+    assert not pq(remaining.text)('script')
+    assert 'Private &lt;script&gt;notification&lt;/script&gt;' in remaining.text
+    assert rows.eq(0)('[data-read-notification]').attr('data-read-notification') == ids[4]
+    assert get(guest_client, endpoint).status_code == 401
+    assert get(outsider, endpoint).status_code == 422
+    assert not pq(get(outsider, '/notifications/history?format=html').text)('[data-notification-item]')
+    assert get(owner, '/notifications/history?format=html&limit=0').status_code == 422
+    assert pq(get(owner, '/notifications?limit=7').text)('.btn-load-more').attr('data-limit') == '7'
+    read = post(owner, f'/notifications/{ids[4]}/read', json={})
+    assert read.status_code == 200 and read.json()['unread_count'] == 24
+    assert 'data-read-notification="' + ids[4] + '"' not in get(owner, endpoint).text
+    # The dropdown still consumes the same endpoint as JSON by default.
+    assert len(get(owner, '/notifications/history?limit=10').json()['notifications']) == 10

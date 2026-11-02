@@ -101,6 +101,10 @@ class User:
     has_linkedin_integration: bool = False
     support_links: list[SupportLink] = field(default_factory=list)
     has_telegram_integration: bool = False
+    last_seen_at: int | None = None
+    unread_notifications_count: int = 0
+    notifications_revision: int = 0
+    notify_direct_messages: bool = True
     notify_article_status: bool = True
     notify_user_impressions: bool = True
     notify_article_impressions: bool = True
@@ -1621,6 +1625,10 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         has_threads_integration=d_item.get("has_threads_integration", False),
         has_linkedin_integration=d_item.get("has_linkedin_integration", False),
         support_links=[SupportLink(**link) for link in support_links or []],
+        last_seen_at=d_item.get("last_seen_at"),
+        unread_notifications_count=d_item.get("unread_notifications_count", 0),
+        notifications_revision=d_item.get("notifications_revision", 0),
+        notify_direct_messages=d_item.get("notify_direct_messages", True),
         notify_article_status=d_item.get("notify_article_status", True),
         notify_user_impressions=d_item.get("notify_user_impressions", True),
         notify_article_impressions=d_item.get("notify_article_impressions", True),

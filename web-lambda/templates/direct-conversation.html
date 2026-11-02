@@ -1,0 +1,211 @@
+{% extends "layout.html" %}
+{% set layout_assets = {"validation": true} %}
+{% set peer_first_name = peer.name.split() | first | default("Member") %}
+{% set title = "Messages with " ~ peer_first_name %}
+{% set meta_robots = "noindex, nofollow" %}
+{% block breadcrumbs %}
+    {% with breadcrumbs = {"Home": url("index"), "Messages": url("direct-messages"), (peer.name): None} %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
+{% endblock %}
+{% block content %}
+    <section id="direct-conversation"
+             data-history-url="{{ url('api-direct-messages', user_id=peer.id, absolute=True) }}"
+             data-send-url="{{ url('send-direct-message', user_id=peer.id, absolute=True) }}"
+             data-read-url="{{ url('read-direct-messages', user_id=peer.id, absolute=True) }}"
+             data-latest-key="{{ messages[-1].key if messages else 'MESSAGE#00000000000000000000#00000000-0000-0000-0000-000000000000' }}">
+        <h1>{{ title }}</h1>
+        <p class="text-body-secondary mb-4">Read and reply to your private messages with {{ peer_first_name }}.</p>
+        <div class="row align-items-center g-3 mb-4">
+            <div class="{{ {"def": 12, "md": 8, "lg": 6} | col_classes }}">
+                {% with user=peer, h_tag_size=2, h_display_size=5 %}
+                    {% include "fragments/user.html" %}
+                {% endwith %}
+            </div>
+            <div class="{{ {"def": 12, "md": 4, "lg": 6} | col_classes }} text-md-end">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="refresh-direct-messages">
+                    <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Refresh
+                </button>
+            </div>
+        </div>
+        <button type="button" class="btn btn-outline-secondary btn-sm mb-3" id="older-direct-messages"
+                data-offset="{{ offset or '' }}" {% if not offset %}hidden{% endif %}>
+            <i class="bi bi-chevron-up" aria-hidden="true"></i> Older messages
+        </button>
+        <p class="text-body-secondary{% if messages %} d-none{% endif %}" id="empty-direct-messages">No messages yet. Say hello to start the conversation.</p>
+        <div class="vstack gap-3 mb-4" id="direct-message-list" aria-live="polite" aria-relevant="additions">
+            {% include "fragments/direct-message-list.html" %}
+        </div>
+        <div class="alert alert-danger d-none" id="direct-message-status" role="status" aria-live="polite"></div>
+        {% if messaging_available %}
+            <form id="direct-message-form" class="card card-body gap-3" novalidate>
+                <label class="form-label mb-0" for="direct-message-text">Message</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-pencil-square" aria-hidden="true"></i></span>
+                    <textarea class="form-control" id="direct-message-text" name="text" rows="3" required maxlength="5000"
+                              placeholder="Write a private message…"></textarea>
+                </div>
+                <div class="form-status alert d-none" role="alert"></div>
+                <div class="d-flex justify-content-between align-items-center gap-3">
+                    <small class="text-body-secondary">Text only · up to 5,000 characters</small>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-send" aria-hidden="true"></i> <span data-send-label>Send message</span>
+                    </button>
+                </div>
+            </form>
+        {% else %}
+            <p class="alert alert-secondary">Messaging is unavailable between these accounts. Previous messages remain available here.</p>
+        {% endif %}
+    </section>
+    <script>
+      function initializeDirectConversation(root) {
+        const list = root.querySelector("#direct-message-list")
+        const status = root.querySelector("#direct-message-status")
+        const older = root.querySelector("#older-direct-messages")
+        const refreshButton = root.querySelector("#refresh-direct-messages")
+        const form = root.querySelector("#direct-message-form")
+        let latestKey = root.dataset.latestKey
+        let pending = null
+        let refreshing = false
+        let readKey = ""
+        let closed = false
+        const showError = text => {
+          status.textContent = text
+          status.classList.remove("d-none")
+        }
+        const request = async (url, data) => {
+          const options = {credentials: "include", headers: {Accept: "application/json"}, cache: "no-store"}
+          if (data) {
+            options.method = "POST"
+            options.headers["Content-Type"] = "application/json"
+            options.body = JSON.stringify(data)
+          }
+          const response = await fetch(url, options)
+          if (!response.ok) {
+            const body = await response.json().catch(() => ({}))
+            const error = new Error(typeof body.details === "string" ? body.details : "The request failed. Please try again.")
+            error.status = response.status
+            throw error
+          }
+          return response.status === 204 ? null : response.json()
+        }
+        const merge = html => {
+          const container = document.createElement("div")
+          container.innerHTML = html
+          for (const message of [...container.children]) {
+            if (!message.dataset.messageId || list.querySelector('[data-message-id="' + message.dataset.messageId + '"]')) continue
+            const next = [...list.children].find(item => item.dataset.messageKey > message.dataset.messageKey)
+            list.insertBefore(message, next || null)
+          }
+          root.querySelector("#empty-direct-messages").classList.toggle("d-none", list.children.length > 0)
+        }
+        const markRead = async () => {
+          if (document.hidden || !list.children.length || latestKey <= readKey || closed) return
+          const key = latestKey
+          await request(root.dataset.readUrl, {message_key: key})
+          if (key > readKey) readKey = key
+        }
+        const refresh = async (manual = false) => {
+          if (refreshing || document.hidden || closed) return
+          refreshing = true
+          refreshButton.disabled = true
+          try {
+            for (let page = 0; page < 5; page++) {
+              const url = new URL(root.dataset.historyUrl)
+              url.searchParams.set("after", latestKey)
+              const data = await request(url)
+              if (closed) return
+              merge(data.html)
+              if (data.messages.length) latestKey = data.messages[data.messages.length - 1].key
+              if (!data.offset || !data.messages.length) break
+            }
+            await markRead()
+          } catch (error) {
+            if (manual) showError(error.message)
+          } finally {
+            refreshing = false
+            refreshButton.disabled = false
+          }
+        }
+        refreshButton.addEventListener("click", () => refresh(true))
+        older.addEventListener("click", async () => {
+          older.disabled = true
+          try {
+            const url = new URL(root.dataset.historyUrl)
+            url.searchParams.set("offset", older.dataset.offset)
+            const data = await request(url)
+            if (closed) return
+            merge(data.html)
+            older.dataset.offset = data.offset || ""
+            older.hidden = !data.offset
+          } catch (error) {
+            showError(error.message)
+          } finally {
+            older.disabled = false
+          }
+        })
+        if (form) {
+          const text = form.querySelector("textarea")
+          const button = form.querySelector('button[type="submit"]')
+          const label = button.querySelector("[data-send-label]")
+          handleFormSubmit("#direct-message-form", root.dataset.sendUrl, {
+            resetOnSuccess: false,
+            successMessage: "",
+            loadingText: "Sending…",
+            rules: {
+              text: [
+                {rule: "required"},
+                {rule: "minLength", value: 1},
+                {rule: "maxLength", value: 5000},
+                {validator: value => Boolean(value.trim()), errorMessage: "Enter a message."}
+              ]
+            },
+            prepareData: data => {
+              if (!pending && !closed) pending = {text: data.text, message_id: crypto.randomUUID()}
+              return pending || data
+            },
+            beforeSubmit: () => {
+              if (closed) return false
+              text.readOnly = true
+              status.classList.add("d-none")
+            },
+            onSuccess: data => {
+              if (closed) return
+              merge(data.html)
+              pending = null
+              text.value = ""
+              text.readOnly = false
+              label.textContent = "Send message"
+              refresh()
+              text.focus()
+            },
+            onError: error => {
+              if (closed) return ""
+              if (!pending || error.status && error.status < 500) {
+                pending = null
+                text.readOnly = false
+                label.textContent = "Send message"
+                return error.message
+              }
+              label.textContent = "Retry send"
+              return "Delivery could not be confirmed. Retry send to check the same message safely."
+            }
+          })
+        }
+        const timer = setInterval(() => refresh(), 10000)
+        const visibility = () => {if (!document.hidden) refresh()}
+        document.addEventListener("visibilitychange", visibility)
+        window.addEventListener("pagehide", () => {
+          closed = true
+          clearInterval(timer)
+          document.removeEventListener("visibilitychange", visibility)
+        }, {once: true})
+        window.addEventListener("pageshow", event => {if (event.persisted) window.location.reload()})
+        refresh()
+      }
+      document.addEventListener("DOMContentLoaded", () => {
+        const root = document.getElementById("direct-conversation")
+        if (root) initializeDirectConversation(root)
+      })
+    </script>
+{% endblock %}

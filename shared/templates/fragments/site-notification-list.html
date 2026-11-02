@@ -1,0 +1,22 @@
+{% for notification in notifications %}
+    <div class="list-group-item d-flex align-items-start gap-3 py-3" data-notification-item="{{ notification.id }}"
+         {% if loop.last and offset %}data-offset="{{ offset }}"{% endif %}
+         {% if not notification.is_read %}data-notification-unread="true"{% endif %}>
+        <i class="bi bi-{{ notification.icon }} text-primary mt-1" aria-hidden="true"></i>
+        <div class="flex-grow-1">
+            <a class="link-body-emphasis text-decoration-none" href="{{ notification.url }}"
+               data-notification-link="{{ notification.id }}">
+                <strong>{{ notification.title }}</strong>
+                <p class="mb-1 text-break">{{ notification.message }}</p>
+                {% if notification.detail %}<p class="small text-break mb-1" style="white-space: pre-wrap;">{{ notification.detail }}</p>{% endif %}
+            </a>
+            <time class="small text-body-secondary" datetime="{{ notification.created_at | iso_utc }}">{{ (notification.created_at / 1000) | unix_to_full_date }}</time>
+            {% if not notification.is_read %}<span class="badge text-bg-primary ms-2" data-notification-unread-badge>Unread</span>{% endif %}
+        </div>
+        {% if not notification.is_read %}
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-read-notification="{{ notification.id }}" aria-label="Mark notification as read">
+                <i class="bi bi-check2" aria-hidden="true"></i>
+            </button>
+        {% endif %}
+    </div>
+{% endfor %}

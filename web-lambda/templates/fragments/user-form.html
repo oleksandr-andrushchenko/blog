@@ -171,9 +171,10 @@
             </div>
         </div>
         <div class="tab-pane py-3" id="notifications" role="tabpanel" aria-labelledby="notifications-tab" tabindex="0">
-            <h2 class="h5">Email notifications</h2>
-            <p class="text-secondary">Choose which updates you receive by email.</p>
+            <h2 class="h5">Notifications</h2>
+            <p class="text-secondary">Choose which updates you receive on the website and by email when you are offline.</p>
             {% for field, label in [
+                ('notify_direct_messages', 'New private messages'),
                 ('notify_article_status', 'Status changes to my articles'),
                 ('notify_user_impressions', 'New follows and blocks on my profile'),
                 ('notify_article_impressions', 'New likes and dislikes on my articles'),

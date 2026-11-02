@@ -1,0 +1,11 @@
+        {% for conversation in conversations %}
+            <a class="list-group-item list-group-item-action p-3" href="{{ url('direct-conversation', user_id=conversation.peer_id) }}"
+               data-conversation-user="{{ conversation.peer_id }}"{% if loop.last and offset %} data-offset="{{ offset }}"{% endif %}{% if conversation.unread %} data-unread="true"{% endif %}>
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                    <strong>{{ conversation.peer.name if conversation.peer else 'Unavailable account' }}</strong>
+                    {% if conversation.unread %}<span class="badge text-bg-primary">Unread</span>{% endif %}
+                </div>
+                <p class="mb-1 text-break">{{ 'You: ' if conversation.sender_id == viewer.id }}{{ conversation.preview }}</p>
+                <small class="text-body-secondary">{{ (conversation.created_at / 1000) | unix_to_full_date }}</small>
+            </a>
+        {% endfor %}
