@@ -27,7 +27,7 @@
             <div class="d-flex flex-wrap gap-1" role="group" aria-labelledby="crypto-{{ wallet.id }}-currency-label">
                 {% for code in wallet_networks.keys() | list + ['Other'] %}
                     <input type="radio" class="btn-check" id="crypto-{{ wallet.id }}-currency-{{ code }}"
-                           name="crypto-{{ wallet.id }}-currency-choice" value="{{ code }}" data-wallet-currency data-form-ignore required
+                           name="crypto-{{ wallet.id }}-currency-choice" value="{{ code }}" data-wallet-currency data-form-ignore
                            {% if currency == code or (code == 'Other' and custom_currency) %}checked{% endif %}>
                     <label class="btn btn-outline-primary btn-sm" for="crypto-{{ wallet.id }}-currency-{{ code }}">
                         {% with currency=code %}{% include "fragments/crypto-currency-icon.html" %}{% endwith %}
@@ -38,18 +38,18 @@
             <div class="input-group input-group-sm w-auto" data-wallet-custom-currency {% if not custom_currency %}hidden{% endif %}>
                 <span class="input-group-text"><i class="bi bi-coin" aria-hidden="true"></i></span>
                 <input type="{{ 'text' if custom_currency else 'hidden' }}" class="form-control form-control-sm w-auto"
-                       id="crypto-{{ wallet.id }}-currency" data-link-field="currency" maxlength="50"
-                       aria-label="Custom currency" placeholder="Currency name or ticker" value="{{ currency }}"
-                       {% if custom_currency %}required{% endif %}>
+                       id="crypto-{{ wallet.id }}-currency" data-link-field="currency"
+                       aria-label="Custom currency" placeholder="Currency name or ticker" value="{{ currency }}">
             </div>
         </div>
+        <div id="crypto-{{ wallet.id }}-currency-errors" aria-live="polite"></div>
         <div class="{{ {"def": 1, "md": 2} | row_classes }} g-2">
             <div class="col">
                 <label class="form-label small mb-1" data-wallet-network-label for="crypto-{{ wallet.id }}-{{ 'custom-network' if custom_currency else 'network' }}">Network</label>
                 <div class="input-group input-group-sm">
                     <span class="input-group-text"><i class="bi bi-diagram-3" aria-hidden="true"></i></span>
                     <select class="form-select form-select-sm" id="crypto-{{ wallet.id }}-network" data-wallet-network
-                            data-link-field="network" {% if custom_currency %}hidden disabled{% elif not currency %}disabled{% else %}required{% endif %}>
+                            data-link-field="network" {% if custom_currency %}hidden disabled{% elif not currency %}disabled{% endif %}>
                         <option value="">{{ 'Choose network' if currency else 'Select a currency first' }}</option>
                         {% for network in wallet_networks.get(currency, []) %}
                             <option value="{{ network }}" {% if network == wallet.get('network', '') %}selected{% endif %}>{{ network }}</option>
@@ -59,7 +59,7 @@
                         {% endif %}
                     </select>
                     <input type="text" class="form-control form-control-sm" id="crypto-{{ wallet.id }}-custom-network"
-                           data-wallet-custom-network data-link-field="network" maxlength="100" aria-label="Custom network"
+                           data-wallet-custom-network data-link-field="network" aria-label="Custom network"
                            placeholder="Network name (optional)" value="{{ wallet.get('network', '') if custom_currency else '' }}"
                            {% if not custom_currency %}hidden disabled{% endif %}>
                 </div>
@@ -68,8 +68,7 @@
                 <label class="form-label small mb-1" for="crypto-{{ wallet.id }}-address">Wallet address</label>
                 <div class="input-group input-group-sm">
                     <span class="input-group-text"><i class="bi bi-wallet2" aria-hidden="true"></i></span>
-                    <input type="text" class="form-control" id="crypto-{{ wallet.id }}-address" data-link-field="address"
-                           maxlength="512" required placeholder="Paste your receiving address" value="{{ wallet.get('address', '') }}"
+                    <input type="text" class="form-control" id="crypto-{{ wallet.id }}-address" data-link-field="address" placeholder="Paste your receiving address" value="{{ wallet.get('address', '') }}"
                            spellcheck="false" autocomplete="off">
                 </div>
             </div>
@@ -79,7 +78,7 @@
             <div class="input-group input-group-sm">
                 <span class="input-group-text"><i class="bi bi-pencil-square" aria-hidden="true"></i></span>
                 <input type="text" class="form-control" id="crypto-{{ wallet.id }}-instructions"
-                       data-link-field="instructions" maxlength="500" placeholder="e.g. Send only on the selected network; include a memo if needed"
+                       data-link-field="instructions" placeholder="e.g. Send only on the selected network; include a memo if needed"
                        value="{{ wallet.get('instructions', '') }}">
             </div>
         </div>

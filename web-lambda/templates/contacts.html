@@ -43,17 +43,16 @@
             <form class="row g-3" id="contact-form" novalidate>
                 <label class="{{ {"def": 12} | col_classes }}">
                     <input type="text" class="form-control" id="name" name="name" placeholder="Your Name"
-                           value="{{ cur_user.name if cur_user else '' }}" required>
+                           value="{{ cur_user.name if cur_user else '' }}">
                 </label>
 
                 <label class="{{ {"def": 12} | col_classes }}">
                     <input type="email" class="form-control" id="email" name="email" placeholder="Your Email"
-                           value="{{ (cur_user.email or '') if cur_user else '' }}" required>
+                           value="{{ (cur_user.email or '') if cur_user else '' }}">
                 </label>
 
                 <label class="{{ {"def": 12} | col_classes }}">
-                    <textarea class="form-control" id="message" name="message" placeholder="Your Message" rows="10"
-                              required maxlength="1000">{{ request.query_params.get('message', '')[:1000] if request else '' }}</textarea>
+                    <textarea class="form-control" id="message" name="message" placeholder="Your Message" rows="10">{{ request.query_params.get('message', '')[:1000] if request else '' }}</textarea>
                 </label>
 
                 <div class="{{ {"def": 12} | col_classes }}">

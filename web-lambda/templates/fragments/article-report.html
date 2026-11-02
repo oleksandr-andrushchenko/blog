@@ -17,21 +17,20 @@
          style="width: 24rem; max-width: calc(100vw - 2rem);">
         <form id="article-report-form" action="{{ url('create-contact-message', absolute=True) }}" method="post" novalidate>
             <label class="form-label" for="article-report-reason">Reason</label>
-            <select class="form-select mb-3" id="article-report-reason" name="reason" required>
+            <select class="form-select mb-3" id="article-report-reason" name="reason">
                 <option value="" selected disabled>Select a reason</option>
                 {% for value, label in report_reasons.items() %}
                     <option value="{{ value }}">{{ label }}</option>
                 {% endfor %}
             </select>
             <label class="form-label" for="article-report-details">Details <span class="text-body-secondary">(optional)</span></label>
-            <textarea class="form-control mb-3" id="article-report-details" name="details" rows="3"
-                      maxlength="{{ report_details_limit }}" placeholder="Describe the issue. Include the original source if relevant."></textarea>
+            <textarea class="form-control mb-3" id="article-report-details" name="details" rows="3" placeholder="Describe the issue. Include the original source if relevant."></textarea>
             <label class="form-label" for="article-report-name">Your name</label>
             <input class="form-control mb-3" type="text" id="article-report-name" name="name" autocomplete="name"
-                   value="{{ cur_user.name if cur_user else '' }}" minlength="2" maxlength="100" required>
+                   value="{{ cur_user.name if cur_user else '' }}">
             <label class="form-label" for="article-report-email">Your email</label>
             <input class="form-control mb-3" type="email" id="article-report-email" name="email" autocomplete="email"
-                   value="{{ (cur_user.email or '') if cur_user else '' }}" required>
+                   value="{{ (cur_user.email or '') if cur_user else '' }}">
             <button type="submit" class="btn btn-primary">
                 <i class="bi bi-send" aria-hidden="true"></i> <span>Send report</span>
             </button>

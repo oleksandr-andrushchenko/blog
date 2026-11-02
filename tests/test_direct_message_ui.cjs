@@ -68,8 +68,14 @@ function setup({initial = [], hidden = false, handler} = {}) {
       return response({messages, html: JSON.stringify(messages), offset: null})
     }}
   installFormSubmit(context, [{selector: "#direct-message-form", form, fields: [text]}])
+  let submissionOptions
+  const handleFormSubmit = context.handleFormSubmit
+  context.handleFormSubmit = (selector, url, options) => {
+    submissionOptions = options
+    return handleFormSubmit(selector, url, options)
+  }
   runInNewContext(script + "\ninitializeDirectConversation(root)", context)
-  return {root, document, window, requests, server, list, form, text, send, label, status, older, refresh,
+  return {submissionOptions, root, document, window, requests, server, list, form, text, send, label, status, older, refresh,
     tick: () => tick(), stopped: () => stopped, submit: () => form.submit({preventDefault() {}})}
 }
 
@@ -160,16 +166,17 @@ test("older history is prepended in order without moving the newest read positio
   assert.deepEqual(positions, [key(4)])
 })
 
-test("the message form validates whitespace and length through the shared handler", async () => {
+test("the message form registers whitespace and length rules with the shared handler", async () => {
   const app = setup()
   await flush()
-  for (const value of ["   ", "x".repeat(5001)]) {
-    app.text.value = value
-    await app.submit()
-  }
+  const rules = app.submissionOptions.rules.text
+  assert.ok(rules.some(rule => rule.rule === "required"))
+  assert.equal(rules.find(rule => rule.rule === "maxLength").value, 5000)
+  const nonblank = rules.find(rule => rule.validator).validator
+  assert.equal(nonblank("   "), false)
+  assert.equal(nonblank("A message"), true)
   assert.equal(app.form.noValidate, true)
   assert.equal(app.requests.filter(request => request.options.method === "POST").length, 0)
-  assert.equal(app.text.readOnly, false)
 })
 
 test("a definitive message rejection releases the draft for editing and uses a new ID on the next send", async () => {

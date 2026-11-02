@@ -4,34 +4,46 @@ const {installFormSubmit} = require("./form_ui_harness.cjs")
 const flush = () => new Promise(resolve => setImmediate(resolve))
 const reply = (body = {}, status = 200) => ({ok: status < 400, status, json: async () => body})
 
-function setup({fields = [{name: "text", value: "A message", required: true}], options = {}, handler} = {}) {
+function setup({fields = [{name: "text", value: "A message", required: true}], options = {}, handler, JustValidate} = {}) {
   const button = {disabled: false}
   const form = {listeners: {}, querySelector: () => button,
     addEventListener(event, callback) {this.listeners[event] = callback}}
   const requests = []
-  const context = {window: {}, document: {}, fetch: async (url, settings) => {
+  const context = {window: {JustValidate}, document: {}, fetch: async (url, settings) => {
     const request = {url, ...settings, data: JSON.parse(settings.body)}
     requests.push(request)
     return handler ? handler(request) : reply()
   }}
   installFormSubmit(context, [{selector: "#form", form, fields}])
-  context.handleFormSubmit("#form", options.url || "/messages/peer", options)
-  return {form, fields, button, requests, submit: () => form.listeners.submit({preventDefault() {}})}
+  const validator = context.handleFormSubmit("#form", options.url || "/messages/peer", options)
+  return {form, fields, button, requests, validator, submit: () => form.listeners.submit({preventDefault() {}})}
 }
 
-test("inline constraints reject blank and oversized values without native validation or a request", async () => {
-  for (const value of ["   ", "x".repeat(5001)]) {
-    const field = {name: "text", value, required: true, attrs: {maxlength: "5000"},
-      reportValidity() {assert.fail("Never open native validation")}}
-    const app = setup({fields: [field]})
-    await app.submit()
-    assert.equal(app.form.noValidate, true)
-    assert.equal(app.requests.length, 0)
-    assert.ok(field.classList.contains("is-invalid"))
-    assert.equal(field.focused, true)
-    assert.ok(field.nextElementSibling.textContent)
-    assert.equal(app.button.disabled, false)
-  }
+test("missing validation library sends values to API and shows its errors without native validation", async () => {
+  const field = {name: "text", value: "x".repeat(5001), attrs: {maxlength: "5000"},
+    reportValidity() {assert.fail("Never open native validation")}}
+  const app = setup({fields: [field], handler: () => reply({details: {text: "Use a shorter message"}}, 422)})
+  await app.submit()
+  assert.equal(app.form.noValidate, true)
+  assert.equal(app.requests.length, 1)
+  assert.equal(field.nextElementSibling.textContent, "Use a shorter message")
+  assert.equal(app.button.disabled, false)
+})
+
+class ValidationStub {
+  constructor() {this.fields = {}}
+  addField(selector, rules) {this.fields[selector] = rules}
+  onSuccess(callback) {this.success = callback}
+  refresh() {}
+}
+
+test("explicit rules go to JustValidate and its success callback submits the form", async () => {
+  const rules = [{rule: "required"}, {rule: "maxLength", value: 5000}]
+  const app = setup({JustValidate: ValidationStub, options: {rules: {text: rules}}})
+  assert.equal(app.validator.fields['[name="text"]'], rules)
+  assert.equal(app.requests.length, 0)
+  await app.validator.success()
+  assert.equal(app.requests.length, 1)
 })
 
 test("duplicate submissions share one in-flight request and async success finishes before the lifecycle settles", async () => {
@@ -99,4 +111,29 @@ test("a cancelled pre-submit hook sends nothing and does not show a false failur
   assert.equal(app.requests.length, 0)
   assert.ok(app.form.statusDiv.className.includes("d-none"))
   assert.equal(app.button.disabled, false)
+})
+
+test("article form constraints allow content above 10000 characters and agree with the API limit", async () => {
+  const {readFileSync} = require("node:fs")
+  const {join} = require("node:path")
+  const template = readFileSync(join(__dirname, "../web-lambda/templates/fragments/article-form.html"), "utf8")
+  const textarea = template.match(/<textarea[^>]*id="content"[^>]*>/)[0]
+  assert.doesNotMatch(textarea, /\b(?:required|minlength|maxlength)\b/)
+  const contentRules = template.match(/content: (\[[^\n]+\])/)[1]
+  const {runInNewContext} = require("node:vm")
+  const rules = runInNewContext(contentRules)
+  assert.equal(rules.find(rule => rule.rule === "minLength").value, 5000)
+  assert.equal(rules.find(rule => rule.rule === "maxLength").value, 100000)
+  const content = "<p>" + "a".repeat(12000) + "</p>"
+  const app = setup({fields: [{name: "content", value: content, attrs: {maxlength: "10000"}}]})
+  await app.submit()
+  assert.equal(app.requests.length, 1)
+  assert.equal(app.requests[0].data.content, content)
+})
+
+test("tag serialization still sends an array when the validation library is unavailable", async () => {
+  const app = setup({fields: [{name: 'tags', value: '[{"value":" systems "},{"value":"design"}]'}],
+    options: {rules: {tags: [{rule: 'tags', minCnt: 1, maxCnt: 3, minLen: 2, maxLen: 40}]}}})
+  await app.submit()
+  assert.deepEqual(app.requests[0].data.tags, ['systems', 'design'])
 })

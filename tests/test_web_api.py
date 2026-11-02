@@ -998,6 +998,9 @@ def test_article_create_and_new_page_endpoints_success_and_failure(guest_client)
 
     new_success = get(root_client, "/articles/new")
     assert new_success.status_code == 200
+    content_input = pq(new_success.text)('#content')
+    assert content_input.attr('minlength') is None
+    assert content_input.attr('maxlength') is None
     new_failure = get(guest_client, "/articles/new")
     assert new_failure.status_code == 401
     check_auth_links_are_nofollow(pq(new_failure.text))
@@ -1130,6 +1133,9 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
 
     edit_success = get(root_client, f"/articles/{article_id}/edit")
     assert edit_success.status_code == 200
+    content_input = pq(edit_success.text)('#content')
+    assert content_input.attr('minlength') is None
+    assert content_input.attr('maxlength') is None
     edit_doc = pq(edit_success.text)
     raw_editor_content = edit_doc("textarea.editor").text()
     assert f'<img src="/{ARTICLE_IMAGE_FILENAME}" alt="{ARTICLE_IMAGE_ALT}">' in raw_editor_content
@@ -2528,7 +2534,8 @@ def test_direct_messages_are_private_idempotent_paginated_and_block_aware(guest_
     assert "no-store" in empty.headers["Cache-Control"]
     assert empty.headers["X-Robots-Tag"] == "noindex, nofollow"
     empty_doc = pq(empty.text)
-    assert empty_doc('#direct-message-text[maxlength="5000"]')
+    assert empty_doc('#direct-message-text')
+    assert empty_doc('#direct-message-text').attr('maxlength') is None
     assert empty_doc('main h1').text() == 'Messages with ' + get_dynamodb_user(recipient_id)['name'].split()[0]
     assert empty_doc('#direct-conversation > p.text-body-secondary').eq(0).text() == (
         'Read and reply to your private messages with ' + get_dynamodb_user(recipient_id)['name'].split()[0] + '.'

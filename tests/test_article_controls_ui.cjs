@@ -11,7 +11,7 @@ test('moderation uses inline form submission and requires a reason only for reje
   let reloads = 0
   let submit
   const form = {action: 'https://api.example/articles/article/status',
-    elements: {status: {value: 'published'}, comment: {value: ''}},
+    elements: {status: {value: 'published'}, comment: {value: '', setAttribute(name, value) {this[name] = value}}},
     addEventListener(event, fn) {if (event === 'change') change = fn}}
   runInNewContext(script(fragment('article-status-script.html')), {
     document: {addEventListener(event, fn) {fn()}, getElementById() {return form}},
@@ -20,10 +20,12 @@ test('moderation uses inline form submission and requires a reason only for reje
   })
   assert.equal(submit.url, form.action)
   assert.equal(submit.options.resetOnSuccess, false)
-  assert.equal(form.elements.comment.required, false)
+  assert.equal(form.elements.comment['aria-required'], 'false')
   form.elements.status.value = 'rejected'
   change()
-  assert.equal(form.elements.comment.required, true)
+  assert.equal(form.elements.comment['aria-required'], 'true')
+  assert.equal(submit.options.rules.comment[0].validator('   '), false)
+  assert.equal(submit.options.rules.comment[0].validator('Needs references'), true)
   assert.throws(() => submit.options.beforeSubmit({status: 'rejected', comment: null}), /rejection reason/)
   const prepared = submit.options.prepareData({status: 'rejected', comment: 'Needs references', ignored: 'value'})
   assert.deepEqual(JSON.parse(JSON.stringify(prepared)), {status: 'rejected', comment: 'Needs references'})
@@ -32,7 +34,7 @@ test('moderation uses inline form submission and requires a reason only for reje
   assert.equal(reloads, 1)
   form.elements.status.value = 'published'
   change()
-  assert.equal(form.elements.comment.required, false)
+  assert.equal(form.elements.comment['aria-required'], 'false')
 })
 
 test('guest reports send only contact fields with a bounded reason, canonical URL and plain details', () => {

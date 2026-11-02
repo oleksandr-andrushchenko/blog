@@ -2,14 +2,13 @@
     <div class="{{ {"def": 12, "lg": 6, "xl": 8} | col_classes }}">
         <label class="w-100">
             <textarea class="form-control h1 border-0" id="title" name="title" placeholder="Title"
-                      required rows="1" autofocus>{{ article.title if article else "" }}</textarea>
+                      rows="1" autofocus>{{ article.title if article else "" }}</textarea>
         </label>
     </div>
 
     <div class="{{ {"def": 12, "lg": 6, "xl": 8} | col_classes }} d-flex flex-column gap-2">
         <label class="w-100">
-            <textarea class="form-control editor" id="content" name="content" placeholder="Content" rows="12"
-                      required minlength="1000" maxlength="10000">{{ article.content if article else "" }}</textarea>
+            <textarea class="form-control editor" id="content" name="content" placeholder="Content" rows="12">{{ article.content if article else "" }}</textarea>
         </label>
     </div>
 

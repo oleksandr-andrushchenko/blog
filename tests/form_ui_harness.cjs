@@ -52,6 +52,7 @@ function installFormSubmit(context, records) {
   })
   for (const {form, fields} of records) {
     form.fields = fields
+    form.elements = Object.fromEntries(fields.map(field => [field.name, field]))
     const query = form.querySelector.bind(form)
     const button = query("[type='submit']")
     button.insertAdjacentElement = (_position, element) => {form.statusDiv = element}
@@ -65,7 +66,7 @@ function installFormSubmit(context, records) {
       field.type ||= "text"
       field.value ??= ""
       field.defaultValue ??= field.value
-      field.checkValidity ||= () => true
+      field.checkValidity ||= () => {throw new Error("Native validation must not run")}
       field.focus ||= () => {field.focused = true}
       field.insertAdjacentElement ||= (_position, element) => {field.nextElementSibling = element}
     })

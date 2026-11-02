@@ -284,12 +284,9 @@
           const custom = radio.value === "Other"
           row.querySelector("[data-wallet-custom-currency]").hidden = !custom
           currency.type = custom ? "text" : "hidden"
-          currency.required = custom
           currency.value = custom ? "" : radio.value
-          currency.setCustomValidity("")
           network.disabled = custom
           network.hidden = custom
-          network.required = !custom
           network.replaceChildren(new Option("Choose network", ""),
             ...(networks[radio.value] || []).map(value => new Option(value, value)))
           selectSingleNetwork()
@@ -318,10 +315,14 @@
       })
       cryptoContainer.append(row)
       initializeWalletRow(row)
+      syncCreatorValidation()
       row.querySelector('[data-wallet-currency]').focus()
     })
     cryptoContainer.addEventListener('click', event => {
-      if (event.target.closest('[data-remove-crypto]')) event.target.closest('[data-crypto-link]').remove()
+      if (event.target.closest('[data-remove-crypto]')) {
+        event.target.closest('[data-crypto-link]').remove()
+        syncCreatorValidation()
+      }
     })
     const linkKinds = ["support"]
     const linkRows = kind => [...document.getElementById(`${kind}-links`).querySelectorAll(`[data-${kind}-link]`)]
@@ -337,6 +338,7 @@
           if (element.htmlFor) element.htmlFor = element.htmlFor.replace("new-link", id)
         })
         container.append(row)
+        syncCreatorValidation()
         row.querySelector("input").focus()
       })
       container.addEventListener('change', event => {
@@ -349,12 +351,13 @@
       container.addEventListener("click", event => {
         if (event.target.closest(`[data-remove-${kind}]`)) {
           event.target.closest(`[data-${kind}-link]`).remove()
+          syncCreatorValidation()
           addButton.focus()
         }
       })
     }
 
-    handleFormSubmit("#user-form", {{ (url('update-user', user_id=user.id, absolute=True) if user else '') | tojson }}, {
+    const profileValidator = handleFormSubmit("#user-form", {{ (url('update-user', user_id=user.id, absolute=True) if user else '') | tojson }}, {
       method: "{{ 'PATCH' if user else 'POST' }}",
       prepareData: data => {
         const username = form.elements.username
@@ -377,17 +380,6 @@
           ...Object.fromEntries([...row.querySelectorAll('[data-link-field]:not(:disabled)')].map(input => [input.dataset.linkField, input.value.trim()]))
         }))
         return data
-      },
-      beforeSubmit: () => {
-        for (const row of cryptoRows()) {
-          for (const input of row.querySelectorAll('input:not(:disabled), select:not(:disabled)')) {
-            if (input.checkValidity()) continue
-            input.classList.add('is-invalid')
-            bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#earn"]')).show()
-            input.focus()
-            throw new Error(input.validationMessage || 'Check the highlighted wallet field.')
-          }
-        }
       },
       rules: {
         avatar_file: [
@@ -487,6 +479,49 @@
       },
       successMessage: "Profile updated!"
     })
+
+    const creatorValidationFields = new Set()
+    function syncCreatorValidation() {
+      if (!profileValidator) return
+      for (const field of creatorValidationFields) profileValidator.removeField(field)
+      creatorValidationFields.clear()
+      const register = (field, rules, config) => {
+        if (!field || field.disabled) return
+        profileValidator.addField(field, rules, config)
+        creatorValidationFields.add(field)
+      }
+      for (const row of linkRows('support')) {
+        register(row.querySelector('[data-link-field="name"]'), [
+          {rule: 'required'}, {rule: 'maxLength', value: 100}
+        ])
+        register(row.querySelector('[data-link-field="url"]'), [
+          {rule: 'required'}, {rule: 'maxLength', value: 2048},
+          {validator: value => {
+            try {
+              const url = new URL(value)
+              return url.protocol === 'https:' && Boolean(url.hostname) && !url.username && !url.password && !/\s/.test(value)
+            } catch (_) {return false}
+          }, errorMessage: 'Enter a valid HTTPS support URL.'}
+        ])
+        register(row.querySelector('[data-link-field="text"]'), [{rule: 'maxLength', value: 150}])
+      }
+      for (const row of cryptoRows()) {
+        register(row.querySelector('[data-link-field="currency"]'), [
+          {rule: 'required', errorMessage: 'Choose a currency or enter a custom currency.'},
+          {rule: 'maxLength', value: 50}
+        ], {errorsContainer: '#crypto-' + row.dataset.linkId + '-currency-errors'})
+        const network = row.querySelector('[data-wallet-network]')
+        register(network, [{rule: 'required'}, {rule: 'maxLength', value: 100}])
+        register(row.querySelector('[data-wallet-custom-network]'), [{rule: 'maxLength', value: 100}])
+        register(row.querySelector('[data-link-field="address"]'), [
+          {rule: 'required'}, {rule: 'maxLength', value: 512},
+          {rule: 'customRegexp', value: /^\S+$/, errorMessage: 'Wallet addresses cannot contain whitespace.'}
+        ])
+        register(row.querySelector('[data-link-field="instructions"]'), [{rule: 'maxLength', value: 500}])
+      }
+    }
+    cryptoContainer.addEventListener('change', syncCreatorValidation)
+    syncCreatorValidation()
 
   })
 </script>

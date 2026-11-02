@@ -3,11 +3,16 @@
     const form = document.getElementById('article-status-form')
     if (!form) return
     const comment = form.elements.comment
-    const syncComment = () => {comment.required = form.elements.status.value === 'rejected'}
+    const syncComment = () => {comment.setAttribute('aria-required', String(form.elements.status.value === 'rejected'))}
     form.addEventListener('change', syncComment)
     syncComment()
     handleFormSubmit('#article-status-form', form.action, {
       resetOnSuccess: false,
+      rules: {
+        status: [{rule: 'required'}],
+        comment: [{validator: value => form.elements.status.value !== 'rejected' || Boolean(value.trim()),
+                   errorMessage: 'A rejection reason is required.'}]
+      },
       prepareData: data => ({status: data.status, comment: data.comment || null}),
       beforeSubmit: data => {
         if (data.status === 'rejected' && !data.comment) throw new Error('A rejection reason is required.')

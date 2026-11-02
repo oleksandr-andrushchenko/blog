@@ -6,19 +6,19 @@
             <div class="{{ {"def": 12, "md": 3} | col_classes }}">
                 <label class="form-label small mb-1" for="{{ kind }}-{{ link.id }}-name">Link name</label>
                 <input class="form-control form-control-sm" id="{{ kind }}-{{ link.id }}-name" data-link-field="name"
-                       type="text" maxlength="100" required value="{{ link.name }}" placeholder="Platform name">
+                       type="text" value="{{ link.name }}" placeholder="Platform name">
             </div>
             <div class="{{ {"def": 12, "md": 5} | col_classes }}">
                 <label class="form-label small mb-1"
                        for="{{ kind }}-{{ link.id }}-url">{{ 'Referral' if kind == 'affiliate' else 'Support' }}
                     URL</label>
                 <input class="form-control form-control-sm" id="{{ kind }}-{{ link.id }}-url" data-link-field="url"
-                       type="url" maxlength="2048" required value="{{ link.url }}" placeholder="https://…">
+                       type="url" value="{{ link.url }}" placeholder="https://…">
             </div>
             <div class="{{ {"def": 12, "md": 4} | col_classes }}">
                 <label class="form-label small mb-1" for="{{ kind }}-{{ link.id }}-text">Button text (optional)</label>
                 <input class="form-control form-control-sm" id="{{ kind }}-{{ link.id }}-text" data-link-field="text"
-                       type="text" maxlength="150" value="{{ link.text }}"
+                       type="text" value="{{ link.text }}"
                        placeholder="Default: {{ 'Try' if kind == 'affiliate' else 'Support on' }} [link name]">
             </div>
         </div>

@@ -10,13 +10,13 @@
         </button>
         <div class="dropdown-menu p-3" id="article-status-menu" aria-labelledby="article-status-toggle"
              style="width: 24rem; max-width: calc(100vw - 2rem);">
-            <form id="article-status-form" class="article-status-form" action="{{ url('update-article-status', article_id=article.id, absolute=True) }}" method="post">
+            <form id="article-status-form" class="article-status-form" action="{{ url('update-article-status', article_id=article.id, absolute=True) }}" method="post" novalidate>
                 <fieldset class="mb-3">
                     <legend class="form-label fs-6">Status</legend>
                     <div class="btn-group w-100" role="group" aria-label="Article status">
                         {% for value in [ArticleStatus.PUBLISHED, ArticleStatus.UNPUBLISHED, ArticleStatus.REJECTED] %}
                             <input type="radio" class="btn-check" name="status" id="article-status-{{ value.value }}"
-                                   value="{{ value.value }}" autocomplete="off" required{% if article.status == value %} checked{% endif %}>
+                                   value="{{ value.value }}" autocomplete="off"{% if article.status == value %} checked{% endif %}>
                             <label class="btn btn-sm btn-outline-{{ status_styles[value] }}" for="article-status-{{ value.value }}">
                                 <i class="bi bi-{{ status_icons[value] }}" aria-hidden="true"></i> {{ value | title }}
                             </label>

@@ -27,7 +27,7 @@ def _validate_title(value):
 def _validate_content(value):
     validate_catalog_text(value)
     if not 5_000 <= len(value) <= 100_000:
-        raise ValueError("content must contain between 5000 and 50000 characters")
+        raise ValueError("content must contain between 5000 and 100,000 characters")
 
 
 def _validate_category(value):
@@ -83,7 +83,7 @@ class UpdateArticleDTO(BaseDTO):
             _validate_title(self.title)
         if self.content is not UNSET:
             if self.content is None:
-                raise ValueError("content must contain between 5000 and 50000 characters")
+                raise ValueError("content must contain between 5000 and 100,000 characters")
             _validate_content(self.content)
         if self.tags is not UNSET:
             self.tags = _validate_tags(self.tags)

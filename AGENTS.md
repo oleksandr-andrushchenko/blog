@@ -143,6 +143,9 @@
   article-controls group.
 - External HTTP(S) links must include `rel="nofollow"`; preserve `noopener noreferrer` when present, including on
   user links, references, configured social links, and sharing controls.
+- Form validation uses explicit `handleFormSubmit` / JustValidate rules, never native HTML constraints or
+  `checkValidity` / `reportValidity`. Keep API validation authoritative. Register dynamic creator fields with the
+  returned validator instance and remove their rules when controls are removed or disabled.
 - Keep `static/scripts.js` limited to JavaScript reused across pages. Put page-specific scripts in their owning template
   and initialize them after dependencies are available, using `DOMContentLoaded` for dependencies loaded with `defer`.
 - Initialize Masonry through `data-masonry-options` rather than its `data-masonry` auto-initialization; keep initial and

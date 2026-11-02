@@ -185,7 +185,9 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
   let submitting = false
 
   let validator = null
-  const tagFields = new Set()
+  const tagFields = new Set(Object.entries(rules)
+    .filter(([, fieldRules]) => fieldRules.some(rule => rule.rule === "tags"))
+    .map(([field]) => field))
 
   if (typeof window.JustValidate !== "undefined") {
     validator = new window.JustValidate(formSelector, {
@@ -219,7 +221,6 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
               return items.length >= minCnt && items.length <= maxCnt && items.every(t => t.length >= minLen && t.length <= maxLen)
             }, errorMessage: `Values must be ${minCnt}–${maxCnt} items, ${minLen}–${maxLen} chars each`
           }
-          tagFields.add(field)
         }
       }
 
@@ -228,7 +229,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
 
     validator.onSuccess(() => submitForm())
   } else {
-    // Keep inline constraint feedback when JustValidate is unavailable.
+    // The API remains authoritative when the validation library cannot load.
     $(form).on("submit", (e) => {
       e.preventDefault()
       return submitForm()
@@ -283,38 +284,6 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
             .map(value => normalizeKebab ? toKebabCase(value) : String(value || "").trim())
             .filter(Boolean)
           : []
-      }
-
-      // Use inline feedback for HTML constraints, including dynamically added fields.
-      // JustValidate handles the explicit rules above; never open native validation popups.
-      let firstInvalid = null
-      form.querySelectorAll("input[name]:not([data-form-ignore]), select[name]:not([data-form-ignore]), textarea[name]:not([data-form-ignore])").forEach(input => {
-        if (input.disabled || ["hidden", "submit", "button"].includes(input.type)) return
-        const value = input.value.trim()
-        const minimum = Number(input.getAttribute("minlength")) || 0
-        const maximum = Number(input.getAttribute("maxlength")) || Infinity
-        const missing = input.required && !value && !["checkbox", "radio"].includes(input.type)
-        const tooShort = value && value.length < minimum
-        const tooLong = value.length > maximum
-        if (missing || tooShort || tooLong || !input.checkValidity()) {
-          input.classList.add("is-invalid")
-          let feedback = input.nextElementSibling
-          if (!feedback || !feedback.classList.contains("invalid-feedback")) {
-            feedback = document.createElement("div")
-            feedback.className = "invalid-feedback"
-            input.insertAdjacentElement("afterend", feedback)
-          }
-          feedback.textContent = input.getAttribute("data-error") || (missing ? "This field is required."
-            : tooShort ? `Use at least ${minimum} characters.` : tooLong ? `Use at most ${maximum} characters.`
-              : input.validationMessage)
-          firstInvalid ||= input
-        }
-      })
-      if (firstInvalid) {
-        firstInvalid.focus()
-        msgClass = "warning"
-        msgText = validationFailedMessage
-        return
       }
 
       if (authRequired && !window.CONFIG.current_user) {
@@ -405,6 +374,7 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
       await onFinally()
     }
   }
+  return validator
 }
 
 const imageUpload = document.getElementById("upload-image")
