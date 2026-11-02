@@ -1,0 +1,116 @@
+<section id="linkedin-integration" aria-labelledby="linkedin-heading" class="d-none d-flex flex-column gap-3 border-top mt-4 pt-4">
+    <h2 class="h5 mb-0" id="linkedin-heading"><i class="bi bi-linkedin me-1" aria-hidden="true"></i>LinkedIn account</h2>
+    <p class="mb-0">Connect your LinkedIn account, then share articles from an article page. Nothing is posted automatically.</p>
+    <div id="linkedin-status" role="status" aria-live="polite">Loading connection…</div>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+        <button type="button" class="btn btn-primary" id="linkedin-connect" disabled>
+            <i class="bi bi-linkedin me-1" aria-hidden="true"></i><span id="linkedin-connect-label">Connect LinkedIn</span>
+        </button>
+        <button type="button" class="btn btn-outline-danger" id="linkedin-disconnect" disabled>
+            <i class="bi bi-x-circle me-1" aria-hidden="true"></i>Disconnect
+        </button>
+    </div>
+    <p class="form-text mb-0">Disconnecting leaves your existing LinkedIn posts in place.</p>
+</section>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const endpoint = {{ url('linkedin-connection', user_id=user.id, absolute=True) | tojson }}
+    const status = document.getElementById("linkedin-status")
+    const connect = document.getElementById("linkedin-connect")
+    const label = document.getElementById("linkedin-connect-label")
+    const disconnect = document.getElementById("linkedin-disconnect")
+    let busy = false
+    let configured = false
+    let connected = false
+    let pending = false
+    const currentUrl = new URL(window.location.href)
+    const outcome = currentUrl.searchParams.get("linkedin")
+    const reason = currentUrl.searchParams.get("linkedin_reason")
+    if (outcome) {
+      currentUrl.searchParams.delete("linkedin")
+      currentUrl.searchParams.delete("linkedin_reason")
+      window.history.replaceState(null, "", currentUrl)
+    }
+    function controls() {
+      connect.disabled = busy || !configured
+      disconnect.disabled = busy || !(connected || pending)
+    }
+    async function request(method) {
+      const response = await fetch(endpoint, {method, credentials: "include", cache: "no-store",
+        headers: {"Content-Type": "application/json"}, ...(method === "POST" ? {body: "{}"} : {})})
+      const data = await response.json()
+      if (!response.ok) throw new Error(typeof data.details === "string" ? data.details : "Could not update your LinkedIn connection.")
+      return data
+    }
+    async function load() {
+      if (busy) return
+      busy = true
+      controls()
+      try {
+        const data = await request("GET")
+        configured = data.configured
+        document.getElementById("linkedin-integration").classList.toggle("d-none", !configured)
+        connected = data.connected
+        pending = data.pending || data.reconnect_required
+        label.textContent = connected ? "Connect another account" : "Connect LinkedIn"
+        status.textContent = !configured ? "LinkedIn connections are not available yet. Please try again later." :
+          connected ? `Connected to ${data.username}.` : data.reconnect_required ?
+            "Your LinkedIn connection expired. Connect again to continue sharing." : "No LinkedIn account connected."
+        status.className = connected ? "text-success" : "text-secondary"
+        if (outcome === "denied") status.textContent += " Connection cancelled. You can connect again when ready."
+        if (outcome === "error") {
+          const messages = {
+            authorization: "LinkedIn could not authorize this account. Check that your account has access to this app, then connect again.",
+            token: "LinkedIn could not finish granting access. Wait a moment, then select Connect LinkedIn to try again.",
+            profile: "LinkedIn could not confirm your account. Wait a moment, then select Connect LinkedIn to try again.",
+            expired: "This connection attempt expired or was replaced. Select Connect LinkedIn to start again.",
+            rate_limit: "LinkedIn is receiving too many requests. Wait before connecting again.",
+            configuration: "LinkedIn connections are temporarily unavailable. Please try again later."
+          }
+          status.textContent += " " + (Object.hasOwn(messages, reason) ? messages[reason] :
+            "Could not complete the connection. Select Connect LinkedIn to try again.")
+          status.className = "text-danger"
+        }
+      } catch (error) {
+        status.textContent = error.message
+        status.className = "text-danger"
+      } finally {
+        busy = false
+        controls()
+      }
+    }
+    connect.addEventListener("click", async () => {
+      if (busy) return
+      busy = true
+      controls()
+      try {
+        const data = await request("POST")
+        window.location.assign(data.connect_url)
+      } catch (error) {
+        status.textContent = error.message
+        status.className = "text-danger"
+        busy = false
+        controls()
+      }
+    })
+    disconnect.addEventListener("click", async () => {
+      if (busy) return
+      busy = true
+      controls()
+      try {
+        await request("DELETE")
+        connected = pending = false
+        label.textContent = "Connect LinkedIn"
+        status.textContent = "LinkedIn disconnected."
+        status.className = "text-secondary"
+      } catch (error) {
+        status.textContent = error.message
+        status.className = "text-danger"
+      } finally {
+        busy = false
+        controls()
+      }
+    })
+    load()
+  })
+</script>

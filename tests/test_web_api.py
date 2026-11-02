@@ -905,9 +905,19 @@ def test_user_edit_update_and_fragment_endpoints_success_and_failure(root_user_c
     assert not form('[id$="-availability-error"]')
     assert 'Could not check available' not in edit_success.text
     assert form('#integrations #telegram-connect').text() == 'Connect Telegram'
+    assert form('#integrations #linkedin-connect').text() == 'Connect LinkedIn'
     assert not form('#integrations input[name]')
     assert not form('#medium-integration')
     assert not form('#telegram-token')
+    linkedin_url = f"/users/{root_id}/integrations/linkedin"
+    linkedin_status = get(root_user_client, linkedin_url)
+    assert linkedin_status.status_code == 200, linkedin_status.text
+    assert linkedin_status.json() == {'configured': False, 'connected': False, 'pending': False}
+    assert linkedin_status.headers['Cache-Control'] == 'no-store'
+    assert get(guest_client, linkedin_url).status_code == 401
+    assert post(root_user_client, linkedin_url, json={}).status_code == 503
+    assert post(root_user_client, linkedin_url, json={},
+                headers={'Origin': 'https://untrusted.example'}).status_code == 403
     connection_url = f"/users/{root_id}/integrations/telegram"
     connection = get(root_user_client, connection_url)
     assert connection.status_code == 200, connection.text
@@ -1154,12 +1164,12 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     assert status_success.status_code == 200, status_success.text
     published_admin_doc = pq(get(root_client, f"/articles/{article_id}").text)
     assert published_admin_doc('#telegram-share').attr('disabled') is not None
-    for platform in ('telegram', 'threads'):
+    for platform, name in (('telegram', 'Telegram'), ('threads', 'Threads'), ('linkedin', 'LinkedIn')):
         preview = published_admin_doc(f'.article-{platform}-sharing')
         assert preview('section.opacity-50')
         assert preview(f'#{platform}-share').attr('disabled') is not None
         assert not preview('section a[href$="#integrations"]')
-        assert preview('div.mt-2 > a[href$="#integrations"]').text() == f'Connect {platform.title()}'
+        assert preview('div.mt-2 > a[href$="#integrations"]').text() == f'Connect {name}'
     owner_key = {"pk": f"USER#{functional_state['root_id']}", "sk": "META"}
     dynamodb_table.update_item(Key=owner_key, UpdateExpression="SET has_telegram_integration = :connected",
                                ExpressionAttributeValues={":connected": True})

@@ -1,6 +1,9 @@
 """Canonical API route names and path templates."""
 
 API_URL_ROUTES = {
+    "linkedin-connection": "/users/{user_id}/integrations/linkedin",
+    "linkedin-callback": "/integrations/linkedin/callback",
+    "share-article-linkedin": "/articles/{article_id}/share/linkedin",
     "login-connection": "/users/{user_id}/login-methods",
     "login-link-callback": "/auth/login-link/callback",
     'record-article-share': '/articles/{article_id}/share-click',

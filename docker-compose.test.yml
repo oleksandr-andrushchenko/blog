@@ -12,6 +12,10 @@ services:
       - .env.test
     environment:
       APP_STAGE: local
+      LINKEDIN_APP_ID: ""
+      LINKEDIN_APP_SECRET: ""
+      LINKEDIN_TOKEN_ENCRYPTION_KEY: ""
+      LINKEDIN_API_VERSION: "202610"
       THREADS_APP_ID: ""
       THREADS_APP_SECRET: ""
       THREADS_TOKEN_ENCRYPTION_KEY: ""
@@ -54,6 +58,10 @@ services:
       - .env.test
     environment:
       APP_STAGE: local
+      LINKEDIN_APP_ID: ""
+      LINKEDIN_APP_SECRET: ""
+      LINKEDIN_TOKEN_ENCRYPTION_KEY: ""
+      LINKEDIN_API_VERSION: "202610"
       THREADS_APP_ID: ""
       THREADS_APP_SECRET: ""
       THREADS_TOKEN_ENCRYPTION_KEY: ""
@@ -107,6 +115,10 @@ services:
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"
+      LINKEDIN_APP_ID: ""
+      LINKEDIN_APP_SECRET: ""
+      LINKEDIN_TOKEN_ENCRYPTION_KEY: ""
+      LINKEDIN_API_VERSION: "202610"
       THREADS_APP_ID: ""
       THREADS_APP_SECRET: ""
       THREADS_TOKEN_ENCRYPTION_KEY: ""

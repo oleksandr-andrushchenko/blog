@@ -1,0 +1,82 @@
+{% if cur_user and cur_user.id == article.owner_id %}
+    {% set linkedin_preview = not cur_user.has_linkedin_integration %}
+    {% set share_enabled = cur_user.has_linkedin_integration and cur_user.status == UserStatus.ACTIVE and article.status == ArticleStatus.PUBLISHED %}
+    <div class="article-linkedin-sharing my-4">
+        <section class="card shadow-sm bg-secondary-subtle{% if linkedin_preview %} opacity-50{% endif %}"
+                 aria-labelledby="linkedin-share-heading">
+            <div class="card-body">
+                <h2 id="linkedin-share-heading" class="h5 card-title">
+                    <i class="bi bi-linkedin" aria-hidden="true"></i>
+                    Share to LinkedIn
+                </h2>
+                <button type="button"
+                        class="btn {{ 'btn-dark' if linkedin_preview else 'btn-outline-success' if article.linkedin_shared_at else 'btn-outline-secondary' }}"
+                        id="linkedin-share"
+                        {% if not share_enabled %}disabled{% endif %}>
+                    <i class="bi bi-linkedin me-1"
+                       aria-hidden="true"></i><span>{{ "Share again to LinkedIn" if article.linkedin_shared_at else "Post preview to LinkedIn" }}</span>
+                </button>
+                <p class="small mt-2 mb-0" id="linkedin-share-status" role="status" aria-live="polite">
+                    {% if not cur_user.has_linkedin_integration %}Connect LinkedIn to share this article.
+                    {% elif cur_user.status != UserStatus.ACTIVE %}An active account is required to share articles.
+                    {% elif article.status != ArticleStatus.PUBLISHED %}Publish this article to share it.
+                    {% elif article.linkedin_shared_at %}Previously shared to LinkedIn.{% endif %}
+                </p>
+                {% if not linkedin_preview %}
+                    <a class="small link-body-emphasis d-block d-none" id="linkedin-share-profile" target="_blank"
+                       rel="nofollow noopener noreferrer">
+                        <i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>Open LinkedIn post
+                    </a>
+                    <a class="small link-body-emphasis"
+                       href="{{ url('edit-user', user_id=cur_user.id) }}#integrations">Manage LinkedIn connection</a>
+                {% endif %}
+            </div>
+        </section>
+        {% if linkedin_preview %}
+            <div class="mt-2">
+                <a href="{{ url('edit-user', user_id=cur_user.id) }}#integrations" class="link-body-emphasis">Connect LinkedIn</a>
+            </div>
+        {% endif %}
+    </div>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const button = document.getElementById("linkedin-share")
+        if (button.disabled) return
+        const label = button.querySelector("span")
+        const status = document.getElementById("linkedin-share-status")
+        const post = document.getElementById("linkedin-share-profile")
+        button.addEventListener("click", async () => {
+          if (button.disabled) return
+          button.disabled = true
+          status.textContent = "Posting to LinkedIn…"
+          try {
+            const response = await fetch({{ url('share-article-linkedin', article_id=article.id, absolute=True) | tojson }}, {
+              method: "POST", credentials: "include", headers: {"Content-Type": "application/json"}, body: "{}"
+            })
+            const data = await response.json()
+            if (!response.ok) {
+              const error = new Error(typeof data.details === "string" ? data.details : "Could not share this article.")
+              error.canRetry = [401, 403, 404, 409, 413, 415, 422, 429].includes(response.status)
+              throw error
+            }
+            if (data.shared !== true) throw new Error("Unconfirmed share")
+            if (typeof data.post_url === "string") {
+              const destination = new URL(data.post_url)
+              if (destination.origin === "https://www.linkedin.com" && destination.pathname.startsWith("/feed/update/")) {
+                post.href = destination.href
+                post.classList.remove("d-none")
+              }
+            }
+            status.textContent = "Article preview posted to LinkedIn."
+            label.textContent = "Share again to LinkedIn"
+            button.classList.replace("btn-outline-secondary", "btn-outline-success")
+            button.disabled = false
+          } catch (error) {
+            status.textContent = error.canRetry ? error.message :
+              "Could not confirm this share. Check your LinkedIn profile before trying again."
+            button.disabled = !error.canRetry
+          }
+        })
+      })
+    </script>
+{% endif %}

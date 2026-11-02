@@ -4,6 +4,7 @@ from dataclasses import replace
 from urllib.parse import urlencode
 
 import login_link_service
+import linkedin_service
 
 import telegram_service
 import threads_sharing_service
@@ -144,7 +145,8 @@ async def add_no_robots_to_api(request: Request, call_next):
     response = await call_next(request)
 
     response.headers["X-Robots-Tag"] = "noindex, nofollow"
-    if request.url.path in {API_URL_ROUTES["threads-callback"], API_URL_ROUTES["login-link-callback"]}:
+    if request.url.path in {API_URL_ROUTES["threads-callback"], API_URL_ROUTES["login-link-callback"],
+                            API_URL_ROUTES["linkedin-callback"]}:
         response.headers["Cache-Control"] = "no-store"
         response.headers["Referrer-Policy"] = "no-referrer"
     if (request.url.path.startswith("/users/") and
@@ -597,6 +599,74 @@ async def telegram_webhook(request: Request):
         raise HTTPException(400, "Invalid Telegram update")
     result = await to_thread(telegram_service.handle_update, update)
     return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+
+@route("get", "linkedin-connection")
+async def linkedin_connection(user: UserDep, cur_user: CurUserDep):
+    result = await to_thread(linkedin_service.connection_status, user, cur_user)
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+
+@route("post", "linkedin-connection")
+async def connect_linkedin(user: UserDep, cur_user: CurUserDep, request: Request):
+    _integration_mutation(request)
+    result, binding = await to_thread(linkedin_service.begin_connection, user, cur_user, request)
+    response = JSONResponse(result, headers={"Cache-Control": "no-store"})
+    response.set_cookie(linkedin_service.COOKIE_NAME, binding,
+                        max_age=linkedin_service.CONNECT_LIFETIME_MS // 1000,
+                        path=API_URL_ROUTES["linkedin-callback"], secure=True, httponly=True, samesite="lax")
+    return response
+
+
+@route("get", "linkedin-callback")
+async def linkedin_callback(cur_user: CurUserDep, request: Request):
+    reason = None
+    try:
+        connected = await to_thread(
+            linkedin_service.complete_connection, cur_user,
+            state=request.query_params.get("state"),
+            binding=request.cookies.get(linkedin_service.COOKIE_NAME),
+            code=request.query_params.get("code"),
+            auth_cookie=request.cookies.get("token"),
+            denied=bool(request.query_params.get("error"))
+        )
+        outcome = "connected" if connected else "denied"
+    except HTTPException as error:
+        if error.status_code not in (409, 422, 429, 502, 503):
+            raise
+        step = getattr(error, "connection_step", "validation")
+        logger.warning("LinkedIn connection failed: step=%s status=%s", step, error.status_code)
+        if error.status_code == 429:
+            reason = "rate_limit"
+        elif error.status_code == 503:
+            reason = "configuration"
+        elif step in ("authorization", "token", "profile"):
+            reason = step
+        elif error.status_code == 409:
+            reason = "expired"
+        outcome = "error"
+    destination = get_url(request, "edit-user", user_id=cur_user.id, absolute=True,
+                          linkedin=outcome, linkedin_reason=reason) + "#integrations"
+    response = RedirectResponse(destination, status_code=303, headers={"Cache-Control": "no-store",
+                                                                       "Referrer-Policy": "no-referrer"})
+    response.delete_cookie(linkedin_service.COOKIE_NAME, path=API_URL_ROUTES["linkedin-callback"],
+                           secure=True, httponly=True, samesite="lax")
+    return response
+
+
+@route("delete", "linkedin-connection")
+async def disconnect_linkedin(user: UserDep, cur_user: CurUserDep, request: Request):
+    _integration_mutation(request)
+    result = await to_thread(linkedin_service.disconnect, user, cur_user)
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+
+@route("post", "share-article-linkedin")
+async def share_article_linkedin(article: ArticleDep, cur_user: CurUserDep, request: Request):
+    _integration_mutation(request)
+    result = await to_thread(linkedin_service.share_article, article, cur_user, request)
+    return JSONResponse(result, status_code=202 if result.get("status") == "unconfirmed" else 200,
+                        headers={"Cache-Control": "no-store"})
 
 
 @route("get", "threads-connection")

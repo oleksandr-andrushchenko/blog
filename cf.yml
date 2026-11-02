@@ -54,6 +54,21 @@ Parameters:
   ThreadsAppId:
     Type: String
     Default: ''
+  LinkedInAppId:
+    Type: String
+    Default: ''
+  LinkedInAppSecret:
+    Type: String
+    Default: ''
+    NoEcho: true
+  LinkedInTokenEncryptionKey:
+    Type: String
+    Default: ''
+    NoEcho: true
+  LinkedInApiVersion:
+    Type: String
+    Default: '202610'
+    AllowedPattern: '^20[0-9]{2}(0[1-9]|1[0-2])$'
   ThreadsAppSecret:
     Type: String
     Default: ''
@@ -670,6 +685,10 @@ Resources:
           SITEMAP_FUNCTION_NAME: !Sub "${AWS::StackName}-${Stage}-sitemap"
           MEDIA_ORIGINALS_S3_BUCKET: !Ref MediaOriginalsBucket
           THREADS_APP_ID: !Ref ThreadsAppId
+          LINKEDIN_APP_ID: !Ref LinkedInAppId
+          LINKEDIN_APP_SECRET: !Ref LinkedInAppSecret
+          LINKEDIN_TOKEN_ENCRYPTION_KEY: !Ref LinkedInTokenEncryptionKey
+          LINKEDIN_API_VERSION: !Ref LinkedInApiVersion
           THREADS_APP_SECRET: !Ref ThreadsAppSecret
           THREADS_TOKEN_ENCRYPTION_KEY: !Ref ThreadsTokenEncryptionKey
           TELEGRAM_PUBLISHER_BOT_TOKEN: !Ref TelegramPublisherBotToken

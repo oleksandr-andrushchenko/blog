@@ -306,3 +306,17 @@
 - Medium connection and publishing support was removed because its API no longer accepts new integrations.
   Do not restore token entry, publishing routes, or deployment credentials for it. Legacy stored attributes
   and share records may remain in DynamoDB and must not prevent loading users or articles.
+
+## LinkedIn publishing
+
+- LinkedIn connects personal accounts through API-owned OAuth2 using `openid profile w_member_social`.
+  The app requires Share on LinkedIn and Sign In with LinkedIn using OpenID Connect products. Keep
+  client credentials, encrypted tokens, and `LINKEDIN_API_VERSION` API-owned. The callback is
+  `/integrations/linkedin/callback`; redact its query and referrers in access logs.
+- Bind consent to the active owner, browser cookie, and authenticated session; claim callbacks once
+  before exchanging codes. Retain guards against replaced or disconnected attempts and account bans.
+- Publish only title, category, public preview, and the canonical article link through the current
+  Posts API. This creates a public feed link post without a thumbnail, not a native long-form article.
+  Count `linkedin_publish` separately from `linkedin_share_click`; only a confirmed 201 with a valid
+  post URN updates share history. Preserve remote success on history failures; never retry uncertain
+  publishing requests. Expired or revoked tokens require reconnection.

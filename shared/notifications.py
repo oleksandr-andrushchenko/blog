@@ -20,6 +20,7 @@ def _access_log_url(value):
         return "[invalid URL]"
     if parts.path.rstrip("/") in {
         API_URL_ROUTES["threads-callback"], API_URL_ROUTES["login-link-callback"],
+        API_URL_ROUTES["linkedin-callback"],
         WEB_AUTH_URL_ROUTES["login-callback"], WEB_AUTH_URL_ROUTES["logout-callback"],
     }:
         return urlunsplit((parts.scheme, parts.netloc, parts.path, '', ''))

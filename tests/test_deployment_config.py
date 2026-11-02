@@ -13,6 +13,10 @@ def test_deployment_reads_credentials_from_production_env(tmp_path):
         'THREADS_APP_ID': 'synthetic-threads-app',
         'THREADS_APP_SECRET': 'synthetic-threads-secret',
         'THREADS_TOKEN_ENCRYPTION_KEY': 'synthetic-encryption-key',
+        'LINKEDIN_APP_ID': 'synthetic-linkedin-app',
+        'LINKEDIN_APP_SECRET': 'synthetic-linkedin-secret',
+        'LINKEDIN_TOKEN_ENCRYPTION_KEY': 'synthetic-linkedin-key',
+        'LINKEDIN_API_VERSION': '202610',
         'APPLE_CREDENTIALS_SECRET_ARN': 'arn:aws:secretsmanager:us-west-2:123456789012:secret:apple-example',
     }
     (tmp_path / '.env.prod').write_text(''.join(f'{key}={value}\n' for key, value in values.items()))
@@ -37,6 +41,10 @@ def test_deployment_reads_credentials_from_production_env(tmp_path):
         ('ThreadsAppId', 'THREADS_APP_ID'),
         ('ThreadsAppSecret', 'THREADS_APP_SECRET'),
         ('ThreadsTokenEncryptionKey', 'THREADS_TOKEN_ENCRYPTION_KEY'),
+        ('LinkedInAppId', 'LINKEDIN_APP_ID'),
+        ('LinkedInAppSecret', 'LINKEDIN_APP_SECRET'),
+        ('LinkedInTokenEncryptionKey', 'LINKEDIN_TOKEN_ENCRYPTION_KEY'),
+        ('LinkedInApiVersion', 'LINKEDIN_API_VERSION'),
         ('AppleCredentialsSecretArn', 'APPLE_CREDENTIALS_SECRET_ARN'),
     ):
         assert f'{parameter}="{values[variable]}"' in result.stdout
@@ -53,3 +61,20 @@ def test_login_link_callback_and_api_code_exchange_configuration():
     assert environment['COGNITO_CLIENT_ID'] == {'Ref': 'CognitoUserPoolClient'}
     assert environment['COGNITO_CLIENT_SECRET'] == {'GetAtt': 'CognitoUserPoolClient.ClientSecret'}
     assert environment['COGNITO_USER_POOL_ID'] == {'Ref': 'CognitoUserPoolV2'}
+
+
+def test_linkedin_credentials_are_api_owned():
+    from test_apple_signin import template
+
+    config = template()
+    for parameter in ('LinkedInAppSecret', 'LinkedInTokenEncryptionKey'):
+        assert config['Parameters'][parameter]['NoEcho'] is True
+    resources = config['Resources']
+    api = resources['ApiFunction']['Properties']['Environment']['Variables']
+    web = resources['WebFunction']['Properties']['Environment']['Variables']
+    for variable, parameter in (('LINKEDIN_APP_ID', 'LinkedInAppId'),
+                                ('LINKEDIN_APP_SECRET', 'LinkedInAppSecret'),
+                                ('LINKEDIN_TOKEN_ENCRYPTION_KEY', 'LinkedInTokenEncryptionKey'),
+                                ('LINKEDIN_API_VERSION', 'LinkedInApiVersion')):
+        assert api[variable] == {'Ref': parameter}
+        assert variable not in web

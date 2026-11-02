@@ -450,3 +450,48 @@ execution. No new DynamoDB index is required.
 Structured action context appears in console/CloudWatch logs as well as Telegram.
 Sign-in and sign-out events include the profile URL; contact submissions include
 the message ID and, for signed-in senders, their profile URL.
+
+### LinkedIn publishing
+
+Owners can connect their personal LinkedIn account under **Edit profile → Integrations**, then
+select **Post preview to LinkedIn** on a published article. This creates a public feed post with
+the title, category, public preview, and a clickable link back to the original SysDesPro article.
+It does not create a native long-form LinkedIn article or export the full article body. Article
+link cards contain the supplied title and preview; no thumbnail is uploaded.
+
+In the LinkedIn Developer Portal, enable **Share on LinkedIn** and **Sign In with LinkedIn using
+OpenID Connect** for the app. Register this exact HTTPS redirect URL, using your API domain:
+
+```text
+https://api.YOUR_DOMAIN/integrations/linkedin/callback
+```
+
+Set these API-only settings (also in ignored `.env.prod` for deployment):
+
+```dotenv
+LINKEDIN_APP_ID=YOUR_CLIENT_ID
+LINKEDIN_APP_SECRET=YOUR_CLIENT_SECRET
+LINKEDIN_TOKEN_ENCRYPTION_KEY=YOUR_FERNET_KEY
+LINKEDIN_API_VERSION=202610
+```
+
+Generate the encryption key with `cryptography.fernet.Fernet.generate_key()`. Keep it stable;
+changing it or the app ID requires reconnection. `API_BASE_URL` and `WEB_BASE_URL` must be HTTPS.
+The version defaults to `202610`; update it as LinkedIn retires API versions. Web rendering does
+not need access to LinkedIn credentials. API, web, and infrastructure changes must ship together.
+
+The app requests `openid profile w_member_social`; users authorize through LinkedIn and never
+enter tokens. This connection does not add a SysDesPro sign-in method or merge accounts. Tokens
+are encrypted and bound to both accounts and the app. Pending consent is short-lived, bound to
+the browser and authenticated session, and claimed once before exchanging the authorization code.
+Expired or revoked access requires reconnection; partner-restricted refresh-token access is not
+assumed. Disconnecting removes local credentials and leaves existing posts in place.
+
+Confirmed posts record `linkedin_shared_at` and `linkedin_publish` engagement counts without
+changing article timestamps. A timeout or incomplete provider response remains unconfirmed;
+the browser disables retries until the owner checks LinkedIn. Local history failures preserve
+confirmed remote success. No new dependencies or DynamoDB indexes are required.
+
+Provider references: [OAuth2](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow),
+[OpenID Connect profile](https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/sign-in-with-linkedin-v2),
+and [Posts API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api).

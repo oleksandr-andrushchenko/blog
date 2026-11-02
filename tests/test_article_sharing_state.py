@@ -22,7 +22,8 @@ from notifications import TelegramFormatter
 
 PROMPT_URL = 'https://example.com/@owner/example-article'
 POST_URLS = {'telegram': 'https://t.me/example_channel/42',
-             'threads': 'https://www.threads.com/@example_creator/post/example'}
+             'threads': 'https://www.threads.com/@example_creator/post/example',
+             'linkedin': 'https://www.linkedin.com/feed/update/urn:li:share:123/'}
 
 
 @pytest.fixture
@@ -64,7 +65,7 @@ def test_legacy_medium_attributes_do_not_prevent_loading_records(stored_article)
     assert user.id == item['user_id']
 
 
-@pytest.mark.parametrize('platform', ['telegram', 'threads'])
+@pytest.mark.parametrize('platform', ['telegram', 'threads', 'linkedin'])
 def test_successful_shares_and_reshares_persist_without_changing_article_content(stored_article, monkeypatch, platform):
     table, before, article = stored_article
     assert article.telegram_shared_at is None and article.threads_shared_at is None

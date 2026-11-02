@@ -66,6 +66,10 @@ CSS_CACHE_COUNTER := $(shell sed -n "s/^CSS_CACHE_COUNTER=//p" $(PROD_ENV_FILE) 
 JS_CACHE_COUNTER := $(shell sed -n "s/^JS_CACHE_COUNTER=//p" $(PROD_ENV_FILE) 2>/dev/null)
 AUTH_JWT_SECRET := $(shell sed -n "s/^AUTH_JWT_SECRET=//p" $(PROD_ENV_FILE) 2>/dev/null)
 THREADS_APP_ID := $(shell sed -n "s/^THREADS_APP_ID=//p" $(PROD_ENV_FILE) 2>/dev/null)
+LINKEDIN_APP_ID := $(shell sed -n "s/^LINKEDIN_APP_ID=//p" $(PROD_ENV_FILE) 2>/dev/null)
+LINKEDIN_APP_SECRET := $(shell sed -n "s/^LINKEDIN_APP_SECRET=//p" $(PROD_ENV_FILE) 2>/dev/null)
+LINKEDIN_TOKEN_ENCRYPTION_KEY := $(shell sed -n "s/^LINKEDIN_TOKEN_ENCRYPTION_KEY=//p" $(PROD_ENV_FILE) 2>/dev/null)
+LINKEDIN_API_VERSION := $(or $(shell sed -n "s/^LINKEDIN_API_VERSION=//p" $(PROD_ENV_FILE) 2>/dev/null),202610)
 THREADS_APP_SECRET := $(shell sed -n "s/^THREADS_APP_SECRET=//p" $(PROD_ENV_FILE) 2>/dev/null)
 THREADS_TOKEN_ENCRYPTION_KEY := $(shell sed -n "s/^THREADS_TOKEN_ENCRYPTION_KEY=//p" $(PROD_ENV_FILE) 2>/dev/null)
 
@@ -236,6 +240,10 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 			WebCertificateArn="$$WEB_CERTIFICATE_ARN" \
 			TelegramBotToken="$(TELEGRAM_BOT_TOKEN)" \
 			ThreadsAppId="$(THREADS_APP_ID)" \
+			LinkedInAppId="$(LINKEDIN_APP_ID)" \
+			LinkedInAppSecret="$(LINKEDIN_APP_SECRET)" \
+			LinkedInTokenEncryptionKey="$(LINKEDIN_TOKEN_ENCRYPTION_KEY)" \
+			LinkedInApiVersion="$(LINKEDIN_API_VERSION)" \
 			ThreadsAppSecret="$(THREADS_APP_SECRET)" \
 			ThreadsTokenEncryptionKey="$(THREADS_TOKEN_ENCRYPTION_KEY)" \
 			TelegramPublisherBotToken="$(TELEGRAM_PUBLISHER_BOT_TOKEN)" \
