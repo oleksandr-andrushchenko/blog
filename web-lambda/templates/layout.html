@@ -144,6 +144,11 @@
                            aria-current="page"{% endif %}>Categories</a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link{% if current_route == 'tags' %} active{% endif %}"
+                           href="{{ url('tags') }}"{% if current_route == 'tags' %}
+                           aria-current="page"{% endif %}>Tags</a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link{% if articles_active %} active{% endif %}" href="{{ articles_url() }}"
                                 {% if articles_active %} aria-current="page"{% endif %}>Articles</a>
                     </li>

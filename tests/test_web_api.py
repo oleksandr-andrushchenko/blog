@@ -170,8 +170,9 @@ def check_header(doc, user_alias: str | None):
     header_el = doc("header")
     assert header_el('a[href$="/"]')
     assert header_el('a[href$="/articles"]')
+    assert header_el('a[href$="/categories"]').parent().next()('a[href$="/tags"]').text() == "Tags"
+    assert not header_el('a[href$="/users"]')
     for path, label in (("/tags", "Tags"), ("/users", "Community")):
-        assert not header_el(f'a[href$="{path}"]')
         assert doc("footer")(f'a[href$="{path}"]').text() == label
     assert header_el('a[href$="/contacts"]')
     if user_alias:
