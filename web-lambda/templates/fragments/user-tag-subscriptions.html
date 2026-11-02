@@ -1,31 +1,33 @@
-<section class="mb-4">
-    <h2 class="h5 mb-2 text-decoration-underline">
-        Interests
-    </h2>
+<section class="card shadow-sm text-bg-light mb-4">
+    <div class="card-body">
+        <h2 class="h4 card-title">
+            <i class="bi bi-tags" aria-hidden="true"></i> Interests
+        </h2>
 
-    {% if tag_subscriptions %}
-        <div class="d-flex flex-wrap gap-2">
-            {% for subscription in tag_subscriptions %}
-                {% if cur_user and cur_user.id == user.id %}
-                    <div class="tag-subscription-item"
-                         data-tag-subscription-id="{{ subscription.id }}">
-                        <button class="btn btn-light btn-sm fw-semibold btn-tag-subscription bi bi-bell-slash"
-                                type="button"
-                                data-tag-subscription-id="{{ subscription.id }}"
-                                title="Unsubscribe from {{ subscription.tags | join(' + ') }}">
+        {% if tag_subscriptions %}
+            <div class="d-flex flex-wrap gap-2">
+                {% for subscription in tag_subscriptions %}
+                    {% if cur_user and cur_user.id == user.id %}
+                        <div class="tag-subscription-item"
+                             data-tag-subscription-id="{{ subscription.id }}">
+                            <button class="btn btn-light btn-sm fw-semibold btn-tag-subscription bi bi-bell-slash"
+                                    type="button"
+                                    data-tag-subscription-id="{{ subscription.id }}"
+                                    title="Unsubscribe from {{ subscription.tags | join(' + ') }}">
+                                {{ subscription.tags | join(' + ') }}
+                            </button>
+                            <small class="tag-subscription-message text-secondary"></small>
+                        </div>
+                    {% else %}
+                        <a href="{{ articles_url(tags=subscription.tags) }}"
+                           class="badge text-bg-light text-decoration-none">
                             {{ subscription.tags | join(' + ') }}
-                        </button>
-                        <small class="tag-subscription-message text-secondary"></small>
-                    </div>
-                {% else %}
-                    <a href="{{ articles_url(tags=subscription.tags) }}"
-                       class="badge text-bg-light text-decoration-none">
-                        {{ subscription.tags | join(' + ') }}
-                    </a>
-                {% endif %}
-            {% endfor %}
-        </div>
-    {% else %}
-        <div class="text-muted small">N/A</div>
-    {% endif %}
+                        </a>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-muted small">N/A</div>
+        {% endif %}
+    </div>
 </section>

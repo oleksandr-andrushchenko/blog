@@ -176,80 +176,40 @@
     </section>
 
     <div class="container">
-        <div class="row g-5">
-            <div class="{{ {"def": 12, "lg": 8} | col_classes }}">
-                {% if user.about %}
-                    <div class="mb-4">
-                        <h2 class="h5 mb-2 text-decoration-underline">About</h2>
-                        <div class="card-text">{{ user.about }}</div>
-                    </div>
-                {% endif %}
+        <div id="profile-blocks" class="row g-4 mb-4"
+             data-masonry-options='{"percentPosition": true, "columnWidth": ".profile-grid-sizer", "itemSelector": ".profile-block"}'>
+            <div class="profile-grid-sizer position-absolute {{ {"def": 12, "md": 6, "lg": 4} | col_classes }}" aria-hidden="true"></div>
+            {% if user.about %}
+                <section class="profile-block {{ {"def": 12, "md": 6, "lg": 4} | col_classes }} mb-4">
+                    <h2 class="h5 mb-3">About</h2>
+                    <div class="card-text">{{ user.about }}</div>
+                </section>
+            {% endif %}
 
-                {% include "fragments/user-activities.html" %}
-            </div>
+            {% if activities %}
+                <div class="profile-block {{ {"def": 12, "lg": 8} | col_classes }}">
+                    {% include "fragments/user-activities.html" %}
+                </div>
+            {% endif %}
 
-            <div class="{{ {"def": 12, "lg": 4} | col_classes }} border-start">
+            {% set support_block %}
                 {% with support_article=false %}
                     {% include "fragments/creator-support-links.html" %}
                 {% endwith %}
+            {% endset %}
+            {% if support_block | trim %}
+                <div class="profile-block {{ {"def": 12, "md": 6, "lg": 4} | col_classes }}">
+                    {{ support_block | safe }}
+                </div>
+            {% endif %}
 
+            <div class="profile-block {{ {"def": 12, "md": 6, "lg": 4} | col_classes }}">
                 {% include "fragments/user-tag-subscriptions.html" %}
             </div>
+
+            <div class="profile-block {{ {"def": 12} | col_classes }} mb-4">
+                {% include "fragments/user-articles.html" %}
+            </div>
         </div>
-
-        <section id="my-articles">
-            <h2 class="h5 mb-2">
-                {{ articles_title }}
-            </h2>
-
-            {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE, user) %}
-                <div class="d-flex justify-content-start align-items-center gap-1 mb-2">
-                    <small class="text-secondary">Filter by status:</small>
-
-                    <div class="btn-group btn-group-sm" role="group">
-                        {% set is_published = article_query.status == ArticleStatus.PUBLISHED %}
-                        <a href="{{ user_url(user, **article_query.get_dict({"status": None if is_published else ArticleStatus.PUBLISHED.value, "offset": None})) }}"
-                           class="btn {% if is_published %}btn-success active{% else %}btn-light{% endif %}">
-                            {{ ArticleStatus.PUBLISHED | title }} ({{ user.published_articles_count }})
-                        </a>
-
-                        {% set is_unpublished = article_query.status == ArticleStatus.UNPUBLISHED %}
-                        <a href="{{ user_url(user, **article_query.get_dict({"status": None if is_unpublished else ArticleStatus.UNPUBLISHED.value, "offset": None})) }}"
-                           class="btn {% if is_unpublished %}btn-warning active{% else %}btn-light{% endif %}">
-                            {{ ArticleStatus.UNPUBLISHED | title }} ({{ user.unpublished_articles_count }})
-                        </a>
-
-                        {% set is_rejected = article_query.status == ArticleStatus.REJECTED %}
-                        <a href="{{ user_url(user, **article_query.get_dict({"status": None if is_rejected else ArticleStatus.REJECTED.value, "offset": None})) }}"
-                           class="btn {% if is_rejected %}btn-danger active{% else %}btn-light{% endif %}">
-                            {{ ArticleStatus.REJECTED | title }} ({{ user.rejected_articles_count }})
-                        </a>
-                    </div>
-
-                    {% if article_query.has_params() %}
-                        <a href="{{ user_url(user) }}" class="btn btn-light btn-sm bi bi-x-lg"> Reset</a>
-                    {% endif %}
-                </div>
-            {% endif %}
-
-            {% if articles %}
-                <div id="articles" class="{{ {"def": 1, "sm": 2, "lg": 3} | row_classes }} g-3"
-                     data-masonry-options='{"percentPosition": true }'>
-                    {% with article_img_sizes={"1400px": "196px", "1200px": "166px", "992px": "96px", "768px": "156px", "default": "100vw"}, eager_article_images=1 %}
-                        {% include "fragments/articles.html" %}
-                    {% endwith %}
-                </div>
-
-                {% with limit=article_query.limit,
-                        offset=articles[-1].offset,
-                        url=url("user-articles-fragment", user_id=user.id, absolute=True, **article_query.get_dict()),
-                        container="#articles" %}
-                    {% include "fragments/load-more-button.html" %}
-                {% endwith %}
-
-            {% else %}
-                <div>N/A</div>
-            {% endif %}
-        </section>
     </div>
 {% endblock %}
