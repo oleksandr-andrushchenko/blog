@@ -276,6 +276,8 @@ def check_articles(doc, articles_count: int, unpublished_control: bool, rejected
     tags_el = form_el('#tags-input')
     if tags_control:
         assert tags_el
+        assert tags_el.attr("data-inject-hidden") == "true"
+        assert tags_el.attr("data-auto-submit") == "true"
     else:
         assert not tags_el
     popular_el = form_el('a[href*="popular"].bi-star')
