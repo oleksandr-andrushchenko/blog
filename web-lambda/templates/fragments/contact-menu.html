@@ -1,0 +1,23 @@
+{% set contact_options = [
+    ("Suggest an improvement", "lightbulb", "I'd like to suggest an improvement or request a feature.\n\nMy idea: \n\nHow it would help: "),
+    ("Report an issue", "bug", "I'd like to report an issue.\n\nPage URL: \n\nWhat happened: \n\nWhat I expected: "),
+    ("Want a website like this?", "window", "I'm interested in a website like this.\n\nAbout my project: \n\nFeatures I need: "),
+    ("Discuss a partnership", "people", "I'd like to discuss a partnership.\n\nAbout us: \n\nMy proposal: ")
+] %}
+<li class="nav-item dropdown">
+    <button class="nav-link dropdown-toggle{% if current_route == 'contacts' %} active{% endif %}"
+            type="button" id="contact-menu-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+        Contact
+    </button>
+    <ul class="dropdown-menu" aria-labelledby="contact-menu-toggle">
+        {% for label, icon, message in contact_options %}
+            <li><a class="dropdown-item" href="{{ url('contacts', message=message) }}#contact-form">
+                <i class="bi bi-{{ icon }} me-2" aria-hidden="true"></i>{{ label }}
+            </a></li>
+        {% endfor %}
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="{{ url('contacts') }}">
+            <i class="bi bi-chat-dots me-2" aria-hidden="true"></i>General inquiry
+        </a></li>
+    </ul>
+</li>

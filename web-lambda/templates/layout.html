@@ -152,14 +152,7 @@
                            href="{{ url("earn") }}"{% if current_route == "earn" %} aria-current="page"{% endif %}>
                             Creators</a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link{% if current_route == "contacts" %} active{% endif %}"
-                           href="{{ url("contacts") }}"{% if current_route == "contacts" %}
-                           aria-current="page"{% endif %}>Contacts</a>
-                    </li>
-                    <li class="nav-item d-flex align-items-center py-2 py-xxl-0 ms-xxl-2">
-                        {% with proposal_compact=true %}{% include "fragments/improvement-proposal.html" %}{% endwith %}
-                    </li>
+                    {% include "fragments/contact-menu.html" %}
                 </ul>
 
                 <ul class="navbar-nav">
