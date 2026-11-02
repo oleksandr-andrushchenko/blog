@@ -130,6 +130,8 @@ def _is_api_request(method: str, url: str) -> bool:
         return True
     if path.startswith('/notifications/') or path == '/presence' or (path.startswith('/messages/') and (method == 'POST' or path.endswith(('/history', '/fragment')))):
         return True
+    if method == "GET" and re.fullmatch(r"/articles/[^/]+/share/telegram", path):
+        return True
     if method == "GET":
         return path in {"/tag-subscriptions", "/tags"}
     if method == "POST":

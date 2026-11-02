@@ -552,3 +552,64 @@ def test_article_cover_uses_caption_limit_and_preserves_uncertain_errors(actor, 
     with pytest.raises(HTTPException) as error:
         service.share_article(value, actor, None)
     assert error.value.status_code == 502
+
+
+def test_confirmed_share_history_is_scoped_to_current_user_channel_and_article(actor, provider, monkeypatch):
+    channel = {'channel_id': -100123, 'channel_title': 'First channel', 'channel_username': 'first_channel',
+               'telegram_user_id': TG_USER, 'bot_id': 123456789}
+    monkeypatch.setattr(service, 'get_connection', lambda *args: channel)
+    monkeypatch.setattr(service, 'find_category', lambda category: None)
+    monkeypatch.setattr(service, 'get_article_url', lambda *args, **kwargs: 'https://catalog.example/articles/test')
+    rows = {}
+    def write(items):
+        item = items[0]['Put']['Item']
+        rows[(item['pk'], item['sk'])] = item
+    monkeypatch.setattr(service, 'dynamodb_transact_write', write)
+    monkeypatch.setattr(service, '_read', lambda pk, sk: rows.get((pk, sk)))
+    article = SimpleNamespace(id='channel-history', owner_id=actor.id, status='published',
+                              title='Article', category='other', preview='Preview', image_filename=None)
+    assert not service.share_state(article, actor)['shared']
+    result = service.share_article(article, actor, None)
+    assert result['shared'] and result['post_url'].startswith('https://t.me/first_channel/')
+    assert service.share_state(article, actor)['post_url'] == result['post_url']
+    channel['channel_id'] = -100456
+    assert not service.share_state(article, actor)['shared']
+    channel['channel_id'] = -100123
+    assert service.share_state(article, actor)['shared']
+    article.owner_id = 'other-author'
+    with pytest.raises(HTTPException) as error:
+        service.share_state(article, actor)
+    assert error.value.status_code == 403
+
+
+@pytest.mark.parametrize('message', [{}, {'message_id': True}, {'message_id': 0}, {'message_id': '42'}])
+def test_incomplete_telegram_confirmation_never_creates_channel_or_article_history(actor, provider, monkeypatch, message):
+    call, _ = provider
+    original = call.side_effect
+    call.side_effect = lambda method, **payload: message if method == 'sendMessage' else original(method, **payload)
+    monkeypatch.setattr(service, 'get_connection', lambda *args: {
+        'channel_id': -100123, 'channel_title': 'Channel', 'telegram_user_id': TG_USER, 'bot_id': 123456789})
+    monkeypatch.setattr(service, 'find_category', lambda category: None)
+    monkeypatch.setattr(service, 'get_article_url', lambda *args, **kwargs: 'https://catalog.example/articles/test')
+    write = Mock()
+    monkeypatch.setattr(service, 'dynamodb_transact_write', write)
+    article = SimpleNamespace(id='unconfirmed-history', owner_id=actor.id, status='published',
+                              title='Article', category='other', preview='Preview', image_filename=None)
+    with pytest.raises(HTTPException) as error:
+        service.share_article(article, actor, None)
+    assert error.value.status_code == 502
+    write.assert_not_called()
+    import article_sharing
+    article_sharing.record_article_share.assert_not_called()
+
+
+def test_confirmed_telegram_success_survives_channel_history_failure(actor, provider, monkeypatch):
+    monkeypatch.setattr(service, 'get_connection', lambda *args: {
+        'channel_id': -100123, 'channel_title': 'Channel', 'telegram_user_id': TG_USER, 'bot_id': 123456789})
+    monkeypatch.setattr(service, 'find_category', lambda category: None)
+    monkeypatch.setattr(service, 'get_article_url', lambda *args, **kwargs: 'https://catalog.example/articles/test')
+    monkeypatch.setattr(service, 'dynamodb_transact_write', Mock(side_effect=RuntimeError('History unavailable')))
+    article = SimpleNamespace(id='history-failure', owner_id=actor.id, status='published',
+                              title='Article', category='other', preview='Preview', image_filename=None)
+    assert service.share_article(article, actor, None)['shared'] is True
+    assert sum(call.args[0] == 'sendMessage' for call in provider[0].call_args_list) == 1

@@ -18,7 +18,7 @@ from query_dtos import ArticleStatus, UserStatus
 from shared_utils import (
     DynamoDBTransactionError, add_dynamodb_delete_transact, add_dynamodb_put_transact,
     add_dynamodb_update_transact, build_dynamodb_delete_item_params, dynamodb_transact_write, find_category, find_user,
-    get_dynamodb_item, get_article_url, html_to_text, jinja2_env, utc_now,
+    get_dynamodb_item, get_article_url, html_to_text, jinja2_env, logger, utc_now,
 )
 from web import HTTPException, jsonable
 
@@ -394,10 +394,27 @@ def share_article(article, actor, request):
     else:
         message = telegram_call("sendMessage", chat_id=connection["channel_id"], text=text, parse_mode="HTML",
                                 link_preview_options={"url": url})
-    return remember_article_share(article, 'telegram', {
-        "shared": True, "message_id": message["message_id"], "channel_title": connection["channel_title"],
-    }, actor=actor, request=request, article_url=url, post_url=_message_url(message, connection),
-       event_id=f"{connection['channel_id']}:{message['message_id']}")
+    message_id = message.get('message_id') if isinstance(message, dict) else None
+    if isinstance(message_id, bool) or not isinstance(message_id, int) or message_id <= 0:
+        raise HTTPException(502, 'Telegram did not confirm the share; check your channel before retrying')
+    result = {'shared': True, 'message_id': message_id, 'channel_title': connection['channel_title'],
+              'post_url': _message_url(message, connection), 'shared_at': utc_now()}
+    writes = []
+    add_dynamodb_put_transact(writes, _share_key(article.id, actor.id, connection['channel_id']), {
+        'article_id': article.id, 'owner_id': actor.id, 'channel_id': connection['channel_id'], **result,
+    })
+    put = writes[0]['Put']
+    put['ConditionExpression'] = 'attribute_not_exists(shared_at) OR shared_at <= :confirmed'
+    put['ExpressionAttributeValues'] = {':confirmed': result['shared_at']}
+    try:
+        from account_guard import add_account_guard
+        add_account_guard(writes, actor.id)
+        dynamodb_transact_write(writes)
+    except Exception:
+        logger.exception('Could not save confirmed Telegram channel history for article %s', article.id)
+    return remember_article_share(article, 'telegram', result, actor=actor, request=request, article_url=url,
+                                  post_url=result['post_url'],
+                                  event_id=f"{connection['channel_id']}:{message_id}")
 
 
 def _message_url(message, connection):
@@ -429,3 +446,20 @@ def configure_webhook(*, apply=False):
     if apply:
         telegram_call("setWebhook", **payload, secret_token=secret)
     return {"method": "setWebhook", **payload, "secret_token": "[configured; redacted]", "applied": apply}
+
+
+def _share_key(article_id, actor_id, channel_id):
+    channel_hash = hashlib.sha256(str(channel_id).encode()).hexdigest()[:32]
+    return f'USER#{actor_id}', f'TELEGRAM_SHARE#{channel_hash}#{article_id}'
+
+
+def share_state(article, actor):
+    _require_configuration()
+    authorize_owner(actor, actor)
+    authorize_article_owner(article, actor)
+    connection = get_connection(actor, actor)
+    if not connection:
+        raise HTTPException(409, 'Connect a Telegram channel first')
+    item = _read(*_share_key(article.id, actor.id, connection['channel_id']))
+    return {'shared': bool(item), 'shared_at': item.get('shared_at') if item else None,
+            'post_url': item.get('post_url') if item else None, 'channel_title': connection['channel_title']}

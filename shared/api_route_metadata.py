@@ -2,6 +2,7 @@
 
 API_URL_ROUTES = {
     "direct-conversations-fragment": "/messages/inbox/fragment",
+    "telegram-share-state": "/articles/{article_id}/share/telegram",
     "notification-status": "/notifications/status",
     "notification-history": "/notifications/history",
     "read-notification": "/notifications/{notification_id}/read",

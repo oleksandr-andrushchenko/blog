@@ -829,7 +829,6 @@ async def _direct_message_body(request, fields):
     return body
 
 
-
 @route("get", "api-direct-messages")
 async def direct_message_history(user_id: str, request: Request, cur_user: CurUserDep):
     from direct_messages import get_direct_messages, message_peer
@@ -840,7 +839,6 @@ async def direct_message_history(user_id: str, request: Request, cur_user: CurUs
                            after=request.query_params.get("after"))
     html = get_html_content("fragments/direct-message-list.html", {"messages": page["messages"], "viewer": cur_user})
     return JSONResponse({**page, "html": html}, headers={"Cache-Control": "private, no-store"})
-
 
 
 @route("post", "send-direct-message")
@@ -858,7 +856,6 @@ async def direct_message_send(user_id: str, request: Request, cur_user: CurUserD
     return JSONResponse({"message": message, "html": html}, headers={"Cache-Control": "private, no-store"})
 
 
-
 @route("post", "read-direct-messages", status_code=204)
 async def direct_message_read(user_id: str, request: Request, cur_user: CurUserDep):
     from direct_message_service import mark_direct_messages_read
@@ -866,7 +863,6 @@ async def direct_message_read(user_id: str, request: Request, cur_user: CurUserD
     body = await _direct_message_body(request, ("message_key",))
     await to_thread(mark_direct_messages_read, cur_user, user_id, body["message_key"])
     return Response(status_code=204, headers={"Cache-Control": "private, no-store"})
-
 
 
 async def _empty_notification_mutation(request):
@@ -879,7 +875,6 @@ async def _empty_notification_mutation(request):
         raise HTTPException(422, "Expected an empty JSON object")
 
 
-
 @route("post", "record-presence")
 async def current_user_presence(request: Request, cur_user: CurUserDep):
     from site_notification_service import record_presence
@@ -888,14 +883,12 @@ async def current_user_presence(request: Request, cur_user: CurUserDep):
     return JSONResponse(await to_thread(record_presence, cur_user), headers={"Cache-Control": "private, no-store"})
 
 
-
 @route("get", "notification-status")
 async def current_notification_status(cur_user: CurUserDep):
     from site_notifications import notification_status, require_notification_user
 
     require_notification_user(cur_user)
     return JSONResponse(notification_status(cur_user), headers={"Cache-Control": "private, no-store"})
-
 
 
 @route("get", "notification-history")
@@ -910,7 +903,6 @@ async def current_notification_history(request: Request, cur_user: CurUserDep):
     return JSONResponse(page, headers={"Cache-Control": "private, no-store"})
 
 
-
 @route("post", "read-notification")
 async def read_site_notification(notification_id: str, request: Request, cur_user: CurUserDep):
     from site_notification_service import mark_site_notification_read
@@ -918,6 +910,11 @@ async def read_site_notification(notification_id: str, request: Request, cur_use
     await _empty_notification_mutation(request)
     return JSONResponse(await to_thread(mark_site_notification_read, cur_user, notification_id), headers={"Cache-Control": "private, no-store"})
 
+
+@route('get', 'telegram-share-state')
+async def telegram_share_state(article: ArticleDep, cur_user: CurUserDep):
+    return JSONResponse(await to_thread(telegram_service.share_state, article, cur_user),
+                        headers={'Cache-Control': 'private, no-store'})
 
 
 @route('get', 'direct-conversations-fragment')

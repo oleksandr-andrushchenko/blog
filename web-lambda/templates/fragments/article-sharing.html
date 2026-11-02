@@ -5,7 +5,7 @@
     {% if telegram_publisher_enabled %}
         {% set sharing_platforms = sharing_platforms + [
             {'key': 'telegram', 'name': 'Telegram', 'icon': 'telegram', 'route': 'share-article-telegram',
-             'connected': cur_user.has_telegram_integration, 'shared': article.telegram_shared_at}
+             'connected': cur_user.has_telegram_integration, 'shared': false}
         ] %}
     {% endif %}
     {% if threads_publisher_enabled %}
@@ -44,6 +44,7 @@
                                     id="{{ platform.key }}-share" data-state="{{ share_state }}"
                                     data-platform="{{ platform.key }}" data-platform-name="{{ platform.name }}"
                                     data-share-url="{{ url(platform.route, article_id=article.id, absolute=True) }}"
+                                    {% if platform.key == 'telegram' %}data-share-state-url="{{ url('telegram-share-state', article_id=article.id, absolute=True) }}" {% endif %}
                                     data-profile-base="{{ platform.profile_base | default('') }}"
                                     aria-label="{{ share_action }}" title="{{ share_action }}"
                                     {% if not can_share %}disabled{% endif %}>
@@ -100,6 +101,29 @@
         document.querySelectorAll('.article-share-action[data-share-url]').forEach(button => {
           if (button.disabled) return
           const name = button.dataset.platformName
+          if (button.dataset.shareStateUrl) {
+            button.disabled = true
+            fetch(button.dataset.shareStateUrl, {credentials: 'include', cache: 'no-store'})
+              .then(async response => {
+                if (!response.ok) throw new Error('Unable to load channel history')
+                const data = await response.json()
+                state(button, data.shared ? 'shared' : 'connected', data.shared ? 'Shared' : 'Connected', data.shared ? 'success' : 'secondary')
+                button.disabled = false
+                if (data.shared && data.post_url) {
+                  const destination = new URL(data.post_url)
+                  if (destination.protocol === 'https:' && destination.hostname === 't.me' && !destination.username && !destination.password) {
+                    message(`Previously shared to ${data.channel_title}.`, button)
+                    const link = document.createElement('a')
+                    link.href = destination.href
+                    link.target = '_blank'
+                    link.rel = 'nofollow noopener noreferrer'
+                    link.className = 'ms-1'
+                    link.textContent = 'Open Telegram post'
+                    status.append(link)
+                  }
+                }
+              }).catch(() => message('Could not load Telegram channel history. Refresh before sharing.', button))
+          }
           button.addEventListener('click', async () => {
             if (button.disabled) return
             button.disabled = true
