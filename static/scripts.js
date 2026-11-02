@@ -163,26 +163,29 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
     validationFailedMessage = "Please fix the highlighted fields.",
     rules = {},
     prepareData = data => data,
-    onSuccess = () => {
-    },
+    onSuccess = () => {},
+    onError = () => {},
+    onFinally = () => {},
+    beforeSubmit = async () => {},
+    resetOnSuccess = true,
     loadingText = "Submitting...",
     authRequired = true
   } = options
 
   const form = document.querySelector(formSelector)
   if (!form) return
+  form.noValidate = true
 
-  // Insert status div before submit button
   const submitBtn = form.querySelector("[type='submit']")
-  const statusDiv = document.createElement("div")
+  const existingStatus = form.querySelector(".form-status")
+  const statusDiv = existingStatus || document.createElement("div")
   statusDiv.className = "form-status alert d-none"
   statusDiv.setAttribute("role", "alert")
-  submitBtn.insertAdjacentElement("beforebegin", statusDiv)
-
-  let originalBtnContent = submitBtn.innerHTML
+  if (!existingStatus) submitBtn.insertAdjacentElement("beforebegin", statusDiv)
+  let submitting = false
 
   let validator = null
-  let hasTags = false
+  const tagFields = new Set()
 
   if (typeof window.JustValidate !== "undefined") {
     validator = new window.JustValidate(formSelector, {
@@ -201,13 +204,22 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
           fieldRules[fieldRuleId] = {
             validator: (value) => {
               if (!value) return true
-              const values = JSON.parse(value)
+              let values
+              try {
+                values = JSON.parse(value)
+              } catch (error) {
+                return false
+              }
               if (!Array.isArray(values)) return true
-              const items = values.map(item => toKebabCase(item.value)).filter(Boolean)
+              const normalizeKebab = form.elements[field].dataset.normalizeKebab === "true"
+              const items = values
+                .map(item => typeof item === "string" ? item : item.value)
+                .map(item => normalizeKebab ? toKebabCase(item) : String(item || "").trim())
+                .filter(Boolean)
               return items.length >= minCnt && items.length <= maxCnt && items.every(t => t.length >= minLen && t.length <= maxLen)
-            }, errorMessage: `Tags must be ${minCnt}–${maxCnt} items, ${minLen}–${maxLen} chars each`
+            }, errorMessage: `Values must be ${minCnt}–${maxCnt} items, ${minLen}–${maxLen} chars each`
           }
-          hasTags = true
+          tagFields.add(field)
         }
       }
 
@@ -216,75 +228,93 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
 
     validator.onSuccess(() => submitForm())
   } else {
-    // Fallback: submit without frontend validation
+    // Keep inline constraint feedback when JustValidate is unavailable.
     $(form).on("submit", (e) => {
       e.preventDefault()
-      submitForm()
+      return submitForm()
     })
   }
 
   async function submitForm() {
-    // Show loading state
-    submitBtn.disabled = true
-    submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>${loadingText}`
-
+    if (submitting) return
+    submitting = true
+    $(submitBtn).setButtonLoading(loadingText)
     statusDiv.className = "form-status alert d-none"
     statusDiv.textContent = ""
-
-    let data = {}
-    form.querySelectorAll("input[name], select[name], textarea[name]").forEach(input => {
-      if (input.disabled) return
-
-      // handle radio buttons separately
-      if (input.type === "radio") {
-        if (input.checked) data[input.name] = input.value
-      } else if (input.type === "checkbox") {
-        data[input.name] = input.checked
-      } else {
-        const value = input.value.trim()
-        data[input.name] = value === "" ? null : value
-      }
-      input.classList.remove("is-invalid") // reset invalid states
-    })
-
-    if (hasTags) {
-      const values = JSON.parse(form.tags.value)
-      data.tags = values.map(item => toKebabCase(item.value)).filter(Boolean)
-    }
-
-    data = prepareData(data)
-
     let msgClass = "danger"
     let msgIcon = "exclamation-triangle-fill"
     let msgText = errorMessage
 
     try {
-      if (!validator) {
-        // Simple frontend validation fallback
-        let hasError = false
-        form.querySelectorAll("input[required], select[required], textarea[required]").forEach(input => {
-          if (input.disabled) return
+      let data = {}
+      form.querySelectorAll("input[name]:not([data-form-ignore]), select[name]:not([data-form-ignore]), textarea[name]:not([data-form-ignore])").forEach(input => {
+        if (input.disabled) return
 
-          if (!input.value.trim()) {
-            input.classList.add("is-invalid")
-            hasError = true
-
-            // Optional: create invalid-feedback div if not present
-            let feedback = input.nextElementSibling
-            if (!feedback || !feedback.classList.contains("invalid-feedback")) {
-              feedback = document.createElement("div")
-              feedback.className = "invalid-feedback"
-              input.insertAdjacentElement("afterend", feedback)
-            }
-            feedback.textContent = input.getAttribute("data-error") || "This field is required."
+        // handle radio buttons separately
+        if (input.type === "radio") {
+          if (input.checked) data[input.name] = input.value
+        } else if (input.type === "checkbox") {
+          const sameNameCheckboxes = form.querySelectorAll(`input[type="checkbox"][name="${input.name}"]`)
+          if (sameNameCheckboxes.length > 1) {
+            if (!Array.isArray(data[input.name])) data[input.name] = []
+            if (input.checked) data[input.name].push(input.value)
+          } else {
+            data[input.name] = input.checked
           }
-        })
-
-        if (hasError) {
-          msgClass = "warning"
-          msgText = validationFailedMessage
-          return
+        } else if (input.multiple) {
+          data[input.name] = Array.from(input.selectedOptions).map(option => option.value)
+        } else {
+          const value = input.value.trim()
+          data[input.name] = value === "" ? null : value
         }
+        input.classList.remove("is-invalid") // reset invalid states
+      })
+
+      for (const field of tagFields) {
+        let values = []
+        try {
+          values = JSON.parse(form.elements[field].value || "[]")
+        } catch (error) {
+          values = []
+        }
+        const normalizeKebab = form.elements[field].dataset.normalizeKebab === "true"
+        data[field] = Array.isArray(values)
+          ? values.map(item => typeof item === "string" ? item : item.value)
+            .map(value => normalizeKebab ? toKebabCase(value) : String(value || "").trim())
+            .filter(Boolean)
+          : []
+      }
+
+      // Use inline feedback for HTML constraints, including dynamically added fields.
+      // JustValidate handles the explicit rules above; never open native validation popups.
+      let firstInvalid = null
+      form.querySelectorAll("input[name]:not([data-form-ignore]), select[name]:not([data-form-ignore]), textarea[name]:not([data-form-ignore])").forEach(input => {
+        if (input.disabled || ["hidden", "submit", "button"].includes(input.type)) return
+        const value = input.value.trim()
+        const minimum = Number(input.getAttribute("minlength")) || 0
+        const maximum = Number(input.getAttribute("maxlength")) || Infinity
+        const missing = input.required && !value && !["checkbox", "radio"].includes(input.type)
+        const tooShort = value && value.length < minimum
+        const tooLong = value.length > maximum
+        if (missing || tooShort || tooLong || !input.checkValidity()) {
+          input.classList.add("is-invalid")
+          let feedback = input.nextElementSibling
+          if (!feedback || !feedback.classList.contains("invalid-feedback")) {
+            feedback = document.createElement("div")
+            feedback.className = "invalid-feedback"
+            input.insertAdjacentElement("afterend", feedback)
+          }
+          feedback.textContent = input.getAttribute("data-error") || (missing ? "This field is required."
+            : tooShort ? `Use at least ${minimum} characters.` : tooLong ? `Use at most ${maximum} characters.`
+              : input.validationMessage)
+          firstInvalid ||= input
+        }
+      })
+      if (firstInvalid) {
+        firstInvalid.focus()
+        msgClass = "warning"
+        msgText = validationFailedMessage
+        return
       }
 
       if (authRequired && !window.CONFIG.current_user) {
@@ -293,102 +323,105 @@ function handleFormSubmit(formSelector, submitUrl, options = {}) {
         return
       }
 
-      // Upload all file inputs separately
-      const fileInputs = form.querySelectorAll("input[type=\"file\"]")
+      data = await prepareData(data)
+      if (await beforeSubmit(data) === false) {
+        msgText = ""
+        return
+      }
+
+      const fileInputs = form.querySelectorAll("input[type=\"file\"]:not([data-form-ignore])")
       for (const input of fileInputs) {
         if (input.files.length === 0) continue
-
         const filename = await uploadPublicFile(input.files[0])
-
         delete data[input.name]
         data[input.name + "name"] = filename
       }
 
-      // Submit the JSON payload
       const response = await ajaxResponse({
-        url: submitUrl,
+        url: typeof submitUrl === "function" ? submitUrl(data) : submitUrl,
         method,
         contentType: "application/json",
         data: JSON.stringify(data),
         dataType: "json"
       })
-
-      if (response.ok) {
-        msgClass = "success"
-        msgIcon = "check-circle-fill"
-        form.reset()
-        if (validator) validator.refresh()
-
-        let responseBody = {}
-        if (response.status !== 204) {
-          try {
-            responseBody = await response.json()
-          } catch (_) {
-          }
-        }
-        msgText = onSuccess(responseBody) || successMessage
-        return
+      let body = {}
+      if (response.status !== 204) body = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        const error = new Error(getApiErrorMessage(body, errorMessage))
+        error.status = response.status
+        error.details = body.details
+        throw error
       }
 
-      if ([409, 422].includes(response.status)) {
-        const json = await response.json()
-        msgClass = "warning"
-        msgText = validationFailedMessage
-
-        if (validator && json.details) {
-          const errors = {}
-          Object.entries(json.details).forEach(([field, msg]) => {
-            const sel = `[name="${field}"]`
-            if (!validator.fields[sel]) {
-              validator.addField(sel, [
-                {
-                  validator: () => true,
-                  errorMessage: ''
-                }
-              ])
-            }
-            errors[sel] = msg.replace(/^Value error, /, '')
-          })
-          validator.showErrors(errors)
-        } else if (!validator && json.details) {
-          // fallback: highlight invalid fields without validator
-          Object.entries(json.details).forEach(([field, msg]) => {
-            const input = form.querySelector(`[name="${field}"]`)
-            if (input) {
-              input.classList.add("is-invalid")
-              let feedback = input.nextElementSibling
-              if (!feedback || !feedback.classList.contains("invalid-feedback")) {
-                feedback = document.createElement("div")
-                feedback.className = "invalid-feedback"
-                input.insertAdjacentElement("afterend", feedback)
-              }
-              feedback.textContent = msg
-            }
-          })
-        }
-        return
-      }
-
-      if ([401].includes(response.status)) {
-        msgText = "You need to be logged in to perform this action."
-        msgClass = "warning"
-        return
-      }
-    } catch (err) {
-      console.error("Form submission failed:", err)
-      msgText = err.message || errorMessage
+      msgClass = "success"
+      msgIcon = "check-circle-fill"
+      if (resetOnSuccess) form.reset()
+      if (validator) validator.refresh()
+      msgText = await onSuccess(body) || successMessage
+    } catch (error) {
       msgClass = "warning"
+      msgText = error.message || errorMessage
+      if ([409, 422].includes(error.status) && error.details && typeof error.details === "object") {
+        msgText = validationFailedMessage
+        const errors = {}
+        Object.entries(error.details).forEach(([field, message]) => {
+          const input = [...form.querySelectorAll("[name]")].find(input => input.name === field)
+          if (!input) return
+          const messageText = String(message).replace(/^Value error, /, "")
+          if (validator) {
+            const selector = `[name="${field}"]`
+            if (!validator.fields[selector]) validator.addField(selector, [{validator: () => true, errorMessage: ""}])
+            errors[selector] = messageText
+          } else {
+            input.classList.add("is-invalid")
+            let feedback = input.nextElementSibling
+            if (!feedback || !feedback.classList.contains("invalid-feedback")) {
+              feedback = document.createElement("div")
+              feedback.className = "invalid-feedback"
+              input.insertAdjacentElement("afterend", feedback)
+            }
+            feedback.textContent = messageText
+          }
+        })
+        if (validator) validator.showErrors(errors)
+      } else if (error.status === 401) {
+        msgText = "You need to be logged in to perform this action."
+      }
+      const customMessage = await onError(error)
+      if (typeof customMessage === "string") msgText = customMessage
     } finally {
-      submitBtn.disabled = false
-      submitBtn.innerHTML = originalBtnContent
-      statusDiv.className = `form-status alert alert-${msgClass}`
-      statusDiv.innerHTML = `<i class="bi bi-${msgIcon} me-2"></i> ${msgText}`
+      $(submitBtn).clearButtonLoading()
+      submitting = false
+      statusDiv.className = `form-status alert${msgText ? " alert-" + msgClass : " d-none"}`
+      if (msgClass === "success") {
+        // Existing success callbacks may supply trusted application links.
+        statusDiv.innerHTML = `<i class="bi bi-${msgIcon} me-2" aria-hidden="true"></i> ${msgText}`
+      } else {
+        const icon = document.createElement("i")
+        icon.className = "bi bi-" + msgIcon + " me-2"
+        icon.setAttribute("aria-hidden", "true")
+        statusDiv.replaceChildren(icon, document.createTextNode(String(msgText)))
+      }
+      await onFinally()
     }
   }
 }
 
+const imageUpload = document.getElementById("upload-image")
+document.querySelectorAll("input[name='image_action']").forEach(radio => {
+  radio.addEventListener("change", () => {
+    if (imageUpload) imageUpload.style.display = radio.checked && radio.value === "replace" ? "block" : "none"
+  })
+})
+const avatarUpload = document.getElementById("upload-avatar")
+document.querySelectorAll("input[name='avatar_action']").forEach(radio => {
+  radio.addEventListener("change", () => {
+    if (avatarUpload) avatarUpload.style.display = radio.checked && radio.value === "replace" ? "block" : "none"
+  })
+})
+
 // Load more
-(() => {
+;(() => {
   $(document).on("click", ".btn-load-more", async function (event) {
     const btn = this
     event.preventDefault()
