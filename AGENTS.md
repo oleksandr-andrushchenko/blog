@@ -76,9 +76,11 @@
   fragments returned by API endpoints consistent.
 - Related-article discovery is shared by the initial web page and the API's paginated fragment. Keep source/tag-scoped
   cursors and public-access filtering consistent; never advance past unprocessed batch-read keys.
-- Published popular tag listings rank matching tag-combination members in batches of at most 100, retaining the top
-  page plus one result. They still traverse the matching partition on each request; category and OR filters use their
-  existing index paths. Preserve deterministic rating/ID ordering and fail if batch reads remain incomplete.
+- Published tag listings use the ordered `TAG_COMBOS_BY_RATING` index only after guarded backfill activation.
+  Normal popular-tag pages read a page plus lookahead; category intersections use bounded relation batches.
+  Maintain relation ordering transactionally on votes, publication, tag/category edits, and erasure cleanup.
+  Preserve legacy cursors, deterministic rating/ID ordering, and complete batch reads. Unactivated and OR queries
+  retain their existing paths. See `docs/tag-listing-performance.md` for rollout.
 - The web Lambda owns page rendering; resource mutations, uploads, and resource API responses belong to the API Lambda.
   Browser scripts should call the configured API URL directly rather than adding web routes that proxy API requests.
 - Homepage comment previews must verify current article publication status and use the current article title and URL;
@@ -278,8 +280,9 @@
   validation. Preserve actual username edits and the existing support-link prepareData behavior.
 - Support-link POSTs return non-cacheable HTTP 303 redirects with the existing origin, prefetch, and referrer-policy
   checks. Keep background API click notification independent of navigation and omit noreferrer on POST forms.
-- Owner-only Telegram/Threads cards show a dimmed preview when unconnected and a separate setup link below it;
-  keep them in the article sidebar before related articles.
+- Owner-only publishing controls render once in `fragments/article-sharing.html`, before related articles.
+  Include only configured Telegram, Threads, and LinkedIn providers using nonsecret web capability flags.
+  Keep connection, prior-share, processing, and uncertain states; uncertain writes must never auto-retry.
 
 - Legacy `bmc_username` records without a saved `support_links` list are read as a standard Buy Me a Coffee
   support link. The first tracked click or profile link save persists the list; an explicit list (including `[]`)
@@ -320,3 +323,21 @@
   Count `linkedin_publish` separately from `linkedin_share_click`; only a confirmed 201 with a valid
   post URN updates share history. Preserve remote success on history failures; never retry uncertain
   publishing requests. Expired or revoked tokens require reconnection.
+
+## Background work, erasure, and worktrees
+
+- `background_handler.handler` dispatches profile sync, creator clicks, account deletion, and deletion recovery.
+  It shares the API ZIP but has its own Lambda. API, web, worker, and infrastructure updates ship together only
+  after explicit deployment authorization. Local services use bounded thread pools.
+- Profile saves atomically persist `PROFILE_SYNC` with profile/slug edits. Propagate identities in bounded
+  checkpointed transactions; unchanged saves resume interrupted work. Keep content timestamps intact.
+- Signed creator click events include a unique `jti`. Authenticate expiry at API receipt, return 202 after
+  dispatch, and atomically deduplicate `CREATOR_CLICK#<event-id>` with counters. Keep self-clicks excluded.
+- Account deletion is owner-confirmed or provider-signature-verified, with a durable outbox and scheduled
+  recovery. Pending erasure invalidates sessions; guard ordinary writes, OAuth completion, and profile sync
+  against `deletion_id`. Erasure uses raw guarded persistence to repair counters without notifications.
+  Preserve shared/site media; invalidate only exact deleted upload paths. Redact private receipt URLs,
+  omit analytics on status pages, and retain only non-identifying completed receipts.
+- New worktrees use ignored `.env.test.local` with isolated ports, Compose projects, and databases. Keep
+  `.env.test` as a legacy fallback and `.env.test.example` generic. Shared production environment links must
+  resolve before updates, and production tooling must take the common lock before rereading settings.

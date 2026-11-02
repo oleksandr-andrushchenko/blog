@@ -51,6 +51,10 @@ Parameters:
     NoEcho: true
     AllowedPattern: '^$|^[A-Za-z0-9_-]{32,256}$'
     Description: Secret used to authenticate Telegram integration webhook requests
+  FacebookCredentialsSecretArn:
+    Type: String
+    Default: ''
+    Description: Optional existing Facebook app credentials secret for deletion verification
   ThreadsAppId:
     Type: String
     Default: ''
@@ -153,6 +157,31 @@ Parameters:
     Description: S3 key of the image Lambda zip file
 
 Conditions:
+  TelegramPublishingEnabled:
+    Fn::And:
+      - Fn::Not:
+          - Fn::Equals: [!Ref TelegramPublisherBotToken, '']
+      - Fn::Not:
+          - Fn::Equals: [!Ref TelegramPublisherWebhookSecret, '']
+  ThreadsPublishingEnabled:
+    Fn::And:
+      - Fn::Not:
+          - Fn::Equals: [!Ref ThreadsAppId, '']
+      - Fn::Not:
+          - Fn::Equals: [!Ref ThreadsAppSecret, '']
+      - Fn::Not:
+          - Fn::Equals: [!Ref ThreadsTokenEncryptionKey, '']
+  LinkedInPublishingEnabled:
+    Fn::And:
+      - Fn::Not:
+          - Fn::Equals: [!Ref LinkedInAppId, '']
+      - Fn::Not:
+          - Fn::Equals: [!Ref LinkedInAppSecret, '']
+      - Fn::Not:
+          - Fn::Equals: [!Ref LinkedInTokenEncryptionKey, '']
+  FacebookDeletionEnabled:
+    Fn::Not:
+      - Fn::Equals: [!Ref FacebookCredentialsSecretArn, '']
   AppleSignInEnabled:
     Fn::Not:
       - Fn::Equals: [!Ref AppleCredentialsSecretArn, '']
@@ -252,6 +281,8 @@ Resources:
           AttributeType: S
         - AttributeName: tag_type_pk
           AttributeType: S
+        - AttributeName: tag_rating_sk
+          AttributeType: S
         - AttributeName: rating_sk
           AttributeType: N
         - AttributeName: tag_name_sk
@@ -274,6 +305,14 @@ Resources:
         - AttributeName: sk # e.g. "META", "1759086095241", "POST#1"
           KeyType: RANGE
       GlobalSecondaryIndexes:
+        - IndexName: TAG_COMBOS_BY_RATING
+          KeySchema:
+            - AttributeName: pk
+              KeyType: HASH
+            - AttributeName: tag_rating_sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
         - IndexName: USERS_BY_EMAIL # get_user_by_user_token (get user by email)
           KeySchema:
             - AttributeName: user_email_pk # e.g. "me@example.com"
@@ -451,6 +490,19 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: "*"
+        - PolicyName: BackgroundWorkerAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AWS::StackName}-${Stage}-background"
+              - Effect: Allow
+                Action: [cognito-idp:AdminGetUser, cognito-idp:ListUsers, cognito-idp:AdminUserGlobalSignOut, cognito-idp:AdminDeleteUser]
+                Resource: !GetAtt CognitoUserPoolV2.Arn
+              - Effect: Allow
+                Action: [s3:DeleteObject]
+                Resource: !Sub "${MediaOriginalsBucket.Arn}/*"
         - PolicyName: SitemapWorkerInvoke
           PolicyDocument:
             Version: "2012-10-17"
@@ -481,6 +533,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - cloudfront:CreateInvalidation
+                  - cloudfront:GetInvalidation
                 Resource: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
         - PolicyName: SesSendingPolicy
           PolicyDocument:
@@ -634,6 +687,12 @@ Resources:
       MemorySize: 512
       Environment:
         Variables:
+          TELEGRAM_PUBLISHER_ENABLED:
+            Fn::If: [TelegramPublishingEnabled, 'true', 'false']
+          THREADS_PUBLISHER_ENABLED:
+            Fn::If: [ThreadsPublishingEnabled, 'true', 'false']
+          LINKEDIN_PUBLISHER_ENABLED:
+            Fn::If: [LinkedInPublishingEnabled, 'true', 'false']
           TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
           TELEGRAM_CHAT_ID: !Ref TelegramChatId
           TELEGRAM_LOG_LEVEL: !Ref TelegramLogLevel
@@ -682,6 +741,8 @@ Resources:
       MemorySize: 512
       Environment:
         Variables:
+          BACKGROUND_FUNCTION_NAME: !Sub "${AWS::StackName}-${Stage}-background"
+          FACEBOOK_CREDENTIALS_SECRET_ARN: !Ref FacebookCredentialsSecretArn
           SITEMAP_FUNCTION_NAME: !Sub "${AWS::StackName}-${Stage}-sitemap"
           MEDIA_ORIGINALS_S3_BUCKET: !Ref MediaOriginalsBucket
           THREADS_APP_ID: !Ref ThreadsAppId
@@ -725,6 +786,52 @@ Resources:
         S3Bucket: !Sub "${AWS::StackName}-code"
         S3Key: !Ref ApiFuncS3Key
 
+
+  BackgroundFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-${Stage}-background"
+      Description: Resumable profile updates, creator clicks and account erasure
+      Role: !GetAtt BackendFunctionRole.Arn
+      Handler: background_handler.handler
+      Runtime: python3.12
+      Timeout: 900
+      MemorySize: 512
+      ReservedConcurrentExecutions: 1
+      Environment:
+        Variables:
+          MEDIA_ORIGINALS_S3_BUCKET: !Ref MediaOriginalsBucket
+          THREADS_APP_ID: !Ref ThreadsAppId
+          COGNITO_USER_POOL_ID: !Ref CognitoUserPoolV2
+          FACEBOOK_CREDENTIALS_SECRET_ARN: !Ref FacebookCredentialsSecretArn
+          BACKGROUND_FUNCTION_NAME: !Sub "${AWS::StackName}-${Stage}-background"
+          TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
+          TELEGRAM_CHAT_ID: !Ref TelegramChatId
+          TELEGRAM_LOG_LEVEL: !Ref TelegramLogLevel
+          APP_STAGE: !Ref Stage
+          APP_ENV: !Ref Env
+          APP_DEBUG: !Ref Debug
+          APP_SECRET: !Ref Secret
+          API_BASE_URL: !Sub "https://api.${DomainName}"
+          WEB_BASE_URL: !Sub "https://${DomainName}"
+          STATIC_BASE_URL: !Sub "https://static.${DomainName}"
+          DYNAMODB_TABLE: !Ref DynamoDBTable
+          ALLOWED_ORIGIN: !Sub "https://${DomainName}"
+          CONTACT_TOPIC_ARN: !Ref ContactFormTopic
+          SES_FROM_EMAIL: !Sub "no-reply@${DomainName}"
+          STATIC_S3_BUCKET: !Ref SiteBucket
+          AUTH_JWT_SECRET: !Ref AuthJwtSecret
+          CLOUDFRONT_DISTRIBUTION_ID: !Ref CloudFrontDistribution
+          INDEXNOW_KEY: !Ref IndexNowKey
+          GOOGLE_SEARCH_CONSOLE_CREDENTIALS_SECRET_ARN: !Ref GoogleSearchConsoleCredentialsSecret
+          GOOGLE_SEARCH_CONSOLE_SITE_URL: !Ref GoogleSearchConsoleSiteUrl
+          BING_WEBMASTER_API_KEY: !Ref BingWebmasterApiKey
+          YANDEX_WEBMASTER_OAUTH_TOKEN: !Ref YandexWebmasterOauthToken
+          YANDEX_WEBMASTER_USER_ID: !Ref YandexWebmasterUserId
+          YANDEX_WEBMASTER_HOST_ID: !Ref YandexWebmasterHostId
+      Code:
+        S3Bucket: !Sub "${AWS::StackName}-code"
+        S3Key: !Ref ApiFuncS3Key
 
   SitemapFunction:
     Type: AWS::Lambda::Function
@@ -776,6 +883,46 @@ Resources:
       Qualifier: $LATEST
       MaximumRetryAttempts: 0
       MaximumEventAgeInSeconds: 3600
+
+  FacebookDeletionVerificationPolicy:
+    Type: AWS::IAM::Policy
+    Condition: FacebookDeletionEnabled
+    Properties:
+      PolicyName: FacebookDeletionVerification
+      Roles: [!Ref BackendFunctionRole]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: secretsmanager:GetSecretValue
+            Resource: !Ref FacebookCredentialsSecretArn
+
+  BackgroundInvokeConfig:
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref BackgroundFunction
+      Qualifier: $LATEST
+      MaximumRetryAttempts: 2
+      MaximumEventAgeInSeconds: 3600
+
+  AccountDeletionRecoveryRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Recover interrupted account erasure requests
+      ScheduleExpression: rate(5 minutes)
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt BackgroundFunction.Arn
+          Id: AccountDeletionRecovery
+          Input: '{"task":"recover-account-deletions"}'
+
+  AccountDeletionRecoveryPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref BackgroundFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt AccountDeletionRecoveryRule.Arn
 
   ApiGatewayWebFunctionPermission:
     Type: AWS::Lambda::Permission
@@ -831,7 +978,7 @@ Resources:
         Format: >-
           {"requestId":"$context.requestId","integrationRequestId":"$context.integration.requestId",
           "requestTime":"$context.requestTime","sourceIp":"$context.identity.sourceIp",
-          "httpMethod":"$context.httpMethod","path":"$context.path","routeKey":"$context.routeKey",
+          "httpMethod":"$context.httpMethod","routeKey":"$context.routeKey",
           "status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength",
           "responseLatency":"$context.responseLatency","integrationLatency":"$context.integrationLatency",
           "integrationStatus":"$context.integration.integrationStatus","integrationErrorMessage":"$context.integrationErrorMessage"}

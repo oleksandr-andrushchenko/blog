@@ -2,13 +2,14 @@
     <h2 id="creator-promotion" class="h3">Create here. Reach readers everywhere.</h2>
     <p>Give each article a home, then bring readers back to your work and your author profile.</p>
     {% set tools = [
-        {"icon": "telegram", "title": "Share to your Telegram channel", "text": "Connect your channel and share published articles with a cover, preview, and link back to the full article."},
-        {"icon": "threads", "title": "Bring your ideas to Threads", "text": "Connect your Threads account and share published articles with your audience."},
+        {"icon": "telegram", "enabled": telegram_publisher_enabled, "title": "Share to your Telegram channel", "text": "Connect your channel and share published articles with a cover, preview, and link back to the full article."},
+        {"icon": "threads", "enabled": threads_publisher_enabled, "title": "Bring your ideas to Threads", "text": "Connect your Threads account and share published articles with your audience."},
+        {"icon": "linkedin", "enabled": linkedin_publisher_enabled, "title": "Reach your LinkedIn network", "text": "Connect LinkedIn and post article previews with a link back to SysDesPro."},
         {"icon": "share", "title": "Make your work easy to pass along", "text": "Use the social and email sharing controls on article pages, and add your author profile link to your website or social bio."},
         {"icon": "search", "title": "Help readers discover your expertise", "text": "Published articles appear in category and tag listings, plus latest and popular collections. Readers can follow your profile to keep exploring your work."},
     ] %}
     <div class="{{ {"def": 1, "md": 2} | row_classes }} g-3">
-        {% for tool in tools %}
+        {% for tool in tools if tool.enabled | default(true) %}
             <div class="col">
                 <div class="card h-100">
                     <div class="card-body">
@@ -19,7 +20,9 @@
             </div>
         {% endfor %}
     </div>
+    {% if sharing_platforms %}
     <a href="{{ integrations_url }}" class="btn btn-outline-primary mt-3"{% if not cur_user %} rel="nofollow"{% endif %}>
-        <i class="bi bi-megaphone" aria-hidden="true"></i> Connect Telegram and Threads
+        <i class="bi bi-megaphone" aria-hidden="true"></i> Connect {{ sharing_platforms | join(", ") }}
     </a>
+    {% endif %}
 </section>

@@ -26,7 +26,12 @@ def _get_live_config() -> dict[str, Any]:
         "yandex_webmaster_host_id": os.getenv("YANDEX_WEBMASTER_HOST_ID"),
         "indexnow_key": os.getenv("INDEXNOW_KEY"),
         "tinymce_api_key": os.getenv("TINYMCE_API_KEY"),
+        "background_function_name": os.getenv("BACKGROUND_FUNCTION_NAME", ""),
+        "facebook_credentials_secret_arn": os.getenv("FACEBOOK_CREDENTIALS_SECRET_ARN", ""),
         "sitemap_function_name": os.getenv("SITEMAP_FUNCTION_NAME", ""),
+        "telegram_publisher_enabled": os.getenv("TELEGRAM_PUBLISHER_ENABLED"),
+        "threads_publisher_enabled": os.getenv("THREADS_PUBLISHER_ENABLED"),
+        "linkedin_publisher_enabled": os.getenv("LINKEDIN_PUBLISHER_ENABLED"),
         "threads_app_id": os.getenv("THREADS_APP_ID", ""),
         "linkedin_app_id": os.getenv("LINKEDIN_APP_ID", ""),
         "linkedin_app_secret": os.getenv("LINKEDIN_APP_SECRET", ""),
@@ -217,3 +222,22 @@ def get_telegram_chat_id() -> str:
 
 def get_telegram_log_level() -> str:
     return (config.get("telegram_log_level") or "INFO").upper()
+
+
+def get_auth_cookie_domain() -> str | None:
+    from urllib.parse import urlsplit
+    hostname = urlsplit(get_web_base_url()).hostname
+    if not hostname or hostname in {"localhost", "127.0.0.1"} or "." not in hostname:
+        return None
+    return "." + hostname
+
+
+def get_publisher_enabled(provider: str) -> bool:
+    settings = get_config()
+    flag = settings.get(provider + '_publisher_enabled')
+    if flag not in (None, ''):
+        return str(flag).strip().lower() == 'true'
+    credentials = {'telegram': ('telegram_publisher_bot_token', 'telegram_publisher_webhook_secret'),
+                   'threads': ('threads_app_id', 'threads_app_secret', 'threads_token_encryption_key'),
+                   'linkedin': ('linkedin_app_id', 'linkedin_app_secret', 'linkedin_token_encryption_key')}
+    return all(str(settings.get(key) or '').strip() for key in credentials[provider])

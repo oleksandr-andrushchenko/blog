@@ -1,5 +1,6 @@
 """Resolve saved creator links and authenticate internal click notifications."""
 import time
+import secrets
 
 from jose import JWTError, jwt
 
@@ -34,6 +35,7 @@ def encode_creator_click(owner_id, kind, link_id, article_id=None, actor_id=None
     now = int(time.time())
     return jwt.encode({
         'iss': 'web', 'aud': 'creator-link-click', 'iat': now, 'exp': now + 60,
+        'jti': secrets.token_hex(32),
         'owner_id': owner_id, 'kind': kind, 'link_id': link_id,
         'article_id': article_id, 'actor_id': actor_id,
     }, secret, algorithm='HS256')

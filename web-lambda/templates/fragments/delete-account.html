@@ -1,0 +1,32 @@
+{% if cur_user and user and cur_user.id == user.id %}
+<section class="card border-danger mt-4" aria-labelledby="delete-account-heading">
+    <div class="card-body">
+        <h2 class="h5 text-danger" id="delete-account-heading">Delete account</h2>
+        <p>This permanently deletes your account, articles, comments, and associated uploads. This cannot be undone.</p>
+        <p><a href="{{ url('account-deletion') }}">About account deletion and connected providers</a></p>
+        <form id="delete-account-form" data-deletion-url="{{ url('delete-account', user_id=user.id, absolute=True) }}" novalidate>
+            <label class="form-label" for="delete-account-confirmation">Type DELETE to confirm</label>
+            <input class="form-control mb-3" id="delete-account-confirmation" name="confirmation"
+                   placeholder="DELETE" autocomplete="off">
+            <button class="btn btn-danger" type="submit"><i class="bi bi-trash3 me-1" aria-hidden="true"></i>Delete my account</button>
+        </form>
+    </div>
+</section>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('delete-account-form');
+    handleFormSubmit('#delete-account-form', form.dataset.deletionUrl, {
+        rules: {
+            confirmation: [
+                {rule: 'required', errorMessage: 'Type DELETE to confirm account deletion'},
+                {validator: value => value === 'DELETE', errorMessage: 'Type DELETE to confirm account deletion'}
+            ]
+        },
+        loadingText: 'Requesting deletion...',
+        successMessage: 'Deletion requested.',
+        errorMessage: 'Could not request deletion. Please try again.',
+        onSuccess: result => window.location.assign(result.url)
+    });
+});
+</script>
+{% endif %}

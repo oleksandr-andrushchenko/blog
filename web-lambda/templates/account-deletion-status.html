@@ -1,0 +1,15 @@
+{% extends 'layout.html' %}
+{% set google_analytics_id = none %}
+{% set title = 'Account deletion' %}
+{% set meta_title = title ~ ' ' ~ site_name %}
+{% set meta_robots = 'noindex, nofollow' %}
+{% block content %}
+<h1>Account deletion</h1>
+{% if complete %}
+<p>Your deletion request is complete. The account and its contributions have been removed.</p>
+{% else %}
+<p>Your deletion request has been received. The account and its contributions are being removed.</p>
+<p>Keep this private link and refresh the page to check progress.</p>
+{% endif %}
+<p>For connected-provider settings and information about shared files, see <a href="{{ url('account-deletion') }}">account deletion</a>.</p>
+{% endblock %}

@@ -200,9 +200,7 @@
 
             {% if cur_user and cur_user.id == article.owner_id %}
                 <div class="mb-4">
-                    {% include "fragments/telegram-share.html" %}
-                    {% include "fragments/threads-share.html" %}
-                    {% include "fragments/linkedin-share.html" %}
+                    {% include "fragments/article-sharing.html" %}
                 </div>
             {% endif %}
 

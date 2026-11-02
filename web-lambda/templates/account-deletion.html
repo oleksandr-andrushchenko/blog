@@ -1,0 +1,22 @@
+{% extends 'layout.html' %}
+{% set title = 'Account deletion' %}
+{% set meta_title = title ~ ' ' ~ site_name %}
+{% block breadcrumbs %}
+    {% with breadcrumbs = {"Home": url("index"), (title): None} %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
+{% endblock %}
+{% block content %}
+<h1>Account deletion</h1>
+<p>You can permanently delete your account and all its articles, comments, and associated uploads from your profile settings. This works with every sign-in method.</p>
+{% if cur_user %}
+<a class="btn btn-danger" href="{{ url('edit-user', user_id=cur_user.id) }}#delete-account-heading"><i class="bi bi-trash3 me-1" aria-hidden="true"></i>Go to account settings</a>
+{% else %}
+<a class="btn btn-primary" href="{{ url('login') }}"><i class="bi bi-box-arrow-in-right me-1" aria-hidden="true"></i>Sign in to delete your account</a>
+{% endif %}
+<p class="mt-3">Deletion signs you out immediately. Larger accounts may take longer to erase. Keep the private confirmation link to check progress.</p>
+<p>A verified Facebook or Threads data-deletion request also deletes the entire linked account, including contributions made using other sign-in methods.</p>
+<p>Deleting your account here does not delete your Facebook, Google, Apple, or Threads account, or posts already shared to other services. You can also remove this site's access in your provider's connected-app settings.</p>
+<p>If you use Sign in with Apple, remove this site from <a href="https://account.apple.com/" target="_blank" rel="nofollow noopener noreferrer">your Apple Account</a> after requesting deletion. For Google, review <a href="https://myaccount.google.com/connections" target="_blank" rel="nofollow noopener noreferrer">your third-party connections</a>.</p>
+<p>Files used by someone else's remaining contributions stay available. Copies held by other people, search engines, and provider backups are outside this site's control.</p>
+{% endblock %}

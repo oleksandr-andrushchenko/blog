@@ -9,6 +9,7 @@ from creator_links import get_creator_link, get_creator_links
 from shared_utils import (
     DynamoDBTransactionError, add_dynamodb_update_transact, dynamodb_transact_write,
     get_dynamodb_item, user_from_dynamodb,
+    add_dynamodb_put_transact,
 )
 from web import HTTPException
 
@@ -50,7 +51,7 @@ def _read_creator(user_id):
 
 
 def _guard_link_lists(update, item, fields):
-    update['ConditionExpression'] = 'attribute_exists(pk)'
+    update['ConditionExpression'] = 'attribute_exists(pk) AND attribute_not_exists(deletion_id)'
     for name in fields:
         alias, previous = f'#saved_{name}', f':previous_{name}'
         update['ExpressionAttributeNames'][alias] = name
@@ -94,9 +95,12 @@ def write_user_creator_links(transacts, user, link_changes):
             return
 
 
-def record_creator_link_click(user, link_id, article=None, *, kind='support'):
+def record_creator_link_click(user, link_id, article=None, *, kind='support', event_id=None):
     if kind != 'support':
         raise ValueError('Unsupported creator link kind')
+    event_key = (f'CREATOR_CLICK#{event_id}', 'META') if event_id else None
+    if event_key and get_dynamodb_item(*event_key, consistent_read=True):
+        return False
     field = f'{kind}_links'
     article_field = f'{kind}_link_click_counts'
     if article is not None and not getattr(article, article_field):
@@ -147,12 +151,18 @@ def record_creator_link_click(user, link_id, article=None, *, kind='support'):
             update['ExpressionAttributeNames']['#link_id'] = link_id
             update['ExpressionAttributeValues'][':zero'] = 0
             _guard_article(update, user.id)
+        if event_key:
+            add_dynamodb_put_transact(transacts, event_key, new_pk_only=True)
+        from account_guard import add_account_guard
+        add_account_guard(transacts, user.id)
         try:
             _write_transaction(transacts)
         except (ClientError, DynamoDBTransactionError) as error:
+            if event_key and _failed_condition(error, len(transacts) - 1):
+                return False
             if not _failed_condition(error, 0):
                 raise
             if attempt == 4:
                 raise HTTPException(409, 'Earning links changed while recording the click.') from error
         else:
-            return
+            return True

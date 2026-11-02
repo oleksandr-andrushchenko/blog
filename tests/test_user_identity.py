@@ -67,7 +67,7 @@ def test_signin_never_falls_back_to_email_matching(monkeypatch, provider, email)
     monkeypatch.setattr(shared_utils, 'query_dynamodb_table', query)
     token = UserTokenDTO(sub=provider + '-sub', iss='https://issuer.example/pool', email=email)
     assert shared_utils.get_user_by_user_token(token) is None
-    read.assert_called_once_with('PROVIDER_USER#pool#' + provider + '-sub', 'META')
+    read.assert_called_once_with('PROVIDER_USER#pool#' + provider + '-sub', 'META', consistent_read=True)
     query.assert_not_called()
 
 

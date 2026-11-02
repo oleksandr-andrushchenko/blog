@@ -99,8 +99,20 @@ def test_signed_click_notifications_reject_tampering_and_self_clicks(saved_suppo
     monkeypatch.setattr(api_utils, 'get_article', lambda *args: article)
     record = Mock()
     monkeypatch.setattr(creator_click_service, 'record_creator_link_click', record)
-    api_utils.notify_creator_link_click(token, None)
+    api_utils.process_creator_link_click({**decode_creator_click(token), "event_id": "a" * 64}, None)
     record.assert_not_called()
+
+
+def test_duplicate_click_events_increment_once_and_separate_clicks_remain_distinct(saved_support, monkeypatch):
+    table, user, article = saved_support
+    event_id = 'event-' + user.id
+    assert creator_click_service.record_creator_link_click(user, 'membership', article, event_id=event_id)
+    assert creator_click_service.record_creator_link_click(user, 'membership', article, event_id=event_id) is False
+    assert creator_click_service.record_creator_link_click(user, 'membership', article, event_id=event_id + '-second')
+    owner = table.get_item(Key={'pk': 'USER#' + user.id, 'sk': 'META'})['Item']
+    assert owner['support_links'][0]['clicks_count'] == 2
+    for identifier in (event_id, event_id + '-second'):
+        table.delete_item(Key={'pk': 'CREATOR_CLICK#' + identifier, 'sk': 'META'})
 
 
 def test_support_navigation_requires_same_origin_post(saved_support, monkeypatch):

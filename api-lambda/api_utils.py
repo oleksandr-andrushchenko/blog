@@ -15,6 +15,7 @@ from article_dtos import (
 from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO
 from category_dtos import UpdateCategoryDTO
 from email_service import send_email
+from profile_sync_service import add_profile_sync, dispatch_profile_sync
 from engagement_service import add_statistics_update, guard_reaction, write_reaction
 from redirect_dtos import UpsertRedirectDTO
 from search_engine_submissions import notify_search_engines, submit_sitemap_to_search_engines
@@ -901,6 +902,8 @@ def update_dynamodb_item(
 ) -> None:
     param_dict = dict(locals())
     update_item_params = build_dynamodb_update_item_params(**param_dict)
+    if key[0].startswith("USER#") and key[1] == "META":
+        update_item_params["Update"]["ConditionExpression"] = 'attribute_exists(pk) AND attribute_not_exists(deletion_id)'
     get_dynamodb_table().update_item(**update_item_params["Update"])
 
 
@@ -915,6 +918,7 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
     if link_changes:
         changes.update({name: [asdict(link) for link in links] for name, links in link_changes.items()})
     if not changes:
+        safe_execute("Profile sync", dispatch_profile_sync, user.id)
         return
 
     now = utc_now()
@@ -935,16 +939,10 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
         changes.pop("avatar_filename", None)
 
     if not changes:
+        safe_execute("Profile sync", dispatch_profile_sync, user.id)
         return
 
     old_avatar = user.avatar_filename
-    article_user_changes = {}
-    comment_user_changes = {}
-
-    if "name" in changes:
-        article_user_changes["user_name"] = changes["name"]
-        comment_user_changes["user_name"] = changes["name"]
-
     if "username" in changes:
         old_slug = user.username
         slug = changes["username"]
@@ -962,23 +960,8 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
         elif old_slug:
             add_dynamodb_delete_transact(transacts, (f"USER_SLUG#{old_slug}", "META"))
 
-        article_user_changes["user_slug"] = slug
-        comment_user_changes["user_username"] = slug
-
-    if "avatar_filename" in changes:
-        comment_user_changes["user_avatar_filename"] = changes["avatar_filename"]
-
-    if article_user_changes:
-        for article in get_all_articles_by_user(user):
-            add_dynamodb_article_update_transact(transacts, article, article_user_changes)
-
-    if comment_user_changes:
-        for comment in get_all_article_comments_by_user(user):
-            add_dynamodb_update_transact(
-                transacts,
-                (f"POST#{comment.article_id}", f"COMMENT#{comment.id}"),
-                comment_user_changes,
-            )
+    if {"name", "username", "avatar_filename"} & changes.keys():
+        add_profile_sync(transacts, user.id)
 
     add_dynamodb_user_update_transact(transacts, user, changes, {})
 
@@ -995,6 +978,8 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
         if e.is_conditional():
             raise SlugDuplicationError(field="username")
         raise
+
+    safe_execute("Profile sync", dispatch_profile_sync, user.id)
 
     if old_avatar and avatar_action in {"delete", "replace"}:
         drop_public_file(old_avatar)
@@ -1139,7 +1124,14 @@ def create_contact_message(message_dto: ContactMessageDTO, user: User = None, *,
     if user:
         message_item["user_id"] = user.id
 
-    get_dynamodb_table().put_item(Item=message_item)
+    if user:
+        from account_guard import add_account_guard
+        writes = []
+        add_dynamodb_put_transact(writes, (message_item['pk'], message_item['sk']), message_item)
+        add_account_guard(writes, user.id)
+        dynamodb_transact_write(writes)
+    else:
+        get_dynamodb_table().put_item(Item=message_item)
     logger.info("New contact message", extra={"context": {
         "message_id": message_id,
         "name": name, "email": message_dto.email, "message": message,
@@ -1536,48 +1528,22 @@ def find_static_image_filename(html_content: str) -> str | None:
     return None
 
 
-def get_all_articles_by_user(user: User) -> list[Article]:
-    articles = []
-    for status in ArticleStatus:
-        exclusive_start_key = None
-        while True:
-            response = query_dynamodb_table(
-                index_name="POSTS_BY_USER_STATUS_CREATED_AT_2",
-                key_condition_expr=Key("post_user_status_pk").eq(f"POST#{user.id}#{status}"),
-                scan_index_forward=False,
-                exclusive_start_key=exclusive_start_key,
-            )
-            articles.extend(article_from_dynamodb(item) for item in response.get("Items", []))
-            exclusive_start_key = response.get("LastEvaluatedKey")
-            if not exclusive_start_key:
-                break
-    return articles
-
-
-def get_all_article_comments_by_user(user: User) -> list[ArticleComment]:
-    comments = []
-    exclusive_start_key = None
-    while True:
-        response = query_dynamodb_table(
-            index_name="POST_COMMENTS_BY_USER_CREATED_AT",
-            key_condition_expr=Key("post_comment_user_pk").eq(f"USER#{user.id}"),
-            scan_index_forward=False,
-            exclusive_start_key=exclusive_start_key,
-        )
-        comments.extend(article_comment_from_dynamodb(item) for item in response.get("Items", []))
-        exclusive_start_key = response.get("LastEvaluatedKey")
-        if not exclusive_start_key:
-            break
-    return comments
-
-
 def notify_creator_link_click(token: str, req) -> None:
+    from hashlib import sha256
+    from creator_links import decode_creator_click
+    from creator_click_worker import dispatch_creator_click
     try:
-        from creator_links import decode_creator_click, get_creator_link
-        from creator_click_service import record_creator_link_click
-        event = decode_creator_click(token)
+        claims = decode_creator_click(token)
     except ValueError:
         raise HTTPException(status_code=401)
+    event = {key: claims.get(key) for key in ('owner_id', 'kind', 'link_id', 'article_id', 'actor_id')}
+    event['event_id'] = sha256(token.encode()).hexdigest()
+    dispatch_creator_click(event)
+
+
+def process_creator_link_click(event: dict, req) -> None:
+    from creator_links import get_creator_link
+    from creator_click_service import record_creator_link_click
     user = find_user(event['owner_id'])
     if user is None:
         raise HTTPException(status_code=404)
@@ -1591,7 +1557,7 @@ def notify_creator_link_click(token: str, req) -> None:
         raise HTTPException(status_code=404)
     if actor is not None and actor.id == user.id:
         return
-    record_creator_link_click(user, event['link_id'], article, kind=event['kind'])
+    record_creator_link_click(user, event['link_id'], article, kind=event['kind'], event_id=event['event_id'])
 
 
 def _validate_article_support(providers, owner):
@@ -1636,6 +1602,8 @@ def update_article_comment_impression(article: Article, comment: ArticleComment,
     for user_id, changes in statistics.items():
         add_statistics_update(transacts, user_id, changes)
     guard_reaction(transacts, key, previous)
+    from account_guard import add_account_guard
+    add_account_guard(transacts, cur_user.id)
     write_reaction(transacts, writer=dynamodb_transact_write)
     for field, delta in deltas.items():
         setattr(comment, field, getattr(comment, field) + delta)

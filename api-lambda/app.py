@@ -10,7 +10,7 @@ import telegram_service
 import threads_sharing_service
 
 from shared_utils import template_request
-from app_config import get_allowed_origins, is_prod
+from app_config import get_allowed_origins, get_auth_cookie_domain, is_prod
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import PlainTextResponse
 
@@ -525,6 +525,48 @@ def _integration_mutation(request):
         raise HTTPException(415, "Use application/json")
 
 
+@route("post", "delete-account")
+async def delete_account(user: UserDep, cur_user: CurUserDep, request: Request):
+    import account_deletion_service
+
+    _integration_mutation(request)
+    try:
+        payload = await request.json()
+    except (ValueError, UnicodeError):
+        raise HTTPException(422, "Type DELETE to confirm account deletion") from None
+    code = await to_thread(account_deletion_service.delete_own_account, user, cur_user, payload)
+    response = JSONResponse(account_deletion_service.result(code, request), status_code=202,
+                            headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
+    response.delete_cookie("token", path="/", secure=is_prod(), httponly=True, samesite="lax")
+    response.delete_cookie("token", path="/", domain=get_auth_cookie_domain(),
+                           secure=is_prod(), httponly=True, samesite="lax")
+    return response
+
+
+@route("post", "provider-data-deletion")
+async def provider_data_deletion(provider: str, request: Request):
+    import account_deletion_service
+    import provider_deletion_service
+
+    length = request.headers.get("content-length", "0")
+    if length.isdigit() and int(length) > 20000:
+        raise HTTPException(413, "Request is too large")
+    body = bytearray()
+    async for chunk in request.stream():
+        body.extend(chunk)
+        if len(body) > 20000:
+            raise HTTPException(413, "Request is too large")
+    from urllib.parse import parse_qs
+    try:
+        payload = parse_qs(body.decode(), max_num_fields=10)
+    except (ValueError, UnicodeError):
+        raise HTTPException(400, "Invalid provider request") from None
+    code = await to_thread(provider_deletion_service.accept_meta_request, provider,
+                           (payload.get("signed_request") or [None])[0])
+    return JSONResponse(account_deletion_service.result(code, request),
+                        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
+
+
 @route("get", "login-connection")
 async def login_connection(user: UserDep, cur_user: CurUserDep):
     result = login_link_service.connection_status(user, cur_user)
@@ -751,7 +793,7 @@ async def creator_link_click(request: Request):
     if not header.startswith('Bearer '):
         raise HTTPException(401)
     await to_thread(notify_creator_link_click, header[7:], request)
-    return JSONResponse({'recorded': True}, headers={'Cache-Control': 'no-store'})
+    return JSONResponse({'accepted': True}, status_code=202, headers={'Cache-Control': 'no-store'})
 
 
 @route('post', 'record-article-share')

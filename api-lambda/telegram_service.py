@@ -52,7 +52,12 @@ def _webhook_secret():
     return secret
 
 
+def _require_configuration():
+    return _bot_token(), _webhook_secret()
+
+
 def verify_webhook(secret):
+    _require_configuration()
     if not hmac.compare_digest(_webhook_secret().encode(), (secret or "").encode()):
         raise HTTPException(403, "Invalid Telegram webhook authentication")
 
@@ -143,6 +148,8 @@ def _remove_session(writes, pending):
 
 def get_connection(user, actor):
     authorize_owner(user, actor)
+    if not get_config().get("telegram_publisher_bot_token") or not get_config().get("telegram_publisher_webhook_secret"):
+        return None
     connection = _read(f"USER#{user.id}", INTEGRATION_KEY)
     # Previous personal-bot connections require the new shared-bot authorization flow.
     if not connection or not connection.get("telegram_user_id"):
@@ -167,7 +174,7 @@ def connection_status(user, actor):
 
 def begin_connection(user, actor):
     authorize_owner(user, actor)
-    _webhook_secret()
+    _require_configuration()
     bot = telegram_call("getMe")
     nonce = secrets.token_urlsafe(32)
     digest = hashlib.sha256(nonce.encode()).hexdigest()
@@ -186,6 +193,8 @@ def begin_connection(user, actor):
         _guard(writes[-1]["Put"], old["session_hash"])
     else:
         writes[-1]["Put"]["ConditionExpression"] = "attribute_not_exists(pk)"
+    from account_guard import add_account_guard
+    add_account_guard(writes, user.id)
     _write(writes)
     return {"connect_url": f"https://t.me/{bot['username']}?start={nonce}",
             "expires_at": session["expires_at"]}
@@ -194,7 +203,7 @@ def begin_connection(user, actor):
 def _set_connection_flag(writes, user_id, connected):
     add_dynamodb_update_transact(writes, (f"USER#{user_id}", "META"),
                                  changes={"has_telegram_integration": connected}, add_updated_at=False)
-    writes[-1]["Update"]["ConditionExpression"] = "attribute_exists(pk)"
+    writes[-1]["Update"]["ConditionExpression"] = "attribute_exists(pk) AND attribute_not_exists(deletion_id)"
 
 
 def disconnect(user, actor):
@@ -350,6 +359,7 @@ def _telegram_text_units(text):
 
 
 def share_article(article, actor, request):
+    _require_configuration()
     authorize_owner(actor, actor)
     authorize_article_owner(article, actor)
     if article.status != ArticleStatus.PUBLISHED:

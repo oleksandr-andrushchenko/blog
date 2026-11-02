@@ -496,6 +496,17 @@ Provider references: [OAuth2](https://learn.microsoft.com/en-us/linkedin/shared/
 [OpenID Connect profile](https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/sign-in-with-linkedin-v2),
 and [Posts API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api).
 
+### Background services and indexed tag listings
+
+Profile identity propagation, replay-safe support click counting, and resumable
+account erasure run in the API-owned background worker. See
+[background work and account deletion](docs/background-work.md) for behavior,
+provider callback configuration, and deployment requirements.
+
+Published popular-tag pages have an ordered DynamoDB index with a guarded
+backfill and activation gate. Follow the [index rollout guide](docs/tag-listing-performance.md);
+committing or deploying code alone does not activate indexed reads.
+
 ### Independent development worktrees
 
 Run `python3 scripts/create_worktree.py FEATURE_NAME` from the main checkout.
@@ -514,3 +525,13 @@ is a link to the main checkout's file. Production build/deployment commands
 acquire a shared lock before rereading settings, preventing timestamp races.
 The invoking checkout still supplies its code; sharing configuration does not
 authorize deployment. `PROD_ENV_FILE` can select another environment explicitly.
+
+### Publishing controls
+
+Article owners see one compact publishing panel for configured Telegram,
+Threads, and LinkedIn providers. Buttons show connection and prior-share state.
+Unconfigured providers are omitted from article pages and creator promotions.
+The web Lambda receives only capability flags; publisher credentials remain
+API-owned. Profile connections still use the API's `configured` status.
+Tag listing filters submit on change. Profile activity uses scrollable HTML
+cells with accessible dates and counts instead of a scaled SVG.

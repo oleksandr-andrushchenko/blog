@@ -1163,33 +1163,9 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     status_success = post(root_client, f"/articles/{article_id}/status", json={"status": "published"})
     assert status_success.status_code == 200, status_success.text
     published_admin_doc = pq(get(root_client, f"/articles/{article_id}").text)
-    assert published_admin_doc('#telegram-share').attr('disabled') is not None
-    for platform, name in (('telegram', 'Telegram'), ('threads', 'Threads'), ('linkedin', 'LinkedIn')):
-        preview = published_admin_doc(f'.article-{platform}-sharing')
-        assert preview('section.opacity-50')
-        assert preview(f'#{platform}-share').attr('disabled') is not None
-        assert not preview('section a[href$="#integrations"]')
-        assert preview('div.mt-2 > a[href$="#integrations"]').text() == f'Connect {name}'
-    owner_key = {"pk": f"USER#{functional_state['root_id']}", "sk": "META"}
-    dynamodb_table.update_item(Key=owner_key, UpdateExpression="SET has_telegram_integration = :connected",
-                               ExpressionAttributeValues={":connected": True})
-    try:
-        connected_page = get(root_client, f"/articles/{article_id}")
-        assert connected_page.status_code == 200, connected_page.text
-        connected_doc = pq(connected_page.text)
-        assert connected_doc('#telegram-share i.bi-telegram')
-        assert connected_doc('#telegram-share').attr('disabled') is None
-        assert not connected_doc('.article-telegram-sharing section.opacity-50')
-        assert connected_doc('.article-telegram-sharing section a[href$="#integrations"]').text() == 'Manage Telegram connection'
-        assert f"/users/{functional_state['root_id']}/integrations/telegram" not in connected_page.text
-        assert not pq(get(regular_client, f"/articles/{article_id}").text)('#telegram-share')
-        assert not pq(get(guest_client, f"/articles/{article_id}").text)('#telegram-share')
-    finally:
-        disconnected = delete(root_client, f"/users/{functional_state['root_id']}/integrations/telegram")
-        assert disconnected.status_code == 200, disconnected.text
-    assert get_dynamodb_user(functional_state['root_id'])["has_telegram_integration"] is False
-    assert pq(get(root_client, f"/articles/{article_id}").text)('#telegram-share').attr('disabled') is not None
-
+    assert not published_admin_doc('.article-sharing')
+    for platform in ('telegram', 'threads', 'linkedin'):
+        assert not published_admin_doc(f'#{platform}-share')
     assert not published_admin_doc('#medium-share')
 
     published_doc = pq(get(guest_client, f"/articles/{article_id}").text)

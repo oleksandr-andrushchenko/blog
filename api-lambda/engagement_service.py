@@ -45,7 +45,7 @@ def add_statistics_update(transacts, user_id, deltas, *, baselines=None):
     names = update['ExpressionAttributeNames']
     values = update['ExpressionAttributeValues']
     expressions = []
-    conditions = ['attribute_exists(pk)']
+    conditions = [update.get('ConditionExpression') or 'attribute_exists(pk)']
     snapshot = (get_dynamodb_item(key['pk'], key['sk'], consistent_read=True) or {}
                 if any(delta < 0 for delta in deltas.values()) else {})
     for index, (field, delta) in enumerate(deltas.items()):
@@ -163,6 +163,7 @@ def record_article_share(article, actor, channel, event_id, req=None, *, article
                     value[channel] = value.get(channel, 0) + 1
                     changes[field] = value
             _map_update(transacts, (f'USER#{user_id}', 'META'), item, changes)
+            transacts[-1]['Update']['ConditionExpression'] += ' AND attribute_not_exists(deletion_id)'
         try:
             dynamodb_transact_write(transacts)
         except (DynamoDBTransactionError, ClientError) as error:

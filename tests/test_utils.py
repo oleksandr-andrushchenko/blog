@@ -118,6 +118,8 @@ def _is_api_request(method: str, url: str) -> bool:
     if path in {"/articles-fragment", "/tags-fragment", "/users-fragment"} or any(
             path.endswith(suffix) for suffix in ("/comments-fragment", "/articles-fragment", "/related-fragment")):
         return True
+    if re.fullmatch(r"/users/[^/]+/deletion", path) or re.fullmatch(r"/auth/[^/]+/data-deletion", path):
+        return True
     if re.fullmatch(r"/users/[^/]+/integrations/(telegram|linkedin)", path):
         return True
     if method == "POST" and (re.fullmatch(r"/articles/[^/]+/share/(telegram|linkedin)", path) or path == "/integrations/telegram/webhook"):

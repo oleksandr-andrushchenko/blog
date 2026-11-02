@@ -335,7 +335,7 @@ def notify_creator_link_click(owner_id, kind, link_id, article_id, actor_id, req
 
     try:
         token = encode_creator_click(owner_id, kind, link_id, article_id, actor_id)
-        with httpx.Client(timeout=3) as client:
+        with httpx.Client(timeout=httpx.Timeout(15, connect=3, write=3, pool=3)) as client:
             response = client.post(get_url(req, 'notify-creator-link-click', absolute=True),
                                    headers={'Authorization': f'Bearer {token}'})
             response.raise_for_status()

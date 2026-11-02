@@ -60,6 +60,8 @@ def begin_connection(user, actor, request):
                'verifier': verifier, 'expires_at': now + CONNECT_LIFETIME_MS, 'created_at': now}
     writes = []
     add_dynamodb_put_transact(writes, (f'USER#{user.id}', PENDING_KEY), pending)
+    from account_guard import add_account_guard
+    add_account_guard(writes, user.id)
     dynamodb_transact_write(writes)
     callback = get_url(request, 'login-link-callback', absolute=True)
     params = {'response_type': 'code', 'client_id': config.get('cognito_client_id') or 'local',
@@ -127,7 +129,7 @@ def complete_connection(actor, request):
     # A new attempt or an account ban cancels the whole association transaction.
     writes.append({'ConditionCheck': {
         'TableName': get_dynamodb_table_name(), 'Key': {'pk': f'USER#{actor.id}', 'sk': 'META'},
-        'ConditionExpression': '#status = :active',
+        'ConditionExpression': '#status = :active AND attribute_not_exists(deletion_id)',
         'ExpressionAttributeNames': {'#status': 'status'}, 'ExpressionAttributeValues': {':active': UserStatus.ACTIVE},
     }})
     try:

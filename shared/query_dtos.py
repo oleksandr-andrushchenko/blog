@@ -163,6 +163,18 @@ class ArticleQueryDTO(BaseQueryDTO):
         self.status = ArticleStatus(self.status)
         if self.category is not None:
             self.category = validate_category_slug(self.category)
+        if self.offset and self.tags and self.status == ArticleStatus.PUBLISHED:
+            cursor = decode_query_offset(self.offset)
+            partition = 'POST_TAG_COMBO#' + '#'.join(self.tags)
+            if cursor.get('pk') == partition:
+                expected = {'pk', 'sk', 'tag_rating_sk'} if self.type == ArticleQueryType.POPULAR else {'pk', 'sk'}
+                valid = set(cursor) == expected and cursor['sk'].startswith('POST#')
+                if self.type == ArticleQueryType.POPULAR:
+                    import re
+                    valid = valid and bool(re.fullmatch(r'[0-9]{39}#[^#]+', cursor.get('tag_rating_sk', '')))
+                if not valid:
+                    raise ValueError('offset does not match this tag listing or sort order')
+                return
         if self.offset and self.category:
             try:
                 cursor = json.loads(base64.urlsafe_b64decode(self.offset).decode())
@@ -210,6 +222,8 @@ class ArticleListingQueryDTO(ArticleQueryDTO):
 
     def __post_init__(self):
         ArticleQueryDTO.__post_init__(self)
+        if self.offset and self.tags and decode_query_offset(self.offset).get('pk') == 'POST_TAG_COMBO#' + '#'.join(self.tags):
+            return
         if not self.offset or self.category:
             return
         try:

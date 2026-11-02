@@ -676,6 +676,34 @@ async def logout_callback(request: Request):
     return response
 
 
+@route("get", "account-deletion", response_class=HTMLResponse)
+async def account_deletion(cur_user: OptCurUserDep):
+    return get_html_content("account-deletion.html", {"cur_user": cur_user})
+
+
+@route("get", "account-deletion-status", response_class=HTMLResponse)
+async def account_deletion_status(code: str):
+    import re
+    from shared_utils import get_dynamodb_item
+
+    if not re.fullmatch(r"[A-Za-z0-9_-]{43}", code):
+        raise HTTPException(404)
+    state = get_dynamodb_item("ACCOUNT_DELETE#" + code, "META", consistent_read=True)
+    seen = set()
+    while state and state.get("state") == "linked":
+        target = state["code"]
+        if target in seen:
+            raise HTTPException(500)
+        seen.add(target)
+        state = get_dynamodb_item("ACCOUNT_DELETE#" + target, "META", consistent_read=True)
+    if not state:
+        raise HTTPException(404)
+    return HTMLResponse(get_html_content("account-deletion-status.html", {
+        "complete": state["state"] == "complete",
+    }), headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer",
+                 "X-Robots-Tag": "noindex, nofollow"})
+
+
 @route("get", "policy", response_class=HTMLResponse)
 async def policy(cur_user: OptCurUserDep) -> str:
     return get_html_content("policy.html", {

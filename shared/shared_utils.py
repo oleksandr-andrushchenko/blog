@@ -45,6 +45,7 @@ from app_config import (
 from article_dtos import (ArticleCommentImpressionAction, ArticleImpressionAction)
 from basic_dtos import UserTokenDTO
 from notifications import ContextFormatter, configure_telegram_logging
+from article_listing_index import TAG_LISTING_READY_KEY, TAG_RATING_INDEX, tag_listing_fields, tag_rating_key
 from query_dtos import (BaseQueryDTO, ArticleCommentQueryDTO, ArticleQueryDTO, ArticleQueryType, ArticleStatus,
                         TagQueryDTO, TagQueryType, UserQueryDTO, UserQueryType, UserStatus)
 from tag_subscription_dtos import TagSubscription
@@ -1005,6 +1006,9 @@ def get_jinja2_env():
         "order_classes": jinja2_order_classes,
     })
     jinja2_env.globals.update(get_config())
+    from app_config import get_publisher_enabled
+    jinja2_env.globals.update({provider + '_publisher_enabled': get_publisher_enabled(provider)
+                              for provider in ('telegram', 'threads', 'linkedin')})
     jinja2_env.globals.update({
         "static_url": jinja2_static_url,
         "render_article_content": jinja2_render_article_content,
@@ -1078,12 +1082,12 @@ def get_user_by_user_token(token: UserTokenDTO) -> User | None:
     if not token.sub or not token.iss:
         return None
     issuer = token.iss.split("/")[-1]
-    provider = get_dynamodb_item(f"PROVIDER_USER#{issuer}#{token.sub}", "META")
+    provider = get_dynamodb_item(f"PROVIDER_USER#{issuer}#{token.sub}", "META", consistent_read=True)
     if not provider:
         return None
     user_id = provider["user_id"]
-    item = get_dynamodb_item(f"USER#{user_id}", "META")
-    if not item:
+    item = get_dynamodb_item(f"USER#{user_id}", "META", consistent_read=True)
+    if not item or item.get("deletion_id"):
         return None
     return user_from_dynamodb({
         "id": user_id, **item,
@@ -1128,6 +1132,12 @@ def build_user_username(raw_name: str | None, raw_username: str | None, now: int
 
 def upsert_user_by_user_token(token: UserTokenDTO, status: UserStatus = UserStatus.ACTIVE, *, req=None) -> User:
     now = utc_now()
+    issuer = token.iss.split("/")[-1]
+    association = get_dynamodb_item(f"PROVIDER_USER#{issuer}#{token.sub}", "META", consistent_read=True)
+    if association:
+        profile = get_dynamodb_item(f"USER#{association['user_id']}", "META", consistent_read=True)
+        if profile and profile.get("deletion_id"):
+            raise InvalidTokenError("This account is being deleted")
 
     user = get_user_by_user_token(token)
     is_new_user = user is None
@@ -1169,7 +1179,7 @@ def upsert_user_by_user_token(token: UserTokenDTO, status: UserStatus = UserStat
     add_dynamodb_put_transact(transacts, (f"PROVIDER_USER#{iss}#{token.sub}", "META"), {
         "user_id": user_id,
         **({"email": token.email} if token.email else {}),
-        "created_at": now,
+        "created_at": (association or {}).get("created_at", now),
         "updated_at": now
     }, new_pk_only=is_new_user)
     if not is_new_user:
@@ -1398,7 +1408,7 @@ def add_put_tag_combos_transact(transacts: list, article: Article, slug: str | N
             if slug is None or slug in combo:
                 tag_combo_key = ("POST_TAG_COMBO#" + "#".join(combo),
                                  f"POST#{article.created_at}#{article.id}")
-                add_dynamodb_put_transact(transacts, tag_combo_key, {"post_id": article.id})
+                add_dynamodb_put_transact(transacts, tag_combo_key, tag_listing_fields(article))
 
 
 def add_delete_tag_combos_transact(transacts: list, article: Article, slug: str | None = None) -> None:
@@ -1507,6 +1517,10 @@ def add_update_category_published_count_transact(transacts: list, category_slug:
 
 def find_article(article_id: str) -> Article | None:
     item = get_dynamodb_item(f"POST#{article_id}", "META")
+    if item:
+        owner = get_dynamodb_item(f"USER#{item['user_id']}", "META", consistent_read=True)
+        if owner and owner.get("deletion_id"):
+            return None
     return article_from_dynamodb(item) if item else None
 
 
@@ -1637,7 +1651,7 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
 
 def find_user(user_id: str) -> User | None:
     item = get_dynamodb_item(f"USER#{user_id}", "META")
-    return user_from_dynamodb(item) if item else None
+    return user_from_dynamodb(item) if item and not item.get("deletion_id") else None
 
 
 def user_impression_from_dynamodb(d_item: dict[str, Any]) -> UserImpression:
@@ -1775,8 +1789,8 @@ def add_dynamodb_update_transact(
 
 def add_dynamodb_obj_update_transact(transacts: list, obj: object, key: tuple[str, str],
                                      changes: dict[str, Any] | None = None,
-                                     deltas: dict[str, Any] | None = None) -> None:
-    add_dynamodb_update_transact(transacts, key, changes=changes, deltas=deltas)
+                                     deltas: dict[str, Any] | None = None, *, add_updated_at: bool = True) -> None:
+    add_dynamodb_update_transact(transacts, key, changes=changes, deltas=deltas, add_updated_at=add_updated_at)
     if changes:
         for k, v in changes.items():
             if hasattr(obj, k):
@@ -1789,14 +1803,49 @@ def add_dynamodb_obj_update_transact(transacts: list, obj: object, key: tuple[st
 
 def add_dynamodb_user_update_transact(transacts: list, user: User, changes: dict[str, Any] | None = None,
                                       deltas: dict[str, Any] | None = None) -> None:
-    return add_dynamodb_obj_update_transact(transacts, user, (f"USER#{user.id}", "META"), changes=changes,
-                                            deltas=deltas)
+    if not changes and not deltas:
+        existing = next((write['Update'] for write in transacts if write.get('Update', {}).get('Key') ==
+                         {'pk': f'USER#{user.id}', 'sk': 'META'}), None)
+        if existing is not None:
+            previous = existing.get('ConditionExpression')
+            existing['ConditionExpression'] = ((previous + ' AND ') if previous else '') + 'attribute_not_exists(deletion_id)'
+            return
+    add_dynamodb_obj_update_transact(transacts, user, (f"USER#{user.id}", "META"),
+                                    changes=changes or (None if deltas else {"updated_at": utc_now()}), deltas=deltas)
+    transacts[-1]['Update']['ConditionExpression'] = 'attribute_exists(pk) AND attribute_not_exists(deletion_id)'
 
 
 def add_dynamodb_article_update_transact(transacts: list, article: Article, changes: dict[str, Any] | None = None,
-                                         deltas: dict[str, Any] | None = None) -> None:
-    return add_dynamodb_obj_update_transact(transacts, article, (f"POST#{article.id}", "META"), changes=changes,
-                                            deltas=deltas)
+                                         deltas: dict[str, Any] | None = None, *, add_updated_at: bool = True) -> None:
+    previous = copy.copy(article)
+    add_dynamodb_obj_update_transact(transacts, article, (f"POST#{article.id}", "META"),
+                                    changes=changes, deltas=deltas, add_updated_at=add_updated_at)
+    article.rating = (changes or {}).get('rating_sk', previous.rating) + (deltas or {}).get('rating_sk', 0)
+    if article.status != ArticleStatus.PUBLISHED or not (
+            {'rating_sk', 'category', 'tags', 'status'} & ((changes or {}).keys() | (deltas or {}).keys())):
+        return
+    update = transacts[-1]['Update']
+    names = update.setdefault('ExpressionAttributeNames', {})
+    values = update.setdefault('ExpressionAttributeValues', {})
+    guards = [update.get('ConditionExpression', 'attribute_exists(pk)')]
+    for name, value in (('status', previous.status), ('rating_sk', previous.rating),
+                        ('tags', previous.tags), ('category', previous.category)):
+        alias, token = '#listing_' + name, ':listing_' + name
+        names[alias], values[token] = name, value
+        default_value = not value or (name == 'category' and value == 'other')
+        guards.append(f'({alias} = {token} OR attribute_not_exists({alias}))' if default_value else f'{alias} = {token}')
+    update['ConditionExpression'] = ' AND '.join(guards)
+    writes = []
+    add_put_tag_combos_transact(writes, article)
+    for write in writes:
+        item = write['Put']['Item']
+        existing = next((i for i, operation in enumerate(transacts)
+                         if operation.get('Put', {}).get('Item', {}).get('pk') == item['pk']
+                         and operation['Put']['Item'].get('sk') == item['sk']), None)
+        if existing is None:
+            transacts.append(write)
+        else:
+            transacts[existing] = write
 
 
 def add_dynamodb_tag_update_transact(transacts: list, tag: Tag,
@@ -1867,7 +1916,7 @@ def find_user_by_username(username: str) -> User | None:
         return None
     item = items[0]
     # logger.debug(f"User: {item}")
-    return user_from_dynamodb(item)
+    return user_from_dynamodb(item) if not item.get("deletion_id") else None
 
 
 def find_user_by_username_follow_redirects(slug: str) -> User | None:
@@ -1896,7 +1945,7 @@ def find_user_by_username_follow_redirects(slug: str) -> User | None:
             current_slug = redirect_to
             continue
 
-        return user_from_dynamodb(item)
+        return user_from_dynamodb(item) if not item.get("deletion_id") else None
 
 
 class DecimalEncoder(json.JSONEncoder):
@@ -1928,6 +1977,8 @@ def decode_offset(token: str) -> dict | None:
 def get_articles(query_dto: ArticleQueryDTO = None, cur_user: User = None) -> list[Article]:
     if query_dto is None:
         query_dto = ArticleQueryDTO()
+    if query_dto.tags and query_dto.status == ArticleStatus.PUBLISHED and tag_listing_index_ready():
+        return get_indexed_tag_articles(query_dto)
     if query_dto.category and query_dto.tags:
         fetch_page = get_popular_articles if query_dto.type == ArticleQueryType.POPULAR else get_latest_articles
         page_query = copy.copy(query_dto)
@@ -2128,10 +2179,18 @@ def get_popular_articles_by_tags(
         return get_popular_articles(query_dto, cur_user)
 
     if (query_dto.status == ArticleStatus.PUBLISHED and not or_mode and not query_dto.category):
+        if tag_listing_index_ready():
+            indexed_query = copy.copy(query_dto)
+            indexed_query.type = ArticleQueryType.POPULAR
+            return get_indexed_tag_articles(indexed_query)
         after = None
         if query_dto.offset:
             cursor = decode_offset(query_dto.offset)
-            after = (cursor["rating_sk"], cursor["pk"].removeprefix("POST#"))
+            if 'tag_rating_sk' in cursor:
+                rating, article_id = cursor['tag_rating_sk'].split('#', 1)
+                after = (int(rating) - 10 ** 38, article_id)
+            else:
+                after = (cursor["rating_sk"], cursor["pk"].removeprefix("POST#"))
         ranked = nlargest(query_dto.limit + 1, _popular_tag_candidates(query_dto.tags, after),
                           key=lambda article: (article.rating, article.id))
         results = ranked[:query_dto.limit]
@@ -2184,6 +2243,96 @@ def get_popular_articles_by_tags(
             break
 
     return filtered_articles
+
+
+def get_articles_by_ids(article_ids):
+    identifiers = list(dict.fromkeys(article_ids))
+    table = get_dynamodb_table()
+    records = {}
+    for start in range(0, len(identifiers), 100):
+        pending = [{"pk": "POST#" + identifier, "sk": "META"} for identifier in identifiers[start:start + 100]]
+        for attempt in range(3):
+            response = table.meta.client.batch_get_item(RequestItems={table.name: {"Keys": pending}})
+            records.update({item['id']: item for item in response.get('Responses', {}).get(table.name, [])})
+            pending = response.get('UnprocessedKeys', {}).get(table.name, {}).get('Keys', [])
+            if not pending:
+                break
+            if attempt < 2:
+                time.sleep(0.05 * 2 ** attempt)
+        if pending:
+            raise RuntimeError('Unable to read all article records; retry this page')
+    return [article_from_dynamodb(records[identifier]) for identifier in identifiers if identifier in records]
+
+
+def tag_listing_index_ready():
+    """The migration enables reads only after existing relations are indexed."""
+    state = get_dynamodb_item(*TAG_LISTING_READY_KEY)
+    return bool(state and state.get('version') == 1)
+
+
+def get_indexed_tag_articles(query_dto):
+    """Read only ordered matching relations and one page of article metadata."""
+    from boto3.dynamodb.conditions import Attr
+
+    table = get_dynamodb_table()
+    partition = 'POST_TAG_COMBO#' + '#'.join(sorted(query_dto.tags))
+    popular = query_dto.type == ArticleQueryType.POPULAR
+    condition = Key('pk').eq(partition)
+    params = {'ScanIndexForward': False}
+    if popular:
+        params['IndexName'] = TAG_RATING_INDEX
+    else:
+        condition &= Key('sk').begins_with('POST#')
+    if query_dto.offset:
+        cursor = decode_offset(query_dto.offset)
+        if cursor.get('pk') == partition and (not popular or 'tag_rating_sk' in cursor):
+            params['ExclusiveStartKey'] = cursor
+        elif popular:
+            article_id = (cursor['pk'].removeprefix('POST#') if cursor['sk'] == 'META'
+                         else cursor['sk'].split('#', 2)[2])
+            condition &= Key('tag_rating_sk').lt(tag_rating_key(cursor['rating_sk'], article_id))
+        else:
+            sk = (cursor['sk'] if cursor['sk'] != 'META'
+                  else f"POST#{cursor['created_at']}#{cursor['pk'].removeprefix('POST#')}")
+            condition &= Key('sk').lt(sk)
+    params['KeyConditionExpression'] = condition
+    filters = []
+    if query_dto.category:
+        filters.append(Attr('category').eq(query_dto.category))
+    for expression in filters:
+        params['FilterExpression'] = (params['FilterExpression'] & expression
+                                    if 'FilterExpression' in params else expression)
+    wanted = set(query_dto.tags)
+    matches = []
+    seen = set()
+    while len(matches) <= query_dto.limit:
+        # With extra filters, evaluate a bounded relation batch rather than
+        # making one round trip for every nonmatching article.
+        remaining = query_dto.limit + 1 - len(matches)
+        params['Limit'] = min(100, max(remaining, 100) if filters else remaining)
+        page = table.query(**params)
+        relations = page.get('Items', [])
+        articles = {article.id: article for article in get_articles_by_ids(item['post_id'] for item in relations)}
+        for item in relations:
+            article = articles.get(item['post_id'])
+            if (article is None or article.id in seen or article.status != ArticleStatus.PUBLISHED
+                    or not wanted.issubset(article.tags)
+                    or (query_dto.category and article.category != query_dto.category)):
+                continue
+            seen.add(article.id)
+            cursor = {key: item[key] for key in (('pk', 'sk', 'tag_rating_sk') if popular else ('pk', 'sk'))}
+            matches.append((article, cursor))
+            if len(matches) > query_dto.limit:
+                break
+        if len(matches) > query_dto.limit or not page.get('LastEvaluatedKey'):
+            break
+        params['ExclusiveStartKey'] = page['LastEvaluatedKey']
+    results = [article for article, _cursor in matches[:query_dto.limit]]
+    for article in results:
+        article.offset = None
+    if len(matches) > query_dto.limit:
+        results[-1].offset = encode_offset(matches[query_dto.limit - 1][1])
+    return results
 
 
 def _popular_tag_candidates(tags, after):

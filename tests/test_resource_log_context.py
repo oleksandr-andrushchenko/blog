@@ -89,7 +89,9 @@ def test_contact_submission_logs_message_identity_and_authenticated_sender(resou
         api_utils.ContactMessageDTO(name='Reader', email='reader@example.com', message='A useful message'),
         user, req=get_web_request(),
     )
-    assert table.put_item.call_args.kwargs['Item']['message_id'] == message.id
+    writes = api_utils.dynamodb_transact_write.call_args.args[0]
+    assert writes[0]['Put']['Item']['message_id'] == message.id
+    assert any('ConditionCheck' in write for write in writes)
     assert logger.info.call_args.kwargs['extra']['context'] == {
         'message_id': message.id, 'name': 'Reader', 'email': 'reader@example.com',
         'message': 'A useful message', 'by': 'https://site.example/@author',

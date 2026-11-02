@@ -8,6 +8,8 @@ WEB_AUTH_URL_ROUTES = {
 }
 
 WEB_URL_ROUTES = WEB_AUTH_URL_ROUTES | {
+    "account-deletion": "/account-deletion",
+    "account-deletion-status": "/account-deletion/status/{code}",
     "user-support-link": "/users/{user_id}/support/{link_id}",
     "article-support-link": "/articles/{article_id}/support/{link_id}",
     "index": "/",

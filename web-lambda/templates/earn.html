@@ -35,6 +35,7 @@
     {% endwith %}
 {% endblock %}
 
+{% set sharing_platforms = ([] if not telegram_publisher_enabled else ['Telegram']) + ([] if not threads_publisher_enabled else ['Threads']) + ([] if not linkedin_publisher_enabled else ['LinkedIn']) %}
 {% block content %}
     {% set share_url = url("new-article") if cur_user else url("login", redirect_url=url("new-article")) %}
     {% set setup_url = url("edit-user", user_id=cur_user.id) ~ "#earn" if cur_user else url("login", redirect_url=url("earn")) %}

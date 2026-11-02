@@ -164,7 +164,7 @@ def _guard(operation, record):
 def _set_flag(writes, user_id, connected):
     add_dynamodb_update_transact(writes, (f"USER#{user_id}", "META"),
                                  changes={"has_threads_integration": connected}, add_updated_at=False)
-    writes[-1]["Update"]["ConditionExpression"] = "attribute_exists(pk)"
+    writes[-1]["Update"]["ConditionExpression"] = "attribute_exists(pk) AND attribute_not_exists(deletion_id)"
 
 
 def connection_status(user, actor):
@@ -198,6 +198,8 @@ def begin_connection(user, actor):
                "expires_at": now + CONNECT_LIFETIME_MS, "created_at": now}
     writes = []
     add_dynamodb_put_transact(writes, (f"USER#{user.id}", PENDING_KEY), pending)
+    from account_guard import add_account_guard
+    add_account_guard(writes, user.id)
     _write(writes)
     url = "https://www.threads.com/oauth/authorize?" + urlencode({
         "client_id": settings["threads_app_id"], "redirect_uri": callback_url(),

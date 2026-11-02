@@ -1,6 +1,8 @@
 """Canonical API route names and path templates."""
 
 API_URL_ROUTES = {
+    "delete-account": "/users/{user_id}/deletion",
+    "provider-data-deletion": "/auth/{provider}/data-deletion",
     "linkedin-connection": "/users/{user_id}/integrations/linkedin",
     "linkedin-callback": "/integrations/linkedin/callback",
     "share-article-linkedin": "/articles/{article_id}/share/linkedin",

@@ -322,6 +322,7 @@ def test_popular_tag_partition_ranking_paginates_ties_and_skips_stale_members(mo
 
     table = SimpleNamespace(name="catalog", query=query,
                             meta=SimpleNamespace(client=SimpleNamespace(batch_get_item=batch)))
+    monkeypatch.setattr(shared_utils, "tag_listing_index_ready", lambda: False)
     monkeypatch.setattr(shared_utils, "get_dynamodb_table", lambda: table)
     monkeypatch.setattr(shared_utils, "article_from_dynamodb", lambda item: item)
     monkeypatch.setattr(shared_utils, "get_popular_articles", lambda *args: pytest.fail("Read the global popularity index"))
@@ -359,6 +360,7 @@ def test_popular_tag_partition_retries_unprocessed_keys_without_partial_results(
         name="catalog", query=lambda **params: {"Items": [{"post_id": "matched"}]},
         meta=SimpleNamespace(client=SimpleNamespace(batch_get_item=batch)),
     )
+    monkeypatch.setattr(shared_utils, "tag_listing_index_ready", lambda: False)
     monkeypatch.setattr(shared_utils, "get_dynamodb_table", lambda: table)
     monkeypatch.setattr(shared_utils, "article_from_dynamodb", lambda item: item)
     if recover:
@@ -395,6 +397,7 @@ def test_sparse_popular_tag_query_loads_matching_metadata_only(monkeypatch):
         "Items": [{"post_id": key} for key in members],
     }, meta=SimpleNamespace(client=SimpleNamespace(batch_get_item=batch)))
     monkeypatch.setattr(shared_utils, "get_popular_articles", global_page)
+    monkeypatch.setattr(shared_utils, "tag_listing_index_ready", lambda: False)
     monkeypatch.setattr(shared_utils, "get_dynamodb_table", lambda: table)
     monkeypatch.setattr(shared_utils, "article_from_dynamodb", lambda value: value)
     query = ArticleQueryDTO(type="popular", tags=["rare"], limit=40)

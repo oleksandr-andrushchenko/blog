@@ -1,0 +1,170 @@
+{% if cur_user and cur_user.id == article.owner_id %}
+    {% set connection_url = url('edit-user', user_id=cur_user.id) ~ '#integrations' %}
+    {% set can_share = cur_user.status == UserStatus.ACTIVE and article.status == ArticleStatus.PUBLISHED %}
+    {% set sharing_platforms = [] %}
+    {% if telegram_publisher_enabled %}
+        {% set sharing_platforms = sharing_platforms + [
+            {'key': 'telegram', 'name': 'Telegram', 'icon': 'telegram', 'route': 'share-article-telegram',
+             'connected': cur_user.has_telegram_integration, 'shared': article.telegram_shared_at}
+        ] %}
+    {% endif %}
+    {% if threads_publisher_enabled %}
+        {% set sharing_platforms = sharing_platforms + [
+        {'key': 'threads', 'name': 'Threads', 'icon': 'threads', 'route': 'share-article-threads',
+         'connected': cur_user.has_threads_integration, 'shared': article.threads_shared_at,
+         'profile_base': 'https://www.threads.com/@'}
+        ] %}
+    {% endif %}
+    {% if linkedin_publisher_enabled %}
+        {% set sharing_platforms = sharing_platforms + [
+            {'key': 'linkedin', 'name': 'LinkedIn', 'icon': 'linkedin', 'route': 'share-article-linkedin',
+             'connected': cur_user.has_linkedin_integration, 'shared': article.linkedin_shared_at}
+        ] %}
+    {% endif %}
+    {% if sharing_platforms %}
+    <section class="card shadow-sm my-4 article-sharing" aria-labelledby="article-sharing-heading">
+        <div class="card-body">
+            <h2 id="article-sharing-heading" class="h4 card-title">
+                <i class="bi bi-share" aria-hidden="true"></i> Share article
+            </h2>
+            <p class="small text-secondary mb-3">Share to your connected accounts and channels.</p>
+            {% if not can_share %}
+                <p class="small mb-3" id="article-sharing-notice">
+                    {% if cur_user.status != UserStatus.ACTIVE %}An active account is required to share articles.
+                    {% else %}Publish this article to share it.{% endif %}
+                </p>
+            {% endif %}
+            <div class="d-flex flex-wrap gap-2">
+                {% for platform in sharing_platforms %}
+                    {% set share_state = 'disconnected' if not platform.connected else 'shared' if platform.shared else 'connected' %}
+                    {% set share_action = ('Share again to ' if platform.shared else 'Share to ') ~ platform.name if platform.connected else 'Connect ' ~ platform.name %}
+                    <div class="btn-group" role="group" aria-label="{{ platform.name }} sharing">
+                        {% if platform.connected %}
+                            <button type="button" class="btn btn-sm {{ 'btn-success' if platform.shared else 'btn-secondary' }} article-share-action"
+                                    id="{{ platform.key }}-share" data-state="{{ share_state }}"
+                                    data-platform="{{ platform.key }}" data-platform-name="{{ platform.name }}"
+                                    data-share-url="{{ url(platform.route, article_id=article.id, absolute=True) }}"
+                                    data-profile-base="{{ platform.profile_base | default('') }}"
+                                    aria-label="{{ share_action }}" title="{{ share_action }}"
+                                    {% if not can_share %}disabled{% endif %}>
+                        {% else %}
+                            <a href="{{ connection_url }}" class="btn btn-sm btn-outline-secondary article-share-action"
+                               id="{{ platform.key }}-share" data-state="disconnected"
+                               aria-label="{{ share_action }}" title="{{ share_action }}">
+                        {% endif %}
+                            <i class="bi bi-{{ platform.icon }} me-1" aria-hidden="true"></i>
+                            <span>{{ platform.name }}</span>
+                            <span class="mx-1" aria-hidden="true">·</span>
+                            <span data-share-state>{{ 'Connect' if not platform.connected else 'Shared' if platform.shared else 'Connected' }}</span>
+                        {% if platform.connected %}</button>{% else %}</a>{% endif %}
+                        <a href="{{ connection_url }}" class="btn btn-sm btn-outline-secondary"
+                           aria-label="Manage {{ platform.name }} connection" title="Manage {{ platform.name }} connection">
+                            <i class="bi bi-gear" aria-hidden="true"></i>
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+            <p class="small mt-2 mb-0 d-none" id="article-sharing-status" role="status" aria-live="polite"></p>
+        </div>
+    </section>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const status = document.getElementById('article-sharing-status')
+
+        function message(text, button, username) {
+          status.textContent = text
+          status.classList.remove('d-none')
+          if (button.dataset.profileBase && typeof username === 'string' && username) {
+            const link = document.createElement('a')
+            link.href = button.dataset.profileBase + encodeURIComponent(username)
+            link.target = '_blank'
+            link.rel = 'nofollow noopener noreferrer'
+            link.className = 'ms-1'
+            link.textContent = `Open ${button.dataset.platformName} profile`
+            status.append(link)
+          }
+        }
+
+        function state(button, name, text, style = 'secondary') {
+          button.dataset.state = name
+          button.querySelector('[data-share-state]').textContent = text
+          button.classList.remove('btn-secondary', 'btn-success', 'btn-danger')
+          button.classList.add(`btn-${style}`)
+          const action = name === 'shared' ? `Share again to ${button.dataset.platformName}` :
+            name === 'unconfirmed' ? `Check ${button.dataset.platformName} before sharing again` :
+              `Share to ${button.dataset.platformName}`
+          button.setAttribute('aria-label', action)
+          button.title = action
+        }
+
+        document.querySelectorAll('.article-share-action[data-share-url]').forEach(button => {
+          if (button.disabled) return
+          const name = button.dataset.platformName
+          button.addEventListener('click', async () => {
+            if (button.disabled) return
+            button.disabled = true
+            button.setAttribute('aria-busy', 'true')
+            state(button, 'sharing', 'Sharing…')
+            message(`Sharing to ${name}…`, button)
+            let preparingMedia = false
+            try {
+              let payload = {}
+              let data
+              do {
+                const response = await fetch(button.dataset.shareUrl, {
+                  method: 'POST', credentials: 'include', headers: {'Content-Type': 'application/json'},
+                  body: JSON.stringify(payload)
+                })
+                data = await response.json()
+                if (!response.ok) {
+                  const error = new Error(typeof data.details === 'string' ? data.details : 'Could not share this article.')
+                  error.canRetry = !preparingMedia && [401, 403, 404, 409, 413, 415, 422, 429].includes(response.status)
+                  throw error
+                }
+                if (data.status === 'processing') {
+                  preparingMedia = true
+                  if (typeof data.continuation !== 'string') throw new Error('Missing share progress')
+                  state(button, 'preparing', 'Preparing…')
+                  message(`Preparing your attachments for ${name}… Keep this page open.`, button)
+                  payload = {continuation: data.continuation}
+                  await new Promise(resolve => setTimeout(resolve, Math.max(0, Math.min(60, data.retry_after || 0)) * 1000))
+                }
+              } while (data.status === 'processing')
+              if (data.status === 'unconfirmed') {
+                state(button, 'unconfirmed', 'Check account', 'danger')
+                message(`${name} has not confirmed this share yet. Check your account before trying again.`, button, data.username)
+                return
+              }
+              if (data.shared !== true) throw new Error('Unconfirmed share')
+              state(button, 'shared', 'Shared', 'success')
+              const destination = data.channel_title || (data.username ? `@${data.username}` : name)
+              message(`Shared to ${destination}.`, button)
+              if (typeof data.post_url === 'string') {
+                const destinationUrl = new URL(data.post_url)
+                if (destinationUrl.protocol === 'https:' &&
+                    ['www.linkedin.com', 'www.threads.com', 'www.threads.net', 't.me'].includes(destinationUrl.hostname) &&
+                    !destinationUrl.username && !destinationUrl.password) {
+                  const link = document.createElement('a')
+                  link.href = destinationUrl.href
+                  link.target = '_blank'
+                  link.rel = 'nofollow noopener noreferrer'
+                  link.className = 'ms-1'
+                  link.textContent = `Open ${name} post`
+                  status.append(link)
+                }
+              }
+              button.disabled = false
+            } catch (error) {
+              state(button, error.canRetry ? 'retry' : 'unconfirmed', error.canRetry ? 'Try again' : 'Check account', 'danger')
+              message(error.canRetry ? error.message :
+                `Could not confirm this share. Check your ${name} account before trying again.`, button)
+              button.disabled = !error.canRetry
+            } finally {
+              button.removeAttribute('aria-busy')
+            }
+          })
+        })
+      })
+    </script>
+    {% endif %}
+{% endif %}
