@@ -1381,6 +1381,60 @@ def test_article_impression_comment_and_comment_update_endpoints_success_and_fai
     assert missing_fragment.status_code == 404
 
 
+@pytest.mark.parametrize("user_alias", ["regular", "root", None])
+def test_article_image_upload_checks_auth_and_saves_resized_image(guest_client, user_alias):
+    from io import BytesIO
+
+    from PIL import Image
+
+    original = BytesIO()
+    Image.new("RGB", (1600, 800), "red").save(original, format="PNG")
+    client = get_logged_in_client({"regular": regular_user, "root": root_user}[user_alias]) if user_alias else guest_client
+    response = post(client, "/article-images", files={
+        "file": ("article-cover.png", original.getvalue(), "image/png"),
+    })
+    if user_alias is None:
+        assert response.status_code == 401, response.text
+        return
+    assert response.status_code == 200, response.text
+    assert response.json().endswith("_1200x600.png")
+    uploaded_path = Path("/app/static") / response.json()
+    try:
+        with Image.open(uploaded_path) as uploaded:
+            assert uploaded.size == (1200, 600)
+    finally:
+        uploaded_path.unlink()
+
+
+def test_article_image_upload_rejects_banned_account():
+    from io import BytesIO
+
+    from PIL import Image
+
+    original = BytesIO()
+    Image.new("RGB", (800, 400), "red").save(original, format="PNG")
+    client = get_logged_in_client(regular_user)
+    user_id = user_ids["regular"]
+    previous_status = get_dynamodb_user(user_id)["status"]
+    key = {"pk": f"USER#{user_id}", "sk": "META"}
+    try:
+        dynamodb_table.update_item(
+            Key=key, UpdateExpression="SET #status = :status",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={":status": "banned"},
+        )
+        response = post(client, "/article-images", files={
+            "file": ("article-cover.png", original.getvalue(), "image/png"),
+        })
+        assert response.status_code == 403, response.text
+    finally:
+        dynamodb_table.update_item(
+            Key=key, UpdateExpression="SET #status = :status",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={":status": previous_status},
+        )
+
+
 def test_public_file_upload_endpoint_success_and_failure(guest_client):
     png_content = b"\x89PNG\r\n\x1a\n" + (b"\x00" * 1100)
     success = post(guest_client, "/public-file", files={

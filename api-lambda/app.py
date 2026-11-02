@@ -85,6 +85,7 @@ from deps import (
     RelatedArticleQueryDep,
 )
 from notifications import get_access_log
+from query_dtos import UserStatus
 from related_articles import get_related_articles
 from shared_deps import (
     validate_collection_offset,

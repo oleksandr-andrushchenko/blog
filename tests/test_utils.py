@@ -132,7 +132,7 @@ def _is_api_request(method: str, url: str) -> bool:
         return path in {"/tag-subscriptions", "/tags"}
     if method == "POST":
         return path in {
-            "/public-file", "/articles", "/contacts/message",
+            "/public-file", "/article-images", "/articles", "/contacts/message",
             "/tag-subscriptions",
             "/generate-sitemap", "/drop-cdn-cache", "/redirects",
         } or bool(re.fullmatch(r"/articles/[^/]+/(status|impression|comments?|share-click)", path)) or bool(
