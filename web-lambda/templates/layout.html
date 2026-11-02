@@ -162,9 +162,6 @@
 
                 <ul class="navbar-nav">
                     {% if cur_user %}
-                        {% if cur_user.status == UserStatus.ACTIVE %}
-                            {% include "fragments/site-notification-menu.html" %}
-                        {% endif %}
                         {% if check_auth(cur_user, Permission.CREATE_ARTICLE) %}
                             <li class="nav-item">
                                 <a class="nav-link{% if cur_user.status == UserStatus.BANNED %} disabled{% endif %} bi bi-pencil-fill"
@@ -172,6 +169,9 @@
                                     New article
                                 </a>
                             </li>
+                        {% endif %}
+                        {% if cur_user.status == UserStatus.ACTIVE %}
+                            {% include "fragments/site-notification-menu.html" %}
                         {% endif %}
                         {% set profile_url = user_url(cur_user) %}
                         {% set edit_profile_url = url("edit-user", user_id=cur_user.id) %}
