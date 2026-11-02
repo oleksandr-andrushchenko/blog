@@ -22,8 +22,7 @@ from notifications import TelegramFormatter
 
 PROMPT_URL = 'https://example.com/@owner/example-article'
 POST_URLS = {'telegram': 'https://t.me/example_channel/42',
-             'threads': 'https://www.threads.com/@example_creator/post/example',
-             'medium': 'https://medium.com/@example_creator/example'}
+             'threads': 'https://www.threads.com/@example_creator/post/example'}
 
 
 @pytest.fixture
@@ -54,7 +53,18 @@ def stored_article(monkeypatch):
         dynamodb_table.delete_item(Key={'pk': event['pk'], 'sk': event['sk']})
 
 
-@pytest.mark.parametrize('platform', ['telegram', 'threads', 'medium'])
+def test_legacy_medium_attributes_do_not_prevent_loading_records(stored_article):
+    table, item, _ = stored_article
+    article = article_from_dynamodb({**item, 'medium_shared_at': 1000,
+                                    'shares_counts': {'medium_publish': 2}})
+    owner = table.get_item(Key={'pk': 'USER#' + item['user_id'], 'sk': 'META'})['Item']
+    user = shared_utils.user_from_dynamodb({**owner, 'has_medium_integration': True})
+    assert article.id == item['id']
+    assert article.shares_counts == {'medium_publish': 2}
+    assert user.id == item['user_id']
+
+
+@pytest.mark.parametrize('platform', ['telegram', 'threads'])
 def test_successful_shares_and_reshares_persist_without_changing_article_content(stored_article, monkeypatch, platform):
     table, before, article = stored_article
     assert article.telegram_shared_at is None and article.threads_shared_at is None

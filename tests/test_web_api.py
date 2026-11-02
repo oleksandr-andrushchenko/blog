@@ -36,6 +36,17 @@ from test_utils import (
 pytestmark = pytest.mark.functional
 
 
+@pytest.mark.parametrize('method, path', [
+    ('GET', '/users/legacy-user/integrations/medium'),
+    ('POST', '/users/legacy-user/integrations/medium'),
+    ('DELETE', '/users/legacy-user/integrations/medium'),
+    ('POST', '/articles/legacy-article/share/medium'),
+])
+def test_removed_medium_endpoints_return_not_found(guest_client, method, path):
+    response = guest_client.request(method, os.environ['API_TEST_BASE_URL'] + path, timeout=10)
+    assert response.status_code == 404, response.text
+
+
 def get_client(request, user):
     client_name = f"{user}_user_client"
     client = request.getfixturevalue(client_name)
@@ -895,9 +906,7 @@ def test_user_edit_update_and_fragment_endpoints_success_and_failure(root_user_c
     assert 'Could not check available' not in edit_success.text
     assert form('#integrations #telegram-connect').text() == 'Connect Telegram'
     assert not form('#integrations input[name]')
-    assert form('#medium-token').attr('type') == 'password'
-    assert form('#medium-token').attr('value') is None
-    assert form('#medium-connect').attr('type') == 'button'
+    assert not form('#medium-integration')
     assert not form('#telegram-token')
     connection_url = f"/users/{root_id}/integrations/telegram"
     connection = get(root_user_client, connection_url)
@@ -1145,7 +1154,7 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     assert status_success.status_code == 200, status_success.text
     published_admin_doc = pq(get(root_client, f"/articles/{article_id}").text)
     assert published_admin_doc('#telegram-share').attr('disabled') is not None
-    for platform in ('telegram', 'threads', 'medium'):
+    for platform in ('telegram', 'threads'):
         preview = published_admin_doc(f'.article-{platform}-sharing')
         assert preview('section.opacity-50')
         assert preview(f'#{platform}-share').attr('disabled') is not None
@@ -1171,28 +1180,7 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     assert get_dynamodb_user(functional_state['root_id'])["has_telegram_integration"] is False
     assert pq(get(root_client, f"/articles/{article_id}").text)('#telegram-share').attr('disabled') is not None
 
-    medium_endpoint = f"/users/{functional_state['root_id']}/integrations/medium"
-    medium_status = get(root_client, medium_endpoint)
-    assert medium_status.status_code == 200, medium_status.text
-    assert medium_status.headers['Cache-Control'] == 'no-store'
-    assert medium_status.json()['connected'] is False
-    assert get(regular_client, medium_endpoint).status_code == 403
-    assert post(root_client, medium_endpoint, json={"token": "synthetic-token"}).status_code == 503
-    assert post(regular_client, f"/articles/{article_id}/share/medium", json={}).status_code == 403
-    assert post(root_client, f"/articles/{article_id}/share/medium", json={}).status_code == 409
-    dynamodb_table.update_item(Key=owner_key, UpdateExpression="SET has_medium_integration = :connected",
-                               ExpressionAttributeValues={":connected": True})
-    try:
-        medium_doc = pq(get(root_client, f"/articles/{article_id}").text)
-        assert medium_doc('#medium-share').attr('disabled') is None
-        assert medium_doc('#medium-share').text() == 'Post short version to Medium'
-        assert not medium_doc('.article-medium-sharing section.opacity-50')
-        assert not pq(get(regular_client, f"/articles/{article_id}").text)('#medium-share')
-        assert not pq(get(guest_client, f"/articles/{article_id}").text)('#medium-share')
-    finally:
-        disconnected = delete(root_client, medium_endpoint)
-        assert disconnected.status_code == 200, disconnected.text
-    assert not get_dynamodb_user(functional_state['root_id'])["has_medium_integration"]
+    assert not published_admin_doc('#medium-share')
 
     published_doc = pq(get(guest_client, f"/articles/{article_id}").text)
     assert published_doc('meta[name="robots"]').attr("content") == "index, follow"

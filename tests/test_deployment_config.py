@@ -13,7 +13,6 @@ def test_deployment_reads_credentials_from_production_env(tmp_path):
         'THREADS_APP_ID': 'synthetic-threads-app',
         'THREADS_APP_SECRET': 'synthetic-threads-secret',
         'THREADS_TOKEN_ENCRYPTION_KEY': 'synthetic-encryption-key',
-        'MEDIUM_TOKEN_ENCRYPTION_KEY': 'synthetic-medium-encryption-key',
         'APPLE_CREDENTIALS_SECRET_ARN': 'arn:aws:secretsmanager:us-west-2:123456789012:secret:apple-example',
     }
     (tmp_path / '.env.prod').write_text(''.join(f'{key}={value}\n' for key, value in values.items()))
@@ -38,7 +37,6 @@ def test_deployment_reads_credentials_from_production_env(tmp_path):
         ('ThreadsAppId', 'THREADS_APP_ID'),
         ('ThreadsAppSecret', 'THREADS_APP_SECRET'),
         ('ThreadsTokenEncryptionKey', 'THREADS_TOKEN_ENCRYPTION_KEY'),
-        ('MediumTokenEncryptionKey', 'MEDIUM_TOKEN_ENCRYPTION_KEY'),
         ('AppleCredentialsSecretArn', 'APPLE_CREDENTIALS_SECRET_ARN'),
     ):
         assert f'{parameter}="{values[variable]}"' in result.stdout
@@ -55,15 +53,3 @@ def test_login_link_callback_and_api_code_exchange_configuration():
     assert environment['COGNITO_CLIENT_ID'] == {'Ref': 'CognitoUserPoolClient'}
     assert environment['COGNITO_CLIENT_SECRET'] == {'GetAtt': 'CognitoUserPoolClient.ClientSecret'}
     assert environment['COGNITO_USER_POOL_ID'] == {'Ref': 'CognitoUserPoolV2'}
-
-
-def test_medium_encryption_key_is_api_owned():
-    from test_apple_signin import template
-
-    config = template()
-    assert config['Parameters']['MediumTokenEncryptionKey']['NoEcho'] is True
-    resources = config['Resources']
-    api_environment = resources['ApiFunction']['Properties']['Environment']['Variables']
-    assert api_environment['MEDIUM_TOKEN_ENCRYPTION_KEY'] == {'Ref': 'MediumTokenEncryptionKey'}
-    web_environment = resources['WebFunction']['Properties']['Environment']['Variables']
-    assert 'MEDIUM_TOKEN_ENCRYPTION_KEY' not in web_environment

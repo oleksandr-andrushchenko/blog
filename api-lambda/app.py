@@ -5,7 +5,6 @@ from urllib.parse import urlencode
 
 import login_link_service
 
-import medium_service
 import telegram_service
 import threads_sharing_service
 
@@ -149,7 +148,7 @@ async def add_no_robots_to_api(request: Request, call_next):
         response.headers["Cache-Control"] = "no-store"
         response.headers["Referrer-Policy"] = "no-referrer"
     if (request.url.path.startswith("/users/") and
-            request.url.path.rstrip("/").endswith(("/login-methods", "/integrations/medium"))):
+            request.url.path.rstrip("/").endswith("/login-methods")):
         response.headers["Cache-Control"] = "no-store"
     return response
 
@@ -555,38 +554,6 @@ async def login_link_callback(cur_user: CurUserDep, request: Request):
     response.delete_cookie(login_link_service.COOKIE_NAME, path=API_URL_ROUTES["login-link-callback"],
                            secure=is_prod(), httponly=True, samesite="lax")
     return response
-
-
-@route("get", "medium-connection")
-async def medium_connection(user: UserDep, cur_user: CurUserDep):
-    result = await to_thread(medium_service.connection_status, user, cur_user)
-    return JSONResponse(result, headers={"Cache-Control": "no-store"})
-
-
-@route("post", "medium-connection")
-async def connect_medium(user: UserDep, cur_user: CurUserDep, request: Request):
-    _integration_mutation(request)
-    medium_service.authorize_connection(user, cur_user)
-    try:
-        payload = await request.json()
-    except (ValueError, UnicodeDecodeError):
-        raise HTTPException(422, "Enter a valid Medium integration token") from None
-    result = await to_thread(medium_service.connect, user, cur_user, payload)
-    return JSONResponse(result, headers={"Cache-Control": "no-store"})
-
-
-@route("delete", "medium-connection")
-async def disconnect_medium(user: UserDep, cur_user: CurUserDep, request: Request):
-    _integration_mutation(request)
-    result = await to_thread(medium_service.disconnect, user, cur_user)
-    return JSONResponse(result, headers={"Cache-Control": "no-store"})
-
-
-@route("post", "share-article-medium")
-async def share_article_medium(article: ArticleDep, cur_user: CurUserDep, request: Request):
-    _integration_mutation(request)
-    result = await to_thread(medium_service.share_article, article, cur_user, request)
-    return JSONResponse(result, headers={"Cache-Control": "no-store"})
 
 
 @route("get", "telegram-connection")

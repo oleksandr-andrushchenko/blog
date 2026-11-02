@@ -17,7 +17,7 @@
                                 <tr><th scope="row">{{ label }}</th><td>{{ user | attr(prefix ~ '_given_count') }}</td><td>{{ user | attr(prefix ~ '_received_count') }}</td></tr>
                             {% endfor %}
                             <tr><th scope="row">Blocks</th><td>{{ user.blocking_count }}</td><td>{{ user.blockers_count }}</td></tr>
-                            {% for channel, label in [('telegram_publish', 'Confirmed Telegram posts'), ('threads_publish', 'Confirmed Threads posts'), ('medium_publish', 'Confirmed Medium posts'), ('twitter_share_click', 'Twitter share clicks'), ('facebook_share_click', 'Facebook share clicks'), ('linkedin_share_click', 'LinkedIn share clicks'), ('email_share_click', 'Email share clicks')] %}
+                            {% for channel, label in [('telegram_publish', 'Confirmed Telegram posts'), ('threads_publish', 'Confirmed Threads posts'), ('twitter_share_click', 'Twitter share clicks'), ('facebook_share_click', 'Facebook share clicks'), ('linkedin_share_click', 'LinkedIn share clicks'), ('email_share_click', 'Email share clicks')] %}
                                 <tr><th scope="row">{{ label }}</th><td>{{ user.article_shares_given_counts.get(channel, 0) }}</td><td>{{ user.article_shares_received_counts.get(channel, 0) }}</td></tr>
                             {% endfor %}
                         </tbody>

@@ -59,6 +59,18 @@ def read(table, kind, identifier):
     return table.get_item(Key={'pk': kind + '#' + identifier, 'sk': 'META'}, ConsistentRead=True)['Item']
 
 
+def test_removed_medium_channel_cannot_record_shares(records):
+    table, owner, actor, article = records
+    with pytest.raises(HTTPException) as error:
+        service.validate_share_click({'channel': 'medium_publish', 'event_id': str(uuid.uuid4())})
+    assert error.value.status_code == 422
+    with pytest.raises(HTTPException) as error:
+        service.record_article_share(article, actor, 'medium_publish', 'remote-post')
+    assert error.value.status_code == 422
+    assert not read(table, 'POST', article.id).get('shares_counts')
+    assert not read(table, 'USER', owner.id).get('article_shares_received_counts')
+
+
 def test_article_reaction_switch_and_removal_update_both_users_atomically(records):
     table, owner, actor, article = records
     for action, likes, dislikes in [('like', 1, 0), ('dislike', 0, 1), ('dislike', 0, 0)]:

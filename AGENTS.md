@@ -301,11 +301,8 @@
 - Main-site HTTPS redirects use a separate, uncached CloudFront distribution. Deploy the certificate stack in
   `us-east-1` before the main stack so `WebCertificateArn` is available; see `docs/https-redirect.md`.
 
-## Medium publishing
+## Removed integrations
 
-- Medium publishing requires an existing integration token; Medium no longer issues new tokens. Keep encrypted
-  tokens and `MEDIUM_TOKEN_ENCRYPTION_KEY` API-owned. Validate tokens through `/v1/me` and bind ciphertext to both
-  local and Medium identities. Only active owners manage connections and post their published articles.
-- Export only the public preview, category, title, cover, and canonical article link. Record `medium_publish` and
-  `medium_shared_at` only after a confirmed public post; preserve remote success if local history fails and disable
-  browser retries for uncertain responses.
+- Medium connection and publishing support was removed because its API no longer accepts new integrations.
+  Do not restore token entry, publishing routes, or deployment credentials for it. Legacy stored attributes
+  and share records may remain in DynamoDB and must not prevent loading users or articles.

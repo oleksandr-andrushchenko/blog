@@ -118,9 +118,9 @@ def _is_api_request(method: str, url: str) -> bool:
     if path in {"/articles-fragment", "/tags-fragment", "/users-fragment"} or any(
             path.endswith(suffix) for suffix in ("/comments-fragment", "/articles-fragment", "/related-fragment")):
         return True
-    if re.fullmatch(r"/users/[^/]+/integrations/(telegram|medium)", path):
+    if re.fullmatch(r"/users/[^/]+/integrations/telegram", path):
         return True
-    if method == "POST" and (re.fullmatch(r"/articles/[^/]+/share/(telegram|medium)", path) or path == "/integrations/telegram/webhook"):
+    if method == "POST" and (re.fullmatch(r"/articles/[^/]+/share/telegram", path) or path == "/integrations/telegram/webhook"):
         return True
     if re.fullmatch(r"/users/[^/]+/login-methods", path) or path == "/auth/login-link/callback":
         return True

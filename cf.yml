@@ -58,10 +58,6 @@ Parameters:
     Type: String
     Default: ''
     NoEcho: true
-  MediumTokenEncryptionKey:
-    Type: String
-    Default: ''
-    NoEcho: true
   ThreadsTokenEncryptionKey:
     Type: String
     Default: ''
@@ -675,7 +671,6 @@ Resources:
           MEDIA_ORIGINALS_S3_BUCKET: !Ref MediaOriginalsBucket
           THREADS_APP_ID: !Ref ThreadsAppId
           THREADS_APP_SECRET: !Ref ThreadsAppSecret
-          MEDIUM_TOKEN_ENCRYPTION_KEY: !Ref MediumTokenEncryptionKey
           THREADS_TOKEN_ENCRYPTION_KEY: !Ref ThreadsTokenEncryptionKey
           TELEGRAM_PUBLISHER_BOT_TOKEN: !Ref TelegramPublisherBotToken
           TELEGRAM_PUBLISHER_WEBHOOK_SECRET: !Ref TelegramPublisherWebhookSecret
