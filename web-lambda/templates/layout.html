@@ -170,9 +170,6 @@
                                 </a>
                             </li>
                         {% endif %}
-                        {% if cur_user.status == UserStatus.ACTIVE %}
-                            {% include "fragments/site-notification-menu.html" %}
-                        {% endif %}
                         {% set profile_url = user_url(cur_user) %}
                         {% set edit_profile_url = url("edit-user", user_id=cur_user.id) %}
                         <li class="nav-item dropdown">
@@ -228,6 +225,9 @@
                                 </a></li>
                             </ul>
                         </li>
+                        {% if cur_user.status == UserStatus.ACTIVE %}
+                            {% include "fragments/site-notification-menu.html" %}
+                        {% endif %}
                     {% else %}
                         <li class="nav-item">
                             <a class="nav-link bi bi-pencil-fill"

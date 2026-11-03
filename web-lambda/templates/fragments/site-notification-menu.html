@@ -5,11 +5,11 @@
     data-read-url="{{ url('read-notification', notification_id='notification-id', absolute=True) }}"
     data-unread="{{ cur_user.unread_notifications_count }}" data-revision="{{ cur_user.notifications_revision }}"
     data-last-seen="{{ cur_user.last_seen_at or 0 }}">
-    <button class="nav-link dropdown-toggle position-relative" type="button" id="site-notifications-toggle"
+    <button class="nav-link dropdown-toggle position-relative d-inline-flex align-items-center gap-1" type="button" id="site-notifications-toggle"
             data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
             aria-controls="site-notification-menu" aria-label="Notifications, {{ cur_user.unread_notifications_count }} unread">
         <i class="bi bi-bell" aria-hidden="true"></i>
-        <span class="badge rounded-pill text-bg-danger" data-unread-notifications aria-hidden="true"
+        <span class="badge rounded-pill text-bg-warning" data-unread-notifications aria-hidden="true"
               {% if not cur_user.unread_notifications_count %}hidden{% endif %}>{{ cur_user.unread_notifications_count }}</span>
     </button>
     <div class="dropdown-menu dropdown-menu-end p-2 shadow-sm" id="site-notification-menu"
