@@ -220,6 +220,9 @@
 - Profile integration sections use the API connection status `configured` flag for visibility. Hide the Integrations
   tab when none are configured; failed availability checks must not reveal provider names or settings. Keep provider
   secrets API-owned; do not copy credentials into the web Lambda to decide which settings to show.
+- Provider connect buttons use outline-dark while disconnected and dark when connected; reset the style
+  after a successful disconnect. Connect-login-method, Add support link, and Add crypto wallet buttons
+  use outline-dark. Run `node tests/test_integration_controls_ui.cjs` when changing connection controls.
 - Profile tabs share one profile save button; Telegram connections are saved separately through the API. Preserve
   hash-based tab selection and reveal invalid fields in hidden tabs before focusing them.
 
@@ -291,7 +294,9 @@
 - Support-link POSTs return non-cacheable HTTP 303 redirects with the existing origin, prefetch, and referrer-policy
   checks. Keep background API click notification independent of navigation and omit noreferrer on POST forms.
 - Owner-only publishing controls render once in `fragments/article-sharing.html`, before related articles.
-  Include only configured Telegram, Threads, and LinkedIn providers using nonsecret web capability flags.
+  Use nonsecret web capability flags for Telegram, Threads, and LinkedIn. Unavailable providers have disabled
+  light buttons without API actions; available but unconnected providers use outline-dark connection links,
+  and connected providers use dark share buttons. Preserve semantic publishing outcome colors.
   Keep connection, prior-share, processing, and uncertain states; uncertain writes must never auto-retry.
 
 - Legacy `bmc_username` records without a saved `support_links` list are read as a standard Buy Me a Coffee

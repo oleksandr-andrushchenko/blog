@@ -1,27 +1,16 @@
 {% if cur_user and cur_user.id == article.owner_id %}
     {% set connection_url = url('edit-user', user_id=cur_user.id) ~ '#integrations' %}
     {% set can_share = cur_user.status == UserStatus.ACTIVE and article.status == ArticleStatus.PUBLISHED %}
-    {% set sharing_platforms = [] %}
-    {% if telegram_publisher_enabled %}
-        {% set sharing_platforms = sharing_platforms + [
-            {'key': 'telegram', 'name': 'Telegram', 'icon': 'telegram', 'route': 'share-article-telegram',
-             'connected': cur_user.has_telegram_integration, 'shared': false}
-        ] %}
-    {% endif %}
-    {% if threads_publisher_enabled %}
-        {% set sharing_platforms = sharing_platforms + [
+    {% set sharing_platforms = [
+        {'key': 'telegram', 'name': 'Telegram', 'icon': 'telegram', 'route': 'share-article-telegram',
+         'enabled': telegram_publisher_enabled, 'connected': cur_user.has_telegram_integration, 'shared': false},
         {'key': 'threads', 'name': 'Threads', 'icon': 'threads', 'route': 'share-article-threads',
-         'connected': cur_user.has_threads_integration, 'shared': article.threads_shared_at,
-         'profile_base': 'https://www.threads.com/@'}
-        ] %}
-    {% endif %}
-    {% if linkedin_publisher_enabled %}
-        {% set sharing_platforms = sharing_platforms + [
-            {'key': 'linkedin', 'name': 'LinkedIn', 'icon': 'linkedin', 'route': 'share-article-linkedin',
-             'connected': cur_user.has_linkedin_integration, 'shared': article.linkedin_shared_at}
-        ] %}
-    {% endif %}
-    {% if sharing_platforms %}
+         'enabled': threads_publisher_enabled, 'connected': cur_user.has_threads_integration,
+         'shared': article.threads_shared_at, 'profile_base': 'https://www.threads.com/@'},
+        {'key': 'linkedin', 'name': 'LinkedIn', 'icon': 'linkedin', 'route': 'share-article-linkedin',
+         'enabled': linkedin_publisher_enabled, 'connected': cur_user.has_linkedin_integration,
+         'shared': article.linkedin_shared_at}
+    ] %}
     <section class="card shadow-sm my-4 article-sharing" aria-labelledby="article-sharing-heading">
         <div class="card-body">
             <h2 id="article-sharing-heading" class="h4 card-title">
@@ -36,10 +25,15 @@
             {% endif %}
             <div class="d-flex flex-wrap gap-2">
                 {% for platform in sharing_platforms %}
-                    {% set share_state = 'disconnected' if not platform.connected else 'shared' if platform.shared else 'connected' %}
-                    {% set share_action = ('Share again to ' if platform.shared else 'Share to ') ~ platform.name if platform.connected else 'Connect ' ~ platform.name %}
+                    {% set share_state = 'unavailable' if not platform.enabled else 'disconnected' if not platform.connected else 'shared' if platform.shared else 'connected' %}
+                    {% set connection_style = 'btn-light' if not platform.enabled else 'btn-dark' if platform.connected else 'btn-outline-dark' %}
+                    {% set share_action = platform.name ~ ' sharing is not available' if not platform.enabled else ('Share again to ' if platform.shared else 'Share to ') ~ platform.name if platform.connected else 'Connect ' ~ platform.name %}
                     <div class="btn-group" role="group" aria-label="{{ platform.name }} sharing">
-                        {% if platform.connected %}
+                        {% if not platform.enabled %}
+                            <button type="button" class="btn btn-sm btn-light article-share-action"
+                                    id="{{ platform.key }}-share" data-state="unavailable"
+                                    aria-label="{{ share_action }}" title="{{ share_action }}" disabled>
+                        {% elif platform.connected %}
                             <button type="button" class="btn btn-sm {{ 'btn-success' if platform.shared else 'btn-dark' }} article-share-action"
                                     id="{{ platform.key }}-share" data-state="{{ share_state }}"
                                     data-platform="{{ platform.key }}" data-platform-name="{{ platform.name }}"
@@ -49,19 +43,21 @@
                                     aria-label="{{ share_action }}" title="{{ share_action }}"
                                     {% if not can_share %}disabled{% endif %}>
                         {% else %}
-                            <a href="{{ connection_url }}" class="btn btn-sm btn-dark article-share-action"
+                            <a href="{{ connection_url }}" class="btn btn-sm btn-outline-dark article-share-action"
                                id="{{ platform.key }}-share" data-state="disconnected"
                                aria-label="{{ share_action }}" title="{{ share_action }}">
                         {% endif %}
                             <i class="bi bi-{{ platform.icon }} me-1" aria-hidden="true"></i>
                             <span>{{ platform.name }}</span>
                             <span class="mx-1" aria-hidden="true">·</span>
-                            <span data-share-state>{{ 'Connect' if not platform.connected else 'Shared' if platform.shared else 'Connected' }}</span>
-                        {% if platform.connected %}</button>{% else %}</a>{% endif %}
-                        <a href="{{ connection_url }}" class="btn btn-sm btn-dark"
-                           aria-label="Manage {{ platform.name }} connection" title="Manage {{ platform.name }} connection">
-                            <i class="bi bi-gear" aria-hidden="true"></i>
-                        </a>
+                            <span data-share-state>{{ 'Unavailable' if not platform.enabled else 'Connect' if not platform.connected else 'Shared' if platform.shared else 'Connected' }}</span>
+                        {% if not platform.enabled or platform.connected %}</button>{% else %}</a>{% endif %}
+                        {% if platform.enabled %}
+                            <a href="{{ connection_url }}" class="btn btn-sm {{ connection_style }}"
+                               aria-label="Manage {{ platform.name }} connection" title="Manage {{ platform.name }} connection">
+                                <i class="bi bi-gear" aria-hidden="true"></i>
+                            </a>
+                        {% endif %}
                     </div>
                 {% endfor %}
             </div>
@@ -190,5 +186,4 @@
         })
       })
     </script>
-    {% endif %}
 {% endif %}

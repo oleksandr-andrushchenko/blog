@@ -3,7 +3,7 @@
     <p class="mb-0">Connect your Threads account, then share articles from a article page. Nothing is posted automatically.</p>
     <div id="threads-status" role="status" aria-live="polite">Loading connection…</div>
     <div class="d-flex flex-wrap gap-2 align-items-center">
-        <button type="button" class="btn btn-dark" id="threads-connect" disabled>
+        <button type="button" class="btn btn-outline-dark" id="threads-connect" disabled>
             <i class="bi bi-threads me-1" aria-hidden="true"></i><span id="threads-connect-label">Connect Threads</span>
         </button>
         <button type="button" class="btn btn-outline-danger" id="threads-disconnect" disabled>
@@ -32,6 +32,8 @@
       window.history.replaceState(null, "", currentUrl)
     }
     function controls() {
+      connect.classList.toggle("btn-dark", connected)
+      connect.classList.toggle("btn-outline-dark", !connected)
       connect.disabled = busy || !configured
       disconnect.disabled = busy || !(connected || pending)
     }

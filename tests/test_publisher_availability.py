@@ -56,11 +56,26 @@ def render(monkeypatch):
     return page, user, article
 
 
-def test_unconfigured_publishers_and_nonowners_have_no_panel(render):
+def test_nonowners_have_no_panel(render):
     page, _, _ = render
-    assert not page()('.article-sharing')
     assert not page(cur_user=None, telegram_publisher_enabled=True)('.article-sharing')
     assert not page(cur_user=SimpleNamespace(id='someone-else'), linkedin_publisher_enabled=True)('.article-sharing')
+
+
+def test_unconfigured_publishers_have_disabled_light_buttons(render):
+    page, user, _ = render
+    # A saved connection does not make a site-disabled publisher available.
+    user.has_telegram_integration = True
+    doc = page()
+    assert len(doc('.article-sharing')) == 1
+    for name in ('telegram', 'threads', 'linkedin'):
+        button = doc(f'button#{name}-share')
+        assert button.has_class('btn-light')
+        assert button.attr('disabled') is not None
+        assert button.attr('data-state') == 'unavailable'
+        assert button.attr('data-share-url') is None
+        assert button.attr('data-share-state-url') is None
+        assert not button.parent()('a')
 
 
 def test_all_configured_publishers_share_one_owner_panel(render):
@@ -71,12 +86,16 @@ def test_all_configured_publishers_share_one_owner_panel(render):
     for name, label in (('telegram', 'Telegram'), ('threads', 'Threads'), ('linkedin', 'LinkedIn')):
         assert doc(f'a#{name}-share').attr('aria-label') == 'Connect ' + label
         assert doc(f'a#{name}-share').attr('href').endswith('#integrations')
+        assert doc(f'a#{name}-share').has_class('btn-outline-dark')
+        assert doc(f'a#{name}-share').siblings('a').has_class('btn-outline-dark')
         setattr(user, 'has_' + name + '_integration', True)
     article.linkedin_shared_at = 123
     doc = page(**options)
     for name in ('telegram', 'threads', 'linkedin'):
         assert doc(f'button#{name}-share').attr('disabled') is None
         assert doc(f'button#{name}-share').attr('data-share-url').endswith('/share/' + name)
+        assert doc(f'button#{name}-share').has_class('btn-success' if name == 'linkedin' else 'btn-dark')
+        assert doc(f'button#{name}-share').siblings('a').has_class('btn-dark')
     assert doc('#linkedin-share').attr('data-state') == 'shared'
     article.status = 'unpublished'
     assert page(**options)('#linkedin-share').attr('disabled') is not None

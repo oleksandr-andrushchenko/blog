@@ -1190,9 +1190,13 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     status_success = post(root_client, f"/articles/{article_id}/status", json={"status": "published"})
     assert status_success.status_code == 200, status_success.text
     published_admin_doc = pq(get(root_client, f"/articles/{article_id}").text)
-    assert not published_admin_doc('.article-sharing')
+    assert len(published_admin_doc('.article-sharing')) == 1
     for platform in ('telegram', 'threads', 'linkedin'):
-        assert not published_admin_doc(f'#{platform}-share')
+        button = published_admin_doc(f'button#{platform}-share')
+        assert button.has_class('btn-light')
+        assert button.attr('disabled') is not None
+        assert button.attr('data-state') == 'unavailable'
+        assert button.attr('data-share-url') is None
     assert not published_admin_doc('#medium-share')
 
     published_doc = pq(get(guest_client, f"/articles/{article_id}").text)

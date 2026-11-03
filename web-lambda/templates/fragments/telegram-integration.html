@@ -9,7 +9,7 @@
     <p class="form-text mb-0">You need permission to add an administrator and post in the channel.</p>
     <div id="telegram-status" role="status" aria-live="polite">Loading connection…</div>
     <div class="d-flex flex-wrap gap-2 align-items-center">
-        <button type="button" class="btn btn-dark" id="telegram-connect" disabled>
+        <button type="button" class="btn btn-outline-dark" id="telegram-connect" disabled>
             <i class="bi bi-telegram me-1" aria-hidden="true"></i><span id="telegram-connect-label">Connect Telegram</span>
         </button>
         <a id="telegram-open" class="btn btn-dark d-none" target="_blank" rel="nofollow noopener noreferrer">
@@ -53,6 +53,8 @@
         const data = await request("GET")
         document.getElementById("telegram-integration").classList.toggle("d-none", !data.configured)
         connect.disabled = !data.configured
+        connect.classList.toggle("btn-dark", data.connected)
+        connect.classList.toggle("btn-outline-dark", !data.connected)
         connectLabel.textContent = data.connected ? "Connect another channel" : "Connect Telegram"
         disconnect.disabled = !(data.connected || data.pending)
         if (!data.pending) {
@@ -108,6 +110,9 @@
         stopPolling()
         open.classList.add("d-none")
         open.removeAttribute("href")
+        connect.classList.remove("btn-dark")
+        connect.classList.add("btn-outline-dark")
+        connectLabel.textContent = "Connect Telegram"
         status.textContent = "Telegram disconnected."
         status.className = "text-secondary"
       } catch (error) {
