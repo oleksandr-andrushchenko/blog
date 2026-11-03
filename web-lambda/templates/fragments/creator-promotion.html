@@ -21,7 +21,7 @@
         {% endfor %}
     </div>
     {% if sharing_platforms %}
-    <a href="{{ integrations_url }}" class="btn btn-outline-dark mt-3"{% if not cur_user %} rel="nofollow"{% endif %}>
+    <a href="{{ integrations_url }}" class="btn btn-dark mt-3"{% if not cur_user %} rel="nofollow"{% endif %}>
         <i class="bi bi-megaphone" aria-hidden="true"></i> Connect {{ sharing_platforms | join(", ") }}
     </a>
     {% endif %}

@@ -40,7 +40,7 @@
                     {% set share_action = ('Share again to ' if platform.shared else 'Share to ') ~ platform.name if platform.connected else 'Connect ' ~ platform.name %}
                     <div class="btn-group" role="group" aria-label="{{ platform.name }} sharing">
                         {% if platform.connected %}
-                            <button type="button" class="btn btn-sm {{ 'btn-success' if platform.shared else 'btn-secondary' }} article-share-action"
+                            <button type="button" class="btn btn-sm {{ 'btn-success' if platform.shared else 'btn-dark' }} article-share-action"
                                     id="{{ platform.key }}-share" data-state="{{ share_state }}"
                                     data-platform="{{ platform.key }}" data-platform-name="{{ platform.name }}"
                                     data-share-url="{{ url(platform.route, article_id=article.id, absolute=True) }}"
@@ -49,7 +49,7 @@
                                     aria-label="{{ share_action }}" title="{{ share_action }}"
                                     {% if not can_share %}disabled{% endif %}>
                         {% else %}
-                            <a href="{{ connection_url }}" class="btn btn-sm btn-outline-secondary article-share-action"
+                            <a href="{{ connection_url }}" class="btn btn-sm btn-dark article-share-action"
                                id="{{ platform.key }}-share" data-state="disconnected"
                                aria-label="{{ share_action }}" title="{{ share_action }}">
                         {% endif %}
@@ -58,7 +58,7 @@
                             <span class="mx-1" aria-hidden="true">·</span>
                             <span data-share-state>{{ 'Connect' if not platform.connected else 'Shared' if platform.shared else 'Connected' }}</span>
                         {% if platform.connected %}</button>{% else %}</a>{% endif %}
-                        <a href="{{ connection_url }}" class="btn btn-sm btn-outline-secondary"
+                        <a href="{{ connection_url }}" class="btn btn-sm btn-dark"
                            aria-label="Manage {{ platform.name }} connection" title="Manage {{ platform.name }} connection">
                             <i class="bi bi-gear" aria-hidden="true"></i>
                         </a>
@@ -86,10 +86,10 @@
           }
         }
 
-        function state(button, name, text, style = 'secondary') {
+        function state(button, name, text, style = 'dark') {
           button.dataset.state = name
           button.querySelector('[data-share-state]').textContent = text
-          button.classList.remove('btn-secondary', 'btn-success', 'btn-danger')
+          button.classList.remove('btn-dark', 'btn-success', 'btn-danger')
           button.classList.add(`btn-${style}`)
           const action = name === 'shared' ? `Share again to ${button.dataset.platformName}` :
             name === 'unconfirmed' ? `Check ${button.dataset.platformName} before sharing again` :
@@ -107,7 +107,7 @@
               .then(async response => {
                 if (!response.ok) throw new Error('Unable to load channel history')
                 const data = await response.json()
-                state(button, data.shared ? 'shared' : 'connected', data.shared ? 'Shared' : 'Connected', data.shared ? 'success' : 'secondary')
+                state(button, data.shared ? 'shared' : 'connected', data.shared ? 'Shared' : 'Connected', data.shared ? 'success' : 'dark')
                 button.disabled = false
                 if (data.shared && data.post_url) {
                   const destination = new URL(data.post_url)

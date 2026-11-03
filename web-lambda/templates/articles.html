@@ -122,12 +122,12 @@
             <div class="btn-group btn-group-sm" role="group" aria-label="Sort articles">
                 {% set is_latest = article_query.type == ArticleQueryType.LATEST %}
                 <a href="{{ articles_url(**article_query.get_dict({"type": None if is_latest else ArticleQueryType.LATEST, "offset": None})) }}"
-                   class="btn {% if is_latest %}btn-secondary active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
+                   class="btn {% if is_latest %}btn-dark active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
                     {{ ArticleQueryType.LATEST | title }} first
                 </a>
                 {% set is_popular = article_query.type == ArticleQueryType.POPULAR %}
                 <a href="{{ articles_url(**article_query.get_dict({"type": None if is_popular else ArticleQueryType.POPULAR, "offset": None})) }}"
-                   class="btn {% if is_popular %}btn-primary active{% else %}btn-light{% endif %} bi bi-star{{ "-fill" if is_popular else "" }}">
+                   class="btn {% if is_popular %}btn-dark active{% else %}btn-light{% endif %} bi bi-star{{ "-fill" if is_popular else "" }}">
                     {{ ArticleQueryType.POPULAR | title }} first
                 </a>
             </div>

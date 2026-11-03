@@ -23,12 +23,12 @@
                 {% endwith %}
             </div>
             <div class="{{ {"def": 12, "md": 4, "lg": 6} | col_classes }} text-md-end">
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="refresh-direct-messages">
+                <button type="button" class="btn btn-dark btn-sm" id="refresh-direct-messages">
                     <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Refresh
                 </button>
             </div>
         </div>
-        <button type="button" class="btn btn-outline-secondary btn-sm mb-3" id="older-direct-messages"
+        <button type="button" class="btn btn-dark btn-sm mb-3" id="older-direct-messages"
                 data-offset="{{ offset or '' }}" {% if not offset %}hidden{% endif %}>
             <i class="bi bi-chevron-up" aria-hidden="true"></i> Older messages
         </button>
@@ -48,7 +48,7 @@
                 <div class="form-status alert d-none" role="alert"></div>
                 <div class="d-flex justify-content-between align-items-center gap-3">
                     <small class="text-body-secondary">Text only · up to 5,000 characters</small>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-dark">
                         <i class="bi bi-send" aria-hidden="true"></i> <span data-send-label>Send message</span>
                     </button>
                 </div>

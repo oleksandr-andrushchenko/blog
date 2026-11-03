@@ -1086,7 +1086,7 @@ function initializeSiteNotifications(root) {
     title.textContent = notification.title
     const dismiss = document.createElement("button")
     dismiss.type = "button"
-    dismiss.className = "btn btn-sm btn-link p-0"
+    dismiss.className = "btn btn-sm btn-dark p-0"
     dismiss.setAttribute("aria-label", "Dismiss notification")
     dismiss.append(icon("x-lg"))
     dismiss.addEventListener("click", () => card.remove())
@@ -1100,7 +1100,7 @@ function initializeSiteNotifications(root) {
     if (notification.url) {
       const link = document.createElement("a")
       link.href = notification.url
-      link.className = "btn btn-primary btn-sm"
+      link.className = "btn btn-dark btn-sm"
       link.dataset.notificationLink = notification.id
       link.append(icon("arrow-right"), document.createTextNode(" Open"))
       body.append(link)
@@ -1129,7 +1129,7 @@ function initializeSiteNotifications(root) {
         row.dataset.notificationUnread = "true"
         const read = document.createElement("button")
         read.type = "button"
-        read.className = "btn btn-outline-secondary btn-sm"
+        read.className = "btn btn-dark btn-sm"
         read.dataset.readNotification = notification.id
         read.setAttribute("aria-label", "Mark notification as read")
         read.append(icon("check2"))
