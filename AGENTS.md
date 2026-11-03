@@ -9,6 +9,13 @@
   Authorization for one action does not authorize another; a commit command does not authorize a push.
 - Questions about commands (for example, "make deploy-site-files?") request an
   explanation or validation, not execution. Do not treat them as deployment authorization.
+- When the user requests tests, run `make tests`. When the user authorizes deployment,
+  use `make deployment` (an alias for `make deploy`) for a full deployment, or follow an
+  explicitly requested target such as `make deploy`. Use scoped targets such as
+  `make deploy-web-lambda`, `make deploy-api-lambda`, `make deploy-img-lambda`, or
+  `make deploy-site-files` when only those artifacts need updating. Shared templates,
+  API-backed workers, static assets, and infrastructure must ship together when required.
+  These command preferences do not replace the explicit authorization rules above.
 - CDN cache invalidations must list only the exact paths of specific changed files.
   Never invalidate `/*`, directory wildcards, or an entire distribution. The production
   CDN contains thousands of unrelated assets; preserve their cached copies.
@@ -360,7 +367,11 @@
 - Crypto wallets are plain receiving addresses with stable IDs, not credentials or payment integrations.
   Validate article selections against its actual owner. `support_wallets: null` inherits category-aware profile
   defaults, while `[]` hides wallets. Profile visibility is independent. Never fabricate connected accounts or keys.
-- Neutral actions use `btn-light`; preserve existing semantic and intentional outline button styles.
+- Use `btn-dark` for forms and main actions, `btn-light` for neutral secondary actions, and
+  `btn-primary` sparingly for exceptional emphasis. Preserve success, warning, and danger styles for
+  status controls, reactions, publishing outcomes, and destructive actions. Neutral outline buttons use
+  `btn-outline-dark`, never `btn-outline-secondary`. Keep status meaning explicit in labels and icons.
+  Latest/Popular sort buttons use dark for the active selection and light for inactive choices.
   See `docs/examme-ports.md` for source commits, maintenance setup, delivery behavior, and JavaScript regression harnesses. Run those harnesses when changing their features.
 - Category image normalization uses `scripts/normalize_public_images.py` through scripts-production. Review the
   dry run before `--apply`; retain host-mounted checkpoints, preserve prior shared objects, and verify variants

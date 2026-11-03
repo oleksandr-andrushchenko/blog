@@ -90,7 +90,7 @@ HOST_GID := $(shell id -g)
 
 # Acquire the shared production lock before a fresh recursive Make reads settings.
 # Local services/tests keep their independent worktree configuration and ports.
-_PRODUCTION_LOCK_GOALS := $(filter deploy deploy-% generate-code-files generate-%-lambda-code-files delete-% drop-cdn-cache,$(MAKECMDGOALS))
+_PRODUCTION_LOCK_GOALS := $(filter deploy deployment deploy-% generate-code-files generate-%-lambda-code-files delete-% drop-cdn-cache,$(MAKECMDGOALS))
 ifneq ($(_PRODUCTION_LOCK_GOALS),)
 ifneq ($(PRODUCTION_LOCK_HELD),1)
 _PRODUCTION_LOCK_REQUIRED := 1
@@ -428,6 +428,9 @@ generate-code-files: ## Build all Lambda ZIPs
 .PHONY: aws-login
 aws-login: check-env check-aws ## Obtain AWS auth token
 	aws login --profile $(AWS_PROJECT)
+
+.PHONY: deployment
+deployment: deploy ## Alias for a full deployment
 
 .PHONY: deploy
 deploy: check-env check-aws ## Deploy certificates, code bucket, Lambdas, application, and static files
