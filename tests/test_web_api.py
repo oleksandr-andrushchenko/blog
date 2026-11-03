@@ -226,17 +226,21 @@ def check_user_edit(doc, user_alias: str | None):
 
 
 def check_user_status(doc, activate_control: bool, ban_control: bool):
-    main_el = doc("main")
-    activate_el = main_el(".btn-user-activate")
-    if activate_control:
-        assert activate_el
-    else:
-        assert not activate_el
-    ban_el = main_el(".btn-user-ban")
-    if ban_control:
-        assert ban_el
-    else:
-        assert not ban_el
+    controls = doc("#user-controls")
+    form = controls("#user-status-form")
+    assert bool(form) == (activate_control or ban_control)
+    if form:
+        assert form('input[name="status"][value="active"]')
+        assert form('input[name="status"][value="banned"]')
+        assert form('textarea[name="comment"]')
+        assert form.attr("action").startswith(os.environ["API_TEST_BASE_URL"])
+    assert controls("#user-report-form")
+    assert controls("#user-report-toggle").has_class("btn-light")
+    assert controls(".user-impressions").has_class("d-inline-flex")
+    assert not controls(".user-impressions").has_class("mb-2")
+    message = controls('a[href*="/messages/"]')
+    if message:
+        assert message.has_class("btn-light")
 
 
 def check_user(doc, followers_count: int, following_count: int, follow_control: bool, block_control: bool,
@@ -262,7 +266,8 @@ def check_articles(doc, articles_count: int, unpublished_control: bool, rejected
     else:
         assert not articles_el
     form_el = main_el("form")
-    status_controls_el = form_el if form_el else main_el
+    profile_articles = main_el("#my-articles")
+    status_controls_el = profile_articles if profile_articles else (form_el if form_el else main_el)
     unpublished_el = status_controls_el('a[href*="status=unpublished"]')
     if unpublished_control:
         assert unpublished_el

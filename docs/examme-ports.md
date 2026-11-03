@@ -60,3 +60,11 @@ The script verifies that references still match the reviewed old or checkpointed
 completed items, and leaves errors retryable. A limit counts successful items rather than failures/skips.
 Responsive variants must be available before any category is pointed at a new image. No cache invalidation
 or production object deletion is performed by this command.
+
+## Profile controls
+
+Reviewed `57e7f59`: profile actions wrap in one inline row, Message uses `btn-light`,
+moderation uses a status-colored dropdown form, and Report submits through the guest-capable
+contact API. Adapted to this project's explicit validation rules and dark form actions.
+The report message preserves a canonical profile URL or complete user ID within 1,000 characters.
+Article controls remain unchanged. Run the user status/report Node harnesses alongside `make tests`.

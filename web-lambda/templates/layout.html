@@ -354,7 +354,6 @@
     current_user: {{ ({"id": cur_user.id} | tojson) if cur_user else "null" }},
     update_article_status_url: {{ url("update-article-status", article_id="{article_id}", absolute=True) | tojson }},
     update_article_impression_url: {{ url("update-article-impression", article_id="{article_id}", absolute=True) | tojson }},
-    update_user_status_url: {{ url("update-user-status", user_id="{user_id}", absolute=True) | tojson }},
     update_user_impression_url: {{ url("update-user-impression", user_id="{user_id}", absolute=True) | tojson }},
     create_tag_subscription_url: {{ url("create-tag-subscription", absolute=True) | tojson }},
     delete_tag_subscription_url: {{ url("delete-tag-subscription", tag_subscription_id="{tag_subscription_id}", absolute=True) | tojson }},

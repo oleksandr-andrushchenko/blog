@@ -676,60 +676,6 @@ $(document).on("click", ".btn-user-follow, .btn-user-block", function () {
   })
 })
 
-// Activate user
-$(".btn-user-activate").on("click", function () {
-  const $btn = $(this)
-  const userId = $btn.data("user-id")
-  const status = $btn.data("status")
-  const url = formatUrl(window.CONFIG.update_user_status_url, {user_id: userId})
-
-  $btn.setButtonLoading()
-
-  $.ajax({
-    url, method: "POST", contentType: "application/json", data: JSON.stringify({status}), success: function () {
-      window.location.reload()
-    }, error: function (xhr) {
-      console.error("Error activating user:", xhr.responseText)
-      alert("Failed to activate user.")
-    }, complete: function () {
-      $btn.clearButtonLoading()
-    }
-  })
-})
-
-// Ban user
-$(".btn-user-ban").on("click", function () {
-  const $btn = $(this)
-  const userId = $btn.data("user-id")
-  const status = $btn.data("status")
-  const url = formatUrl(window.CONFIG.update_user_status_url, {user_id: userId})
-  const comment = $btn.closest(".input-group").find("input[name='comment']").val().trim()
-
-  if (!comment) {
-    alert("Please enter a ban reason.")
-    return
-  }
-
-  $btn.setButtonLoading()
-
-  $.ajax({
-    url,
-    method: "POST",
-    contentType: "application/json",
-    data: JSON.stringify({status, comment}),
-    success: function () {
-      window.location.reload()
-    },
-    error: function (xhr) {
-      console.error("Error banning user:", xhr.responseText)
-      alert("Failed to ban user.")
-    },
-    complete: function () {
-      $btn.clearButtonLoading()
-    }
-  })
-})
-
 const getApiErrorMessage = (errorBody, fallbackMessage) => {
   const details = errorBody?.details
   if (typeof details === "string" && details) return details

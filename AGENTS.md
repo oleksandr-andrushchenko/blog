@@ -397,3 +397,10 @@
   explicit empty captions stay empty. Keep both values escaped. See `docs/promptcatalog-presentation-ports.md`.
 - Run `node tests/test_article_controls_ui.cjs` when changing moderation/report scripts, alongside the shared
   form and notification startup harnesses and the required isolated Python suite.
+
+- Profile actions share the wrapping `#user-controls` row. Keep user impression fragments inline
+  without vertical margins, including API replacements, and the profile hero overflow visible for dropdowns.
+- User status and report dropdowns live in owning web fragments, use explicit shared-form validation,
+  and retain moderator/self restrictions. Banning requires a reason; activation clears the saved reason.
+  User reports use the public contact API, canonical profile URLs with ID fallback, and a 1,000-character
+  message budget. Run `node tests/test_user_status_ui.cjs` and `node tests/test_user_report_ui.cjs`.
