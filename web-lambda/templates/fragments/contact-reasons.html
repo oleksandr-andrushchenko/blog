@@ -1,0 +1,19 @@
+{% from "fragments/contact-options.html" import contact_options %}
+<section class="card shadow-sm mb-4" aria-labelledby="contact-reasons-heading">
+    <div class="card-body">
+        <h2 id="contact-reasons-heading" class="h4 card-title">
+            How can we help?
+        </h2>
+        <p class="card-text">Choose a reason to start your message, or send us a general inquiry.</p>
+        <div class="d-flex flex-wrap gap-2">
+            {% for label, icon, message in contact_options %}
+                <a class="btn btn-light" href="{{ url('contacts', message=message) }}#contact-form">
+                    <i class="bi bi-{{ icon }} me-1" aria-hidden="true"></i>{{ label }}
+                </a>
+            {% endfor %}
+            <a class="btn btn-light" href="{{ url('contacts') }}#contact-form">
+                <i class="bi bi-question-circle me-1" aria-hidden="true"></i>General inquiry
+            </a>
+        </div>
+    </div>
+</section>

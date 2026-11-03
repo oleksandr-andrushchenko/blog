@@ -36,27 +36,30 @@
     <h1>{{ title }}</h1>
     <p class="small text-secondary">Contact us</p>
 
-    {% include "fragments/improvement-proposal.html" %}
+    {% include "fragments/contact-reasons.html" %}
 
     <div class="row g-5">
         <div class="{{ ({"def": 12, "lg": 6, "xl": 8} if show_details else {"def": 12}) | col_classes }} d-flex flex-column gap-4">
             <form class="row g-3" id="contact-form" novalidate>
                 <label class="{{ {"def": 12} | col_classes }}">
+                    <span class="form-label d-block">Name</span>
                     <input type="text" class="form-control" id="name" name="name" placeholder="Your Name"
                            value="{{ cur_user.name if cur_user else '' }}">
                 </label>
 
                 <label class="{{ {"def": 12} | col_classes }}">
+                    <span class="form-label d-block">Email</span>
                     <input type="email" class="form-control" id="email" name="email" placeholder="Your Email"
                            value="{{ (cur_user.email or '') if cur_user else '' }}">
                 </label>
 
                 <label class="{{ {"def": 12} | col_classes }}">
+                    <span class="form-label d-block">Message</span>
                     <textarea class="form-control" id="message" name="message" placeholder="Your Message" rows="10">{{ request.query_params.get('message', '')[:1000] if request else '' }}</textarea>
                 </label>
 
                 <div class="{{ {"def": 12} | col_classes }}">
-                    <button type="submit" class="btn btn-light">
+                    <button type="submit" class="btn btn-dark">
                         Send message
                         <i class="bi bi-chevron-right"></i>
                     </button>

@@ -488,6 +488,24 @@ def test_get_contacts(request, user_alias):
     check_header(doc, user_alias=user_alias)
 
 
+def test_contact_reasons_match_menu_and_prefill_messages(guest_client):
+    doc = get_contacts(guest_client)
+    menu_links = list(doc('ul[aria-labelledby="contact-menu-toggle"] a').items())
+    reason_links = list(doc('section[aria-labelledby="contact-reasons-heading"] a').items())
+    assert len(reason_links) == len(menu_links) == 5
+    for reason, menu in zip(reason_links, menu_links):
+        assert reason.text() == menu.text()
+        assert reason('i').attr('class').split()[1] == menu('i').attr('class').split()[1]
+        destination = urlsplit(reason.attr('href'))
+        menu_destination = urlsplit(menu.attr('href'))
+        assert (destination.path, destination.query) == (menu_destination.path, menu_destination.query)
+        assert destination.fragment == 'contact-form'
+        response = get(guest_client, reason.attr('href'))
+        assert response.status_code == 200
+        expected_message = parse_qs(destination.query).get('message', [''])[0]
+        assert (pq(response.text)('#message')[0].text or '') == expected_message
+
+
 @pytest.mark.parametrize("path", ["/any", "/any/any", "/missing", "/foo/bar"])
 def test_not_found(guest_client, path):
     resp = get(guest_client, path)
