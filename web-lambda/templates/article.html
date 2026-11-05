@@ -113,8 +113,8 @@
         <div class="{{ {"def": 12, "lg": 8} | col_classes }} overflow-auto article-content">
             <article class="mb-4">
                 <header class="mb-3">
-                    {% with extended=True %}
-                        {% include "fragments/article-meta.html" %}
+                    {% with extended=True, badges_class="mb-2" %}
+                        {% include "fragments/article-badges.html" %}
                     {% endwith %}
 
                     <h1 class="mb-3">{{ article.title }}</h1>
@@ -122,33 +122,12 @@
                     {% with star_size=4, rating_extended=True, rating_class='mb-3' %}
                         {% include "fragments/article-rating.html" %}
                     {% endwith %}
+                    {% with extended=True, meta_class="mb-2" %}
+                        {% include "fragments/article-meta.html" %}
+                    {% endwith %}
                 </header>
 
-                <div class="d-flex flex-wrap align-items-center gap-2 mb-3" id="article-controls"
-                     role="group" aria-label="Article controls">
-                    {% with btn_size="sm" %}
-                        {% include "fragments/article-status.html" %}
-                    {% endwith %}
-
-                    {% include "fragments/article-impressions.html" %}
-
-                    {% with btn_size="sm" %}
-                        {% include "fragments/share.html" %}
-                    {% endwith %}
-
-                    {% with btn_size="sm" %}
-                        {% include "fragments/article-report.html" %}
-                    {% endwith %}
-
-                    {% if cur_user and check_auth(cur_user, Permission.UPDATE_ARTICLE, article) %}
-                        <div>
-                            <a href="{{ url("edit-article", article_id=article.id) }}"
-                               class="btn btn-light btn-sm bi bi-pencil-square">
-                                Edit article
-                            </a>
-                        </div>
-                    {% endif %}
-                </div>
+                {% include "fragments/article-control.html" %}
 
                 {{ render_article_content(article.content) | safe }}
             </article>

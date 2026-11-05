@@ -23,9 +23,11 @@
                     </{{ category_heading_tag | default("h2") }}>
                     <p class="card-text small flex-grow-1">{{ category.description }}</p>
                     <div class="d-flex align-items-center justify-content-between gap-2">
-                        <span class="text-secondary small">
-                            {{ category.published_articles_count }} published article{% if category.published_articles_count != 1 %}s{% endif %}
-                        </span>
+                        {% if category.published_articles_count %}
+                            <span class="text-secondary small">
+                                {{ '{:,}'.format(category.published_articles_count) }} published article{% if category.published_articles_count != 1 %}s{% endif %}
+                            </span>
+                        {% endif %}
                         {% if cur_user and check_auth(cur_user, Permission.UPDATE_CATEGORY) %}
                             <a href="{{ url('edit-category', slug=category.slug) }}"
                                class="btn btn-light btn-sm bi bi-pencil-square" aria-label="Edit {{ category.name }}"></a>

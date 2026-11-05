@@ -139,8 +139,8 @@ def _is_api_request(method: str, url: str) -> bool:
             "/public-file", "/article-images", "/articles", "/contacts/message",
             "/tag-subscriptions",
             "/generate-sitemap", "/drop-cdn-cache", "/redirects",
-        } or bool(re.fullmatch(r"/articles/[^/]+/(status|impression|comments?|share-click)", path)) or bool(
-            re.fullmatch(r"/users/[^/]+/(status|impression)", path)
+        } or bool(re.fullmatch(r"/articles/[^/]+/(status|impression|comments?|share-click|report)", path)) or bool(
+            re.fullmatch(r"/users/[^/]+/(status|impression|report)", path)
         ) or bool(re.fullmatch(r"/articles/[^/]+/comments/[^/]+/impression", path))
     if method == "PATCH":
         return path.startswith(("/articles/", "/users/", "/tags/", "/categories/"))

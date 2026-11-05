@@ -1,60 +1,62 @@
-{% set report_kind = "User" %}
-{% set report_url = user_canonical_url %}
-{% set report_id = user.id %}
-{% set report_reasons = ["Impersonation or misleading profile", "Spam or suspicious links", "Abusive or inappropriate behavior", "Another problem"] %}
-{% set report_resource = ("URL: " ~ report_url) if report_url | length <= 750 else (report_kind ~ " ID: " ~ report_id) %}
-{% set report_message_template = report_kind ~ " report\nReason: \n" ~ report_resource ~ "\n\nDetails: " %}
-{% set report_details_limit = 1000 - (report_message_template | length) - (report_reasons | map('length') | max) %}
-<div class="dropdown user-report">
-    <button type="button" class="btn btn-light dropdown-toggle btn-sm" id="user-report-toggle"
-            data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
-            aria-controls="user-report-menu">
-        <i class="bi bi-flag" aria-hidden="true"></i> Report
-    </button>
-    <div class="dropdown-menu p-3" id="user-report-menu" aria-labelledby="user-report-toggle"
-         style="width: 24rem; max-width: calc(100vw - 2rem);">
-        <form id="user-report-form" action="{{ url('create-contact-message', absolute=True) }}" method="post" novalidate
-              data-report-details-limit="{{ report_details_limit }}" data-report-kind="{{ report_kind }}" data-report-resource="{{ report_resource }}">
-            <label class="form-label" for="user-report-reason">Reason</label>
-            <select class="form-select mb-3" id="user-report-reason" name="reason">
-                <option value="" selected disabled>Select a reason</option>
-                {% for reason in report_reasons %}
-                    <option value="{{ reason }}">{{ reason }}</option>
-                {% endfor %}
-            </select>
-            <label class="form-label" for="user-report-details">Details <span class="text-body-secondary">(optional)</span></label>
-            <textarea class="form-control mb-3" id="user-report-details" name="details" rows="3"
-                      placeholder="Describe the issue. Include a source if relevant."></textarea>
-            <label class="form-label" for="user-report-name">Your name</label>
-            <input class="form-control mb-3" type="text" id="user-report-name" name="name" autocomplete="name"
-                   value="{{ cur_user.name if cur_user else '' }}">
-            <label class="form-label" for="user-report-email">Your email</label>
-            <input class="form-control mb-3" type="email" id="user-report-email" name="email" autocomplete="email"
-                   value="{{ (cur_user.email or '') if cur_user else '' }}">
-            <button type="submit" class="btn btn-dark">
-                <i class="bi bi-send" aria-hidden="true"></i> <span>Send report</span>
-            </button>
-        </form>
+{% if not cur_user or cur_user.id != user.id %}
+    {% set report_kind = "User" %}
+    {% set report_url = user_canonical_url %}
+    {% set report_id = user.id %}
+    {% set report_reasons = ["Impersonation or misleading profile", "Spam or suspicious links", "Abusive or inappropriate behavior", "Another problem"] %}
+    {% set report_resource = ("URL: " ~ report_url) if report_url | length <= 750 else (report_kind ~ " ID: " ~ report_id) %}
+    {% set report_message_template = report_kind ~ " report\nReason: \n" ~ report_resource ~ "\n\nDetails: " %}
+    {% set report_details_limit = 1000 - (report_message_template | length) - (report_reasons | map('length') | max) %}
+    <div class="dropdown user-report">
+        <button type="button" class="btn btn-light dropdown-toggle btn-sm" id="user-report-toggle"
+                data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
+                aria-controls="user-report-menu">
+            <i class="bi bi-flag" aria-hidden="true"></i> Report
+        </button>
+        <div class="dropdown-menu p-3" id="user-report-menu" aria-labelledby="user-report-toggle"
+             style="width: 24rem; max-width: calc(100vw - 2rem);">
+            <form id="user-report-form" action="{{ url('report-user', user_id=user.id, absolute=True) }}" method="post" novalidate
+                  data-report-details-limit="{{ report_details_limit }}" data-report-kind="{{ report_kind }}" data-report-resource="{{ report_resource }}">
+                <label class="form-label" for="user-report-reason">Reason</label>
+                <select class="form-select mb-3" id="user-report-reason" name="reason">
+                    <option value="" selected disabled>Select a reason</option>
+                    {% for reason in report_reasons %}
+                        <option value="{{ reason }}">{{ reason }}</option>
+                    {% endfor %}
+                </select>
+                <label class="form-label" for="user-report-details">Details <span class="text-body-secondary">(optional)</span></label>
+                <textarea class="form-control mb-3" id="user-report-details" name="message" rows="3"
+                          placeholder="Describe the issue. Include a source if relevant."></textarea>
+                <label class="form-label" for="user-report-name">Your name</label>
+                <input class="form-control mb-3" type="text" id="user-report-name" name="name" autocomplete="name"
+                       value="{{ cur_user.name if cur_user else '' }}">
+                <label class="form-label" for="user-report-email">Your email</label>
+                <input class="form-control mb-3" type="email" id="user-report-email" name="email" autocomplete="email"
+                       value="{{ (cur_user.email or '') if cur_user else '' }}">
+                <button type="submit" class="btn btn-dark">
+                    <i class="bi bi-send" aria-hidden="true"></i> <span>Send report</span>
+                </button>
+            </form>
+        </div>
     </div>
-</div>
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const form = document.getElementById("user-report-form")
-    handleFormSubmit("#user-report-form", form.action, {
-      rules: {
-        reason: [{rule: "required"}],
-        details: [{rule: "maxLength", value: Number(form.dataset.reportDetailsLimit)}],
-        name: [{rule: "required"}, {rule: "minLength", value: 2}, {rule: "maxLength", value: 100}],
-        email: [{rule: "required"}, {rule: "email"}]
-      },
-      prepareData: data => ({
-        name: data.name,
-        email: data.email,
-        message: `${form.dataset.reportKind} report\nReason: ${data.reason}\n${form.dataset.reportResource}\n\nDetails: ${data.details || ""}`
-      }),
-      successMessage: "Report sent. Thank you for letting us know.",
-      errorMessage: "Could not send your report. Please try again.",
-      authRequired: false
-    })
-  })
-</script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const form = document.getElementById("user-report-form")
+        handleFormSubmit("#user-report-form", form.action, {
+          rules: {
+            reason: [{rule: "required"}],
+            message: [{rule: "maxLength", value: Number(form.dataset.reportDetailsLimit)}],
+            name: [{rule: "required"}, {rule: "minLength", value: 2}, {rule: "maxLength", value: 100}],
+            email: [{rule: "required"}, {rule: "email"}]
+          },
+          prepareData: data => ({
+            name: data.name,
+            email: data.email,
+            message: `${form.dataset.reportKind} report\nReason: ${data.reason}\n${form.dataset.reportResource}\n\nDetails: ${data.message || ""}`
+          }),
+          successMessage: "Report sent. Thank you for letting us know.",
+          errorMessage: "Could not send your report. Please try again.",
+          authRequired: false
+        })
+      })
+    </script>
+{% endif %}

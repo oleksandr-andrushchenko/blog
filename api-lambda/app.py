@@ -353,6 +353,18 @@ async def _create_contact_message(message_dto: ContactMessageDTO, cur_user: OptC
     create_contact_message(message_dto, cur_user, req=request)
 
 
+@route("post", "report-article", status_code=204)
+async def _report_article(article: ArticleDep, message_dto: ContactMessageDTO, cur_user: OptCurUserDep,
+                         request: Request) -> None:
+    create_contact_message(message_dto, cur_user, req=request, report_target=article)
+
+
+@route("post", "report-user", status_code=204)
+async def _report_user(user: UserDep, message_dto: ContactMessageDTO, cur_user: OptCurUserDep,
+                      request: Request) -> None:
+    create_contact_message(message_dto, cur_user, req=request, report_target=user)
+
+
 @route("get", "tag-subscriptions", response_class=JSONResponse)
 async def _get_tag_subscriptions(cur_user: CurUserDep):
     return get_user_tag_subscriptions(cur_user)

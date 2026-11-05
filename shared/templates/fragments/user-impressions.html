@@ -1,9 +1,5 @@
-<div class="user-impressions d-inline-flex flex-wrap gap-2 align-items-center">
-    <!-- Counts -->
-    <div><b class="followers-count">{{ user.followers_count }}</b> <small class="text-secondary">Followers</small></div>
-    <div><b class="following-count">{{ user.following_count }}</b> <small class="text-secondary">Following</small></div>
-
-    {% if cur_user and check_auth(cur_user, Permission.UPDATE_USER_IMPRESSION, user) and cur_user.id != user.id %}
+{% if cur_user and check_auth(cur_user, Permission.UPDATE_USER_IMPRESSION, user) and cur_user.id != user.id %}
+    <div class="user-impressions d-inline-flex flex-wrap gap-2 align-items-center">
         <div class="btn-group btn-group-sm" role="group" aria-label="Follow or block user">
             <!-- Follow / Unfollow Button -->
             {% set is_followed = user_impression and user_impression.action == UserImpressionAction.FOLLOW %}
@@ -15,6 +11,9 @@
                     title="{% if is_followed %}Unfollow this user{% else %}Follow this user{% endif %}">
                 <i aria-hidden="true" class="bi {{ 'bi-heart-fill' if is_followed else 'bi-heart' }}"></i>
                 <span>{{ 'Following' if is_followed else 'Follow' }}</span>
+                {% if user.followers_count %}
+                    <span class="followers-count">{{ '{:,}'.format(user.followers_count) }}</span>
+                {% endif %}
             </button>
 
             <!-- Block / Unblock Button -->
@@ -29,5 +28,5 @@
                 <span>{{ 'Blocked' if is_blocked else 'Block' }}</span>
             </button>
         </div>
-    {% endif %}
-</div>
+    </div>
+{% endif %}

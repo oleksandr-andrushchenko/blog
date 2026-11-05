@@ -39,6 +39,8 @@ API_URL_ROUTES = {
     "update-article-impression": "/articles/{article_id}/impression",
     "create-article-comment": "/articles/{article_id}/comments",
     "update-article-comment": "/articles/{article_id}/comments/{comment_id}",
+    "report-article": "/articles/{article_id}/report",
+    "report-user": "/users/{user_id}/report",
     "create-contact-message": "/contacts/message",
     "tag-subscriptions": "/tag-subscriptions",
     "create-tag-subscription": "/tag-subscriptions",

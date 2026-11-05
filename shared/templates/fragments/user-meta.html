@@ -1,0 +1,36 @@
+{% set extended = extended | default(False) %}
+<div class="user-meta d-flex flex-wrap align-items-center gap-2 {{ meta_class | default('') }}">
+    <small class="text-secondary" title="Account creation date">
+        <i class="bi bi-calendar2" aria-hidden="true"></i>
+        {% if extended %}Joined {% endif %}{{ (user.created_at / 1000) | unix_to_full_date }}
+    </small>
+    {% if not extended and user.status == UserStatus.BANNED %}
+        <span class="badge text-bg-danger" title="{{ user.comment }}">
+            <i class="bi bi-person-slash" aria-hidden="true"></i> Banned
+        </span>
+    {% endif %}
+    {% set stats = [
+        ('Followers', 'heart', user.followers_count, 'Followers count'),
+        ('Following', 'person-heart', user.following_count, 'Following count'),
+        ('Articles', 'pencil', user.published_articles_count, 'Published articles count'),
+        ('Comments', 'chat', user.article_comments_given_count, 'Comments written count'),
+        ('Reports', 'flag', user.reports_count, 'Profile reports count')
+    ] %}
+    {% if extended and cur_user and cur_user.id == user.id %}
+        {% set stats = stats + [
+            ('Article likes', 'hand-thumbs-up', user.article_likes_received_count, 'Article likes received count'),
+            ('Article dislikes', 'hand-thumbs-down', user.article_dislikes_received_count, 'Article dislikes received count'),
+            ('Article reports', 'flag', user.article_reports_count, 'Article reports received count'),
+            ('Comments', 'chat-text', user.article_comments_received_count, 'Comments received count'),
+            ('Interests', 'tags', user.tag_subscriptions_count, 'Interests count')
+        ] %}
+    {% endif %}
+    {% for label, icon, count, title in stats %}
+        {% if count %}
+            <small class="text-secondary" title="{{ title }}">
+                <i class="bi bi-{{ icon }}" aria-hidden="true"></i>
+                <span{% if label == 'Followers' %} class="followers-count"{% elif label == 'Following' %} class="following-count"{% endif %}>{{ '{:,}'.format(count) }}</span>{% if extended %} {{ label }}{% endif %}
+            </small>
+        {% endif %}
+    {% endfor %}
+</div>

@@ -19,7 +19,7 @@ def test_user_report_preserves_identity_and_bounds_every_reason(address):
     name = '\"><script>alert("unsafe")</script>'
     document = PyQuery(environment.get_template('fragments/user-report.html').render(
         user=SimpleNamespace(id='user-id'), user_canonical_url=address,
-        cur_user=SimpleNamespace(name=name, email='reader@example.test')))
+        cur_user=SimpleNamespace(id='reader', name=name, email='reader@example.test')))
     form = document('#user-report-form')
     resource = 'URL: ' + address if len(address) <= 750 else 'User ID: user-id'
     assert form.attr('data-report-resource') == resource

@@ -11,29 +11,5 @@
         {% endif %}
     </a>
 
-    <small class="text-secondary bi bi-calendar2 me-2" title="Joined at">
-        {{ (user.created_at / 1000) | unix_to_full_date }}
-    </small>
-
-    {% if user.status == UserStatus.BANNED %}
-        <span class="badge text-bg-danger fs-6 me-2" title="{{ user.comment }}">Banned</span>
-    {% endif %}
-
-    {% if user.followers_count %}
-        <small class="text-secondary bi bi-heart me-2" title="Followers">
-            {{ user.followers_count }}
-        </small>
-    {% endif %}
-
-    {% if user.published_articles_count %}
-        <small class="text-secondary bi bi-pencil me-2" title="Articles written">
-            {{ user.published_articles_count }}
-        </small>
-    {% endif %}
-
-    {% if user.article_comments_count %}
-        <small class="text-secondary bi bi-chat" title="Article comments added">
-            {{ user.article_comments_count }}
-        </small>
-    {% endif %}
+    {% include "fragments/user-meta.html" %}
 </div>

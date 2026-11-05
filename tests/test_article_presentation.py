@@ -36,9 +36,10 @@ def test_metadata_preserves_category_case_and_limits_only_compact_tags(templates
     category = SimpleNamespace(slug='api-design', name='API Design')
     article = SimpleNamespace(id='example', category=category.slug, tags=['API', 'Python', 'system-design'],
         created_at=1000, published_at=2000, updated_at=3000, status='published',
-        likes_count=2, dislikes_count=1, get_user=lambda: creator)
-    html = templates.get_template('fragments/article-meta.html').render(
-        article=article, article_user=creator, author=creator, metadata_categories=[category], extended=extended)
+        likes_count=2000, dislikes_count=1, reports_count=0, comments_count=0, get_user=lambda: creator)
+    context = dict(article=article, article_user=creator, author=creator, metadata_categories=[category], extended=extended)
+    html = ''.join(templates.get_template('fragments/' + name + '.html').render(**context)
+                   for name in ('article-badges', 'article-meta'))
     doc = pq(html)
     assert doc('a[href="/articles?category=api-design"]').text() == 'API Design'
     assert doc('a[href="/articles?tags=API"]').text() == 'API'
@@ -47,6 +48,8 @@ def test_metadata_preserves_category_case_and_limits_only_compact_tags(templates
     assert doc('a[href="/users/author"]').text() == creator.name
     assert ('Published on' in doc.text()) is extended
     assert ('Modified on' in doc.text()) is extended
+    assert doc('[title="Likes count"]').text() == ('2,000 Likes' if extended else '2,000')
+    assert not doc('[title="Reports count"]')
 
 
 @pytest.mark.parametrize('caption,expected', [(None, 'Diagram description'),

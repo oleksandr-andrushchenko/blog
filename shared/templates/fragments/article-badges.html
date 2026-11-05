@@ -1,0 +1,30 @@
+{% set extended = extended | default(false) %}
+{% set category_label = article.category | replace('-', ' ') %}
+{% if category is defined and category and category.slug == article.category %}
+    {% set category_label = category.name %}
+{% elif metadata_categories is defined %}
+    {% set matched_category = metadata_categories | selectattr('slug', 'equalto', article.category) | first %}
+    {% if matched_category is defined %}{% set category_label = matched_category.name %}{% endif %}
+{% endif %}
+<div class="article-badges d-flex flex-wrap align-items-center gap-2 {{ badges_class | default('') }}">
+    {% if article.category %}
+        <a href="{{ articles_url(category=article.category) }}" title="Browse articles in {{ category_label }}"
+           class="{{ 'btn btn-light btn-sm' if extended else 'badge text-bg-light border text-wrap text-break text-decoration-none' }}">
+            <i class="bi bi-collection" aria-hidden="true"></i> {{ category_label }}
+        </a>
+    {% endif %}
+    {% set visible_tags = article.tags if extended else article.tags[:1] %}
+    {% for tag in visible_tags %}
+        {% set display_tag = tag %}
+        <a href="{{ articles_url(tags=[tag]) }}" title="Browse articles tagged {{ display_tag }}"
+           class="{{ 'btn btn-light btn-sm' if extended else 'badge text-bg-light border text-wrap text-break text-decoration-none' }}">
+            <i class="bi bi-tags" aria-hidden="true"></i> {{ display_tag }}
+        </a>
+    {% endfor %}
+    {% if not extended and article.tags | length > 1 %}
+        <a href="{{ article_url(article) }}" class="badge text-bg-light border text-wrap text-break text-decoration-none"
+           title="View all {{ article.tags | length }} tags">
+            <i class="bi bi-tags" aria-hidden="true"></i> +{{ article.tags | length - 1 }}
+        </a>
+    {% endif %}
+</div>

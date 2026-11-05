@@ -70,8 +70,16 @@ class ContactMessageDTO(BaseDTO):
     message: str
 
     def __post_init__(self):
+        if not isinstance(self.name, str):
+            raise ValueError("name must contain between 2 and 100 characters")
+        self.name = self.name.strip()
         if not 2 <= len(self.name) <= 100:
             raise ValueError("name must contain between 2 and 100 characters")
-        self.email = validate_email_address(self.email)
-        if not 5 <= len(self.message) <= 1000:
+        if not isinstance(self.email, str):
+            raise ValueError("email must be a valid email address")
+        try:
+            self.email = validate_email_address(self.email)
+        except ValueError as error:
+            raise ValueError("email must be a valid email address") from error
+        if not isinstance(self.message, str) or not 5 <= len(self.message) <= 1000:
             raise ValueError("message must contain between 5 and 1000 characters")

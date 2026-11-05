@@ -5,11 +5,17 @@
                         <button type="button" class="btn btn-light btn-comment-reaction" data-action="{{ action }}"
                                 data-url="{{ url('update-article-comment-impression', article_id=article_comment.article_id, comment_id=article_comment.id, absolute=True) }}">
                             <i class="bi bi-{{ icon }}" aria-hidden="true"></i>
-                            {{ action | title }} <span class="comment-{{ action }}s-count">{{ count }}</span>
+                            {{ action | title }} <span class="comment-{{ action }}s-count">{% if count %}{{ '{:,}'.format(count) }}{% endif %}</span>
                         </button>
                     {% endfor %}
                 </div>
             {% else %}
-                <span class="small text-secondary">{{ article_comment.likes_count }} likes · {{ article_comment.dislikes_count }} dislikes</span>
+                {% if article_comment.likes_count or article_comment.dislikes_count %}
+                    <span class="small text-secondary">
+                        {% if article_comment.likes_count %}{{ '{:,}'.format(article_comment.likes_count) }} likes{% endif %}
+                        {% if article_comment.likes_count and article_comment.dislikes_count %} · {% endif %}
+                        {% if article_comment.dislikes_count %}{{ '{:,}'.format(article_comment.dislikes_count) }} dislikes{% endif %}
+                    </span>
+                {% endif %}
             {% endif %}
         </div>

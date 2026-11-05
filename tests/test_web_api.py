@@ -198,9 +198,10 @@ def check_auth_links_are_nofollow(doc):
 def check_user_impressions(doc, followers_count: int, following_count: int, follow_control: bool, block_control: bool):
     main_el = doc("main")
     user_impressions_el = main_el(".user-impressions")
-    assert user_impressions_el
-    assert int(user_impressions_el(".followers-count").text()) == followers_count
-    assert int(user_impressions_el(".following-count").text()) == following_count
+    assert bool(user_impressions_el) == (follow_control or block_control)
+    metadata = main_el('.user-meta').eq(0)
+    assert int(metadata('.followers-count').text().replace(',', '') or 0) == followers_count
+    assert int(metadata('.following-count').text().replace(',', '') or 0) == following_count
     has_user_follow = user_impressions_el(".btn-user-follow")
     if follow_control:
         assert has_user_follow
@@ -234,9 +235,10 @@ def check_user_status(doc, activate_control: bool, ban_control: bool):
         assert form('input[name="status"][value="banned"]')
         assert form('textarea[name="comment"]')
         assert form.attr("action").startswith(os.environ["API_TEST_BASE_URL"])
-    assert controls("#user-report-form")
-    assert controls("#user-report-toggle").has_class("btn-light")
-    assert controls(".user-impressions").has_class("d-inline-flex")
+    if controls("#user-report-form"):
+        assert controls("#user-report-toggle").has_class("btn-light")
+    if controls(".user-impressions"):
+        assert controls(".user-impressions").has_class("d-inline-flex")
     assert not controls(".user-impressions").has_class("mb-2")
     message = controls('a[href*="/messages/"]')
     if message:
@@ -1216,7 +1218,7 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     assert published_admin_doc('#article-status-form input[name="status"][value="published"][checked]')
     assert not published_doc('#article-status-form')
     report = published_doc('#article-report-form')
-    assert report.attr('action') == os.environ['API_TEST_BASE_URL'] + '/contacts/message'
+    assert report.attr('action') == os.environ['API_TEST_BASE_URL'] + f'/articles/{article_id}/report'
     assert report('select[name="reason"] option[value="spam"]')
     assert report('input[name="name"]').attr('value') == ''
     assert report('input[name="email"]').attr('value') == ''
@@ -2939,3 +2941,102 @@ def test_notification_center_autoloads_private_shared_rows_with_scoped_cursors(g
     assert 'data-read-notification="' + ids[4] + '"' not in get(owner, endpoint).text
     # The dropdown still consumes the same endpoint as JSON by default.
     assert len(get(owner, '/notifications/history?limit=10').json()['notifications']) == 10
+
+
+def test_reports_count_targets_and_article_owner_atomically_without_changing_dates(guest_client):
+    from concurrent.futures import ThreadPoolExecutor
+    suffix = uuid.uuid4().hex
+    identity = {'sub': 'report-owner-' + suffix, 'iss': 'report-tests',
+                'email': f'report-owner-{suffix}@example.com', 'name': 'Report Target Creator'}
+    owner = get_logged_in_client(identity)
+    owner_id = get_logged_in_user_id(identity)
+    set_dynamodb_user_permissions(owner_id, ['root'])
+    articles = []
+    for index in range(2):
+        created = post(owner, '/articles', json={
+            'title': f'Report target {suffix} {index}', 'content': ARTICLE_CONTENT,
+            'category': 'distributed-systems', 'tags': ['report-test'],
+        })
+        assert created.status_code == 200, created.text
+        page = get(owner, created.json())
+        owner_page = pq(page.text)
+        assert not owner_page('.article-report')
+        assert owner_page('script[src*="just-validate"]')
+        status_path = urlsplit(owner_page('#article-status-form').attr('action')).path
+        article_id = status_path.split('/')[2]
+        report_path = f'/articles/{article_id}/report'
+        articles.append((article_id, created.json(), report_path))
+        assert post(owner, f'/articles/{article_id}/status', json={'status': 'unpublished'}).status_code == 200
+
+    payload = {'name': 'Example Reporter', 'email': 'reporter@example.com',
+               'message': f'Please review this resource. Reference: {suffix}'}
+    assert not pq(get(owner, f'/users/{owner_id}').text)('.user-report')
+    assert post(owner, f'/users/{owner_id}/report', json=payload).status_code == 403
+    for _, _, report_path in articles:
+        assert post(owner, report_path, json=payload).status_code == 403
+
+    # An invisible draft cannot be reported by guessing its ID.
+    assert post(guest_client, articles[0][2], json=payload).status_code == 404
+    assert get_dynamodb_article(articles[0][0]).get('reports_count', 0) == 0
+    assert get_dynamodb_user(owner_id).get('article_reports_count', 0) == 0
+    for article_id, _, _ in articles:
+        assert post(owner, f'/articles/{article_id}/status', json={'status': 'published'}).status_code == 200
+
+    before_articles = {article_id: get_dynamodb_article(article_id) for article_id, _, _ in articles}
+    before_owner = get_dynamodb_user(owner_id)
+    user_page = pq(get(guest_client, f'/users/{owner_id}').text)
+    assert user_page('script[src*="just-validate"]')
+    user_report_path = urlsplit(user_page('#user-report-form').attr('action')).path
+    assert user_report_path == f'/users/{owner_id}/report'
+    assert post(guest_client, user_report_path, json=payload).status_code == 204
+
+    def send_report(index):
+        with get_guest_client() as client:
+            response = post(client, articles[index % 2][2], json=payload)
+            assert response.status_code == 204, response.text
+
+    with ThreadPoolExecutor(max_workers=4) as workers:
+        list(workers.map(send_report, range(8)))
+
+    for article_id, article_path, report_path in articles:
+        after = get_dynamodb_article(article_id)
+        assert after.pop('reports_count') == 4
+        assert after == before_articles[article_id]
+        metadata = pq(get(guest_client, article_path).text)('.article-meta').eq(0)
+        assert metadata('[title="Reports count"]').text() == '4 Reports'
+        for field, value in [('message', 'bad'), ('email', 'not-an-email'), ('name', None)]:
+            invalid = post(guest_client, report_path, json={**payload, field: value})
+            assert invalid.status_code == 422
+            assert list(invalid.json()['details']) == [field]
+            assert get_dynamodb_article(article_id)['reports_count'] == 4
+
+    after_owner = get_dynamodb_user(owner_id)
+    assert after_owner.pop('reports_count') == 1
+    assert after_owner.pop('article_reports_count') == 8
+    assert after_owner == before_owner
+    metadata = pq(get(guest_client, f'/users/{owner_id}').text)('.user-meta').eq(0)
+    assert metadata('[title="Profile reports count"]').text() == '1 Reports'
+    assert not metadata('[title="Article reports received count"]')
+    owner_metadata = pq(get(owner, f'/users/{owner_id}').text)('.user-meta').eq(0)
+    assert owner_metadata('[title="Article reports received count"]').text() == '8 Article reports'
+
+    # Free-form contacts never increment report counters, even if their message says "report".
+    assert post(guest_client, '/contacts/message', json=payload).status_code == 204
+    assert post(guest_client, '/users/missing-report-user/report', json=payload).status_code == 404
+    assert post(guest_client, '/articles/missing-report-article/report', json=payload).status_code == 404
+    saved, cursor = [], None
+    while True:
+        page = dynamodb_table.scan(
+            FilterExpression='#message = :message', ExpressionAttributeNames={'#message': 'message'},
+            ExpressionAttributeValues={':message': payload['message']},
+            **({'ExclusiveStartKey': cursor} if cursor else {}),
+        )
+        saved.extend(page['Items'])
+        cursor = page.get('LastEvaluatedKey')
+        if not cursor:
+            break
+    assert len(saved) == 10
+    assert sum(row.get('target_user_id') == owner_id for row in saved) == 1
+    assert sum(row.get('article_id') in before_articles for row in saved) == 8
+    assert get_dynamodb_user(owner_id)['reports_count'] == 1
+    assert get_dynamodb_user(owner_id)['article_reports_count'] == 8

@@ -1093,29 +1093,20 @@ def update_article_status(article: Article, update_article_status_dto: UpdateArt
                      article, req, detail=article.comment, action=status)
 
 
-def create_contact_message(message_dto: ContactMessageDTO, user: User = None, *, req=None) -> ContactMessage:
+def create_contact_message(message_dto: ContactMessageDTO, user: User = None, *, req=None,
+                           report_target: Article | User | None = None) -> ContactMessage:
     user and verify_authorization(user, Permission.CREATE_CONTACT_MESSAGE)
+
+    if user and report_target is not None:
+        owner_id = report_target.owner_id if isinstance(report_target, Article) else report_target.id
+        if user.id == owner_id:
+            raise HTTPException(403, 'You cannot report yourself or your own articles.')
 
     now = utc_now()
     message_id = str(uuid.uuid4())
 
     name = message_dto.name
     message = message_dto.message
-
-    if is_prod():
-        text = (
-            f"New contact form submission:\n"
-            f"ID: {message_id}\n"
-            f"Name: {name}\n"
-            f"Email: {message_dto.email}\n"
-            f"Message: {message}\n"
-            f"User ID: {user.id if user else 'N/A'}"
-        )
-        get_sns_client().publish(
-            TopicArn=get_contact_topic_arn(),
-            Message=text,
-            Subject="New Contact Form Submission"
-        )
 
     message_item = {
         "pk": f"CONTACT_MESSAGE#{message_id}",
@@ -1129,14 +1120,58 @@ def create_contact_message(message_dto: ContactMessageDTO, user: User = None, *,
     if user:
         message_item["user_id"] = user.id
 
-    if user:
+    if isinstance(report_target, Article):
+        message_item['article_id'] = report_target.id
+    elif isinstance(report_target, User):
+        message_item['target_user_id'] = report_target.id
+
+    if user or report_target is not None:
         from account_guard import add_account_guard
         writes = []
         add_dynamodb_put_transact(writes, (message_item['pk'], message_item['sk']), message_item)
-        add_account_guard(writes, user.id)
-        dynamodb_transact_write(writes)
+        if isinstance(report_target, Article):
+            add_dynamodb_update_transact(writes, (f'POST#{report_target.id}', 'META'),
+                                         deltas={'reports_count': 1}, add_updated_at=False)
+            operation = writes[-1]['Update']
+            operation['ConditionExpression'] = ('attribute_exists(pk) AND #report_status = :report_status '
+                                                'AND #report_owner = :report_owner')
+            operation['ExpressionAttributeNames'].update({'#report_status': 'status', '#report_owner': 'user_id'})
+            operation['ExpressionAttributeValues'].update({':report_status': report_target.status,
+                                                          ':report_owner': report_target.owner_id})
+            add_dynamodb_update_transact(writes, (f'USER#{report_target.owner_id}', 'META'),
+                                         deltas={'article_reports_count': 1}, add_updated_at=False)
+            writes[-1]['Update']['ConditionExpression'] = 'attribute_exists(pk)'
+            add_account_guard(writes, report_target.owner_id)
+        elif isinstance(report_target, User):
+            add_dynamodb_update_transact(writes, (f'USER#{report_target.id}', 'META'),
+                                         deltas={'reports_count': 1}, add_updated_at=False)
+            writes[-1]['Update']['ConditionExpression'] = 'attribute_exists(pk)'
+            add_account_guard(writes, report_target.id)
+        if user:
+            add_account_guard(writes, user.id)
+        try:
+            dynamodb_transact_write(writes)
+        except DynamoDBTransactionError as error:
+            if report_target is not None and error.is_conditional():
+                raise HTTPException(409, 'This resource changed. Refresh the page and try again.') from error
+            raise
     else:
         get_dynamodb_table().put_item(Item=message_item)
+    if is_prod():
+        text = (
+            f"New contact form submission:\n"
+            f"ID: {message_id}\n"
+            f"Name: {name}\n"
+            f"Email: {message_dto.email}\n"
+            f"Message: {message}\n"
+            f"User ID: {user.id if user else 'N/A'}"
+        )
+        safe_execute("Contact notification", lambda: get_sns_client().publish(
+            TopicArn=get_contact_topic_arn(),
+            Message=text,
+            Subject="New Contact Form Submission"
+        ))
+
     logger.info("New contact message", extra={"context": {
         "message_id": message_id,
         "name": name, "email": message_dto.email, "message": message,

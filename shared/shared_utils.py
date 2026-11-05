@@ -116,6 +116,8 @@ class User:
     blockers_count: int = 0
     blocking_count: int = 0
     article_likes_received_count: int = 0
+    reports_count: int = 0
+    article_reports_count: int = 0
     article_likes_given_count: int = 0
     article_dislikes_received_count: int = 0
     article_dislikes_given_count: int = 0
@@ -328,6 +330,7 @@ class Article:
     support_wallets: list[str] | None = None
     support_providers: list[str] | None = None
     support_link_click_counts: dict[str, int] = field(default_factory=dict)
+    reports_count: int = 0
     shares_counts: dict[str, int] = field(default_factory=dict)
 
 
@@ -1335,6 +1338,7 @@ def article_from_dynamodb(d_item: dict[str, Any]) -> Article:
         support_wallets=d_item.get("support_wallets"),
         support_providers=d_item.get("support_providers"),
         support_link_click_counts=d_item.get("support_link_click_counts", {}),
+        reports_count=d_item.get("reports_count", 0),
         shares_counts=d_item.get("shares_counts", {}),
         redirect_to=d_item.get("redirect_to"),
         comments_count=d_item.get("comments_count", 0),
@@ -1644,6 +1648,8 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         blockers_count=d_item.get("blockers_count", 0),
         blocking_count=d_item.get("blocking_count", 0),
         article_likes_received_count=d_item.get("article_likes_received_count", 0),
+        reports_count=d_item.get("reports_count", 0),
+        article_reports_count=d_item.get("article_reports_count", 0),
         article_likes_given_count=d_item.get("article_likes_given_count", 0),
         article_dislikes_received_count=d_item.get("article_dislikes_received_count", 0),
         article_dislikes_given_count=d_item.get("article_dislikes_given_count", 0),

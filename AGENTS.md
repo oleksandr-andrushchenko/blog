@@ -377,6 +377,7 @@
   status controls, reactions, publishing outcomes, and destructive actions. Neutral outline buttons use
   `btn-outline-dark`, never `btn-outline-secondary`. Keep status meaning explicit in labels and icons.
   Latest/Popular sort buttons use dark for the active selection and light for inactive choices.
+  Article comment submission uses a small `btn-outline-dark` button.
   See `docs/examme-ports.md` for source commits, maintenance setup, delivery behavior, and JavaScript regression harnesses. Run those harnesses when changing their features.
 - Category image normalization uses `scripts/normalize_public_images.py` through scripts-production. Review the
   dry run before `--apply`; retain host-mounted checkpoints, preserve prior shared objects, and verify variants
@@ -387,20 +388,29 @@
 
 ## Article metadata and dropdown controls
 
-- Cards and article pages reuse `shared/templates/fragments/article-meta.html`; compact cards show one tag
-  plus an overflow count. Preserve display-name casing. Article-list fragments load missing category metadata
-  once, including API fragments, rather than querying it per card.
+- Cards and article pages reuse shared `article-meta.html` for author/date/statistics and `article-badges.html`
+  for category/tags; compact cards show one tag plus an overflow count. User metadata lives in shared
+  `user-meta.html`; page controls live in owning web fragments. Preserve display-name casing. Article-list fragments
+  load missing category metadata once, including API fragments, rather than querying it per card.
 - Article moderation and reporting use owning web template fragments and the shared JSON form helper.
-  Rejection reasons remain required by the API. Report submissions use the public contact API with the
+  Rejection reasons remain required by the API. Report submissions use dedicated report endpoints with the
   canonical article URL and a bounded message; do not introduce a web proxy or restore global moderation handlers.
 - The shared image fragment accepts independent `caption` and `alt` values. Omitted captions inherit alt;
   explicit empty captions stay empty. Keep both values escaped. See `docs/promptcatalog-presentation-ports.md`.
-- Run `node tests/test_article_controls_ui.cjs` when changing moderation/report scripts, alongside the shared
-  form and notification startup harnesses and the required isolated Python suite.
+- Run `node tests/test_article_controls_ui.cjs` for moderation and `node tests/test_user_report_ui.cjs` for both
+  report forms, alongside shared form/notification startup harnesses and the required isolated Python suite.
 
 - Profile actions share the wrapping `#user-controls` row. Keep user impression fragments inline
   without vertical margins, including API replacements, and the profile hero overflow visible for dropdowns.
 - User status and report dropdowns live in owning web fragments, use explicit shared-form validation,
   and retain moderator/self restrictions. Banning requires a reason; activation clears the saved reason.
-  User reports use the public contact API, canonical profile URLs with ID fallback, and a 1,000-character
+  User reports use the dedicated report API, canonical profile URLs with ID fallback, and a 1,000-character
   message budget. Run `node tests/test_user_status_ui.cjs` and `node tests/test_user_report_ui.cjs`.
+
+- Profile calendars must follow every activity query page, including hidden-only pages. Current article/comment
+  counters cannot establish whether historical activity exists. Limit recent entries separately from calendar totals.
+- User/article reports use `POST /users/{user_id}/report` and `POST /articles/{article_id}/report`. Persist contact
+  target IDs and cumulative report counters atomically, guard visibility/existence/erasure, reject self-reports
+  including administrators, and preserve content dates. Never infer counters from historical contact text.
+  Report Details fields are named `message` for inline backend validation; load the validation asset on both pages.
+  Keep detailed engagement metadata owner-only and operator notifications after successful persistence.
