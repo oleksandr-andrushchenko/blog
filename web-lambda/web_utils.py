@@ -127,19 +127,24 @@ def get_user_activities(user: User, year: int | None = None, recent_limit: int =
                                                                                         tzinfo=timezone.utc), year
     start_ms, end_ms = int(start.timestamp() * 1000), int(end.timestamp() * 1000)
     activities = []
-    if user.published_articles_count or user.article_comments_count:
+    cursor = None
+    while True:
         resp = query_dynamodb_table(
             key_condition_expr=Key("pk").eq(f"USER_ACTIVITY#{user.id}") & Key("sk").between(
-                f"ACTIVITY#{start_ms}", f"ACTIVITY#{end_ms}#~"
+                f"ACTIVITY#{start_ms}", f"ACTIVITY#{end_ms - 1}#~"
             ),
             scan_index_forward=False,
             limit=1000,
+            exclusive_start_key=cursor,
         )
-        activities = [
+        activities.extend(
             user_activity_from_dynamodb(item)
             for item in resp.get("Items", [])
             if item.get("profile_visible")
-        ]
+        )
+        cursor = resp.get("LastEvaluatedKey")
+        if not cursor:
+            break
     counts = {}
     for activity in activities:
         day = datetime.fromtimestamp(float(activity.created_at) / 1000, tz=timezone.utc).date().isoformat()

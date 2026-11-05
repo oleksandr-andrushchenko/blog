@@ -2,7 +2,7 @@
     <section id="activity-calendar" class="mb-4">
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
             <h2 class="h5 mb-0">
-                {{ activities.total }} activities {% if activities.year %}in
+                {% if activities.total %}{{ '{:,}'.format(activities.total) }} activities{% else %}Activity{% endif %} {% if activities.year %}in
                 {{ activities.year }}{% else %}in the past year{% endif %}
             </h2>
 
@@ -27,7 +27,7 @@
                             <div class="d-flex flex-column" style="gap: 2px;">
                                 {% for day in week %}
                                     {% if day.date %}
-                                        {% set day_label = day.count ~ (' activity on ' if day.count == 1 else ' activities on ') ~ day.date %}
+                                        {% set day_label = (day.count ~ (' activity on ' if day.count == 1 else ' activities on ') if day.count else 'No activity on ') ~ day.date %}
                                         <span class="rounded-1 {% if day.count == 0 %}bg-secondary-subtle{% elif day.count == 1 %}bg-success-subtle{% elif day.count < 4 %}bg-success opacity-50{% else %}bg-success{% endif %}"
                                               style="width: .4375rem; height: .4375rem;" role="img"
                                               aria-label="{{ day_label }}" title="{{ day_label }}"></span>
