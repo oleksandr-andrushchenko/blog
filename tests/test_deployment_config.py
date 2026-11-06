@@ -7,7 +7,7 @@ import subprocess
 ROOT = Path(os.environ.get('PROJECT_ROOT', Path(__file__).resolve().parents[1]))
 
 
-def test_deployment_reads_credentials_without_echoing_them(tmp_path, monkeypatch):
+def test_deployment_reads_credentials_without_echoing_them(tmp_path):
     values = {
         'AWS_STACK': 'example-stack',
         'THREADS_APP_ID': 'synthetic-threads-app',
@@ -73,3 +73,46 @@ def test_linkedin_credentials_are_api_owned():
                                 ('LINKEDIN_API_VERSION', 'LinkedInApiVersion')):
         assert api[variable] == {'Ref': parameter}
         assert variable not in web
+
+
+def test_clean_preserves_importer_checkpoints_and_production_lock(tmp_path):
+    binaries = tmp_path / 'bin'
+    binaries.mkdir()
+    docker = binaries / 'docker'
+    docker.write_text('#!/bin/sh\necho "Unexpected Docker execution" >&2\nexit 99\n')
+    docker.chmod(0o755)
+    (tmp_path / '.env.test').write_text('')
+    artifacts = ['.site-build', '.code-build', '.tmp/web', '.tmp/api', '.tmp/img']
+    for directory in artifacts:
+        path = tmp_path / directory
+        path.mkdir(parents=True)
+        (path / 'artifact').write_text('generated build data')
+    checkpoint = tmp_path / '.tmp/importer/checkpoint.json'
+    checkpoint.parent.mkdir(parents=True)
+    checkpoint.write_text('{"completed": ["source-item"]}\n')
+    lock = tmp_path / '.production-deploy.lock'
+    lock.touch()
+    env = dict(os.environ, PATH=str(binaries) + os.pathsep + os.environ.get('PATH', ''))
+    result = subprocess.run(['make', '--file', str(ROOT / 'Makefile'), 'clean'], cwd=tmp_path,
+                            env=env, capture_output=True, text=True, timeout=15)
+    assert result.returncode == 0, result.stderr
+    assert all(not (tmp_path / directory).exists() for directory in artifacts)
+    assert checkpoint.read_text() == '{"completed": ["source-item"]}\n'
+    assert lock.exists()
+
+
+def test_retired_wildcard_invalidation_target_cannot_execute(tmp_path):
+    binaries = tmp_path / 'bin'
+    binaries.mkdir()
+    for name in ('docker', 'aws'):
+        binary = binaries / name
+        binary.write_text('#!/bin/sh\necho "Unexpected provider execution" >&2\nexit 99\n')
+        binary.chmod(0o755)
+    (tmp_path / '.env.test').write_text('')
+    env = dict(os.environ, PATH=str(binaries) + os.pathsep + os.environ.get('PATH', ''))
+    result = subprocess.run(['make', '--dry-run', '--file', str(ROOT / 'Makefile'), 'drop-cdn-cache'],
+                            cwd=tmp_path, env=env, capture_output=True, text=True, timeout=15)
+    assert result.returncode != 0
+    assert 'No rule to make target' in result.stderr
+    assert 'create-invalidation' not in result.stdout
+    assert 'Unexpected provider execution' not in result.stderr

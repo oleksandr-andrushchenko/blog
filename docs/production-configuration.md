@@ -120,3 +120,15 @@ before deploying against a migrated file; they fail rather than deploying empty 
 Validation: `make tests`, including synthetic store reads/writes, redaction, Make command expansion, partial
 migration recovery, mode/symlink preservation, credential isolation, and secure CloudFormation parameter delivery. Tests
 never call live Secrets Manager or Parameter Store. Run the migration dry run to review the actual local key set.
+
+## Makefile maintenance
+
+Make inherits the nonsecret owner, stage, domain and hosted-zone settings required for certificate and code-bucket
+commands. Application parameters and asset cache counters are read by `production_config.py`; do not duplicate
+those settings as Make variables. A minimal local fallback supports pre-migration certificate/bootstrap commands.
+
+`make clean` removes `.site-build`, `.code-build`, and the three Lambda vendor directories (`.tmp/web`,
+`.tmp/api`, `.tmp/img`). It preserves importer checkpoints, caches and other state elsewhere in `.tmp`.
+Full code builds clean their own vendor directories and do not remove the entire temporary directory.
+The legacy wildcard `drop-cdn-cache` target is removed. Cache invalidation requires an explicit instruction
+and a command listing only exact affected file paths.

@@ -19,7 +19,7 @@
 - CDN cache invalidations must list only the exact paths of specific changed files.
   Never invalidate `/*`, directory wildcards, or an entire distribution. The production
   CDN contains thousands of unrelated assets; preserve their cached copies.
-  Do not run the current `make drop-cdn-cache` target: it uses `--paths "/*"`.
+  The legacy wildcard `make drop-cdn-cache` target has been removed; do not restore it.
   Upload authorization does not authorize a separate cache invalidation; obtain an
   explicit instruction for that action, then use only the specific affected paths.
 
@@ -434,6 +434,9 @@
   Migration does not authorize deployment, commits, pushes, webhook changes or cache invalidation.
 
 - The shared production lock lives beside the resolved bootstrap as `.production-deploy.lock`, outside `.tmp`.
-  Build and clean targets remove temporary directories; never place the common lock inside those directories.
+  Build and clean targets remove Lambda vendor directories; never place the common lock inside those directories.
 - Production Compose must mount bootstrap directories, not `.env.prod` as an individual file. A file bind mount
   prevents atomic bootstrap replacement even when migration uses another directory alias of the same file.
+
+- Make only consumes nonsecret owner/stage/domain/zone deployment settings; application values and asset counters
+  belong to `production_config.py`. Build cleanup must preserve unrelated `.tmp` checkpoints and importer state.
