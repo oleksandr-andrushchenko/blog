@@ -332,6 +332,7 @@ class Article:
     support_link_click_counts: dict[str, int] = field(default_factory=dict)
     reports_count: int = 0
     shares_counts: dict[str, int] = field(default_factory=dict)
+    category_name: str | None = None
 
 
 @dataclass(slots=True)
@@ -1324,6 +1325,7 @@ def article_from_dynamodb(d_item: dict[str, Any]) -> Article:
         user_name=d_item.get("user_name"),
         content=content,
         category=d_item.get("category", "other"),
+        category_name=d_item.get("category_name"),
         preview=d_item.get("preview"),
         tags=d_item.get("tags", []),
         status=d_item["status"],

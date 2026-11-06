@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% set layout_assets = {"masonry": true} %}
+{% set layout_assets = {"masonry": true, "tagify": true} %}
 
 
 {% set meta_title = site_name ~ " - " ~ site_short_desc %}
@@ -26,16 +26,20 @@
         {% endwith %}
     {% endif %}
 
-    <section class="py-5 text-bg-success overflow-hidden mb-4">
+    <section class="py-5 text-bg-success mb-4">
         <div class="container text-center">
             <h1 class="d-inline">{{ site_name }} <i class="bi bi-{{ site_icon }}"></i></h1>
             <span class="mt-2 fw-bold mb-3">&mdash; {{ site_short_desc }}</span>
             <p class="mt-3 mb-4">{{ site_desc }}</p>
-            <div class="d-flex flex-wrap align-items-center justify-content-center gap-1">
-                <a href="{{ articles_url() }}" class="btn btn-dark">
-                    <i class="bi bi-compass" aria-hidden="true"></i>
-                    Explore articles
-                </a>
+            {% include "fragments/article-search.html" %}
+            {% set published_article_count = categories | sum(attribute='published_articles_count') | int %}
+            <div class="d-flex flex-wrap align-items-center justify-content-center gap-3 mt-4">
+                {% if published_article_count %}
+                    <p class="mb-0" id="homepage-article-count">
+                        <span class="badge rounded-pill text-bg-dark">{{ "{:,}".format(published_article_count) }}</span>
+                        published article{% if published_article_count != 1 %}s{% endif %} to explore
+                    </p>
+                {% endif %}
                 <a href="{{ users_url() }}" class="btn btn-dark btn-sm">
                     <i class="bi bi-people" aria-hidden="true"></i>
                     Meet the community

@@ -1048,6 +1048,7 @@ def test_article_create_and_new_page_endpoints_success_and_failure(guest_client)
     assert "figure" not in article_item["content"]
     assert "picture" not in article_item["content"]
     assert article_item["category"] == "distributed-systems"
+    assert article_item["category_name"] == "Distributed Systems"
     assert article_item["post_category_status_pk"] == "POST#distributed-systems#unpublished"
 
     invalid_links_content = (
@@ -3040,3 +3041,156 @@ def test_reports_count_targets_and_article_owner_atomically_without_changing_dat
     assert sum(row.get('article_id') in before_articles for row in saved) == 8
     assert get_dynamodb_user(owner_id)['reports_count'] == 1
     assert get_dynamodb_user(owner_id)['article_reports_count'] == 8
+
+
+def test_home_article_finder_uses_public_categories_tags_and_existing_listings(guest_client):
+    suffix = uuid.uuid4().hex[:10]
+    identity = {'sub': 'finder-' + suffix, 'iss': 'finder-tests',
+                'email': f'finder-{suffix}@example.com', 'name': 'Finder Creator'}
+    owner = get_logged_in_client(identity)
+    set_dynamodb_user_permissions(get_logged_in_user_id(identity), ['root'])
+    public_category = 'finder-public-' + suffix
+    draft_category = 'finder-draft-' + suffix
+    public_name = 'API <Design> & "guide"'
+    for slug, name in [(public_category, public_name), (draft_category, 'Draft category')]:
+        dynamodb_table.put_item(Item={
+            'pk': 'CATEGORY', 'sk': slug, 'category_slug': slug, 'name': name,
+            'description': 'Homepage finder regression.', 'published_articles_count': 0,
+            'created_at': int(time.time() * 1000),
+        })
+    public_tag = 'finder-public-' + suffix
+    draft_tag = 'finder-draft-' + suffix
+    public_title = 'Public finder article ' + suffix
+    draft_title = 'Private finder article ' + suffix
+    for category, tag, title, published in [
+        (public_category, public_tag, public_title, True),
+        (draft_category, draft_tag, draft_title, False),
+    ]:
+        created = post(owner, '/articles', json={
+            'title': title, 'content': ARTICLE_CONTENT, 'category': category, 'tags': [tag],
+        })
+        assert created.status_code == 200, created.text
+        if published:
+            page = pq(get(owner, created.json()).text)
+            status_path = urlsplit(page('#article-status-form').attr('action')).path
+            response = post(owner, status_path, json={'status': 'published'})
+            assert response.status_code == 200, response.text
+
+    homepage = get_index(guest_client)
+    form = homepage('#home-search-form')
+    search = form('#home-search')
+    assert form.attr('role') == 'search'
+    assert homepage('script[src*="tagify"]')
+    assert not search.is_('[required], [minlength], [maxlength]')
+    categories = {item['slug']: item for item in json.loads(search.attr('data-categories'))}
+    assert categories[public_category] == {
+        'slug': public_category, 'name': public_name, 'published_articles_count': 1,
+    }
+    assert draft_category not in categories
+    assert all(item['published_articles_count'] > 0 for item in categories.values())
+    article_count = homepage('#homepage-article-count')
+    total = sum(item['published_articles_count'] for item in categories.values())
+    assert article_count('.badge').text() == f'{total:,}'
+    assert 'published articles to explore' in article_count.text()
+    assert 'Meet the community' in article_count.parent().text()
+    listing_path = urlsplit(form.attr('action')).path
+    assert listing_path == '/articles'
+    assert form(f'a[href="{form.attr("action")}"]')
+    write_link = form('a').eq(1)
+    assert 'nofollow' in write_link.attr('rel').split()
+    assert parse_qs(urlsplit(write_link.attr('href')).query)['redirect_url'] == ['/articles/new']
+
+    tags_path = urlsplit(search.attr('data-tags-url')).path
+    public_tags = get(guest_client, tags_path + '?' + urlencode({
+        'prefix': public_tag, 'limit': 4, 'published_only': 'true',
+    }))
+    assert public_tags.status_code == 200, public_tags.text
+    assert [(tag['slug'], tag['articles_count']) for tag in public_tags.json()] == [(public_tag, 1)]
+    assert get(guest_client, tags_path + '?' + urlencode({
+        'prefix': draft_tag, 'limit': 4, 'published_only': 'true',
+    })).json() == []
+    for params in [{'category': public_category}, {'tags': public_tag}]:
+        response = get(guest_client, listing_path + '?' + urlencode(params))
+        assert response.status_code == 200, response.text
+        listing = pq(response.text)
+        filters = listing('#article-filters')
+        assert filters('#category-filter option[value=""]').text() == 'All categories'
+        assert filters(f'#category-filter option[value="{public_category}"]').text() == public_name
+        assert filters(f'#category-filter option[value="{draft_category}"]')
+        assert not filters('input[name="category"]')
+        selected_category = filters('#category-filter option[selected]').attr('value')
+        assert selected_category == params.get('category')
+        assert filters('input[name="type"]').val() == 'latest'
+        assert filters('input[name="status"]').val() == 'published'
+        articles = listing('#articles')
+        assert public_title in articles.text()
+        assert draft_title not in articles.text()
+
+    owner_form = get_index(owner)('#home-search-form')
+    assert urlsplit(owner_form('a').eq(1).attr('href')).path == '/articles/new'
+    draft_listing = get(owner, listing_path + '?' + urlencode({
+        'category': draft_category, 'status': 'unpublished', 'type': 'popular', 'tags': draft_tag,
+    }))
+    assert draft_listing.status_code == 200, draft_listing.text
+    draft_doc = pq(draft_listing.text)
+    assert draft_title in draft_doc('#articles').text()
+    assert draft_doc('#category-filter option[selected]').val() == draft_category
+    assert draft_doc('#article-filters input[name="status"]').val() == 'unpublished'
+    assert draft_doc('#article-filters input[name="type"]').val() == 'popular'
+
+
+def test_article_category_names_follow_category_changes_and_backfill_is_guarded(guest_client, capsys):
+    from botocore.exceptions import ClientError
+    from backfill_article_category_names import backfill_article
+
+    suffix = uuid.uuid4().hex[:10]
+    identity = {'sub': 'category-snapshot-' + suffix, 'iss': 'category-snapshot-tests',
+                'email': f'category-snapshot-{suffix}@example.com', 'name': 'Category Snapshot Creator'}
+    owner = get_logged_in_client(identity)
+    set_dynamodb_user_permissions(get_logged_in_user_id(identity), ['root'])
+    original_category_name = dynamodb_table.get_item(Key={
+        'pk': 'CATEGORY', 'sk': 'distributed-systems',
+    })['Item']['name']
+    created = post(owner, '/articles', json={
+        'title': 'Category snapshot ' + suffix, 'content': ARTICLE_CONTENT,
+        'category': 'distributed-systems', 'tags': ['snapshot-test'],
+    })
+    assert created.status_code == 200, created.text
+    owner_page = pq(get(owner, created.json()).text)
+    status_path = urlsplit(owner_page('#article-status-form').attr('action')).path
+    article_id = status_path.split('/')[2]
+    key = {'pk': 'POST#' + article_id, 'sk': 'META'}
+    item = dynamodb_table.get_item(Key=key, ConsistentRead=True)['Item']
+    assert item['category_name'] == original_category_name
+    changed = patch(owner, f'/articles/{article_id}', json={'category': 'caching'})
+    assert changed.status_code == 200, changed.text
+    item = dynamodb_table.get_item(Key=key, ConsistentRead=True)['Item']
+    assert item['category'] == 'caching'
+    assert item['category_name'] == 'Caching'
+    card_page = pq(get(owner, f'/users/{item["user_id"]}/articles-fragment?status=unpublished').text)
+    assert card_page('.article-badges a[href="/articles?category=caching"]').text() == 'Caching'
+
+    dynamodb_table.update_item(Key=key, UpdateExpression='REMOVE category_name')
+    legacy = dynamodb_table.get_item(Key=key, ConsistentRead=True)['Item']
+    names = {'caching': 'Caching', 'distributed-systems': 'Distributed Systems'}
+    assert backfill_article(dynamodb_table, legacy, names) == 'planned'
+    assert dynamodb_table.get_item(Key=key, ConsistentRead=True)['Item'] == legacy
+    assert backfill_article(dynamodb_table, legacy, names, apply=True) == 'updated'
+    saved = dynamodb_table.get_item(Key=key, ConsistentRead=True)['Item']
+    assert saved == {**legacy, 'category_name': 'Caching'}
+    assert backfill_article(dynamodb_table, saved, {'caching': 'Renamed'}, apply=True) == 'skipped'
+    assert dynamodb_table.get_item(Key=key, ConsistentRead=True)['Item'] == saved
+    with pytest.raises(ClientError) as conflict:
+        backfill_article(dynamodb_table, legacy, names, apply=True)
+    assert conflict.value.response['Error']['Code'] == 'ConditionalCheckFailedException'
+    dynamodb_table.update_item(Key=key, UpdateExpression='REMOVE category_name')
+    changed = patch(owner, f'/articles/{article_id}', json={'category': 'other'})
+    assert changed.status_code == 200, changed.text
+    with pytest.raises(ClientError):
+        backfill_article(dynamodb_table, legacy, names, apply=True)
+    current = dynamodb_table.get_item(Key=key, ConsistentRead=True)['Item']
+    assert current['category'] == 'other'
+    assert current['category_name'] == 'Other'
+    with pytest.raises(ValueError, match='Unknown category'):
+        backfill_article(dynamodb_table, {**key, 'category': 'missing'}, names, apply=True)
+    assert json.loads(capsys.readouterr().out.splitlines()[0])['output']['applied'] is False

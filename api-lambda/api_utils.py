@@ -611,7 +611,7 @@ def create_article(article_dto: ArticleDTO, cur_user: User) -> Article:
     title = article_dto.title
     content = sanitize_forbidden_html(article_dto.content)
     category = article_dto.category
-    get_category(category)
+    category_record = get_category(category)
     validate_article_content_links(content)
     preview = find_preview(content)
     image_filename = find_static_image_filename(content)
@@ -630,6 +630,7 @@ def create_article(article_dto: ArticleDTO, cur_user: User) -> Article:
         "user_name": cur_user.name,
         "content": content,
         "category": category,
+        "category_name": category_record.name,
         "tags": tags,
         "rating_sk": compute_rating_sk(0, now),
         "status": status,
@@ -682,7 +683,7 @@ def update_article(article: Article, update_article_dto: UpdateArticleDTO, cur_u
         _validate_article_support(changes["support_providers"], get_user(article.owner_id))
 
     if "category" in changes:
-        get_category(changes["category"])
+        changes["category_name"] = get_category(changes["category"]).name
 
     if "content" in changes:
         changes["content"] = sanitize_forbidden_html(changes["content"])

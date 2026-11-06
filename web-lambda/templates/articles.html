@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
 {% set layout_assets = {"masonry": true, "tagify": true} %}
+{% set categories = get_categories() %}
 
 
 {% set val_map = {
@@ -108,14 +109,12 @@
     <h1>{{ title }}</h1>
     <p class="small text-secondary">{{ subtitle }}</p>
 
-    <form action="{{ articles_url() }}" method="get"
+    <form id="article-filters" action="{{ articles_url() }}" method="get"
           class="d-flex flex-wrap align-items-center gap-3 mb-4 p-2 bg-white border rounded"
           aria-label="Filter articles">
 
         <input type="hidden" name="type" value="{{ article_query.type }}">
         <input type="hidden" name="status" value="{{ article_query.status }}">
-        {% if article_query.category %}
-            <input type="hidden" name="category" value="{{ article_query.category }}">{% endif %}
 
         <div class="d-flex align-items-center gap-2">
             <small class="text-secondary bi bi-sort-down"> Show:</small>
@@ -131,6 +130,20 @@
                     {{ ArticleQueryType.POPULAR | title }} first
                 </a>
             </div>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center gap-2 mw-100">
+            <label for="category-filter" class="small text-secondary bi bi-collection"> Filter by category:</label>
+            <select id="category-filter" name="category" class="form-select form-select-sm w-auto mw-100"
+                    onchange="this.form.requestSubmit()">
+                <option value="">All categories</option>
+                {% if article_query.category and not category %}
+                    <option value="{{ article_query.category }}" selected>{{ category_label }}</option>
+                {% endif %}
+                {% for category_option in categories %}
+                    <option value="{{ category_option.slug }}"{% if article_query.category == category_option.slug %} selected{% endif %}>{{ category_option.name }}</option>
+                {% endfor %}
+            </select>
         </div>
 
         <div class="d-flex flex-wrap align-items-center gap-2 mw-100">
@@ -189,6 +202,14 @@
                class="btn btn-light btn-sm bi bi-pencil-square"> Edit category</a>
         {% endif %}
     </form>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("article-filters").addEventListener("formdata", event => {
+          // An empty category is not a valid slug; omit it for the all-category listing.
+          if (!event.formData.get("category")) event.formData.delete("category")
+        })
+      })
+    </script>
 
     {% if articles %}
         <section id="articles" class="{{ {"def": 1, "sm": 2, "lg": 3} | row_classes }} g-3"

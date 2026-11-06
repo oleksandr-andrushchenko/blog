@@ -155,6 +155,11 @@
   returned validator instance and remove their rules when controls are removed or disabled.
 - Keep `static/scripts.js` limited to JavaScript reused across pages. Put page-specific scripts in their owning template
   and initialize them after dependencies are available, using `DOMContentLoaded` for dependencies loaded with `defer`.
+- Homepage article autocomplete lives in `web-lambda/templates/fragments/article-search.html`.
+  Reuse the existing category context and published-only tag API; preserve returned legacy/Unicode tag
+  keys when navigating. Run `node tests/test_home_search_ui.cjs` when changing finder behavior.
+- Article listing category controls load the category catalog for their options. Omit an empty
+  category on form serialization; it is not a valid slug. Run `node tests/test_article_filters_ui.cjs` for filter changes.
 - Initialize Masonry through `data-masonry-options` rather than its `data-masonry` auto-initialization; keep initial and
   dynamically appended cards covered by shared relayout behavior.
 
@@ -390,8 +395,11 @@
 
 - Cards and article pages reuse shared `article-meta.html` for author/date/statistics and `article-badges.html`
   for category/tags; compact cards show one tag plus an overflow count. User metadata lives in shared
-  `user-meta.html`; page controls live in owning web fragments. Preserve display-name casing. Article-list fragments
-  load missing category metadata once, including API fragments, rather than querying it per card.
+  `user-meta.html`; page controls live in owning web fragments. Article `category` remains the slug;
+  `category_name` snapshots its display name on creation/category change using the existing validation lookup.
+  Card/list fragments must not query categories. Legacy cards use context already available or the slug;
+  backfill missing names through `scripts/backfill_article_category_names.py` (dry-run, then explicit `--apply`).
+  The guarded backfill preserves existing snapshots, dates, counters, and indexes.
 - Article moderation and reporting use owning web template fragments and the shared JSON form helper.
   Rejection reasons remain required by the API. Report submissions use dedicated report endpoints with the
   canonical article URL and a bounded message; do not introduce a web proxy or restore global moderation handlers.

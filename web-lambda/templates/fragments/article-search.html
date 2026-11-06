@@ -1,0 +1,158 @@
+{% set search_categories = namespace(items=[]) %}
+{% for category in categories if category.published_articles_count > 0 %}
+    {% set search_categories.items = search_categories.items + [{
+        "slug": category.slug, "name": category.name,
+        "published_articles_count": category.published_articles_count | int
+    }] %}
+{% endfor %}
+<form id="home-search-form" action="{{ articles_url() }}" role="search" aria-label="Find articles" novalidate
+      class="{{ {"xl": 10} | col_classes }} mx-auto position-relative text-start">
+    <label for="home-search" class="visually-hidden">Find articles by category or tag</label>
+    <div class="input-group flex-nowrap" style="min-height: 2.75rem;">
+        <input id="home-search" type="text" class="form-control bg-body text-body"
+               placeholder="Search articles by category or tag…" autocomplete="off"
+               aria-describedby="home-search-help"
+               data-categories="{{ search_categories.items | tojson | forceescape }}"
+               data-tags-url="{{ url('api-tags', absolute=True) }}">
+        <a href="{{ articles_url() }}" class="btn btn-dark d-flex align-items-center gap-2">
+            <i class="bi bi-compass d-none d-sm-inline-block" aria-hidden="true"></i>
+            <span class="d-sm-none">Browse</span>
+            <span class="d-none d-sm-inline">Browse all articles</span>
+        </a>
+        <a href="{{ url('new-article') if cur_user else url('login', redirect_url=url('new-article')) }}"
+           class="btn btn-warning d-flex align-items-center gap-2"{% if not cur_user %} rel="nofollow"{% endif %}>
+            <i class="bi bi-pencil-square d-none d-sm-inline-block" aria-hidden="true"></i>
+            <span class="d-sm-none">Write</span>
+            <span class="d-none d-sm-inline">Write an article</span>
+        </a>
+    </div>
+    <div id="home-search-help" class="small invisible mt-1" role="status"></div>
+</form>
+<style>
+    /* Let the placeholder establish the same line box as typed text. */
+    .home-article-finder.form-control.tagify--empty .tagify__input::before {
+        position: static;
+        display: block;
+        width: auto;
+        height: auto;
+        margin: 0;
+        transform: none;
+    }
+
+    .home-article-finder.tagify--select::after {
+        content: none;
+    }
+</style>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const input = document.getElementById("home-search")
+    if (!input || typeof Tagify === "undefined") return
+
+    const form = input.closest("form")
+    const status = document.getElementById(input.getAttribute("aria-describedby"))
+    const setStatus = message => {
+      status.textContent = message
+      status.classList.toggle("invisible", !message)
+    }
+    const categories = JSON.parse(input.dataset.categories)
+    const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    })[char])
+    const suggestion = (item, kind, param) => ({
+      value: `${param}:${item.slug}`,
+      name: item.name || item.slug,
+      slug: item.slug,
+      kind,
+      count: Number(item.published_articles_count ?? item.articles_count ?? 0),
+      param
+    })
+    const finder = new Tagify(input, {
+      mode: "select",
+      enforceWhitelist: true,
+      tagTextProp: "name",
+      whitelist: [],
+      autoComplete: {enabled: false},
+      dropdown: {
+        enabled: 1,
+        maxItems: 8,
+        searchKeys: ["name", "slug"],
+        highlightFirst: true,
+        closeOnSelect: true
+      },
+      templates: {
+        dropdownItem(item) {
+          const count = Number(item.count)
+          return `<div ${this.getAttributes(item)} class="tagify__dropdown__item d-flex justify-content-between align-items-center gap-3" tabindex="0" role="option"><span class="text-break">${escapeHtml(item.name)}</span><span class="badge text-bg-secondary flex-shrink-0">${escapeHtml(item.kind)} · ${escapeHtml(count.toLocaleString())} article${count === 1 ? "" : "s"}</span></div>`
+        }
+      }
+    })
+    finder.DOM.scope.classList.add("home-article-finder", "bg-body", "text-body", "flex-nowrap", "align-items-center")
+    finder.DOM.input.classList.add("text-nowrap")
+    finder.DOM.input.setAttribute("aria-label", "Find articles by category or tag")
+    finder.DOM.input.setAttribute("aria-describedby", status.id)
+
+    let timer
+    let controller
+    finder.on("input", event => {
+      const query = event.detail.value.trim()
+      clearTimeout(timer)
+      controller?.abort()
+      finder.loading(false)
+      finder.whitelist = []
+      finder.dropdown.hide()
+      setStatus("")
+      if (!query) return
+
+      const local = categories
+        .filter(item => `${item.name} ${item.slug}`.toLowerCase().includes(query.toLowerCase()))
+        .slice(0, 4).map(item => suggestion(item, "Category", "category"))
+      finder.whitelist = local
+      if (local.length) finder.dropdown.show(query)
+      // Normalize only the typed prefix; preserve returned legacy/Unicode tag keys on selection.
+      const prefix = query.toLowerCase().replace(/\s+/g, "-")
+      if (prefix.length > 40) {
+        setStatus("Use a shorter search (up to 40 characters).")
+        return
+      }
+      controller = new AbortController()
+      const signal = controller.signal
+      timer = setTimeout(async () => {
+        finder.loading(true)
+        try {
+          const url = new URL(input.dataset.tagsUrl, window.location.origin)
+          url.searchParams.set("prefix", prefix)
+          url.searchParams.set("limit", "4")
+          url.searchParams.set("published_only", "true")
+          const response = await fetch(url, {signal})
+          if (!response.ok) throw new Error(`Tag request failed: ${response.status}`)
+          const items = await response.json()
+          if (signal.aborted) return
+          const tags = items.filter(item => Number(item.articles_count) > 0)
+            .slice(0, 4).map(item => suggestion(item, "Tag", "tags"))
+          finder.whitelist = [...local, ...tags]
+          if (finder.whitelist.length) finder.dropdown.show(query)
+          else finder.dropdown.hide()
+          setStatus(finder.whitelist.length ? "" : "No matching categories or tags.")
+        } catch (error) {
+          if (!signal.aborted) setStatus("Tag suggestions could not load. Choose a category or browse all articles.")
+        } finally {
+          if (!signal.aborted) finder.loading(false)
+        }
+      }, 250)
+    })
+    finder.on("add", event => {
+      const item = event.detail.data
+      if (!["category", "tags"].includes(item.param)) return
+      clearTimeout(timer)
+      controller?.abort()
+      finder.loading(false)
+      const url = new URL(form.action, window.location.origin)
+      url.searchParams.set(item.param, item.slug)
+      window.location.assign(url.toString())
+    })
+    form.addEventListener("submit", event => {
+      event.preventDefault()
+      setStatus("Choose a category or tag from the suggestions.")
+    })
+  })
+</script>

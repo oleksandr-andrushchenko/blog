@@ -1,9 +1,10 @@
 {% set extended = extended | default(false) %}
-{% set category_label = article.category | replace('-', ' ') %}
-{% if category is defined and category and category.slug == article.category %}
+{% set saved_category_name = article.category_name | default(None) %}
+{% set category_label = saved_category_name or article.category | replace('-', ' ') %}
+{% if not saved_category_name and category is defined and category and category.slug == article.category %}
     {% set category_label = category.name %}
-{% elif metadata_categories is defined %}
-    {% set matched_category = metadata_categories | selectattr('slug', 'equalto', article.category) | first %}
+{% elif not saved_category_name and categories is defined %}
+    {% set matched_category = categories | selectattr('slug', 'equalto', article.category) | first %}
     {% if matched_category is defined %}{% set category_label = matched_category.name %}{% endif %}
 {% endif %}
 <div class="article-badges d-flex flex-wrap align-items-center gap-2 {{ badges_class | default('') }}">
