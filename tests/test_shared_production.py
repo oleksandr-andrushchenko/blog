@@ -100,6 +100,8 @@ def test_lock_serializes_worktrees_and_child_reads_configuration_after_lock(pair
     worker.write_text('''import os, pathlib, sys, time
 config, marker, release, output, role = map(pathlib.Path, sys.argv[1:])
 if str(role) == 'first':
+    import shutil
+    shutil.rmtree(config.parent / '.tmp', ignore_errors=True)
     marker.touch()
     while not release.exists(): time.sleep(0.02)
     config.write_text('AWS_STACK=updated-example\\n')

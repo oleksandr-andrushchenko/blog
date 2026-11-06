@@ -7,7 +7,7 @@ import subprocess
 ROOT = Path(os.environ.get('PROJECT_ROOT', Path(__file__).resolve().parents[1]))
 
 
-def test_deployment_reads_credentials_from_production_env(tmp_path):
+def test_deployment_reads_credentials_without_echoing_them(tmp_path, monkeypatch):
     values = {
         'AWS_STACK': 'example-stack',
         'THREADS_APP_ID': 'synthetic-threads-app',
@@ -35,19 +35,14 @@ def test_deployment_reads_credentials_from_production_env(tmp_path):
     result = subprocess.run(['make', '--dry-run', 'PRODUCTION_LOCK_HELD=1', '--file', str(ROOT / 'Makefile'), 'deploy-infra'],
                             cwd=tmp_path, env=env, capture_output=True, text=True, timeout=15)
     assert result.returncode == 0, result.stderr
-    assert '--s3-bucket example-stack-code' in result.stdout
-    assert '--s3-prefix cloudformation' in result.stdout
-    for parameter, variable in (
-        ('ThreadsAppId', 'THREADS_APP_ID'),
-        ('ThreadsAppSecret', 'THREADS_APP_SECRET'),
-        ('ThreadsTokenEncryptionKey', 'THREADS_TOKEN_ENCRYPTION_KEY'),
-        ('LinkedInAppId', 'LINKEDIN_APP_ID'),
-        ('LinkedInAppSecret', 'LINKEDIN_APP_SECRET'),
-        ('LinkedInTokenEncryptionKey', 'LINKEDIN_TOKEN_ENCRYPTION_KEY'),
-        ('LinkedInApiVersion', 'LINKEDIN_API_VERSION'),
-        ('AppleCredentialsSecretArn', 'APPLE_CREDENTIALS_SECRET_ARN'),
-    ):
-        assert f'{parameter}="{values[variable]}"' in result.stdout
+    assert 'production_config.py" deploy' in result.stdout
+    for key in ('THREADS_APP_SECRET', 'LINKEDIN_APP_SECRET', 'THREADS_TOKEN_ENCRYPTION_KEY'):
+        assert values[key] not in result.stdout
+    from production_config import CF_PARAMETERS
+
+    assert CF_PARAMETERS['ThreadsAppSecret'] == 'THREADS_APP_SECRET'
+    assert CF_PARAMETERS['LinkedInAppSecret'] == 'LINKEDIN_APP_SECRET'
+    assert CF_PARAMETERS['AppleCredentialsSecretArn'] == 'APPLE_CREDENTIALS_SECRET_ARN'
 
 
 def test_login_link_callback_and_api_code_exchange_configuration():

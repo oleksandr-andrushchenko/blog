@@ -414,3 +414,26 @@
   including administrators, and preserve content dates. Never infer counters from historical contact text.
   Report Details fields are named `message` for inline backend validation; load the validation asset on both pages.
   Keep detailed engagement metadata owner-only and operator notifications after successful persistence.
+
+## AWS-backed production configuration
+
+- Production configuration migration is implemented in `scripts/production_config.py`; see
+  `docs/production-configuration.md` and `.env.prod.example`. Each credential has its own raw-string Secrets Manager
+  secret; each nonsecret setting has its own SSM String parameter. Never bundle values into aggregate JSON records.
+  Classify new keys explicitly; never infer sensitivity from names or store unreviewed credentials in plaintext parameters.
+- Resolve current records by name under the shared production lock. Make receives only nonsecret settings;
+  the deployment helper sends raw CloudFormation parameter values through a memory-only descriptor, never argv or disk files.
+  Do not pin versions or add refresh markers. Application startup remains environment-only; do not add runtime
+  store calls or automatic refresh. Store updates require explicit deployment.
+- Production scripts bootstrap credentials after container startup; keep raw values out of Docker Config.Env,
+  argv, generated env/build files and logs. Their shared lock covers execution. Worktrees use `PROD_CONFIG_DIR`
+  and `PROD_CONFIG_FILENAME` to mount the resolved main bootstrap directory. Older checkouts require the loader.
+- The migration runs through scripts-production, defaults to a redacted dry run, and requires an explicit command
+  for `--apply`. Read back all individual records before replacing the local file; preserve existing keys,
+  artifact timestamps, cache counters and worktree symlinks. Never regenerate signing/encryption keys or overwrite different records.
+  Migration does not authorize deployment, commits, pushes, webhook changes or cache invalidation.
+
+- The shared production lock lives beside the resolved bootstrap as `.production-deploy.lock`, outside `.tmp`.
+  Build and clean targets remove temporary directories; never place the common lock inside those directories.
+- Production Compose must mount bootstrap directories, not `.env.prod` as an individual file. A file bind mount
+  prevents atomic bootstrap replacement even when migration uses another directory alias of the same file.

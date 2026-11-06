@@ -9,15 +9,27 @@ import subprocess
 import sys
 
 
-def run_locked(env_file, command):
+def run_locked(env_file, command, *, load_config=True):
     # Resolve links so all worktrees use the main checkout's single lock.
     production_file = Path(env_file).resolve()
-    lock_path = production_file.parent / '.tmp/production-deploy.lock'
+    # Build cleanup removes .tmp; keep the common lock outside disposable directories.
+    lock_path = production_file.parent / '.production-deploy.lock'
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with lock_path.open('a') as lock:
         print('Waiting for shared production tooling lock…', flush=True)
         fcntl.flock(lock, fcntl.LOCK_EX)
         environment = {**os.environ, 'PROD_ENV_FILE': str(production_file), 'PRODUCTION_LOCK_HELD': '1'}
+        if load_config and production_file.exists():
+            if Path(__file__).with_name('production_config.py').exists():
+                from production_config import read_env, bootstrap_values, deployment_environment
+                bootstrap = read_env(production_file)
+                if 'PROD_CONFIG_PREFIX' in bootstrap or 'PROD_SECRETS_PREFIX' in bootstrap:
+                    bootstrap = bootstrap_values(production_file)
+                    if not bootstrap.get('PROD_CONFIG_PREFIX'):
+                        raise ValueError('Empty production store locations')
+                    environment = deployment_environment(bootstrap, environment)
+            elif 'PROD_CONFIG_PREFIX=' in production_file.read_text():
+                raise ValueError('This older checkout needs the production configuration bootstrap')
         # The recursive Make reads configuration only after this lock is held.
         process = subprocess.Popen(command, env=environment, start_new_session=True)
         previous = {}
@@ -46,8 +58,8 @@ def main(argv=None):
         parser.error('a command is required')
     try:
         return run_locked(args.env_file, command)
-    except OSError as error:
-        print(f'Production tooling could not start: {error}', file=sys.stderr)
+    except (OSError, ValueError, KeyError):
+        print('Production tooling could not start; check bootstrap configuration, AWS login and store permissions.', file=sys.stderr)
         return 1
 
 

@@ -198,7 +198,10 @@ def copy_configuration(source, target, project, ports):
         updates = {**values, 'PROJECT_NAME': project,
                    'COMPOSE_PROJECT_NAME': project + ('-tests' if filename == '.env.test' else '')}
         if filename == '.env':
-            updates['PROD_ENV_FILE'] = str((source / '.env.prod').resolve())
+            production_file = (source / '.env.prod').resolve()
+            updates['PROD_ENV_FILE'] = str(production_file)
+            updates['PROD_CONFIG_DIR'] = str(production_file.parent)
+            updates['PROD_CONFIG_FILENAME'] = production_file.name
             updates.update(APP_STAGE='local', APP_ENV='dev', TELEGRAM_LOG_LEVEL='OFF',
                            WEB_BASE_URL=f"http://localhost:{values['WEB_LAMBDA_PORT']}",
                            API_BASE_URL=f"http://localhost:{values['API_LAMBDA_PORT']}",

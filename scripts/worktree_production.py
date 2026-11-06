@@ -46,6 +46,8 @@ else
 
 
 def update_compose(path):
+    if '/app/scripts/production_config.py' in path.read_text():
+        return
     text = path.read_text().replace('      - .env.prod\n', '      - ${PROD_ENV_FILE:-.env.prod}\n')
     if 'target: /app/.env.prod' not in text:
         text = text.replace('      - ./:/app\n', '''      - ./:/app

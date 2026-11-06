@@ -66,7 +66,9 @@ def test_web_certificate_is_exported_and_required_before_main_deploy(tmp_path):
     assert template['Outputs']['CertificateArn']['Value'] == {'Ref': 'StaticCertificate'}
     # Execute the Makefile against fake commands and synthetic configuration only.
     # A pre-upgrade certificate stack must fail before deploying the main stack.
-    (tmp_path / '.env.prod').write_text('AWS_STACK=example\nAWS_PROJECT=example\nAWS_REGION=us-west-2\n')
+    (tmp_path / '.env.prod').write_text('AWS_STACK=example\nAWS_PROJECT=example\nAWS_REGION=us-west-2\n'
+        'WEB_LAMBDA_CODE_TIMESTAMP=20261105000000\nAPI_LAMBDA_CODE_TIMESTAMP=20261105000000\n'
+        'IMG_LAMBDA_CODE_TIMESTAMP=20261105000000\n')
     (tmp_path / '.env.test').write_text('')
     binaries = tmp_path / 'bin'
     binaries.mkdir()
@@ -76,7 +78,7 @@ def test_web_certificate_is_exported_and_required_before_main_deploy(tmp_path):
 case "$*" in
   *describe-stacks*WebCertificateArn*) echo "${TEST_WEB_CERT:-None}" ;;
   *describe-stacks*) echo arn:aws:acm:us-east-1:123456789012:certificate/static ;;
-  *"cloudformation deploy"*) echo "DEPLOY $*" ;;
+  *"cloudformation deploy"*) for arg in "$@"; do case "$arg" in file://*) cat "${arg#file://}" > "$TEST_DEPLOY_PAYLOAD" ;; esac; done; printf '%s\\n' "$*" > "$TEST_DEPLOY_ARGUMENTS" ;;
   *) exit 99 ;;
 esac
 ''')
@@ -84,6 +86,8 @@ esac
         binary.chmod(0o755)
     env = dict(os.environ, PATH=str(binaries) + os.pathsep + os.environ.get('PATH', ''))
     env.pop('TEST_WEB_CERT', None)
+    env['TEST_DEPLOY_PAYLOAD'] = str(tmp_path / 'synthetic-payload.json')
+    env['TEST_DEPLOY_ARGUMENTS'] = str(tmp_path / 'synthetic-arguments.txt')
     command = ['make', '--file', str(ROOT / 'Makefile'), 'PRODUCTION_LOCK_HELD=1', 'deploy-infra']
     missing = subprocess.run(command, cwd=tmp_path, env=env, capture_output=True, text=True, timeout=15)
     assert missing.returncode != 0
@@ -92,5 +96,11 @@ esac
     env['TEST_WEB_CERT'] = 'arn:aws:acm:us-east-1:123456789012:certificate/web'
     ready = subprocess.run(command, cwd=tmp_path, env=env, capture_output=True, text=True, timeout=15)
     assert ready.returncode == 0, ready.stderr
-    assert 'WebCertificateArn=' + env['TEST_WEB_CERT'] in ready.stdout
-    assert '--s3-bucket example-code' in ready.stdout
+    import json
+    payload = {item['ParameterKey']: item['ParameterValue']
+               for item in json.loads((tmp_path / 'synthetic-payload.json').read_text())}
+    assert payload['WebCertificateArn'] == env['TEST_WEB_CERT']
+    arguments = (tmp_path / 'synthetic-arguments.txt').read_text()
+    assert '--s3-bucket example-code' in arguments
+    assert '--s3-prefix cloudformation' in arguments
+    assert '--parameter-overrides file:///proc/self/fd/' in arguments

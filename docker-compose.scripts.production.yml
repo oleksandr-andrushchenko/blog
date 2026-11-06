@@ -7,18 +7,25 @@ services:
     build:
       context: ./scripts
       dockerfile: Dockerfile
-    env_file:
-      - ${PROD_ENV_FILE:-.env.prod}
+    # Load credentials after container startup; never place them in Docker Config.Env.
+    entrypoint: ["python3", "/app/scripts/production_config.py", "--env-file", "/production/${PROD_CONFIG_FILENAME:-.env.prod}", "run", "--"]
+    command: []
     environment:
       FUNCTION_TEMPLATES_DIR: "/app/api-lambda/templates"
       HOME: "/tmp/scripts-home"
     volumes:
       - ./:/app
-      # A worktree link may point outside /app; bind the shared host file here.
+      # Resolve absolute worktree bootstrap symlinks without mounting the file itself.
+      # File bind mounts prevent atomic replacement during migration.
       - type: bind
-        source: ${PROD_ENV_FILE:-./.env.prod}
-        target: /app/.env.prod
+        source: ${PROD_CONFIG_DIR:-.}
+        target: ${PROD_CONFIG_DIR:-/host-production}
         read_only: true
+      # Mount its directory so atomic bootstrap replacements and the common lock are host-visible.
+      - type: bind
+        source: ${PROD_CONFIG_DIR:-.}
+        target: /production
+        read_only: false
       - ${HOME}/.aws:/tmp/scripts-home/.aws:ro
       # AWS login refreshes its cached OAuth token during long production jobs.
       - ${HOME}/.aws/login/cache:/tmp/scripts-home/.aws/login/cache

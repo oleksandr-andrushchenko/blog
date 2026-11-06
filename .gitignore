@@ -60,3 +60,6 @@ dynamodb-data/
 
 # Private unmarked image originals
 .media-originals/
+
+# Common production tooling lock (must survive temporary build cleanup).
+.production-deploy.lock

@@ -39,21 +39,41 @@ API_LAMBDA_PORT ?= 5002
 PROD_ENV_FILE ?= .env.prod
 override PROD_ENV_FILE := $(shell realpath -m -- "$(PROD_ENV_FILE)")
 export PROD_ENV_FILE
+export PROD_CONFIG_DIR := $(dir $(PROD_ENV_FILE))
+export PROD_CONFIG_FILENAME := $(notdir $(PROD_ENV_FILE))
 
-# AWS deployment values always come from .env.prod.
-AWS_STACK := $(shell sed -n "s/^AWS_STACK=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
-AWS_PROJECT := $(shell sed -n "s/^AWS_PROJECT=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
-AWS_REGION := $(shell sed -n "s/^AWS_REGION=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
+# AWS-backed deployments inherit a single snapshot resolved under the production lock.
+# Legacy files remain supported only until the explicit migration is applied.
+ifeq ($(PROD_CONFIG_LOADED),1)
+AWS_OWNER := $(value AWS_OWNER)
+APP_STAGE := $(value APP_STAGE)
+APP_ENV := $(value APP_ENV)
+APP_DEBUG := $(value APP_DEBUG)
+DOMAIN_NAME := $(value DOMAIN_NAME)
+HOSTED_ZONE_ID := $(value HOSTED_ZONE_ID)
+TELEGRAM_CHAT_ID := $(value TELEGRAM_CHAT_ID)
+TELEGRAM_LOG_LEVEL := $(value TELEGRAM_LOG_LEVEL)
+NOTIFICATION_EMAIL := $(value NOTIFICATION_EMAIL)
+NOTIFICATION_PHONE := $(value NOTIFICATION_PHONE)
+GOOGLE_ANALYTICS_ID := $(value GOOGLE_ANALYTICS_ID)
+INDEXNOW_KEY := $(value INDEXNOW_KEY)
+GOOGLE_SEARCH_CONSOLE_SITE_URL := $(value GOOGLE_SEARCH_CONSOLE_SITE_URL)
+YANDEX_WEBMASTER_USER_ID := $(value YANDEX_WEBMASTER_USER_ID)
+YANDEX_WEBMASTER_HOST_ID := $(value YANDEX_WEBMASTER_HOST_ID)
+GOOGLE_OAUTH_CLIENT_ID := $(value GOOGLE_OAUTH_CLIENT_ID)
+APPLE_CREDENTIALS_SECRET_ARN := $(value APPLE_CREDENTIALS_SECRET_ARN)
+TINYMCE_API_KEY := $(value TINYMCE_API_KEY)
+THREADS_APP_ID := $(value THREADS_APP_ID)
+FACEBOOK_CREDENTIALS_SECRET_ARN := $(value FACEBOOK_CREDENTIALS_SECRET_ARN)
+LINKEDIN_APP_ID := $(value LINKEDIN_APP_ID)
+LINKEDIN_API_VERSION := $(value LINKEDIN_API_VERSION)
+else
 AWS_OWNER := $(shell sed -n "s/^AWS_OWNER=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 APP_STAGE := $(shell sed -n "s/^APP_STAGE=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 APP_ENV := $(shell sed -n "s/^APP_ENV=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 APP_DEBUG := $(shell sed -n "s/^APP_DEBUG=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
-APP_SECRET := $(shell sed -n "s/^APP_SECRET=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 DOMAIN_NAME := $(shell sed -n "s/^DOMAIN_NAME=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 HOSTED_ZONE_ID := $(shell sed -n "s/^HOSTED_ZONE_ID=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
-TELEGRAM_BOT_TOKEN := $(shell sed -n "s/^TELEGRAM_BOT_TOKEN=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
-TELEGRAM_PUBLISHER_BOT_TOKEN := $(shell sed -n "s/^TELEGRAM_PUBLISHER_BOT_TOKEN=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
-TELEGRAM_PUBLISHER_WEBHOOK_SECRET := $(shell sed -n "s/^TELEGRAM_PUBLISHER_WEBHOOK_SECRET=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 TELEGRAM_CHAT_ID := $(shell sed -n "s/^TELEGRAM_CHAT_ID=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 TELEGRAM_LOG_LEVEL := $(shell sed -n "s/^TELEGRAM_LOG_LEVEL=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 NOTIFICATION_EMAIL := $(shell sed -n "s/^NOTIFICATION_EMAIL=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
@@ -61,26 +81,23 @@ NOTIFICATION_PHONE := $(shell sed -n "s/^NOTIFICATION_PHONE=//p" "$(PROD_ENV_FIL
 GOOGLE_ANALYTICS_ID := $(shell sed -n "s/^GOOGLE_ANALYTICS_ID=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 INDEXNOW_KEY := $(shell sed -n "s/^INDEXNOW_KEY=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 GOOGLE_SEARCH_CONSOLE_SITE_URL := $(shell sed -n "s/^GOOGLE_SEARCH_CONSOLE_SITE_URL=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
-BING_WEBMASTER_API_KEY := $(shell sed -n "s/^BING_WEBMASTER_API_KEY=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
-YANDEX_WEBMASTER_OAUTH_TOKEN := $(shell sed -n "s/^YANDEX_WEBMASTER_OAUTH_TOKEN=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 YANDEX_WEBMASTER_USER_ID := $(shell sed -n "s/^YANDEX_WEBMASTER_USER_ID=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 YANDEX_WEBMASTER_HOST_ID := $(shell sed -n "s/^YANDEX_WEBMASTER_HOST_ID=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 GOOGLE_OAUTH_CLIENT_ID := $(shell sed -n "s/^GOOGLE_OAUTH_CLIENT_ID=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
-GOOGLE_OAUTH_CLIENT_SECRET := $(shell sed -n "s/^GOOGLE_OAUTH_CLIENT_SECRET=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 APPLE_CREDENTIALS_SECRET_ARN := $(shell sed -n "s/^APPLE_CREDENTIALS_SECRET_ARN=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 TINYMCE_API_KEY := $(shell sed -n "s/^TINYMCE_API_KEY=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
-CSS_CACHE_COUNTER := $(shell sed -n "s/^CSS_CACHE_COUNTER=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
-JS_CACHE_COUNTER := $(shell sed -n "s/^JS_CACHE_COUNTER=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
-AUTH_JWT_SECRET := $(shell sed -n "s/^AUTH_JWT_SECRET=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 THREADS_APP_ID := $(shell sed -n "s/^THREADS_APP_ID=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 FACEBOOK_CREDENTIALS_SECRET_ARN := $(shell sed -n "s/^FACEBOOK_CREDENTIALS_SECRET_ARN=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 LINKEDIN_APP_ID := $(shell sed -n "s/^LINKEDIN_APP_ID=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
-LINKEDIN_APP_SECRET := $(shell sed -n "s/^LINKEDIN_APP_SECRET=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
-LINKEDIN_TOKEN_ENCRYPTION_KEY := $(shell sed -n "s/^LINKEDIN_TOKEN_ENCRYPTION_KEY=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 LINKEDIN_API_VERSION := $(or $(shell sed -n "s/^LINKEDIN_API_VERSION=//p" "$(PROD_ENV_FILE)" 2>/dev/null),202610)
-THREADS_APP_SECRET := $(shell sed -n "s/^THREADS_APP_SECRET=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
-THREADS_TOKEN_ENCRYPTION_KEY := $(shell sed -n "s/^THREADS_TOKEN_ENCRYPTION_KEY=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
+endif
+AWS_STACK := $(shell sed -n "s/^AWS_STACK=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
+AWS_PROJECT := $(shell sed -n "s/^AWS_PROJECT=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
+AWS_REGION := $(shell sed -n "s/^AWS_REGION=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
+CSS_CACHE_COUNTER := $(shell sed -n "s/^CSS_CACHE_COUNTER=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
+JS_CACHE_COUNTER := $(shell sed -n "s/^JS_CACHE_COUNTER=//p" "$(PROD_ENV_FILE)" 2>/dev/null)
 
+PRODUCTION_CONFIG_SCRIPT := $(dir $(abspath $(firstword $(MAKEFILE_LIST))))scripts/production_config.py
 CODE_STACK_NAME = $(AWS_STACK)-code
 CERT_STACK_NAME = $(AWS_STACK)-cert
 SITE_BUILD_DIR = .site-build
@@ -115,7 +132,7 @@ help: ## Show this help
 .PHONY: check-prod-env-file
 check-prod-env-file:
 	@if [ ! -f "$(PROD_ENV_FILE)" ]; then \
-		echo "❌ Missing $(PROD_ENV_FILE). Create it from .env.example."; \
+		echo "❌ Missing $(PROD_ENV_FILE). See .env.prod.example and docs/production-configuration.md."; \
 		exit 1; \
 	fi
 
@@ -242,63 +259,9 @@ deploy-infra: check-env check-aws ## Deploy CF stack for the site
 		arn:*:acm:us-east-1:*:certificate/*) ;; \
 		*) echo "❌ Web CloudFront certificate ARN not found. Run make deploy-cert-infra first."; exit 1 ;; \
 	esac; \
-	aws cloudformation deploy \
-		--profile $(AWS_PROJECT) \
-		--region $(AWS_REGION) \
-		--template-file cf.yml \
-		--s3-bucket $(CODE_STACK_NAME) \
-		--s3-prefix cloudformation \
-		--stack-name $(AWS_STACK) \
-		--capabilities CAPABILITY_NAMED_IAM \
-		--no-fail-on-empty-changeset \
-		--parameter-overrides \
-			Project="$(AWS_PROJECT)" \
-			Owner="$(AWS_OWNER)" \
-			Stage="$(APP_STAGE)" \
-			Env="$(APP_ENV)" \
-			Debug="$(APP_DEBUG)" \
-			Secret="$(APP_SECRET)" \
-			DomainName="$(DOMAIN_NAME)" \
-			HostedZoneId="$(HOSTED_ZONE_ID)" \
-			CertificateArn="$$CERTIFICATE_ARN" \
-			WebCertificateArn="$$WEB_CERTIFICATE_ARN" \
-			TelegramBotToken="$(TELEGRAM_BOT_TOKEN)" \
-			ThreadsAppId="$(THREADS_APP_ID)" \
-			FacebookCredentialsSecretArn="$(FACEBOOK_CREDENTIALS_SECRET_ARN)" \
-			LinkedInAppId="$(LINKEDIN_APP_ID)" \
-			LinkedInAppSecret="$(LINKEDIN_APP_SECRET)" \
-			LinkedInTokenEncryptionKey="$(LINKEDIN_TOKEN_ENCRYPTION_KEY)" \
-			LinkedInApiVersion="$(LINKEDIN_API_VERSION)" \
-			ThreadsAppSecret="$(THREADS_APP_SECRET)" \
-			ThreadsTokenEncryptionKey="$(THREADS_TOKEN_ENCRYPTION_KEY)" \
-			TelegramPublisherBotToken="$(TELEGRAM_PUBLISHER_BOT_TOKEN)" \
-			TelegramPublisherWebhookSecret="$(TELEGRAM_PUBLISHER_WEBHOOK_SECRET)" \
-			TelegramChatId="$(TELEGRAM_CHAT_ID)" \
-			TelegramLogLevel="$(or $(TELEGRAM_LOG_LEVEL),INFO)" \
-			NotificationEmail="$(NOTIFICATION_EMAIL)" \
-			NotificationPhone="$(NOTIFICATION_PHONE)" \
-			GoogleAnalyticsId="$(GOOGLE_ANALYTICS_ID)" \
-			IndexNowKey="$(INDEXNOW_KEY)" \
-			GoogleSearchConsoleSiteUrl="$(GOOGLE_SEARCH_CONSOLE_SITE_URL)" \
-			BingWebmasterApiKey="$(BING_WEBMASTER_API_KEY)" \
-			YandexWebmasterOauthToken="$(YANDEX_WEBMASTER_OAUTH_TOKEN)" \
-			YandexWebmasterUserId="$(YANDEX_WEBMASTER_USER_ID)" \
-			YandexWebmasterHostId="$(YANDEX_WEBMASTER_HOST_ID)" \
-			GoogleOauthClientId="$(GOOGLE_OAUTH_CLIENT_ID)" \
-			GoogleOauthClientSecret="$(GOOGLE_OAUTH_CLIENT_SECRET)" \
-			AppleCredentialsSecretArn="$(APPLE_CREDENTIALS_SECRET_ARN)" \
-			TinyMceApiKey="$(TINYMCE_API_KEY)" \
-			CssCacheCounter="$(CSS_CACHE_COUNTER)" \
-			JsCacheCounter="$(JS_CACHE_COUNTER)" \
-			AuthJwtSecret="$(AUTH_JWT_SECRET)" \
-			WebFuncS3Key="web-function-$$(sed -n 's/^WEB_LAMBDA_CODE_TIMESTAMP=//p' "$(PROD_ENV_FILE)").zip" \
-			ApiFuncS3Key="api-function-$$(sed -n 's/^API_LAMBDA_CODE_TIMESTAMP=//p' "$(PROD_ENV_FILE)").zip" \
-			ImgFuncS3Key="img-function-$$(sed -n 's/^IMG_LAMBDA_CODE_TIMESTAMP=//p' "$(PROD_ENV_FILE)").zip" \
-		--tags \
-			Project="$(AWS_PROJECT)" \
-			Owner="$(AWS_OWNER)" \
-			Stage="$(APP_STAGE)" \
-			Region="$(AWS_REGION)"
+	python3 "$(PRODUCTION_CONFIG_SCRIPT)" deploy \
+		--certificate-arn "$$CERTIFICATE_ARN" \
+		--web-certificate-arn "$$WEB_CERTIFICATE_ARN"
 	@echo "📤 Stack outputs:"
 	@aws cloudformation describe-stacks \
 		--stack-name $(AWS_STACK) \
