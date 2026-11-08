@@ -2462,13 +2462,21 @@ def test_crypto_support_wallets_save_select_and_render(guest_client):
     owner = get_logged_in_client({"sub": identity, "iss": "crypto-wallets", "email": f"{identity}@example.com"})
     owner_id = get_dynamodb_user_by_email(f"{identity}@example.com")["id"]
     profile = f"/users/{owner_id}"
+    preview = pq(get(owner, profile).text)('.creator-support-link')
+    assert preview('.card.opacity-50').length == 1
+    sample_wallet = preview('button[aria-label="Crypto wallet example"][disabled]')
+    assert sample_wallet.text() == 'Crypto wallet'
+    assert sample_wallet.attr('data-bs-toggle') is None
+    assert not preview('.dropdown-menu, input, textarea, form')
+    assert not pq(get(guest_client, profile).text)('.creator-support-link')
     wallets = [
         {"id": "btc", "currency": "BTC", "network": "Bitcoin", "address": "bc1qexample",
          "instructions": "Bitcoin only <script>alert(1)</script>", "show_on_user_page": False},
         {"id": "eth", "currency": "ETH", "network": "Ethereum", "address": "0xExample", "instructions": ""},
         {"id": "custom", "currency": "CUSTOM", "network": "Custom chain", "address": "DExample", "instructions": ""},
     ]
-    response = patch(owner, profile, json={"crypto_wallets": wallets})
+    support_link = {"id": "tip", "name": "Creator support", "url": f"https://support.example/{identity}"}
+    response = patch(owner, profile, json={"crypto_wallets": wallets, "support_links": [support_link]})
     assert response.status_code == 200, response.text
     assert [wallet["address"] for wallet in get_dynamodb_user(owner_id)["crypto_wallets"]] == [wallet["address"] for wallet in wallets]
     editor = pq(get(owner, profile + "/edit").text)
@@ -2507,6 +2515,16 @@ def test_crypto_support_wallets_save_select_and_render(guest_client):
     article_id = json.loads(pq(get(owner, created.json()).text)('script[type="application/ld+json"]').text())["identifier"]
     endpoint = f"/articles/{article_id}"
     assert get_dynamodb_article(article_id)["support_wallets"] == ["btc"]
+    owner_support = pq(get(owner, created.json()).text)('.creator-support-link')
+    assert owner_support('section.card').length == 1
+    assert owner_support('#creator-wallets').length == 1
+    assert not owner_support('.card.opacity-50, button[disabled], form')
+    assert not owner_support('[aria-label="Crypto wallet example"]')
+    assert patch(owner, endpoint, json={"support_wallets": []}).status_code == 200
+    article_preview = pq(get(owner, created.json()).text)('.creator-support-link')
+    assert article_preview('button[aria-label="Crypto wallet example"][disabled]').length == 1
+    assert not article_preview('.dropdown-menu, input, textarea, form')
+    assert patch(owner, endpoint, json={"support_wallets": ["btc"]}).status_code == 200
     admin = get_logged_in_client(root_user)
     assert patch(admin, endpoint, json={"support_wallets": ["not-owned"]}).status_code == 422
     assert post(admin, endpoint + "/status", json={"status": "published"}).status_code == 200
@@ -2514,7 +2532,16 @@ def test_crypto_support_wallets_save_select_and_render(guest_client):
     def support():
         page = get(guest_client, created.json())
         assert page.status_code == 200, page.text
-        return pq(page.text)("#creator-wallets")
+        doc = pq(page.text)
+        block = doc("#creator-wallets")
+        if block:
+            assert doc('.creator-support-link').length == 1
+            assert block.closest('.creator-support-link').length == 1
+            assert block.closest('.card').length == 1
+            assert not block.has_class('card')
+            assert doc('.creator-support-link .card-title').length == 1
+            assert 'Support with crypto' not in doc('.creator-support-link').text()
+        return block
 
     block = support()
     assert block('input[id^="support-wallet-"][readonly]').attr("value") == "bc1qexample"
@@ -2545,8 +2572,15 @@ def test_crypto_support_wallets_save_select_and_render(guest_client):
     assert not profile_page('#support-wallet-btc')
     assert profile_page('#support-wallet-eth')
     assert not profile_page('#support-instructions-eth')
+    profile_support = profile_page('#creator-wallets').closest('.creator-support-link')
+    assert profile_support('section.card').length == 1
+    assert profile_support('form[method="post"]').length == 1
+    assert not profile_support('.opacity-50')
+    assert patch(owner, endpoint, json={"support_providers": ["tip"]}).status_code == 200
+    assert support().closest('.card')('form[method="post"]').length == 1
     assert patch(owner, endpoint, json={"support_wallets": []}).status_code == 200
     assert not support()
+    assert pq(get(guest_client, created.json()).text)('.creator-support-link form[method="post"]').length == 1
     assert patch(owner, endpoint, json={"support_wallets": None}).status_code == 200
     assert support()('input[id^="support-wallet-"][readonly]').length == 3
     assert patch(owner, profile, json={"crypto_wallets": []}).status_code == 200

@@ -6,8 +6,11 @@
         {% set support.links = support.links + [link] %}
     {% endif %}
 {% endfor %}
-{% set support_preview = not support.links %}
-{% if support.links or support_owner_view %}
+{% set wallet_buttons %}
+    {% include "fragments/creator-wallets.html" %}
+{% endset %}
+{% set support_preview = not support.links and not (wallet_buttons | trim) %}
+{% if support.links or wallet_buttons | trim or support_owner_view %}
     {% if support_preview %}
         {% set support.links = user.support_links or [
             {"id": "support-page", "name": "Support page", "text": "Support my work"},
@@ -44,8 +47,15 @@
                             </form>
                         {% endif %}
                     {% endfor %}
+                    {% if support_preview %}
+                        <button type="button" class="btn btn-dark dropdown-toggle" aria-label="Crypto wallet example" disabled>
+                            <i class="bi bi-wallet2" aria-hidden="true"></i> Crypto wallet
+                        </button>
+                    {% else %}
+                        {{ wallet_buttons | safe }}
+                    {% endif %}
                 </div>
-                {% if support_owner_view and support_article | default(false) and not support_preview %}
+                {% if support_owner_view and support_article | default(false) and support.links and not support_preview %}
                     <p class="small mb-2">Reader clicks on this article:
                         {% for link in support.links %}{{ link.name }}: {{ article.support_link_click_counts.get(link.id, 0) }}{% if not loop.last %}, {% endif %}{% endfor %}
                     </p>
@@ -61,10 +71,10 @@
         </section>
         {% if support_preview %}
             <div class="mt-2">
-                {% if support_article | default(false) and user.support_links %}
-                    <a href="{{ url('edit-article', article_id=article.id) }}#article-support-providers" class="link-body-emphasis">Choose support links</a>
+                {% if support_article | default(false) and (user.support_links or user.crypto_wallets) %}
+                    <a href="{{ url('edit-article', article_id=article.id) }}#article-support-providers" class="link-body-emphasis">Choose support options</a>
                 {% else %}
-                    <a href="{{ url('edit-user', user_id=user.id) }}#earn" class="link-body-emphasis">Set up support links</a>
+                    <a href="{{ url('edit-user', user_id=user.id) }}#earn" class="link-body-emphasis">Set up support options</a>
                 {% endif %}
             </div>
         {% endif %}
@@ -72,5 +82,3 @@
 {% endif %}
 
 {% endif %}
-
-{% include "fragments/creator-wallets.html" %}

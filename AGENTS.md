@@ -377,6 +377,11 @@
 - Crypto wallets are plain receiving addresses with stable IDs, not credentials or payment integrations.
   Validate article selections against its actual owner. `support_wallets: null` inherits category-aware profile
   defaults, while `[]` hides wallets. Profile visibility is independent. Never fabricate connected accounts or keys.
+- Article and profile support links and wallet dropdowns share the card in `fragments/creator-support-links.html`.
+  `fragments/creator-wallets.html` supplies only the wallet controls, without a separate card or heading. Visible
+  wallets alone count as configured support and must not trigger the owner's faded setup preview.
+  The empty owner-only preview includes a disabled generic crypto-wallet example without an address, dropdown menu,
+  or copy action; never show this example to visitors or alongside configured support controls.
 - Use `btn-dark` for forms and main actions, `btn-light` for neutral secondary actions, and
   `btn-primary` sparingly for exceptional emphasis. Preserve success, warning, and danger styles for
   status controls, reactions, publishing outcomes, and destructive actions. Neutral outline buttons use
