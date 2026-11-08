@@ -641,6 +641,10 @@ def create_article(article_dto: ArticleDTO, cur_user: User) -> Article:
         "support_providers": article_dto.support_providers,
         "support_wallets": article_dto.support_wallets,
     }
+    if article_dto.source is not None:
+        article_item["source"] = article_dto.source
+    if article_dto.generation is not None:
+        article_item["generation"] = article_dto.generation
     if preview:
         article_item["preview"] = preview
     if image_filename:

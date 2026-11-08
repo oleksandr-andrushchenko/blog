@@ -333,6 +333,8 @@ class Article:
     reports_count: int = 0
     shares_counts: dict[str, int] = field(default_factory=dict)
     category_name: str | None = None
+    source: dict[str, Any] | None = None
+    generation: dict[str, Any] | None = None
 
 
 @dataclass(slots=True)
@@ -1326,6 +1328,8 @@ def article_from_dynamodb(d_item: dict[str, Any]) -> Article:
         content=content,
         category=d_item.get("category", "other"),
         category_name=d_item.get("category_name"),
+        source=d_item.get("source"),
+        generation=d_item.get("generation"),
         preview=d_item.get("preview"),
         tags=d_item.get("tags", []),
         status=d_item["status"],

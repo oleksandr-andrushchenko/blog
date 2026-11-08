@@ -1,10 +1,51 @@
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Any
+from urllib.parse import urlsplit
 
 from basic_dtos import BaseDTO, UNSET
 from support_links import validate_support_providers
 from query_dtos import ArticleStatus
-from validation import normalize_slug, validate_catalog_text, validate_category_slug
+from validation import normalize_slug, validate_catalog_text, validate_category_slug, validate_http_url
+
+
+def _validate_source(value):
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) - {"url", "published_at"}:
+        raise ValueError("source must contain a URL and optional published_at")
+    url = validate_catalog_text(value.get("url")).strip()
+    if (not url or len(url) > 2048 or any(char.isspace() or ord(char) < 32 for char in url)
+            or "\\" in url):
+        raise ValueError("source.url must be a valid HTTP(S) URL without login details")
+    validate_http_url(url)
+    parsed = urlsplit(url)
+    if not parsed.hostname or parsed.username is not None or parsed.password is not None:
+        raise ValueError("source.url must be a valid HTTP(S) URL without login details")
+    # Accessing port rejects malformed or out-of-range ports as well.
+    _ = parsed.port
+    published_at = value.get("published_at")
+    if published_at is not None and (type(published_at) is not int or not 0 <= published_at <= 253402300799999):
+        raise ValueError("source.published_at must be a UTC Unix timestamp in milliseconds")
+    return {**value, "url": url}
+
+
+def _validate_generation(value):
+    if value is None:
+        return None
+    limits = {"model": 200, "version": 200, "reasoning_effort": 64}
+    if not isinstance(value, dict) or set(value) - limits.keys():
+        raise ValueError("generation must contain model and optional version and reasoning_effort")
+    result = dict(value)
+    for name, limit in limits.items():
+        field = value.get(name)
+        if field is None and name != "model":
+            continue
+        field = validate_catalog_text(field).strip()
+        if not 1 <= len(field) <= limit or any(ord(char) < 32 for char in field):
+            raise ValueError(f"generation.{name} must contain between 1 and {limit} characters")
+        result[name] = field
+    return result
 
 
 def _validate_tags(values):
@@ -51,8 +92,12 @@ class ArticleDTO(BaseDTO):
     category: str
     support_wallets: list[str] | None = None
     support_providers: list[str] | None = None
+    source: dict[str, Any] | None = None
+    generation: dict[str, Any] | None = None
 
     def __post_init__(self):
+        self.source = _validate_source(self.source)
+        self.generation = _validate_generation(self.generation)
         if self.support_wallets is not None:
             self.support_wallets = validate_support_providers(self.support_wallets)
         if self.support_providers is not None:
@@ -71,8 +116,14 @@ class UpdateArticleDTO(BaseDTO):
     category: str | None | object = UNSET
     support_wallets: list[str] | None | object = UNSET
     support_providers: list[str] | None | object = UNSET
+    source: dict[str, Any] | None | object = UNSET
+    generation: dict[str, Any] | None | object = UNSET
 
     def __post_init__(self):
+        if self.source is not UNSET:
+            self.source = _validate_source(self.source)
+        if self.generation is not UNSET:
+            self.generation = _validate_generation(self.generation)
         if self.support_wallets is not UNSET and self.support_wallets is not None:
             self.support_wallets = validate_support_providers(self.support_wallets)
         if self.support_providers is not UNSET and self.support_providers is not None:

@@ -3194,3 +3194,63 @@ def test_article_category_names_follow_category_changes_and_backfill_is_guarded(
     with pytest.raises(ValueError, match='Unknown category'):
         backfill_article(dynamodb_table, {**key, 'category': 'missing'}, names, apply=True)
     assert json.loads(capsys.readouterr().out.splitlines()[0])['output']['applied'] is False
+
+
+def test_article_provenance_is_validated_persisted_and_kept_out_of_public_content(guest_client):
+    suffix = uuid.uuid4().hex[:10]
+    identity = {'sub': 'provenance-' + suffix, 'iss': 'article-provenance-tests',
+                'email': f'provenance-{suffix}@example.com', 'name': 'Provenance Creator'}
+    owner = get_logged_in_client(identity)
+    set_dynamodb_user_permissions(get_logged_in_user_id(identity), ['root'])
+    source = {'url': f'https://medium.com/@example/original-{suffix}/', 'published_at': 1767225600000}
+    generation = {'model': 'provenance-test-model', 'version': 'test-snapshot', 'reasoning_effort': 'high'}
+    payload = {'title': 'Article provenance ' + suffix, 'content': ARTICLE_CONTENT,
+               'category': 'distributed-systems', 'tags': ['provenance-test'],
+               'source': source, 'generation': generation}
+    for invalid in ({'source': {**source, 'published_at': True}},
+                    {'source': {'url': 'javascript:alert(1)'}},
+                    {'generation': {'model': 'test', 'reasoning': 'private analysis'}}):
+        rejected = post(owner, '/articles', json={**payload, **invalid})
+        assert rejected.status_code == 422, rejected.text
+
+    created = post(owner, '/articles', json=payload)
+    assert created.status_code == 200, created.text
+    page = get(owner, created.json())
+    assert page.status_code == 200, page.text
+    status_path = urlsplit(pq(page.text)('#article-status-form').attr('action')).path
+    article_id = status_path.split('/')[2]
+    saved = get_dynamodb_article(article_id)
+    assert saved['status'] == 'unpublished'
+    assert saved['source'] == source and saved['generation'] == generation
+
+    edited = patch(owner, f'/articles/{article_id}', json={'content': ARTICLE_CONTENT + '<p>Manual edit.</p>'})
+    assert edited.status_code == 200, edited.text
+    saved = get_dynamodb_article(article_id)
+    assert saved['source'] == source and saved['generation'] == generation
+    before_invalid = dict(saved)
+    rejected = patch(owner, f'/articles/{article_id}', json={'source': {'url': 'https://example.com', 'extra': True}})
+    assert rejected.status_code == 422, rejected.text
+    assert get_dynamodb_article(article_id) == before_invalid
+
+    published = post(owner, status_path, json={'status': 'published'})
+    assert published.status_code == 200, published.text
+    before = get_dynamodb_article(article_id)
+    replacement = {'model': 'provenance-test-model-v2', 'reasoning_effort': 'medium'}
+    edited = patch(owner, f'/articles/{article_id}', json={'generation': replacement})
+    assert edited.status_code == 200, edited.text
+    saved = get_dynamodb_article(article_id)
+    assert saved['generation'] == replacement and saved['source'] == source
+    for field in ('user_id', 'created_at', 'published_at', 'status', 'post_status_pk',
+                  'post_category_status_pk', 'post_user_status_pk', 'rating_sk', 'content'):
+        assert saved[field] == before[field]
+    public = get(guest_client, created.json())
+    assert public.status_code == 200, public.text
+    assert source['url'] not in public.text and replacement['model'] not in public.text
+    forbidden = patch(guest_client, f'/articles/{article_id}', json={'source': None, 'generation': None})
+    assert forbidden.status_code in (401, 403), forbidden.text
+    assert get_dynamodb_article(article_id) == saved
+
+    cleared = patch(owner, f'/articles/{article_id}', json={'source': None, 'generation': None})
+    assert cleared.status_code == 200, cleared.text
+    saved = get_dynamodb_article(article_id)
+    assert 'source' not in saved and 'generation' not in saved
