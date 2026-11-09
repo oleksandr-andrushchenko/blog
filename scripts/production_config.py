@@ -263,6 +263,10 @@ def migrate(path, parameter_prefix, secret_prefix, apply=False, reader=aws_json)
     actual_config, actual_credentials = cloud_values(bootstrap, reader)
     if actual_config != config or actual_credentials != credentials:
         raise ConfigurationError('Readback differs; local production file has been preserved')
+    write_bootstrap(path, bootstrap)
+
+
+def write_bootstrap(path, bootstrap):
     import tempfile
     target = Path(path).resolve()
     descriptor, temporary = tempfile.mkstemp(dir=target.parent, prefix='.prod-bootstrap-')
@@ -272,6 +276,36 @@ def migrate(path, parameter_prefix, secret_prefix, apply=False, reader=aws_json)
         os.replace(temporary, target)
     finally:
         Path(temporary).unlink(missing_ok=True)
+
+
+def relocate(path, parameter_prefix, secret_prefix, apply=False, reader=aws_json):
+    """Copy cloud records without overwriting values, then switch the bootstrap."""
+    original = Path(path).read_bytes()
+    bootstrap = bootstrap_values(path)
+    if not bootstrap.get('PROD_CONFIG_PREFIX') or set(bootstrap) - LOCAL_KEYS:
+        raise ConfigurationError('Relocation requires a bootstrap-only cloud configuration')
+    validate_prefixes(parameter_prefix, secret_prefix)
+    config, credentials = cloud_values(bootstrap, reader)
+    target = {**bootstrap, 'PROD_CONFIG_PREFIX': parameter_prefix, 'PROD_SECRETS_PREFIX': secret_prefix}
+    for key, value in sorted({**config, **credentials}.items()):
+        secret = key in SECRET_KEYS
+        service = 'secretsmanager' if secret else 'ssm'
+        prefix_key = 'PROD_SECRETS_PREFIX' if secret else 'PROD_CONFIG_PREFIX'
+        source_name, name = bootstrap[prefix_key] + key, target[prefix_key] + key
+        if apply and source_name != name:
+            ensure_record(bootstrap, service, name, value, reader)
+        print(json.dumps({'input': {'service': service, 'name': source_name}, 'output': {
+            'action': 'keep record' if source_name == name else 'ensure record',
+            'name': name, 'apply': apply,
+        }}))
+    if not apply:
+        return
+    actual_config, actual_credentials = cloud_values(target, reader)
+    if actual_config != config or actual_credentials != credentials:
+        raise ConfigurationError('Readback differs; original bootstrap has been preserved')
+    if Path(path).read_bytes() != original:
+        raise ConfigurationError('Bootstrap changed during relocation; original file has been preserved')
+    write_bootstrap(path, target)
 
 
 def ensure_record(bootstrap, service, name, value, reader):
@@ -383,22 +417,27 @@ def main(argv=None):
     migration.add_argument('--parameter-prefix', required=True)
     migration.add_argument('--secret-prefix', required=True)
     migration.add_argument('--apply', action='store_true')
+    relocation = subparsers.add_parser('relocate', help='Copy cloud records to new prefixes (read-only by default)')
+    relocation.add_argument('--parameter-prefix', required=True)
+    relocation.add_argument('--secret-prefix', required=True)
+    relocation.add_argument('--apply', action='store_true')
     args = parser.parse_args(argv)
     try:
         if args.mode == 'deploy':
             if os.environ.get('PRODUCTION_LOCK_HELD') != '1':
                 raise ConfigurationError('Run deployment through make deployment or make deploy-infra')
             return deploy(args.env_file, args.certificate_arn, args.web_certificate_arn)
-        if args.mode == 'migrate':
+        if args.mode in ('migrate', 'relocate'):
             # Take the same host-mounted lock as deployments, including dry runs.
             from production_lock import run_locked
             if os.environ.get('PRODUCTION_LOCK_HELD') != '1':
                 command = [sys.executable, str(Path(__file__).resolve()), '--env-file', args.env_file,
-                           'migrate', '--parameter-prefix', args.parameter_prefix, '--secret-prefix', args.secret_prefix]
+                           args.mode, '--parameter-prefix', args.parameter_prefix, '--secret-prefix', args.secret_prefix]
                 if args.apply:
                     command.append('--apply')
                 return run_locked(args.env_file, command, load_config=False)
-            migrate(args.env_file, args.parameter_prefix, args.secret_prefix, args.apply)
+            operation = migrate if args.mode == 'migrate' else relocate
+            operation(args.env_file, args.parameter_prefix, args.secret_prefix, args.apply)
             return 0
         command = args.command[1:] if args.command[:1] == ['--'] else args.command
         if not command:

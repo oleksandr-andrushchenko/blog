@@ -4,15 +4,17 @@ Each production value has its own AWS record, named after its uppercase environm
 
 | Value | AWS record | Stored value |
 | --- | --- | --- |
-| `AUTH_JWT_SECRET` | Secrets Manager `sysdespro/prod/secrets/AUTH_JWT_SECRET` | The raw signing secret |
-| `TELEGRAM_BOT_TOKEN` | Secrets Manager `sysdespro/prod/secrets/TELEGRAM_BOT_TOKEN` | The raw bot token |
-| `DOMAIN_NAME` | Parameter Store String `/sysdespro/prod/settings/DOMAIN_NAME` | The domain name |
-| `TELEGRAM_LOG_LEVEL` | Parameter Store String `/sysdespro/prod/settings/TELEGRAM_LOG_LEVEL` | The log level |
+| `AUTH_JWT_SECRET` | Secrets Manager `sysdespro/prod/AUTH_JWT_SECRET` | The raw signing secret |
+| `TELEGRAM_BOT_TOKEN` | Secrets Manager `sysdespro/prod/TELEGRAM_BOT_TOKEN` | The raw bot token |
+| `DOMAIN_NAME` | Parameter Store String `/sysdespro/prod/DOMAIN_NAME` | The domain name |
+| `TELEGRAM_LOG_LEVEL` | Parameter Store String `/sysdespro/prod/TELEGRAM_LOG_LEVEL` | The log level |
 
 There is no aggregate JSON record or stored key manifest. Bootstrap prefixes identify the namespaces;
 the explicit code classification identifies individual keys. Blank optional values are represented by absent
 records, because SSM does not allow empty strings. Migration prints an explicit `skip empty` for those keys.
 
+Both stores use the project/stage prefix directly, without a `settings/` or `secrets/` segment.
+Parameter Store names start with `/`; Secrets Manager names do not.
 Prefixes are configurable through the bootstrap file. The explicit classification is in
 `scripts/production_config.py`; unknown keys fail migration rather than silently becoming plaintext settings.
 OAuth client IDs, public TinyMCE/analytics IDs and the public IndexNow ownership key are nonsecrets.
@@ -66,7 +68,7 @@ main checkout:
 ```sh
 docker compose -f docker-compose.scripts.production.yml run --rm --build scripts-production \
   python3 scripts/production_config.py migrate \
-  --parameter-prefix /sysdespro/prod/settings/ --secret-prefix sysdespro/prod/secrets/
+  --parameter-prefix /sysdespro/prod/ --secret-prefix sysdespro/prod/
 ```
 
 After reviewing that output, an explicitly authorized run with `--apply` creates each nonempty value as a
@@ -80,6 +82,22 @@ Migration itself does not change deployed resources. Once migration is verified,
 `make deployment` (or the requested scoped infrastructure deployment) to apply the current values.
 Review the CloudFormation change set as usual. No webhook registration or CDN invalidation is part of migration.
 The legacy local-file deployment path is retained until migration completes.
+
+For an existing cloud-mode bootstrap, changing a prefix alone does not rename AWS records.
+Create and verify records under the shorter names before switching the active bootstrap prefixes.
+Use the read-only relocation review through the production service:
+
+```sh
+docker compose -f docker-compose.scripts.production.yml run --rm --build scripts-production \
+  python3 scripts/production_config.py relocate \
+  --parameter-prefix /sysdespro/prod/ --secret-prefix sysdespro/prod/
+```
+
+After review, add `--apply` to an explicitly authorized run. Relocation copies the current values,
+reuses identical destination records without overwriting, verifies the complete destination snapshot,
+and atomically updates the bootstrap while preserving generated deployment state and symlinks.
+A failure leaves the original prefixes active; rerunning resumes safely. The shared production lock
+covers the operation. Relocation retains the old records; removing them requires a separately authorized cleanup.
 
 ## Permissions and operations
 

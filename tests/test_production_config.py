@@ -24,7 +24,7 @@ def stores():
                    'THREADS_APP_SECRET': 'threads-private-value', 'THREADS_TOKEN_ENCRYPTION_KEY': 'key-private-value',
                    'TELEGRAM_PUBLISHER_BOT_TOKEN': '', 'OPENAI_API_KEY': 'script-private-value'}
     bootstrap = {'AWS_PROJECT': 'example-profile', 'AWS_REGION': 'us-west-2', 'AWS_STACK': 'example-stack',
-                 'PROD_CONFIG_PREFIX': '/example/prod/settings/', 'PROD_SECRETS_PREFIX': 'example/prod/secrets/'}
+                 'PROD_CONFIG_PREFIX': '/example/prod/', 'PROD_SECRETS_PREFIX': 'example/prod/'}
     calls = []
 
     def reader(bootstrap, *arguments, payload=None):
@@ -65,7 +65,7 @@ def test_credentials_do_not_reach_make(stores):
     for arguments, payload in stores.calls:
         if arguments[:2] == ('ssm', 'get-parameters'):
             assert len(payload['Names']) <= 10
-            assert all(name.startswith('/example/prod/settings/') for name in payload['Names'])
+            assert all(name.startswith('/example/prod/') for name in payload['Names'])
 
 
 def test_current_values_are_read_by_name_without_version_tracking(stores):
@@ -121,7 +121,7 @@ def legacy_file(tmp_path, stores):
 def test_migration_dry_run_is_redacted_and_performs_no_aws_calls(tmp_path, stores, capsys):
     path = legacy_file(tmp_path, stores)
     original = path.read_bytes()
-    config.migrate(path, '/example/prod/settings/', 'example/prod/secrets/', reader=stores.reader)
+    config.migrate(path, '/example/prod/', 'example/prod/', reader=stores.reader)
     assert not stores.calls
     assert path.read_bytes() == original
     report = capsys.readouterr().out
@@ -130,7 +130,7 @@ def test_migration_dry_run_is_redacted_and_performs_no_aws_calls(tmp_path, store
     assert len(records) == len(stores.settings) + len(stores.credentials)
     assert all(record['output']['apply'] is False for record in records)
     secret = next(record for record in records if record['input']['key'] == 'APP_SECRET')
-    assert secret['output']['name'] == 'example/prod/secrets/APP_SECRET'
+    assert secret['output']['name'] == 'example/prod/APP_SECRET'
     assert secret['output']['service'] == 'secretsmanager'
 
 
@@ -138,12 +138,12 @@ def test_apply_verifies_stores_before_atomically_replacing_symlink_target(tmp_pa
     original = legacy_file(tmp_path, stores)
     link = tmp_path / 'linked.env'
     link.symlink_to(original)
-    config.migrate(link, '/example/prod/settings/', 'example/prod/secrets/', apply=True, reader=stores.reader)
+    config.migrate(link, '/example/prod/', 'example/prod/', apply=True, reader=stores.reader)
     assert link.is_symlink()
     bootstrap = config.read_env(original)
     assert bootstrap['WEB_LAMBDA_CODE_TIMESTAMP'] == 'saved-key'
     assert bootstrap['CSS_CACHE_COUNTER'] == '42'
-    assert bootstrap['PROD_CONFIG_PREFIX'] == '/example/prod/settings/'
+    assert bootstrap['PROD_CONFIG_PREFIX'] == '/example/prod/'
     assert not set(bootstrap) & (config.CONFIG_KEYS | config.SECRET_KEYS)
     assert original.stat().st_mode & 0o777 == 0o600
     assert 'app-private-value' not in capsys.readouterr().out
@@ -166,7 +166,7 @@ def test_apply_failure_keeps_original_local_values(tmp_path, stores):
         raise config.ConfigurationError('AWS write failed')
 
     with pytest.raises(config.ConfigurationError):
-        config.migrate(path, '/example/prod/settings/', 'example/prod/secrets/', apply=True, reader=failed)
+        config.migrate(path, '/example/prod/', 'example/prod/', apply=True, reader=failed)
     assert path.read_bytes() == original
     assert not list(tmp_path.glob('.prod-bootstrap-*'))
 
@@ -176,7 +176,7 @@ def test_unknown_credentials_require_classification_before_migration(tmp_path, s
     with path.open('a') as output:
         output.write('NEW_PROVIDER_API_KEY=private\n')
     with pytest.raises(config.ConfigurationError, match='Classify these keys'):
-        config.migrate(path, '/example/prod/settings/', 'example/prod/secrets/', reader=stores.reader)
+        config.migrate(path, '/example/prod/', 'example/prod/', reader=stores.reader)
     assert not stores.calls
 
 
@@ -252,8 +252,8 @@ def test_interrupted_migration_reuses_only_identical_stores(tmp_path, stores):
             raise config.StoreError('ssm', 'put-parameter', 'ParameterAlreadyExists')
         return stores.reader(bootstrap, *arguments, payload=payload)
 
-    config.migrate(path, '/example/prod/settings/', 'example/prod/secrets/', apply=True, reader=already_exists)
-    assert config.read_env(path)['PROD_CONFIG_PREFIX'] == '/example/prod/settings/'
+    config.migrate(path, '/example/prod/', 'example/prod/', apply=True, reader=already_exists)
+    assert config.read_env(path)['PROD_CONFIG_PREFIX'] == '/example/prod/'
 
 
 def test_existing_different_store_preserves_local_source(tmp_path, stores):
@@ -266,7 +266,7 @@ def test_existing_different_store_preserves_local_source(tmp_path, stores):
         return {'SecretString': 'another-application'}
 
     with pytest.raises(config.ConfigurationError, match='Existing record differs'):
-        config.migrate(path, '/example/prod/settings/', 'example/prod/secrets/', apply=True, reader=different)
+        config.migrate(path, '/example/prod/', 'example/prod/', apply=True, reader=different)
     assert path.read_bytes() == original
 
 
@@ -278,7 +278,7 @@ def test_sdk_fallback_uses_profile_and_never_leaks_provider_errors(monkeypatch, 
     monkeypatch.setattr(shutil, 'which', lambda _: None)
 
     def get_parameter(**kwargs):
-        assert kwargs == {'Name': '/example/prod/settings/'}
+        assert kwargs == {'Name': '/example/prod/'}
         raise ClientError({'Error': {'Code': 'AccessDeniedException', 'Message': 'raw-sensitive-body'}}, 'GetParameter')
 
     def session(**kwargs):
@@ -287,7 +287,7 @@ def test_sdk_fallback_uses_profile_and_never_leaks_provider_errors(monkeypatch, 
 
     monkeypatch.setattr(boto3, 'Session', session)
     with pytest.raises(config.StoreError) as error:
-        config.aws_json(stores.bootstrap, 'ssm', 'get-parameter', '--name', '/example/prod/settings/')
+        config.aws_json(stores.bootstrap, 'ssm', 'get-parameter', '--name', '/example/prod/')
     assert calls == [{'profile_name': 'example-profile', 'region_name': 'us-west-2'}]
     assert 'raw-sensitive-body' not in str(error.value)
     assert error.value.code == 'AccessDeniedException'
@@ -400,3 +400,52 @@ def test_actual_aws_cli_can_parse_memory_only_parameter_payload():
                                 {'Name': '/example/test/APP_DEBUG', 'Type': 'String',
                                  'Value': '0', 'Overwrite': False})
     assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize('apply', [False, True])
+def test_relocate_preserves_values_and_switches_only_after_readback(tmp_path, stores, capsys, apply):
+    path = tmp_path / '.env.prod'
+    original = {**stores.bootstrap, 'PROD_CONFIG_PREFIX': '/example/prod/settings/',
+                'PROD_SECRETS_PREFIX': 'example/prod/secrets/', 'CSS_CACHE_COUNTER': '42'}
+    path.write_text(''.join(f'{k}={v}\n' for k, v in original.items()))
+    link = tmp_path / 'linked.env'
+    link.symlink_to(path)
+    config.relocate(link, '/example/prod/', 'example/prod/', apply=apply, reader=stores.reader)
+    assert link.is_symlink()
+    expected = {**original, 'PROD_CONFIG_PREFIX': '/example/prod/',
+                'PROD_SECRETS_PREFIX': 'example/prod/'} if apply else original
+    assert config.read_env(path) == expected
+    writes = [(args, payload) for args, payload in stores.calls if args[1] in ('create-secret', 'put-parameter')]
+    assert len(writes) == (len(stores.settings) + sum(bool(v) for v in stores.credentials.values()) if apply else 0)
+    for args, payload in writes:
+        key = payload['Name'].rsplit('/', 1)[1]
+        assert payload.get('Value', payload.get('SecretString')) == {**stores.settings, **stores.credentials}[key]
+        assert '/settings/' not in payload['Name'] and '/secrets/' not in payload['Name']
+    assert not any(args[1].startswith('delete') for args, _ in stores.calls)
+    report = capsys.readouterr().out
+    assert all(value not in report for value in stores.credentials.values() if value)
+    if apply:
+        assert path.stat().st_mode & 0o777 == 0o600
+
+
+@pytest.mark.parametrize('failure', ['write', 'readback', 'concurrent'])
+def test_relocate_failure_preserves_active_bootstrap(tmp_path, stores, failure):
+    path = tmp_path / '.env.prod'
+    path.write_text(''.join(f'{k}={v}\n' for k, v in stores.bootstrap.items()))
+    original = path.read_bytes()
+
+    def reader(bootstrap, *arguments, payload=None):
+        if arguments[1] in ('create-secret', 'put-parameter'):
+            if failure == 'write':
+                raise config.StoreError(arguments[0], arguments[1])
+            if failure == 'concurrent':
+                path.write_bytes(original + b'CSS_CACHE_COUNTER=43\n')
+        result = stores.reader(bootstrap, *arguments, payload=payload)
+        if failure == 'readback' and bootstrap['PROD_CONFIG_PREFIX'] == '/example/new/':
+            if arguments[:2] == ('secretsmanager', 'get-secret-value') and arguments[3].endswith('/APP_SECRET'):
+                result['SecretString'] = 'unexpected-value'
+        return result
+
+    with pytest.raises(config.ConfigurationError):
+        config.relocate(path, '/example/new/', 'example/new/', apply=True, reader=reader)
+    assert path.read_bytes() == (original + b'CSS_CACHE_COUNTER=43\n' if failure == 'concurrent' else original)

@@ -248,6 +248,10 @@
 
 ## Maintenance and import scripts
 
+- Production configuration records use `/sysdespro/prod/KEY` in Parameter Store and
+  `sysdespro/prod/KEY` in Secrets Manager. Use `scripts/production_config.py relocate`
+  through `scripts-production` to review prefix changes, then an explicitly authorized
+  `--apply` to copy, verify, and switch the bootstrap. Old records remain for separate cleanup.
 - Run production maintenance and import commands through `scripts-production` in
   `docker-compose.scripts.production.yml`. Default new maintenance commands to a read-only dry run and require explicit
   `--apply` for writes.
