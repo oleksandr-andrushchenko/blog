@@ -7,6 +7,12 @@
 - AWS CLI installed and configured
     - You should have these files: `~/.aws/credentials` and `~/.aws/config`
 
+## Article creation
+
+Read [Article creation rules](docs/article-creation-rules.md) before planning, creating, rewriting, or revising
+an article or draft. That file contains the repository's editorial rules, both original prompt rule sets,
+metadata contract, and saving/verification requirements.
+
 ## Available commands
 
 ```

@@ -163,88 +163,13 @@
 - Initialize Masonry through `data-masonry-options` rather than its `data-masonry` auto-initialization; keep initial and
   dynamically appended cards covered by shared relayout behavior.
 
-## Article planning
+## Article creation and revision
 
-- Before choosing a new article topic, consult `https://api.sysdespro.com/articles` for existing articles
-  to avoid duplicating coverage, and `https://api.sysdespro.com/categories` for existing categories and article counts.
-  Prefer a category with the lowest article count; if counts are unavailable, choose a random existing category.
-  Follow pagination when needed to assess existing coverage. Create requested drafts as unpublished articles;
-  publishing still requires an explicit user command.
-
-## Article writing and revision
-
-- `prompt-article.md` and `prompt-article-2.md` contain editorial source guidance. Apply their useful rules to the
-  requested topic; resolve their conflicting section/count/output requirements with the principles below rather
-  than copying a rigid outline. Draft creation and revision do not authorize publication, deployment, or commits.
-- Write for experienced engineers. Explain decisions, mechanisms, alternatives, limitations, failure behavior,
-  ownership, and operational costs where relevant. Use realistic worked examples; label illustrative numbers and
-  assumptions, verify technical claims against authoritative sources, and never invent measurements or guarantees.
-- Build a connected explanation, not an inventory of self-contained paragraphs. Each paragraph should develop the
-  previous idea, explain its consequence, resolve a question it raises, or introduce a clearly related next step.
-  Let constraints lead to design choices, then reveal implementation, trade-offs, failures, and operational effects
-  as that design develops. Prefer a sustained scenario and consistent identifiers, data, versions, and assumptions
-  across the article. Use substantive connections rather than generic transition phrases or artificial storytelling.
-- Introduce each example with the specific problem established by the surrounding prose. Add useful code comments
-  explaining decisions, assumptions, and limits, then walk through its inputs, result, and consequences before moving
-  on. Reuse the running scenario so examples advance the explanation instead of becoming unrelated demonstrations.
-  Short paragraphs and section-length guidelines support readability; they must not fragment the reasoning or force
-  an abrupt switch to another topic. Review the article end to end for continuity as well as technical correctness.
-- Medium can supply topic/title inspiration and accessible source material for a rewrite. Select for relevance and
-  coverage gaps, then produce an independently structured article with original explanations and examples under these
-  editorial rules. Use material the user can lawfully access and reuse; respect provider access restrictions and do
-  not bypass paywalls. Do not copy or closely paraphrase a third-party article. This research workflow does not restore
-  the removed Medium connection/publishing integration or authorize an automated scraper/importer.
-- Article provenance is optional structured metadata: `source` contains the original `url` and, when verified,
-  `published_at` in UTC Unix milliseconds; `generation` contains the actual `model` and optional `version` and
-  `reasoning_effort` used to generate/rewrite the article. Record only known values, never guess model versions,
-  publication times, or the provenance of existing drafts. Reasoning means the configured effort setting, not hidden
-  reasoning text. For source-based rewrites, save the source URL and any verified publication time; for model-backed
-  writing, save the known generation settings. Source URLs may be third-party URLs in metadata; they do not become
-  article-body references.
-  Keep metadata outside public content and supply it through article DTOs/services. Omitted PATCH fields preserve
-  metadata, explicit null clears it, and supplied objects replace the corresponding object. See
-  `docs/article-provenance.md` for the contract. No backfill, production write, or deployment is implied by adding fields.
-- Define the topic in one or two short introductory paragraphs without an Introduction heading. Use direct, neutral
-  language without first/second-person narration, marketing, generic transitions, or repeated explanations.
-  Prefer one idea and two or three concise sentences per paragraph, usually 30–60 words or fewer. Aim for at most
-  two prose paragraphs per section, using meaningful subsections, lists, examples, or comparisons as needed; clarity
-  takes precedence over artificial headings or word-count targets.
-- Write the article's outline, explanations, and examples independently of the existing article catalog. Consult the
-  catalog to avoid duplicate topics and verify potential references, never to determine what the article must cover.
-  Add an internal reference only when it directly helps explain a concept already needed by the article. Never add
-  sentences, topics, sections, or a related-articles list just to accommodate links; there are no link-count targets,
-  and an article may have no references. Do not include third-party links in article content. Authoritative external
-  sources may be consulted for fact-checking without linking to them in the article.
-- Cache the catalog within the task and preserve exact verified paths, author slugs, and `@` prefixes. Use natural,
-  descriptive anchor text; reproduce titles accurately when using article-title anchors. Never duplicate a destination,
-  self-link, guess URLs, or treat a planned/unpublished article as published. If retrieval fails, use only reliably
-  verified references that genuinely help the reader; omit unverified links.
-- Store only inner article HTML: no outer document/article tags, H1, Markdown fences, or metadata in the body.
-  Use H2/H3 headings with unique descriptive kebab-case IDs; introduce each H2 with meaningful prose before H3s.
-  After the introduction, include `h2#table-of-contents` and a nested list matching every later H2/H3, including
-  related articles, but excluding the ToC itself. ToC anchors have only `href`; preserve the renderer's link handling.
-- Use the editor/sanitizer-supported elements and attributes. Prefer `<b>` to `<strong>`, `<table class="table">`
-  for focused comparisons, and `<pre class="language-python"><code>…</code></pre>` (or `language-sql`, `language-json`,
-  `language-text`) for correctly escaped examples. Put the language class on `pre`. Avoid inline styles, custom CSS,
-  unsupported wrappers, and ASCII diagrams; a single short horizontal flow is acceptable only when necessary.
-- When a cover is available, place the real image first with descriptive alt text. For a new cover, prefer a descriptive
-  filename and approximately 1000×420 dimensions. A suggested filename is not an existing asset: verify or upload it
-  through the application media service before referencing it; never save a broken placeholder. The renderer supplies
-  responsive image presentation, and the sanitizer may normalize source HTML or remove image classes.
-- Integrate practical examples beside the concepts they demonstrate. For implementation-heavy topics, include a
-  coherent production design and an adaptable implementation with dependencies, limits, and failure handling.
-  Conceptual topics can use a worked example and reusable template instead of forced runnable code. Verify syntax
-  and API behavior; do not present pseudocode as production-ready code or add examples solely to reach a quota.
-- Add concise mistakes, operational/review checks, and 3–5 practical FAQ questions when they contribute useful,
-  nonrepetitive guidance. Mistakes explain impact and a concrete correction; checklist items start with a bold action.
-  End with a short Conclusion and a practical Key Takeaway. An optional `h3#more-articles` (More Articles to Read)
-  belongs only when genuinely useful further reading remains; verified unused links alone do not justify it.
-  Keep title, one existing category, and exactly three focused tags outside the body.
-- Before saving, verify heading/ToC correspondence, nesting, unique verified links, supported HTML, escaped code,
-  image availability, and relevant metadata. Revise through the existing article service, preserve its owner and draft
-  status, and compare readback with sanitized expected HTML. Inspect current content first and retain a local backup
-  so an article revision does not silently overwrite concurrent edits. Return the saved draft link after verification;
-  use one fenced HTML block only when the user requests copy-ready HTML in chat.
+- Before planning, creating, rewriting, or revising any article or draft, read
+  [docs/article-creation-rules.md](docs/article-creation-rules.md) in full and follow its rules.
+  It is the central reference for article planning, editorial guidance, source prompts, metadata, application saves,
+  and verification. Maintain article-creation knowledge there rather than duplicating it in this file.
+- Draft creation and revision do not authorize publication, social sharing, deployment, or commits.
 
 ## Maintenance and import scripts
 
