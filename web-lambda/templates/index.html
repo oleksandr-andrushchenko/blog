@@ -49,51 +49,15 @@
     </section>
 
     <div class="container">
-        {% set homepage_categories = categories | selectattr('published_articles_count', 'gt', 0)
-                | sort(attribute='published_articles_count', reverse=True) | list %}
-        {% if homepage_categories %}
-            <section class="mb-4" aria-labelledby="categories-heading">
-                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-                    <h2 class="h5 mb-0" id="categories-heading">Browse by category</h2>
-                    <a href="{{ url('categories') }}" class="btn btn-light btn-sm">View all categories</a>
-                </div>
-                <div id="categories" class="{{ {"def": 1, "lg": 3} | row_classes }} g-3">
-                    {% for category in homepage_categories[:6] %}
-                        {% with category_heading_tag="h3" %}
-                            {% include "fragments/category.html" %}
-                        {% endwith %}
-                    {% endfor %}
-                </div>
-            </section>
-        {% endif %}
-
-        <section class="mb-4">
-            <h2 class="h5 mb-2">Popular topics</h2>
-            {% if popular_tags %}
-                {% for tag in popular_tags %}
-                    <a href="{{ articles_url(tags=[tag.slug]) }}" class="btn btn-light btn-sm tag mb-1">
-                        <h3 class="h6 fw-normal mb-0">{{ tag.name }}{% if tag.articles_count %} &mdash; {{ '{:,}'.format(tag.articles_count) }}{% endif %}</h3>
-                    </a>
-                {% endfor %}
-
-                <a href="{{ url("tags") }}?type=popular" class="btn btn-light btn-sm bi bi-tags">
-                    See all popular topics
-                </a>
-                <a href="{{ url("tags") }}" class="btn btn-light btn-sm bi bi-tags">
-                    See all topics
-                </a>
-            {% else %}
-                <div>N/A</div>
-            {% endif %}
-        </section>
-
         {% if show_popular_articles %}
             <section class="mb-4">
-                <h2 class="h5 mb-2">
-                    <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}" class="link-body-emphasis">
-                        Popular articles
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-0">
+                    <h2 class="h5 mb-0">Popular articles</h2>
+                    <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}" class="btn btn-light btn-sm">
+                        <i class="bi bi-star" aria-hidden="true"></i> View popular articles
                     </a>
-                </h2>
+                </div>
+                <p class="text-secondary mb-3 small">Explore articles ranked by community feedback</p>
                 {% if popular_articles %}
                     <div id="popular-articles" class="{{ {"def": 1, "md": 2} | row_classes }} g-2 mb-2"
                          data-masonry-options='{"percentPosition": true }'>
@@ -107,26 +71,89 @@
                         {% endwith %}
                     </div>
 
-                    <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}"
-                       class="btn btn-light btn-sm bi bi-star">
-                        See all popular articles
-                    </a>
-                    <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}"
-                       class="btn btn-light btn-sm bi bi-tags">
-                        Search popular articles by topics
-                    </a>
                 {% else %}
                     <div>N/A</div>
                 {% endif %}
             </section>
         {% endif %}
 
+        {% set homepage_categories = categories | selectattr('published_articles_count', 'gt', 0)
+                | sort(attribute='published_articles_count', reverse=True) | list %}
+        {% if homepage_categories %}
+            <section class="mb-4" aria-labelledby="categories-heading">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-0">
+                    <h2 class="h5 mb-0" id="categories-heading">Browse by category</h2>
+                    <a href="{{ url('categories') }}" class="btn btn-light btn-sm">View all categories</a>
+                </div>
+                <p class="text-secondary mb-3 small">Choose an engineering area to explore</p>
+                <div id="categories" class="{{ {"def": 1, "lg": 3} | row_classes }} g-3">
+                    {% for category in homepage_categories[:6] %}
+                        {% with category_heading_tag="h3" %}
+                            {% include "fragments/category.html" %}
+                        {% endwith %}
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+
         <section class="mb-4">
-            <h2 class="h5 mb-2">
-                <a href="{{ users_url(type=UserQueryType.POPULAR) }}" class="link-body-emphasis">
-                    Popular authors
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-0">
+                <h2 class="h5 mb-0">Popular topics</h2>
+                <a href="{{ url('tags') }}" class="btn btn-light btn-sm">
+                    <i class="bi bi-tags" aria-hidden="true"></i> View all topics
                 </a>
-            </h2>
+            </div>
+            <p class="text-secondary mb-3 small">Find articles about a specific subject, technology, or practice</p>
+            {% if popular_tags %}
+                {% for tag in popular_tags %}
+                    <a href="{{ articles_url(tags=[tag.slug]) }}" class="btn btn-light btn-sm tag mb-1">
+                        <h3 class="h6 fw-normal mb-0">{{ tag.name }}{% if tag.articles_count %} &mdash; {{ '{:,}'.format(tag.articles_count) }}{% endif %}</h3>
+                    </a>
+                {% endfor %}
+
+            {% else %}
+                <div>N/A</div>
+            {% endif %}
+        </section>
+
+        <section class="mb-4">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-0">
+                <h2 class="h5 mb-0">Latest articles</h2>
+                <a href="{{ articles_url() }}" class="btn btn-light btn-sm">
+                    <i class="bi bi-clock" aria-hidden="true"></i> View all articles
+                </a>
+            </div>
+            <p class="text-secondary mb-3 small">Find fresh insights in articles recently shared by authors</p>
+            {% if latest_articles %}
+                <div id="articles" class="{{ {"def": 1, "sm": 2, "lg": 3} | row_classes }} g-3 mb-2"
+                     data-masonry-options='{"percentPosition": true }'>
+                    {% with articles=latest_articles,
+                            article_img_sizes={"1400px": "306px", "1200px": "261px", "992px": "296px", "768px": "336px", "576px": "246px", "default": "calc(100vw - 26px)"}, eager_article_images=1 %}
+                        {% include "fragments/articles.html" %}
+                    {% endwith %}
+                </div>
+
+                {% with limit=latest_articles_query.limit,
+                        offset=latest_articles[-1].offset,
+                        url=url("articles-fragment", absolute=True, **latest_articles_query.get_dict()),
+                        container="#articles",
+                        auto_click=True %}
+                    {% include "fragments/load-more-button.html" %}
+                {% endwith %}
+
+            {% else %}
+                <div>N/A</div>
+            {% endif %}
+        </section>
+
+        <section class="mb-4">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-0">
+                <h2 class="h5 mb-0">Popular authors</h2>
+                <a href="{{ users_url(type=UserQueryType.POPULAR) }}" class="btn btn-light btn-sm">
+                    <i class="bi bi-people" aria-hidden="true"></i> View all authors
+                </a>
+            </div>
+            <p class="text-secondary mb-3 small">Find authors whose articles fit your interests</p>
             {% if popular_users %}
                 <div id="popular-users" class="{{ {"def": 1, "sm": 2, "lg": 3} | row_classes }} g-2 mb-2"
                      data-masonry-options='{"percentPosition": true }'>
@@ -145,9 +172,6 @@
                     {% endwith %}
                 </div>
 
-                <a href="{{ users_url(type=UserQueryType.POPULAR) }}" class="btn btn-light btn-sm bi bi-heart">
-                    See all popular authors
-                </a>
             {% else %}
                 <div>N/A</div>
             {% endif %}
@@ -158,44 +182,8 @@
         {% endif %}
 
         <section class="mb-4">
-            <h2 class="h5 mb-2">
-                <a href="{{ articles_url() }}" class="link-body-emphasis">
-                    Latest articles
-                </a>
-            </h2>
-            {% if latest_articles %}
-                <div id="articles" class="{{ {"def": 1, "sm": 2, "lg": 3} | row_classes }} g-3 mb-2"
-                     data-masonry-options='{"percentPosition": true }'>
-                    {% with articles=latest_articles,
-                            article_img_sizes={"1400px": "306px", "1200px": "261px", "992px": "296px", "768px": "336px", "576px": "246px", "default": "calc(100vw - 26px)"}, eager_article_images=1 %}
-                        {% include "fragments/articles.html" %}
-                    {% endwith %}
-                </div>
-
-                {% with limit=latest_articles_query.limit,
-                        offset=latest_articles[-1].offset,
-                        url=url("articles-fragment", absolute=True, **latest_articles_query.get_dict()),
-                        container="#articles",
-                        auto_click=True %}
-                    {% include "fragments/load-more-button.html" %}
-                {% endwith %}
-
-                <div>
-                    <a href="{{ articles_url(type=ArticleQueryType.LATEST) }}"
-                       class="btn btn-light btn-sm bi bi-clock">
-                        See all latest articles
-                    </a>
-                    <a href="{{ articles_url(type=ArticleQueryType.LATEST) }}"
-                       class="btn btn-light btn-sm bi bi-tags">
-                        Search latest articles by topics
-                    </a>
-                </div>
-            {% else %}
-                <div>N/A</div>
-            {% endif %}
-        </section>
-        <section class="mb-4">
-            <h2 class="h5 mb-2">Latest comments</h2>
+            <h2 class="h5 mb-0">Latest comments</h2>
+            <p class="text-secondary mb-3 small">Read recent comments and join the conversation on an article</p>
             {% if latest_article_comments %}
                 <div id="latest-article-comments"
                      class="{{ {"def": 1, "sm": 2, "lg": 3} | row_classes }} g-2 mb-2">

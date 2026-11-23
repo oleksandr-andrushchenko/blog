@@ -14,7 +14,7 @@
 {% set og_url = meta_canonical_url %}
 {% set og_img_filename = user.avatar_filename %}
 {% set val_map = {
-    (ArticleQueryType.LATEST): {"title": "Latest", "subtitle": "Recently added", "icon": "clock-fill"},
+    (ArticleQueryType.LATEST): {"title": None, "subtitle": "Recently added", "icon": "clock-fill"},
     (ArticleQueryType.POPULAR): {"title": "Popular", "subtitle": "Most rated", "icon": "star-fill"},
     (ArticleStatus.PUBLISHED): {"title": None, "subtitle": None},
     (ArticleStatus.UNPUBLISHED): {"title": "Unpublished", "subtitle": "Unpublished"},
@@ -23,6 +23,9 @@
 
 {% set articles_icon = val_map[ArticleQueryType.LATEST]["icon"] %}
 {% set articles_title = ([val_map[article_query.type]["title"]] + [val_map[article_query.status]["title"]] + ["Articles"]) | select | join(" ") | title %}
+{% if article_query.type == ArticleQueryType.LATEST and article_query.status == ArticleStatus.PUBLISHED %}
+    {% set articles_title = "Recently Added Articles" %}
+{% endif %}
 {% set meta_robots = ("noindex, follow" if article_query.offset else "index, follow") if user.status == UserStatus.ACTIVE and article_query.status == ArticleStatus.PUBLISHED else "noindex, nofollow" %}
 {% set articles_subtitle = ([val_map[article_query.type]["subtitle"]] + [val_map[article_query.status]["subtitle"]] + ["Articles"]) | select | join(" ") | title %}
 {% set meta_title = page_metadata.title %}

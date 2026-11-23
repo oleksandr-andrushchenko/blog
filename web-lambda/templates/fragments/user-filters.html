@@ -20,12 +20,6 @@
             </a>
         </div>
     </div>
-    {% if (cur_user and check_auth(cur_user, Permission.READ_NON_ACTIVE_USER)) or user_query.has_params() %}
-        <button class="btn btn-sm btn-light d-md-none collapsed" type="button" data-bs-toggle="collapse"
-                data-bs-target="#user-filter-options" aria-expanded="false" aria-controls="user-filter-options">
-            <i class="bi bi-filter" aria-hidden="true"></i> Filters
-        </button>
-    {% endif %}
     <div id="user-filter-options" class="filter-fields collapse d-md-block">
         <div class="filter-controls d-flex flex-wrap align-items-center gap-3">
             {% if cur_user and check_auth(cur_user, Permission.READ_NON_ACTIVE_USER) %}
@@ -54,4 +48,10 @@
             {% endif %}
         </div>
     </div>
+    {% if (cur_user and check_auth(cur_user, Permission.READ_NON_ACTIVE_USER)) or user_query.has_params() %}
+        <button class="btn btn-sm btn-light d-md-none collapsed" type="button" data-bs-toggle="collapse"
+                data-bs-target="#user-filter-options" aria-expanded="false" aria-controls="user-filter-options">
+            <i class="bi bi-filter" aria-hidden="true"></i> Show filters
+        </button>
+    {% endif %}
 </form>

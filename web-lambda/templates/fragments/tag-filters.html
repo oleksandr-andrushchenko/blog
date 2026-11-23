@@ -23,11 +23,6 @@
                 </div>
             </div>
         </div>
-        <button type="button" class="btn btn-light btn-sm d-md-none collapsed"
-                data-bs-toggle="collapse" data-bs-target="#topic-filter-fields"
-                aria-expanded="false" aria-controls="topic-filter-fields">
-            <i class="bi bi-filter" aria-hidden="true"></i> Filters
-        </button>
         <div class="filter-fields collapse d-md-block" id="topic-filter-fields">
             <div class="filter-controls d-flex flex-wrap align-items-center gap-3">
                 <div class="d-flex flex-wrap align-items-center gap-2">
@@ -54,5 +49,10 @@
                 {% endif %}
             </div>
         </div>
+        <button type="button" class="btn btn-light btn-sm d-md-none collapsed"
+                data-bs-toggle="collapse" data-bs-target="#topic-filter-fields"
+                aria-expanded="false" aria-controls="topic-filter-fields">
+            <i class="bi bi-filter" aria-hidden="true"></i> Show filters
+        </button>
     </div>
 </form>

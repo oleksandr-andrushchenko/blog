@@ -1,15 +1,11 @@
 <section id="my-articles">
-    <h2 class="h5 mb-3">
+    <h2 class="h5 mb-0">
         {{ articles_title }}
     </h2>
+    <p class="text-secondary mb-3 small">Explore this author's articles about architecture, databases, distributed systems, and production practices</p>
 
     {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE, user) %}
         <div class="filter-toolbar d-flex flex-wrap align-items-center gap-2 gap-md-3 mb-3">
-            <button type="button" class="btn btn-light btn-sm d-md-none collapsed"
-                    data-bs-toggle="collapse" data-bs-target="#profile-article-filters"
-                    aria-expanded="false" aria-controls="profile-article-filters">
-                <i class="bi bi-filter" aria-hidden="true"></i> Filters
-            </button>
             <div class="filter-fields collapse d-md-block" id="profile-article-filters">
                 <div class="filter-controls d-flex flex-wrap align-items-center gap-3">
                     <small class="text-secondary">Filter by status:</small>
@@ -42,6 +38,11 @@
                     {% endif %}
                 </div>
             </div>
+            <button type="button" class="btn btn-light btn-sm d-md-none collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#profile-article-filters"
+                    aria-expanded="false" aria-controls="profile-article-filters">
+                <i class="bi bi-filter" aria-hidden="true"></i> Show filters
+            </button>
         </div>
     {% endif %}
 
