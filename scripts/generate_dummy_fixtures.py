@@ -20,12 +20,43 @@ from api_utils import (
     get_dummy_user_token,
     update_article_impression,
     update_article_status,
+    update_category,
     update_dynamodb_item,
     update_tag,
     update_user,
     update_user_impression,
     upsert_user_by_user_token,
 )
+
+from category_dtos import UpdateCategoryDTO
+
+
+FIXTURE_TOPIC_DESCRIPTIONS = {
+    'distributed-systems': 'Coordination, consistency, and partial failures across networked services',
+    'event-driven': 'Event producers, consumers, delivery guarantees, and asynchronous workflows',
+    'cloud-architecture': 'Cloud service choices, resource boundaries, and deployment trade-offs',
+    'databases': 'Data modeling, indexing, transactions, replication, and persistence choices',
+    'devops': 'Automated delivery, operational ownership, and feedback from running systems',
+    'software-design': 'Component boundaries, abstractions, dependencies, and maintainable software',
+    'observability': 'Logs, metrics, traces, and evidence for understanding production behavior',
+    'reliability': 'Failure handling, recovery, redundancy, and dependable service operation',
+    'api-design': 'Service contracts, resource modeling, compatibility, and API behavior',
+    'backend': 'Server-side application logic, persistence, and service integration',
+    'frontend': 'Browser interfaces, client state, rendering, and communication with services',
+    'testing': 'Validation strategies, isolated fixtures, and regression coverage for software systems',
+    'security': 'Identity, permissions, data protection, and application threat boundaries',
+    'performance': 'Latency, throughput, bottlenecks, and efficient resource use',
+    'automation': 'Repeatable workflows for provisioning, delivery, and operational tasks',
+    'containers': 'Application packaging, runtime isolation, and container deployment',
+    'kubernetes': 'Container scheduling, service networking, workload scaling, and recovery',
+    'serverless': 'Event-driven execution and managed infrastructure for applications',
+    'messaging': 'Queues, brokers, event streams, ordering, and message processing',
+    'networking': 'Addressing, routing, connections, and communication protocols',
+    'data-engineering': 'Data ingestion, transformation, pipelines, and reliable processing',
+    'machine-learning': 'Model training, evaluation, prediction, and application integration',
+    'open-source': 'Shared software, dependencies, project maintenance, and contribution practices',
+    'teamwork': 'Technical collaboration, ownership, documentation, and engineering coordination',
+}
 
 
 def create_dummy_fixtures(req=None) -> None:
@@ -128,7 +159,13 @@ def create_dummy_fixtures(req=None) -> None:
     update_dynamodb_item((f"USER#{root_user.id}", "META"), {"permissions": [Permission.ROOT]})
     root_user.permissions = [Permission.ROOT]
     for slug, name, description in fixture_categories:
-        create_category(slug, name, description, root_user, req=req)
+        category = create_category(slug, name, description.removesuffix('.'), root_user, req=req,
+                                   meta_description=f"Explore {name} articles. {description}")
+        copy = {"description": description.removesuffix('.'),
+                "meta_description": f"Explore {name} articles. {description}"}
+        missing = {key: value for key, value in copy.items() if not getattr(category, key, '')}
+        if missing:
+            update_category(category, UpdateCategoryDTO(**missing), root_user)
     update_user_dto = UpdateUserDTO(
         name="John Doe",
         avatar_action="replace",
@@ -243,11 +280,24 @@ def create_dummy_fixtures(req=None) -> None:
     ]:
         tag = find_tag(tag_name)
         update_tag(tag, UpdateTagDTO(
-            name=tag_name,
             image_action="replace",
             image_filename=image_filename,
         ), root_user, req)
         tag.image_filename = image_filename
+
+    # Publication creates topic records; enrich them through the same admin service as the editor.
+    for slug in fixture_tag_names:
+        tag = find_tag(slug)
+        if not tag:
+            continue
+        label = {'api-design': 'API Design', 'devops': 'DevOps'}.get(slug, slug.replace('-', ' ').title())
+        copy = {"description": FIXTURE_TOPIC_DESCRIPTIONS[slug],
+                "meta_description": f"Explore {label} articles. {FIXTURE_TOPIC_DESCRIPTIONS[slug]}."}
+        changes = {key: value for key, value in copy.items() if not getattr(tag, key, '')}
+        if tag.name == slug:
+            changes['name'] = label
+        if changes:
+            update_tag(tag, UpdateTagDTO(**changes, image_action="keep"), root_user, req)
 
     comment_texts = [
         "This helped clarify the trade-offs. Thanks for writing it.",

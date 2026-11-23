@@ -64,11 +64,22 @@ def test_dummy_fixture_cli_completes_without_http_request(tmp_path):
     assert list((tmp_path / 'emails').glob('*.eml'))
 
     statuses = Counter()
+    catalog_entities = Counter()
     articles_with_images = 0
     cursor = {}
     while True:
         page = dynamodb_table.scan(**cursor)
         for item in page.get("Items", []):
+            if item['pk'] == 'CATEGORY' or (item['pk'].startswith('POST_TAG#') and item['sk'] == 'META'):
+                kind = 'category' if item['pk'] == 'CATEGORY' else 'topic'
+                catalog_entities[kind] += 1
+                for field in ('description', 'meta_description'):
+                    assert item.get(field), (item['pk'], field)
+                    assert len(item[field]) <= 1000
+                    assert '<' not in item[field] and '>' not in item[field]
+                assert item['description'] != item['meta_description']
+                assert not item['description'].endswith('.')
+
             for field in ('avatar_filename', 'image_filename'):
                 if item.get(field):
                     assert item[field] in FIXTURE_IMAGES, (item['pk'], field, item[field])
@@ -83,3 +94,4 @@ def test_dummy_fixture_cli_completes_without_http_request(tmp_path):
         cursor = {"ExclusiveStartKey": page["LastEvaluatedKey"]}
     assert statuses == {"published": 75, "unpublished": 3, "rejected": 3}
     assert articles_with_images > 0
+    assert catalog_entities == {"category": 16, "topic": 24}
