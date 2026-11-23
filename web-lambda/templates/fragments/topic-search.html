@@ -1,0 +1,97 @@
+<script>
+function initializeTopicSearch() {
+  const form = document.getElementById("topic-filters")
+  if (!form) return
+  const input = form.querySelector('[name="prefix"]')
+  const pagination = document.getElementById("topic-pagination")
+  const status = document.getElementById("topic-search-status")
+  const loading = document.getElementById("topic-search-loading")
+  const clear = document.getElementById("topic-search-clear")
+  const empty = document.getElementById("topic-empty")
+  let timer, controller, version = 0
+
+  function setLoading(active) {
+    loading.classList.toggle("d-none", !active)
+    clear.classList.toggle("d-none", active || !input.value)
+    const grid = document.getElementById("tags")
+    if (active) grid.setAttribute("aria-busy", "true")
+    else grid.removeAttribute("aria-busy")
+  }
+
+  async function load(current) {
+    const prefix = input.value.trim().toLowerCase().replace(/\s+/g, "-")
+    const url = new URL(form.dataset.url)
+    url.searchParams.set("type", form.elements.type.value)
+    url.searchParams.set("limit", form.elements.limit?.value || "40")
+    if (prefix) url.searchParams.set("prefix", prefix)
+    controller = new AbortController()
+    const request = controller
+    const timeout = setTimeout(() => request.abort(), 15000)
+    try {
+      const response = await fetch(url, {credentials: "include", signal: request.signal})
+      if (!response.ok) throw new Error("Topic search failed")
+      const html = await response.text()
+      if (current !== version) return
+      const oldGrid = document.getElementById("tags")
+      const grid = oldGrid.cloneNode(false)
+      grid.removeAttribute("style")
+      grid.removeAttribute("aria-busy")
+      grid.innerHTML = html
+      masonryContainers.get(oldGrid)?.observer?.disconnect()
+      getMasonryInstance(oldGrid)?.destroy()
+      oldGrid.replaceWith(grid)
+      getMasonryInstance(grid)
+      pagination.replaceChildren()
+      const offset = grid.lastElementChild?.dataset.offset
+      if (offset) {
+        const button = document.createElement("button")
+        button.type = "button"
+        button.className = "btn btn-light btn-sm btn-load-more"
+        button.textContent = "Load more"
+        Object.assign(button.dataset, {url: url.toString(), offset, limit: url.searchParams.get("limit"), container: "#tags"})
+        pagination.append(button)
+      }
+      const hasResults = !!grid.children.length
+      empty.textContent = prefix ? "No topics match this prefix. Try a different search" : "No topics available yet"
+      empty.classList.toggle("d-none", hasResults)
+      document.getElementById("topic-sort").classList.toggle("d-none", !!prefix)
+      form.querySelectorAll("#topic-sort a").forEach(link => {
+        const target = new URL(link.href)
+        target.searchParams.delete("prefix")
+        target.searchParams.delete("offset")
+        link.href = target.toString()
+      })
+      status.textContent = ""
+    } catch (error) {
+      if (current === version) {
+        status.classList.toggle("visually-hidden", false)
+        status.textContent = "Unable to load topics. Type again to retry"
+      }
+    } finally {
+      clearTimeout(timeout)
+      if (current === version) setLoading(false)
+    }
+  }
+
+  function search() {
+    clearTimeout(timer)
+    controller?.abort()
+    const current = ++version
+    status.classList.toggle("visually-hidden", true)
+    status.textContent = "Loading topics…"
+    setLoading(true)
+    timer = setTimeout(() => load(current), 250)
+  }
+  input.addEventListener("input", event => {if (!event.isComposing) search()})
+  input.addEventListener("compositionend", search)
+  clear.classList.toggle("d-none", !input.value)
+  clear.addEventListener("click", () => {
+    input.value = ""
+    input.focus()
+    search()
+  })
+  form.addEventListener("submit", event => {event.preventDefault(); search()})
+}
+
+document.addEventListener("DOMContentLoaded", initializeTopicSearch)
+</script>

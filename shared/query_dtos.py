@@ -1,6 +1,7 @@
 import base64
 import json
 import math
+import re
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 
@@ -116,6 +117,8 @@ class TagQueryDTO(BaseQueryDTO):
     def __post_init__(self):
         BaseQueryDTO.__post_init__(self)
         self.type = TagQueryType(self.type)
+        if self.prefix is not None:
+            self.prefix = re.sub(r"\s+", "-", self.prefix.strip().lower())
         if self.prefix is not None and not 1 <= len(self.prefix) <= 40:
             raise ValueError("prefix must contain between 1 and 40 characters")
         if self.offset is not None:

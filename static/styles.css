@@ -88,3 +88,29 @@
     fill: currentColor;
     font-size: 10px;
 }
+
+.filter-toolbar > .filter-fields {
+    flex-basis: 100%;
+}
+
+#topic-prefix::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.filter-toolbar > .filter-fields.collapsing {
+    transition: none;
+}
+
+.filter-toolbar > button[data-bs-toggle="collapse"][aria-expanded="true"] {
+    color: var(--bs-white);
+    background-color: var(--bs-secondary);
+    border-color: var(--bs-secondary);
+}
+
+@media (min-width: 768px) {
+    .filter-toolbar > .filter-fields,
+    .filter-toolbar > .filter-fields > .filter-controls {
+        display: contents !important;
+    }
+}

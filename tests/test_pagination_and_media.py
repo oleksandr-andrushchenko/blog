@@ -233,3 +233,50 @@ def test_load_more_partial_never_renders_pagination_anchors(render):
                          next_page_url="/articles?offset=opaque", first_page_url="/articles"))
     assert not doc("a")
     assert doc("button.btn-load-more").attr("data-offset") == "opaque"
+
+
+@pytest.mark.parametrize("prefix,expected", [(" System  Design ", "system-design"), (" Caching ", "caching"),
+                                             (" Системний Дизайн ", "системний-дизайн")])
+def test_topic_prefix_is_normalized_before_cursor_validation(prefix, expected):
+    offset = encode_offset({"pk": "POST_TAG#example", "sk": "META", "tag_type_pk": "POST_TAG",
+                            "tag_name_sk": expected + "-example"})
+    query = parse_dto(TagQueryDTO, {"prefix": prefix, "offset": offset})
+    assert query.prefix == expected
+    assert query.offset == offset
+
+
+@pytest.mark.parametrize("prefix", ["", "   ", "x" * 41])
+def test_topic_prefix_rejects_empty_or_overlong_search(prefix):
+    with pytest.raises(RequestValidationError, match="prefix"):
+        parse_dto(TagQueryDTO, {"prefix": prefix})
+
+
+@pytest.mark.parametrize("has_results", [False, True])
+def test_topic_search_form_and_results_preserve_pagination(render, has_results):
+    query = TagQueryDTO(prefix=" System Design ", type="popular", limit=2)
+    offset = encode_offset({"pk": "POST_TAG#example", "sk": "META", "tag_type_pk": "POST_TAG",
+                            "tag_name_sk": "system-design-example"})
+    tag = SimpleNamespace(name="System Design", slug="system-design", image_filename=None,
+                          description="Engineering concepts", articles_count=0, offset=offset)
+    doc = PyQuery(render("tags.html", tags_query=query, tags=[tag] if has_results else []))
+    form = doc('form[aria-label="Filter topics"]')
+    assert form.attr("action") == "/tags"
+    assert form.attr("method") == "get"
+    assert form.attr("data-url").endswith("/tags-fragment")
+    assert form('label[for="topic-prefix"]').text() == "Filter by prefix:"
+    assert form('input[name="prefix"]').val() == "system-design"
+    assert form('input[name="limit"]').val() == "2"
+    assert not form('input[name="offset"], button[type="submit"]')
+    assert doc("main h1").text() == "Search Topics"
+    assert doc('meta[name="robots"]').attr("content") == "noindex, follow"
+    assert doc("#tags")
+    assert doc("#topic-pagination")
+    assert "No topics match this prefix" in doc("#topic-empty").text()
+    assert ("d-none" in (doc("#topic-empty").attr("class") or "")) == has_results
+    button = doc("#topic-pagination button.btn-load-more")
+    assert bool(button) == has_results
+    if has_results:
+        params = parse_qs(urlsplit(button.attr("data-url")).query)
+        assert params["prefix"] == ["system-design"]
+        assert params["type"] == ["popular"]
+        assert button.attr("data-offset") == offset

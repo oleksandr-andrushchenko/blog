@@ -65,51 +65,26 @@
     <h1>{{ title }}</h1>
     <p class="small text-secondary">{{ subtitle }}</p>
 
-    <form action="{{ url("tags") }}" method="get"
-          class="d-flex flex-wrap align-items-center gap-3 mb-4 p-2 bg-white border rounded"
-          aria-label="Filter topics">
+    {% include "fragments/tag-filters.html" %}
 
-        <input type="hidden" name="type" value="{{ tags_query.type }}">
+    <div class="{{ {"def": 2, "sm": 3, "md": 4, "lg": 5, "xl": 6} | row_classes }} g-3" id="tags"
+         data-masonry-options='{"percentPosition": true }'>
+        {% for tag in tags %}
+            {% include "fragments/tag.html" %}
+        {% endfor %}
+    </div>
 
-        <div class="d-flex align-items-center gap-2">
-            <small class="text-secondary bi bi-sort-down"> Show:</small>
-            <div class="btn-group btn-group-sm" role="group" aria-label="Sort topics">
-                {% set is_latest = tags_query.type == TagQueryType.LATEST %}
-                <a href="{{ url("tags", **tags_query.get_dict({"type": None if is_latest else TagQueryType.LATEST, "offset": None})) }}"
-                   class="btn {% if is_latest %}btn-dark active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
-                    Newest first
-                </a>
-                {% set is_popular = tags_query.type == TagQueryType.POPULAR %}
-                <a href="{{ url("tags", **tags_query.get_dict({"type": None if is_popular else TagQueryType.POPULAR, "offset": None})) }}"
-                   class="btn {% if is_popular %}btn-dark active{% else %}btn-light{% endif %} bi bi-star{{ "-fill" if is_popular else "" }}">
-                    {{ TagQueryType.POPULAR | title }} first
-                </a>
-            </div>
-        </div>
-
-        {% if tags_query.has_params() %}
-            <div>
-                <a href="{{ url("tags") }}" class="btn btn-light btn-sm bi bi-x-lg"> Reset</a>
-            </div>
+    <div id="topic-pagination">
+        {% if tags %}
+            {% with limit=tags_query.limit,
+                    offset=tags[-1].offset,
+                    url=url("tags-fragment", absolute=True, **tags_query.get_dict()),
+                    container="#tags",
+                    auto_click=True %}
+                {% include "fragments/load-more-button.html" %}
+            {% endwith %}
         {% endif %}
-    </form>
-
-    {% if tags %}
-        <div class="{{ {"def": 2, "sm": 3, "md": 4, "lg": 5, "xl": 6} | row_classes }} g-3" id="tags" data-masonry-options='{"percentPosition": true }'>
-            {% for tag in tags %}
-                {% include "fragments/tag.html" %}
-            {% endfor %}
-        </div>
-
-        {% with limit=tags_query.limit,
-                offset=tags[-1].offset,
-                url=url("tags-fragment", absolute=True, **tags_query.get_dict()),
-                container="#tags",
-                auto_click=True %}
-            {% include "fragments/load-more-button.html" %}
-        {% endwith %}
-
-    {% else %}
-        <div>N/A</div>
-    {% endif %}
+    </div>
+    <p id="topic-empty"{% if tags %} class="d-none"{% endif %}>{{ 'No topics match this prefix. Try a different search' if tags_query.prefix else 'No topics available yet' }}</p>
+    {% include "fragments/topic-search.html" %}
 {% endblock %}

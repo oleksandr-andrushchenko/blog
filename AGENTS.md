@@ -158,6 +158,11 @@
 - Homepage article autocomplete lives in `web-lambda/templates/fragments/article-search.html`.
   Reuse the existing category context and published-only tag API; preserve returned legacy/Unicode tag
   keys when navigating. Run `node tests/test_home_search_ui.cjs` when changing finder behavior.
+- Listing filter toolbars use the shared `filter-toolbar`, `filter-fields`, and `filter-controls`
+  classes with borderless, unpadded containers and the same responsive collapse behavior.
+- Topic directory prefix search lives in `web-lambda/templates/fragments/topic-search.html` and uses the
+  API tag fragment directly. Keep normalized prefixes, stale-request guards, and pagination replacement consistent.
+  Run `node tests/test_topic_search_ui.cjs` when changing this behavior.
 - Article listing category controls load the category catalog for their options. Omit an empty
   category on form serialization; it is not a valid slug. Run `node tests/test_article_filters_ui.cjs` for filter changes.
 - Initialize Masonry through `data-masonry-options` rather than its `data-masonry` auto-initialization; keep initial and

@@ -419,6 +419,7 @@ document.querySelectorAll("input[name='avatar_action']").forEach(radio => {
       }
 
       const content = await resp.text()
+      if (!container.isConnected) return
       if (content === "") {
         btn.remove()
         return
