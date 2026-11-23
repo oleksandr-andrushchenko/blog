@@ -6,7 +6,7 @@
         {"icon": "threads", "enabled": threads_publisher_enabled, "title": "Bring your ideas to Threads", "text": "Connect your Threads account and share published articles with your audience."},
         {"icon": "linkedin", "enabled": linkedin_publisher_enabled, "title": "Reach your LinkedIn network", "text": "Connect LinkedIn and post article previews with a link back to SysDesPro."},
         {"icon": "share", "title": "Make your work easy to pass along", "text": "Use the social and email sharing controls on article pages, and add your author profile link to your website or social bio."},
-        {"icon": "search", "title": "Help readers discover your expertise", "text": "Published articles appear in category and tag listings, plus latest and popular collections. Readers can follow your profile to keep exploring your work."},
+        {"icon": "search", "title": "Help readers discover your expertise", "text": "Published articles appear in category and topic listings, plus latest and popular collections. Readers can follow your profile to keep exploring your work."},
     ] %}
     <div class="{{ {"def": 1, "md": 2} | row_classes }} g-3">
         {% for tool in tools if tool.enabled | default(true) %}

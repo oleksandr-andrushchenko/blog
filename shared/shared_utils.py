@@ -1,3 +1,4 @@
+from integration_profiles import visible_profile
 import asyncio
 import base64
 import copy
@@ -21,7 +22,6 @@ from heapq import nlargest
 from html import unescape
 from typing import Callable, TypeVar, Any
 from urllib.parse import quote, urlencode
-from zoneinfo import ZoneInfo
 
 from jinja2 import Environment, FileSystemLoader, pass_context, select_autoescape
 
@@ -97,6 +97,16 @@ class User:
     created_at: int
     updated_at: int | None
     offset: str | None
+    telegram_show_on_user_page: bool = False
+    telegram_show_on_articles_pages: bool = False
+    threads_show_on_user_page: bool = False
+    threads_show_on_articles_pages: bool = False
+    pinterest_show_on_user_page: bool = False
+    pinterest_show_on_articles_pages: bool = False
+    telegram_public_profile: dict | None = None
+    threads_public_profile: dict | None = None
+    pinterest_public_profile: dict | None = None
+    has_pinterest_integration: bool = False
     has_threads_integration: bool = False
     has_linkedin_integration: bool = False
     support_links: list[SupportLink] = field(default_factory=list)
@@ -113,6 +123,10 @@ class User:
     notify_article_comments: bool = True
     notify_comment_impressions: bool = True
     notify_article_shares: bool = True
+    notify_article_bookmarks: bool = True
+    activity_version: int = 0
+    welcome_state: str | None = None
+    welcome_seen_at: int | None = None
     blockers_count: int = 0
     blocking_count: int = 0
     article_likes_received_count: int = 0
@@ -129,52 +143,6 @@ class User:
     article_comments_given_count: int = 0
     article_shares_received_counts: dict[str, int] = field(default_factory=dict)
     article_shares_given_counts: dict[str, int] = field(default_factory=dict)
-
-
-@dataclass(slots=True)
-class UserActivity:
-    id: str
-    event_type: str
-    entity_type: str
-    entity_id: str
-    entity_title: str | None
-    entity_url: str | None
-    created_at: int
-
-
-ACTIVITY_YEAR_DAYS = 365
-
-
-def activity_profile_visible(actor_id: str, entity_owner_id: str | None) -> bool:
-    return bool(entity_owner_id and actor_id == entity_owner_id)
-
-
-def add_user_activity_transact(transacts: list, actor: User, event_type: str, entity_type: str,
-                               entity_id: str, entity_title: str | None, entity_url: str | None,
-                               entity_owner_id: str | None, now: int | None = None) -> None:
-    now = now or utc_now()
-    activity_id = str(uuid.uuid4())
-    item = {"id": activity_id, "actor_user_id": actor.id, "entity_owner_id": entity_owner_id,
-            "profile_visible": activity_profile_visible(actor.id, entity_owner_id),
-            "event_type": event_type, "entity_type": entity_type, "entity_id": entity_id,
-            "entity_title": entity_title, "entity_url": entity_url, "created_at": now}
-    add_dynamodb_put_transact(transacts, (f"USER_ACTIVITY#{actor.id}", f"ACTIVITY#{now}#{activity_id}"), item)
-
-
-def user_activity_from_dynamodb(item: dict[str, Any]) -> UserActivity:
-    entity_type = item["entity_type"]
-    entity_id = item["entity_id"]
-    entity_url = item.get("entity_url")
-    if not entity_url:
-        if entity_type == "article":
-            entity_url = f"/articles/{entity_id}"
-        elif entity_type == "tag":
-            entity_url = f"/tags/{entity_id}"
-        elif entity_type == "user":
-            entity_url = f"/users/{entity_id}"
-    return UserActivity(id=item["id"], event_type=item["event_type"], entity_type=entity_type,
-                        entity_id=entity_id, entity_title=item.get("entity_title"),
-                        entity_url=entity_url, created_at=int(item["created_at"]))
 
 
 @dataclass(slots=True)
@@ -266,6 +234,8 @@ class Tag:
     articles_count: int
     image_filename: str | None
     offset: str | None
+    description: str = ""
+    meta_description: str = ""
 
 
 @dataclass(slots=True)
@@ -275,6 +245,7 @@ class Category:
     description: str
     published_articles_count: int
     image_filename: str | None
+    meta_description: str = ""
 
 
 @dataclass(slots=True)
@@ -327,6 +298,7 @@ class Article:
     telegram_shared_at: int | None = None
     threads_shared_at: int | None = None
     linkedin_shared_at: int | None = None
+    pinterest_shared_at: int | None = None
     support_wallets: list[str] | None = None
     support_providers: list[str] | None = None
     support_link_click_counts: dict[str, int] = field(default_factory=dict)
@@ -335,6 +307,7 @@ class Article:
     category_name: str | None = None
     source: dict[str, Any] | None = None
     generation: dict[str, Any] | None = None
+    bookmarks_count: int = 0
 
 
 @dataclass(slots=True)
@@ -850,7 +823,7 @@ def get_url(req, name: str, absolute: bool = False, **params) -> str:
     # route itself for URL-only routes.
     url_path_value = (route.url_path_for(name, **path_params) if is_metadata_route
                       else req.url_for(name, **path_params))
-    url_path = quote(getattr(url_path_value, "path", str(url_path_value)), safe="/:@-._~!$&'()*+,;=%")
+    url_path = quote(getattr(url_path_value, "path", str(url_path_value)), safe="/:@-._~!$&'()*+,;=%{}")
 
     if absolute and url_path == "/":
         url_path = ""
@@ -1020,7 +993,7 @@ def get_jinja2_env():
     jinja2_env.globals.update(get_config())
     from app_config import get_publisher_enabled
     jinja2_env.globals.update({provider + '_publisher_enabled': get_publisher_enabled(provider)
-                              for provider in ('telegram', 'threads', 'linkedin')})
+                              for provider in ('telegram', 'threads', 'linkedin', 'pinterest')})
     jinja2_env.globals.update({
         "static_url": jinja2_static_url,
         "render_article_content": jinja2_render_article_content,
@@ -1178,6 +1151,8 @@ def upsert_user_by_user_token(token: UserTokenDTO, status: UserStatus = UserStat
             "rating_sk": compute_rating_sk(0, now),
             "created_at": now,
             "user_status_pk": f"USER#{status}",
+            "welcome_state": "pending",
+            "activity_v": 1,
         }
         if token.email:
             user_item["user_email_pk"] = token.email
@@ -1330,6 +1305,7 @@ def article_from_dynamodb(d_item: dict[str, Any]) -> Article:
         category_name=d_item.get("category_name"),
         source=d_item.get("source"),
         generation=d_item.get("generation"),
+        bookmarks_count=int(d_item.get("bookmarks_count", 0)),
         preview=d_item.get("preview"),
         tags=d_item.get("tags", []),
         status=d_item["status"],
@@ -1341,6 +1317,7 @@ def article_from_dynamodb(d_item: dict[str, Any]) -> Article:
         telegram_shared_at=d_item.get("telegram_shared_at"),
         threads_shared_at=d_item.get("threads_shared_at"),
         linkedin_shared_at=d_item.get("linkedin_shared_at"),
+        pinterest_shared_at=d_item.get("pinterest_shared_at"),
         support_wallets=d_item.get("support_wallets"),
         support_providers=d_item.get("support_providers"),
         support_link_click_counts=d_item.get("support_link_click_counts", {}),
@@ -1636,6 +1613,16 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         article_comments_count=d_item.get("post_comments_count", 0),
         tag_subscriptions_count=d_item.get("tag_subscriptions_count", d_item.get("article_tag_subscriptions_count", 0)),
         has_telegram_integration=d_item.get("has_telegram_integration", False),
+        telegram_show_on_user_page=d_item.get("telegram_show_on_user_page", False),
+        telegram_show_on_articles_pages=d_item.get("telegram_show_on_articles_pages", False),
+        threads_show_on_user_page=d_item.get("threads_show_on_user_page", False),
+        threads_show_on_articles_pages=d_item.get("threads_show_on_articles_pages", False),
+        pinterest_show_on_user_page=d_item.get("pinterest_show_on_user_page", False),
+        pinterest_show_on_articles_pages=d_item.get("pinterest_show_on_articles_pages", False),
+        telegram_public_profile=visible_profile("telegram", d_item),
+        threads_public_profile=visible_profile("threads", d_item),
+        pinterest_public_profile=visible_profile("pinterest", d_item),
+        has_pinterest_integration=d_item.get("has_pinterest_integration", False),
         has_threads_integration=d_item.get("has_threads_integration", False),
         has_linkedin_integration=d_item.get("has_linkedin_integration", False),
         support_links=[SupportLink(**link) for link in support_links or []],
@@ -1651,6 +1638,10 @@ def user_from_dynamodb(d_item: dict[str, Any]) -> User:
         notify_article_comments=d_item.get("notify_article_comments", True),
         notify_comment_impressions=d_item.get("notify_comment_impressions", True),
         notify_article_shares=d_item.get("notify_article_shares", True),
+        notify_article_bookmarks=d_item.get("notify_article_bookmarks", True),
+        activity_version=int(d_item.get("activity_v", 0)),
+        welcome_state=d_item.get("welcome_state"),
+        welcome_seen_at=d_item.get("welcome_seen_at"),
         blockers_count=d_item.get("blockers_count", 0),
         blocking_count=d_item.get("blocking_count", 0),
         article_likes_received_count=d_item.get("article_likes_received_count", 0),
@@ -2043,6 +2034,8 @@ def query_dynamodb_table(
         scan_index_forward: bool | None = None,
         limit: int | None = None,
         exclusive_start_key: dict | None = None,
+        projection_expr: str | None = None,
+        consistent_read: bool = False,
 ) -> dict[str, Any]:
     query_args: dict[str, Any] = {}
     if index_name is not None:
@@ -2055,6 +2048,10 @@ def query_dynamodb_table(
         query_args["Limit"] = limit
     if exclusive_start_key is not None:
         query_args["ExclusiveStartKey"] = exclusive_start_key
+    if projection_expr is not None:
+        query_args["ProjectionExpression"] = projection_expr
+    if consistent_read:
+        query_args["ConsistentRead"] = True
 
     try:
         return get_dynamodb_table().query(**query_args)
@@ -2270,14 +2267,14 @@ def get_popular_articles_by_tags(
     return filtered_articles
 
 
-def get_articles_by_ids(article_ids):
+def get_articles_by_ids(article_ids, *, consistent_read=False):
     identifiers = list(dict.fromkeys(article_ids))
     table = get_dynamodb_table()
     records = {}
     for start in range(0, len(identifiers), 100):
         pending = [{"pk": "POST#" + identifier, "sk": "META"} for identifier in identifiers[start:start + 100]]
         for attempt in range(3):
-            response = table.meta.client.batch_get_item(RequestItems={table.name: {"Keys": pending}})
+            response = table.meta.client.batch_get_item(RequestItems={table.name: {"Keys": pending, "ConsistentRead": consistent_read}})
             records.update({item['id']: item for item in response.get('Responses', {}).get(table.name, [])})
             pending = response.get('UnprocessedKeys', {}).get(table.name, {}).get('Keys', [])
             if not pending:
@@ -2407,6 +2404,8 @@ def tag_from_dynamodb(d_item: dict[str, Any]) -> Tag:
         articles_count=d_item.get("posts_count", 0),
         image_filename=d_item.get("image_filename"),
         offset=None,
+        description=d_item.get("description", ""),
+        meta_description=d_item.get("meta_description", ""),
     )
 
 
@@ -2415,6 +2414,7 @@ def category_from_dynamodb(slug: str, d_item: dict[str, Any]) -> Category:
         name=d_item["name"],
         slug=d_item.get("category_slug", slug),
         description=d_item.get("description", ""),
+        meta_description=d_item.get("meta_description", ""),
         published_articles_count=d_item.get("published_articles_count", 0),
         image_filename=d_item.get("image_filename"),
     )
@@ -2554,27 +2554,23 @@ def get_users(query_dto: UserQueryDTO = None, cur_user: User = None) -> list[Use
     return get_latest_users(query_dto, cur_user)
 
 
-def unix_to_month_year(timestamp: int, tz: str | None = None) -> str:
+def unix_to_month_year(timestamp: int) -> str:
     """
-    Convert Unix timestamp to 'Feb 2024' format, optional timezone.
+    Convert Unix timestamp to 'Feb 2024' format in UTC.
     """
     dt = to_datetime(timestamp)
-    if tz:
-        dt = dt.astimezone(ZoneInfo(tz))
     return dt.strftime("%b %Y")
 
 
-def unix_to_full_date(timestamp: int, tz: str | None = None) -> str:
+def unix_to_full_date(timestamp: int) -> str:
     """
     Convert Unix timestamp to 'Mar 14' or 'Mar 14, 2025' format.
     If the date is in the current year, omit the year.
-    Optionally convert to a specific timezone.
+    Dates and the current year use UTC.
     """
     dt = to_datetime(timestamp)
-    if tz:
-        dt = dt.astimezone(ZoneInfo(tz))
 
-    now = datetime.now(dt.tzinfo)
+    now = datetime.now(timezone.utc)
     if dt.year == now.year:
         return dt.strftime("%b %d")  # e.g., "Mar 14"
     return dt.strftime("%b %d, %Y")  # e.g., "Mar 14, 2025"

@@ -58,6 +58,26 @@ Parameters:
   ThreadsAppId:
     Type: String
     Default: ''
+  PinterestAppId:
+    Type: String
+    Default: ''
+  PinterestAppSecret:
+    Type: String
+    Default: ''
+    NoEcho: true
+  PinterestTokenEncryptionKey:
+    Type: String
+    Default: ''
+    NoEcho: true
+  SiteTelegramChannelUrl:
+    Type: String
+    Default: ''
+  SiteThreadsProfileUrl:
+    Type: String
+    Default: ''
+  SitePinterestProfileUrl:
+    Type: String
+    Default: ''
   LinkedInAppId:
     Type: String
     Default: ''
@@ -171,6 +191,14 @@ Conditions:
           - Fn::Equals: [!Ref ThreadsAppSecret, '']
       - Fn::Not:
           - Fn::Equals: [!Ref ThreadsTokenEncryptionKey, '']
+  PinterestPublishingEnabled:
+    Fn::And:
+      - Fn::Not:
+          - Fn::Equals: [!Ref PinterestAppId, '']
+      - Fn::Not:
+          - Fn::Equals: [!Ref PinterestAppSecret, '']
+      - Fn::Not:
+          - Fn::Equals: [!Ref PinterestTokenEncryptionKey, '']
   LinkedInPublishingEnabled:
     Fn::And:
       - Fn::Not:
@@ -266,6 +294,9 @@ Resources:
     Properties:
       TableName: !Sub "${AWS::StackName}-${Stage}"
       BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
       AttributeDefinitions:
         - AttributeName: pk
           AttributeType: S
@@ -691,6 +722,8 @@ Resources:
             Fn::If: [TelegramPublishingEnabled, 'true', 'false']
           THREADS_PUBLISHER_ENABLED:
             Fn::If: [ThreadsPublishingEnabled, 'true', 'false']
+          PINTEREST_PUBLISHER_ENABLED:
+            Fn::If: [PinterestPublishingEnabled, 'true', 'false']
           LINKEDIN_PUBLISHER_ENABLED:
             Fn::If: [LinkedInPublishingEnabled, 'true', 'false']
           TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
@@ -700,6 +733,9 @@ Resources:
           APP_ENV: !Ref Env
           APP_DEBUG: !Ref Debug
           APP_SECRET: !Ref Secret
+          SITE_TELEGRAM_CHANNEL_URL: !Ref SiteTelegramChannelUrl
+          SITE_THREADS_PROFILE_URL: !Ref SiteThreadsProfileUrl
+          SITE_PINTEREST_PROFILE_URL: !Ref SitePinterestProfileUrl
           WEB_BASE_URL: !Sub "https://${DomainName}"
           API_BASE_URL: !Sub "https://api.${DomainName}"
           STATIC_BASE_URL: !Sub "https://static.${DomainName}"
@@ -746,6 +782,9 @@ Resources:
           SITEMAP_FUNCTION_NAME: !Sub "${AWS::StackName}-${Stage}-sitemap"
           MEDIA_ORIGINALS_S3_BUCKET: !Ref MediaOriginalsBucket
           THREADS_APP_ID: !Ref ThreadsAppId
+          PINTEREST_APP_ID: !Ref PinterestAppId
+          PINTEREST_APP_SECRET: !Ref PinterestAppSecret
+          PINTEREST_TOKEN_ENCRYPTION_KEY: !Ref PinterestTokenEncryptionKey
           LINKEDIN_APP_ID: !Ref LinkedInAppId
           LINKEDIN_APP_SECRET: !Ref LinkedInAppSecret
           LINKEDIN_TOKEN_ENCRYPTION_KEY: !Ref LinkedInTokenEncryptionKey

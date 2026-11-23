@@ -3,14 +3,6 @@
 {% set categories = get_categories() %}
 
 
-{% set val_map = {
-    (ArticleQueryType.LATEST): {"title": "Latest", "subtitle": "Recently added"},
-    (ArticleQueryType.POPULAR): {"title": "Popular", "subtitle": "Most popular"},
-    (ArticleStatus.PUBLISHED): {"title": None, "subtitle": None},
-    (ArticleStatus.UNPUBLISHED): {"title": "Unpublished", "subtitle": "Unpublished"},
-    (ArticleStatus.REJECTED): {"title": "Rejected", "subtitle": "Rejected"}
-} %}
-
 {% set tag_labels = namespace(values=[]) %}
 {% for slug in article_query.tags %}
     {% set name = article_query_tag_names[loop.index0] if article_query_tag_names is defined and loop.index0 < article_query_tag_names | length else slug %}
@@ -19,15 +11,12 @@
 {% set tag_label = tag_labels.values | join(" + ") %}
 {% set category_label = category.name if category else (article_query.category | title if article_query.category else None) %}
 {% set subject_label = tag_label or category_label %}
-{% set title = ([val_map[article_query.type]["title"], subject_label, val_map[article_query.status]["title"], "Articles"]) | select | join(" ") %}
-{% if category and tag_label %}
-    {% set title = title ~ " in " ~ category.name %}
-{% endif %}
+{% set title = page_metadata.heading %}
 {% set meta_robots = "noindex, follow" if article_query.offset or article_query.status != ArticleStatus.PUBLISHED or not articles else "index, follow" %}
-{% set subtitle = category.description if category else ([val_map[article_query.type]["subtitle"], tag_label, val_map[article_query.status]["subtitle"], "Articles"]) | select | join(" ") %}
-{% set meta_title = title ~ (" Category" if article_query.category and not tag_label else "") ~ " | " ~ site_name %}
+{% set subtitle = page_metadata.subtitle %}
+{% set meta_title = page_metadata.title %}
 {% set meta_canonical_url = articles_url(query=article_query, tags=article_query.tags|unique|sort, offset=None, absolute=True) %}
-{% set meta_desc = ("Browse " ~ title ~ " on " ~ site_name ~ ". " ~ (category.description if category else "Explore system design guides, architecture patterns, and practical engineering articles.")) | truncate(155, False, '...', 0) %}
+{% set meta_desc = page_metadata.description %}
 {% set og_img_filename = category.image_filename if category else None %}
 {% set og_img_alt = category.name if category and category.image_filename else None %}
 {% set listing_breadcrumbs = namespace(values=[
@@ -109,99 +98,7 @@
     <h1>{{ title }}</h1>
     <p class="small text-secondary">{{ subtitle }}</p>
 
-    <form id="article-filters" action="{{ articles_url() }}" method="get"
-          class="d-flex flex-wrap align-items-center gap-3 mb-4 p-2 bg-white border rounded"
-          aria-label="Filter articles">
-
-        <input type="hidden" name="type" value="{{ article_query.type }}">
-        <input type="hidden" name="status" value="{{ article_query.status }}">
-
-        <div class="d-flex align-items-center gap-2">
-            <small class="text-secondary bi bi-sort-down"> Show:</small>
-            <div class="btn-group btn-group-sm" role="group" aria-label="Sort articles">
-                {% set is_latest = article_query.type == ArticleQueryType.LATEST %}
-                <a href="{{ articles_url(**article_query.get_dict({"type": None if is_latest else ArticleQueryType.LATEST, "offset": None})) }}"
-                   class="btn {% if is_latest %}btn-dark active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
-                    {{ ArticleQueryType.LATEST | title }} first
-                </a>
-                {% set is_popular = article_query.type == ArticleQueryType.POPULAR %}
-                <a href="{{ articles_url(**article_query.get_dict({"type": None if is_popular else ArticleQueryType.POPULAR, "offset": None})) }}"
-                   class="btn {% if is_popular %}btn-dark active{% else %}btn-light{% endif %} bi bi-star{{ "-fill" if is_popular else "" }}">
-                    {{ ArticleQueryType.POPULAR | title }} first
-                </a>
-            </div>
-        </div>
-
-        <div class="d-flex flex-wrap align-items-center gap-2 mw-100">
-            <label for="category-filter" class="small text-secondary bi bi-collection"> Filter by category:</label>
-            <select id="category-filter" name="category" class="form-select form-select-sm w-auto mw-100"
-                    onchange="this.form.requestSubmit()">
-                <option value="">All categories</option>
-                {% if article_query.category and not category %}
-                    <option value="{{ article_query.category }}" selected>{{ category_label }}</option>
-                {% endif %}
-                {% for category_option in categories %}
-                    <option value="{{ category_option.slug }}"{% if article_query.category == category_option.slug %} selected{% endif %}>{{ category_option.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="d-flex flex-wrap align-items-center gap-2 mw-100">
-            <small class="text-secondary bi bi-tags"> Filter by tags:</small>
-            {% with url=url("api-tags", absolute=True, published_only=article_query.status == ArticleStatus.PUBLISHED),
-                            value=article_query.tags,
-                            tag_items=article_query_tag_items,
-                            class_name="tags-filter-input",
-                            auto_submit=True,
-                            inject_hidden=True %}
-                {% include "fragments/tags-input.html" %}
-            {% endwith %}
-
-        </div>
-
-        {% if cur_user and check_auth(cur_user, Permission.READ_NON_PUBLISHED_ARTICLE) %}
-            <div class="d-flex align-items-center gap-2">
-                <small class="text-secondary bi bi-toggle2-on"> Filter by status:</small>
-                <div class="btn-group btn-group-sm" role="group" aria-label="Article status">
-                    {% set is_published = article_query.status == ArticleStatus.PUBLISHED %}
-                    <a href="{{ articles_url(**article_query.get_dict({"status": None if is_published else ArticleStatus.PUBLISHED, "offset": None})) }}"
-                       class="btn {% if is_published %}btn-success active{% else %}btn-light{% endif %}">
-                        {{ ArticleStatus.PUBLISHED | title }}
-                    </a>
-
-                    {% set is_unpublished = article_query.status == ArticleStatus.UNPUBLISHED %}
-                    <a href="{{ articles_url(**article_query.get_dict({"status": None if is_unpublished else ArticleStatus.UNPUBLISHED, "offset": None})) }}"
-                       class="btn {% if is_unpublished %}btn-warning active{% else %}btn-light{% endif %}">
-                        {{ ArticleStatus.UNPUBLISHED | title }}
-                    </a>
-
-                    {% set is_rejected = article_query.status == ArticleStatus.REJECTED %}
-                    <a href="{{ articles_url(**article_query.get_dict({"status": None if is_rejected else ArticleStatus.REJECTED, "offset": None})) }}"
-                       class="btn {% if is_rejected %}btn-danger active{% else %}btn-light{% endif %}">
-                        {{ ArticleStatus.REJECTED | title }}
-                    </a>
-                </div>
-            </div>
-        {% endif %}
-
-        {% if article_query.has_params() %}
-            <div>
-                <a href="{{ articles_url() }}" class="btn btn-light btn-sm bi bi-x-lg"> Reset</a>
-            </div>
-        {% endif %}
-
-        {% if tag and cur_user and check_auth(cur_user, Permission.UPDATE_TAG) %}
-            <a href="{{ url("edit-tag", slug=article_query.tags[0]) }}"
-               class="btn btn-light btn-sm bi bi-pencil-square">
-                Edit tag
-            </a>
-        {% endif %}
-
-        {% if category and cur_user and check_auth(cur_user, Permission.UPDATE_CATEGORY) %}
-            <a href="{{ url('edit-category', slug=category.slug) }}"
-               class="btn btn-light btn-sm bi bi-pencil-square"> Edit category</a>
-        {% endif %}
-    </form>
+    {% include "fragments/article-filters.html" %}
     <script>
       document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("article-filters").addEventListener("formdata", event => {

@@ -37,7 +37,7 @@
                         </button>
                     {% endif %}
                 {% else %}
-                    <a class="btn btn-dark"
+                    <a class="btn btn-dark" data-auth-action="subscribe" data-auth-tags='{{ tags | tojson }}'
                        href="{{ url('login', redirect_url=request.url.path ~ ("?" ~ request.url.query if request.url.query else "")) }}"
                        rel="nofollow">
                         <i class="bi bi-box-arrow-in-right"></i>

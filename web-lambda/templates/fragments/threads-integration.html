@@ -1,6 +1,6 @@
-<section id="threads-integration" aria-labelledby="threads-heading" class="d-none d-flex flex-column gap-3 border-top mt-4 pt-4">
+<section id="threads-integration" aria-labelledby="threads-heading" class="d-none card card-body gap-3 mb-4">
     <h2 class="h5 mb-0" id="threads-heading"><i class="bi bi-threads me-1" aria-hidden="true"></i>Threads account</h2>
-    <p class="mb-0">Connect your Threads account, then share articles from a article page. Nothing is posted automatically.</p>
+    <p class="mb-0">Connect your Threads account, then share articles from an article page. Nothing is posted automatically.</p>
     <div id="threads-status" role="status" aria-live="polite">Loading connection…</div>
     <div class="d-flex flex-wrap gap-2 align-items-center">
         <button type="button" class="btn btn-outline-dark" id="threads-connect" disabled>
@@ -11,7 +11,19 @@
         </button>
     </div>
     <p class="form-text mb-0">Disconnecting leaves your existing Threads posts in place.</p>
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="threads_show_on_user_page" name="threads_show_on_user_page" disabled
+               {% if user.threads_show_on_user_page %}checked{% endif %}>
+        <label class="form-check-label" for="threads_show_on_user_page">Show on my profile</label>
+    </div>
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="threads_show_on_articles_pages" name="threads_show_on_articles_pages" disabled
+               {% if user.threads_show_on_articles_pages %}checked{% endif %}>
+        <label class="form-check-label" for="threads_show_on_articles_pages">Show on my article pages</label>
+    </div>
+    <p class="form-text mb-0">Save your profile to apply visibility settings. Your account appears only while connected</p>
 </section>
+
 <script>
   document.addEventListener("DOMContentLoaded", () => {
     const endpoint = {{ url('threads-connection', user_id=user.id, absolute=True) | tojson }}
@@ -32,6 +44,7 @@
       window.history.replaceState(null, "", currentUrl)
     }
     function controls() {
+      [document.getElementById("threads_show_on_user_page"), document.getElementById("threads_show_on_articles_pages")].forEach(input => { input.disabled = busy || !configured || !connected })
       connect.classList.toggle("btn-dark", connected)
       connect.classList.toggle("btn-outline-dark", !connected)
       connect.disabled = busy || !configured

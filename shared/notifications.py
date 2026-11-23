@@ -4,6 +4,7 @@ import copy
 import json
 import logging
 import sys
+import time
 from urllib.request import Request, urlopen
 
 from api_route_metadata import API_URL_ROUTES
@@ -22,11 +23,27 @@ def _access_log_url(value):
         return urlunsplit((parts.scheme, parts.netloc, '/account-deletion/status/[private]', '', ''))
     if parts.path.rstrip("/") in {
         API_URL_ROUTES["threads-callback"], API_URL_ROUTES["login-link-callback"],
-        API_URL_ROUTES["linkedin-callback"],
+        API_URL_ROUTES["linkedin-callback"], API_URL_ROUTES["pinterest-callback"],
         WEB_AUTH_URL_ROUTES["login-callback"], WEB_AUTH_URL_ROUTES["logout-callback"],
     }:
         return urlunsplit((parts.scheme, parts.netloc, parts.path, '', ''))
     return str(value)
+
+
+def get_request_log_context(request):
+    """Allowlisted request metadata; never include bodies, cookies or tokens."""
+    context = {
+        "method": request.method,
+        "url": _access_log_url(request.url),
+        "content_type": request.headers.get("content-type", "")[:128],
+        "content_length": request.headers.get("content-length", "")[:20],
+    }
+    for field in ("route_name", "aws_request_id"):
+        if request.scope.get(field):
+            context[field] = request.scope[field]
+    context.update(request.scope.get("json_body_diagnostics", {}))
+    return context
+
 
 
 def get_access_log(request, status: int) -> tuple[int, str]:
@@ -51,6 +68,8 @@ def get_access_log(request, status: int) -> tuple[int, str]:
 class ContextFormatter(logging.Formatter):
     """Expose structured action context in console/CloudWatch as well as Telegram."""
 
+    converter = time.gmtime
+
     def format(self, record):
         text = super().format(record)
         if hasattr(record, 'context'):
@@ -60,6 +79,8 @@ class ContextFormatter(logging.Formatter):
 
 class TelegramFormatter(logging.Formatter):
     """Include only the log record's context as JSON alongside the message."""
+
+    converter = time.gmtime
 
     def format(self, record):
         from app_config import get_config

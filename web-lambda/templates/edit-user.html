@@ -4,7 +4,8 @@
 
 {% set title = ("Edit " ~ user.name) | trim %}
 {% set meta_robots = "noindex, nofollow" %}
-{% set meta_title = title ~ " " ~ site_name %}
+{% set meta_title = page_metadata.title %}
+{% set meta_desc = page_metadata.description %}
 {% set meta_canonical_url = url("edit-user", user_id=user.id, absolute=True) %}
 
 {% block breadcrumbs %}
@@ -15,7 +16,7 @@
 
 {% block content %}
     <h1>{{ title }}</h1>
-    <p class="small text-secondary">Update profile</p>
+    <p class="small text-secondary">{{ page_metadata.subtitle }}</p>
     {% include "fragments/user-form.html" %}
     {% include "fragments/delete-account.html" %}
 {% endblock %}

@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+{% set meta_title = page_metadata.title %}
+{% set meta_desc = page_metadata.description %}
+{% set meta_robots = "noindex, nofollow" %}
+
+{% block content %}
+    <h1>Completing Sign-In</h1>
+    <p class="small text-secondary" id="auth-action-message" role="status">Finishing your action…</p>
+    <div id="auth-completion" data-return-url="{{ return_url }}">
+        <button type="button" class="btn btn-dark d-none" id="auth-action-retry">Try again</button>
+        <button type="button" class="btn btn-light d-none" id="auth-action-skip">Continue without this action</button>
+    </div>
+    <noscript><p>JavaScript is needed to finish this action automatically</p>
+        <a href="{{ return_url }}">Continue</a></noscript>
+{% endblock %}

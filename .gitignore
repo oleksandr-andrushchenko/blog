@@ -38,6 +38,7 @@ shared/data.json
 static/*
 !static/styles.css
 !static/scripts.js
+!static/comment-draft.js
 !static/robots.txt
 !static/8e0cfa67-ec77-4175-a26a-5c58f4876959.mp4
 !static/f1f76e3c-1e14-46a5-ac93-4318e28c462c_960x540.webp

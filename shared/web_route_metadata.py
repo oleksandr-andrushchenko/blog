@@ -2,12 +2,14 @@
 
 WEB_AUTH_URL_ROUTES = {
     "login": "/login",
+    "auth-complete": "/auth/complete",
     "login-callback": "/login-callback",
     "logout": "/logout",
     "logout-callback": "/logout-callback",
 }
 
 WEB_URL_ROUTES = WEB_AUTH_URL_ROUTES | {
+    "bookmarks": "/bookmarks",
     "notification-center": "/notifications",
     "direct-messages": "/messages",
     "direct-conversation": "/messages/{user_id}",

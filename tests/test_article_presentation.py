@@ -45,7 +45,7 @@ def test_metadata_preserves_category_case_and_limits_only_compact_tags(templates
     assert doc('a[href="/articles?category=api-design"]').text() == 'API Design'
     assert doc('a[href="/articles?tags=API"]').text() == 'API'
     assert bool(doc('a[href="/articles?tags=Python"]')) is extended
-    assert bool(doc('a[title="View all 3 tags"]:contains("+2")')) is not extended
+    assert bool(doc('a[title="View all 3 topics"]:contains("+2")')) is not extended
     assert doc('a[href="/users/author"]').text() == creator.name
     assert ('Published on' in doc.text()) is extended
     assert ('Modified on' in doc.text()) is extended
@@ -89,3 +89,23 @@ def test_image_caption_can_differ_from_alt_text_with_legacy_fallback(templates, 
     assert doc('img').attr('alt') == 'Diagram description'
     assert doc('figcaption').text() == expected
     assert not doc('figcaption script')
+
+
+def test_author_selection_is_public_bounded_and_excludes_current_article(monkeypatch):
+    sys.path.insert(0, str(ROOT / 'web-lambda'))
+    import web_utils
+    author = SimpleNamespace(id='author', status='active')
+    current = SimpleNamespace(id='current', user_id=author.id)
+    calls = []
+    monkeypatch.setattr(web_utils, 'find_user', lambda user_id: author)
+    def selection(user, query):
+        calls.append((user.id, query.limit, query.status))
+        return [current, *[SimpleNamespace(id=str(index)) for index in range(8)]]
+    monkeypatch.setattr(web_utils, 'get_latest_articles_by_user', selection)
+    result_author, articles = web_utils.get_article_author_articles(current)
+    assert result_author is author
+    assert len(articles) == 8 and all(article.id != current.id for article in articles)
+    assert calls == [('author', 9, ArticleStatus.PUBLISHED)]
+    author.status = 'banned'
+    assert web_utils.get_article_author_articles(current) == (author, [])
+    assert len(calls) == 1

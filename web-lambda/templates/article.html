@@ -3,8 +3,8 @@
 
 {% set article_canonical_url = article_url(article, absolute=True) %}
 {% set author_canonical_url = user_url(author, absolute=True) %}
-{% set meta_desc = (article.preview or html_to_text(article.content) or article.title) | truncate(155, False, '...', 0) %}
-{% set meta_title = article.title ~ " | " ~ site_name %}
+{% set meta_desc = page_metadata.description %}
+{% set meta_title = page_metadata.title %}
 {% set meta_author = author.name %}
 {% set meta_robots = "index, follow" if article.status == ArticleStatus.PUBLISHED else "noindex, nofollow" %}
 {% set og_type = "article" %}
@@ -111,7 +111,7 @@
 {% block content %}
     <div class="row">
         <div class="{{ {"def": 12, "lg": 8} | col_classes }} overflow-auto article-content">
-            <article class="mb-4">
+            <article class="mb-4" data-article-id="{{ article.id }}">
                 <header class="mb-3">
                     {% with extended=True, badges_class="mb-2" %}
                         {% include "fragments/article-badges.html" %}
@@ -167,6 +167,7 @@
                     {% endwith %}
                 </section>
 
+                {% with integration_links=creator_integration_links(author, "articles_pages") %}{% include "fragments/creator-integrations.html" %}{% endwith %}
                 {% with user=author %}
                     {% with support_article=true %}{% include "fragments/creator-support-links.html" %}{% endwith %}
                 {% endwith %}
@@ -179,6 +180,19 @@
             </aside>
         </div>
     </div>
+
+    {% if author_articles %}
+        <section class="mb-4" id="author-article-section">
+            <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2">
+                <h2 class="h5">More articles from this author</h2>
+                <a href="{{ user_url(author) }}#my-articles" class="small">View all</a>
+            </div>
+            <div id="author-articles" class="{{ {"def": 1, "sm": 2, "lg": 3, "xl": 4} | row_classes }} g-2"
+                 data-masonry-options='{"percentPosition": true}'>
+                {% with articles=author_articles %}{% include "fragments/articles.html" %}{% endwith %}
+            </div>
+        </section>
+    {% endif %}
 
     {% if related_articles %}
         <section class="mb-4">

@@ -2,8 +2,8 @@
 {% set layout_assets = {"masonry": true, "tagify": true} %}
 
 
-{% set meta_title = site_name ~ " - " ~ site_short_desc %}
-{% set meta_desc = meta_desc or site_desc %}
+{% set meta_title = page_metadata.title %}
+{% set meta_desc = page_metadata.description %}
 {% set main_class = "" %}
 {% set meta_robots = "index, follow" %}
 {% set meta_canonical_url = url("index", absolute=True) %}
@@ -28,9 +28,9 @@
 
     <section class="py-5 text-bg-success mb-4">
         <div class="container text-center">
-            <h1 class="d-inline">{{ site_name }} <i class="bi bi-{{ site_icon }}"></i></h1>
+            <h1 class="d-inline">{{ page_metadata.heading }} <i class="bi bi-{{ site_icon }}"></i></h1>
             <span class="mt-2 fw-bold mb-3">&mdash; {{ site_short_desc }}</span>
-            <p class="mt-3 mb-4">{{ site_desc }}</p>
+            <p class="mt-3 mb-4">{{ page_metadata.subtitle }}</p>
             {% include "fragments/article-search.html" %}
             {% set published_article_count = categories | sum(attribute='published_articles_count') | int %}
             <div class="d-flex flex-wrap align-items-center justify-content-center gap-3 mt-4">
@@ -68,7 +68,7 @@
         {% endif %}
 
         <section class="mb-4">
-            <h2 class="h5 mb-2">Popular tags</h2>
+            <h2 class="h5 mb-2">Popular topics</h2>
             {% if popular_tags %}
                 {% for tag in popular_tags %}
                     <a href="{{ articles_url(tags=[tag.slug]) }}" class="btn btn-light btn-sm tag mb-1">
@@ -77,10 +77,10 @@
                 {% endfor %}
 
                 <a href="{{ url("tags") }}?type=popular" class="btn btn-light btn-sm bi bi-tags">
-                    See all popular tags
+                    See all popular topics
                 </a>
                 <a href="{{ url("tags") }}" class="btn btn-light btn-sm bi bi-tags">
-                    See all tags
+                    See all topics
                 </a>
             {% else %}
                 <div>N/A</div>
@@ -113,7 +113,7 @@
                     </a>
                     <a href="{{ articles_url(type=ArticleQueryType.POPULAR) }}"
                        class="btn btn-light btn-sm bi bi-tags">
-                        Search popular articles by tags
+                        Search popular articles by topics
                     </a>
                 {% else %}
                     <div>N/A</div>
@@ -187,7 +187,7 @@
                     </a>
                     <a href="{{ articles_url(type=ArticleQueryType.LATEST) }}"
                        class="btn btn-light btn-sm bi bi-tags">
-                        Search latest articles by tags
+                        Search latest articles by topics
                     </a>
                 </div>
             {% else %}

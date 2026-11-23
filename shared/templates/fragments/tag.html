@@ -21,6 +21,9 @@
             <h{{ h_tag_size }} class="h{{ h_display_size }} mb-0 card-title">
                 {{ tag.name }}{% if tag.articles_count %} &mdash; {{ '{:,}'.format(tag.articles_count) }}{% endif %}
             </h{{ h_tag_size }}>
+            {% if tag.description %}
+                <p class="card-text small text-secondary two-line-ellipsis mt-2 mb-0">{{ tag.description }}</p>
+            {% endif %}
         </div>
     </a>
 </div>

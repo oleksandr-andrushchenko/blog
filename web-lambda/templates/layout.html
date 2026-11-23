@@ -1,4 +1,5 @@
-{% set meta_desc = html_to_text(meta_desc or site_desc) | truncate(155, False, "...", 0) %}
+{% set guest_engagement_enabled = not cur_user and request.scope.get('route_name') in ['index', 'articles', 'articles-by-slugs', 'article', 'article-by-slugs', 'tags', 'categories', 'users', 'users-by-slugs', 'user', 'user-by-slug'] %}
+{% set meta_desc = html_to_text(meta_desc or site_desc) %}
 {% set index_url = url("index") %}
 {% set current_route = request.scope.get("route_name") %}
 {% set layout_assets = layout_assets | default({}) %}
@@ -147,7 +148,7 @@
                     <li class="nav-item">
                         <a class="nav-link{% if current_route == 'tags' %} active{% endif %}"
                            href="{{ url('tags') }}"{% if current_route == 'tags' %}
-                           aria-current="page"{% endif %}>Tags</a>
+                           aria-current="page"{% endif %}>Topics</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link{% if articles_active %} active{% endif %}" href="{{ articles_url() }}"
@@ -224,6 +225,9 @@
                                 <li><a class="dropdown-item" href="{{ url("logout") }}" rel="nofollow">
                                     <i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>Sign out
                                 </a></li>
+                                <li><a class="dropdown-item" href="{{ url('bookmarks') }}">
+                                    <i class="bi bi-bookmark me-2" aria-hidden="true"></i>Bookmarks
+                                </a></li>
                             </ul>
                         </li>
                         {% if cur_user.status == UserStatus.ACTIVE %}
@@ -280,7 +284,7 @@
             <li class="nav-item">
                 <a class="nav-link px-2 text-muted{% if current_route == "tags" %} active{% endif %}"
                    href="{{ url("tags") }}"{% if current_route == "tags" %}
-                   aria-current="page"{% endif %}>Tags</a>
+                   aria-current="page"{% endif %}>Topics</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link px-2 text-muted{% if users_active %} active{% endif %}" href="{{ users_url() }}"
@@ -307,14 +311,9 @@
             </li>
         </ul>
 
-        {% if contact_socials %}
-            <div class="d-flex justify-content-center justify-content-md-end gap-3">
-                {% for contact_social in contact_socials %}
-                    <a href="{{ contact_social.url }}" class="link-dark fs-4 bi bi-{{ contact_social.icon }}"
-                       target="_blank" rel="nofollow noopener noreferrer"></a>
-                {% endfor %}
-            </div>
-        {% endif %}
+        {% with social_links_class="justify-content-center mb-3" %}
+            {% include "fragments/site-social-links.html" %}
+        {% endwith %}
 
         <div class="text-muted small mb-2 mb-md-0">
             &copy; {{ footer_current_year }} {{ site_name }}
@@ -352,6 +351,13 @@
 <!--custom-->
 <script>
   window.CONFIG = {
+      guest_engagement_enabled: {{ guest_engagement_enabled | tojson }},
+      update_bookmark_url: {{ url('update-bookmark', article_id='{article_id}', absolute=True) | tojson }},
+      begin_auth_action_url: {{ url('begin-auth-action', absolute=True) | tojson }},
+      complete_auth_action_url: {{ url('complete-auth-action', absolute=True) | tojson }},
+      welcome_seen_url: {{ url('welcome-seen', absolute=True) | tojson }},
+      welcome_pending: {{ (cur_user and cur_user.welcome_state == 'ready' and not cur_user.welcome_seen_at) | default(false) | tojson }},
+
     current_user: {{ ({"id": cur_user.id} | tojson) if cur_user else "null" }},
     update_article_status_url: {{ url("update-article-status", article_id="{article_id}", absolute=True) | tojson }},
     update_article_impression_url: {{ url("update-article-impression", article_id="{article_id}", absolute=True) | tojson }},
@@ -379,5 +385,42 @@
             crossorigin="anonymous" defer></script>
 {% endif %}
 <script src="{{ static_url('scripts.js', _=js_cache_counter) }}" defer></script>
+{% if cur_user %}
+    <div class="modal fade" id="registration-welcome" tabindex="-1" aria-labelledby="registration-welcome-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="registration-welcome-title">Welcome to the community!</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Thanks for joining — we’re glad you’re here! Share your favorite articles with the community and pass them along to friends</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Keep exploring</button>
+                    <a href="{{ url('new-article') }}" class="btn btn-dark">Write an article</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% elif guest_engagement_enabled %}
+    <div class="modal fade" id="guest-signup-article" tabindex="-1" aria-labelledby="guest-signup-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="guest-signup-title">Keep your favorite articles close</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Create a free account to bookmark articles and subscribe to topics you enjoy</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Keep browsing</button>
+                    <a href="{{ url('login', redirect_url=request.url.path ~ ('?' ~ request.url.query if request.url.query else '')) }}" class="btn btn-dark" rel="nofollow">Sign up free</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
 </body>
 </html>

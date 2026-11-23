@@ -73,7 +73,11 @@ def storage(monkeypatch):
                 key = update['Key']
                 item = records.setdefault((key['pk'], key['sk']), dict(key))
                 for alias, field in update['ExpressionAttributeNames'].items():
-                    item[field] = update['ExpressionAttributeValues'][':new_' + field]
+                    token = ':new_' + field
+                    if token in update['ExpressionAttributeValues']:
+                        item[field] = update['ExpressionAttributeValues'][token]
+                    else:
+                        item.pop(field, None)
             elif 'Delete' in transaction:
                 key = transaction['Delete']['Key']
                 records.pop((key['pk'], key['sk']), None)

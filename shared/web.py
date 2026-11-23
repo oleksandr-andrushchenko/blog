@@ -1,4 +1,5 @@
 import inspect
+import json
 import re
 from dataclasses import asdict, fields, is_dataclass
 from decimal import Decimal
@@ -54,6 +55,8 @@ class RequestValidationError(ValueError):
 
 
 def parse_dto(dto_type, data):
+    if not isinstance(data, dict):
+        raise RequestValidationError({"body": "Expected a JSON object"})
     try:
         allowed = {field.name for field in fields(dto_type) if field.init}
         return dto_type(**{k: v for k, v in data.items() if k in allowed})
@@ -93,6 +96,26 @@ class Body(Query):
     pass
 
 
+async def read_json_body(request):
+    """Parse client JSON without treating malformed input as a server failure."""
+    raw = await request.body()
+    diagnostics = {"body_bytes": len(raw)}
+    request.scope["json_body_diagnostics"] = diagnostics
+    try:
+        body = await request.json()
+    except json.JSONDecodeError as exc:
+        diagnostics.update(body_error="empty_body" if not raw.strip() else "invalid_json",
+                           json_line=exc.lineno, json_column=exc.colno, json_position=exc.pos)
+        raise RequestValidationError({"body": "Expected a valid JSON object"}) from exc
+    except UnicodeDecodeError as exc:
+        diagnostics["body_error"] = "invalid_encoding"
+        raise RequestValidationError({"body": "Expected a valid JSON object"}) from exc
+    if not isinstance(body, dict):
+        diagnostics["body_error"] = "expected_object"
+        raise RequestValidationError({"body": "Expected a JSON object"})
+    return body
+
+
 async def resolve(function, request):
     hints = get_type_hints(function, include_extras=True)
     values = {}
@@ -108,7 +131,7 @@ async def resolve(function, request):
         elif name in request.path_params:
             values[name] = request.path_params[name]
         elif inspect.isclass(annotation) and is_dataclass(annotation):
-            body = await request.json() if body is None else body
+            body = await read_json_body(request) if body is None else body
             values[name] = parse_dto(annotation, body)
         else:
             default = parameter.default.default if isinstance(parameter.default, Query) else parameter.default

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from basic_dtos import BaseDTO, UNSET
-from validation import validate_catalog_text
+from validation import validate_catalog_text, validate_catalog_description
 
 
 @dataclass(slots=True)
@@ -9,6 +9,7 @@ class UpdateCategoryDTO(BaseDTO):
     name: str | object = UNSET
     slug: str | object = UNSET
     description: str | object = UNSET
+    meta_description: str | object = UNSET
     image_action: str | object = UNSET
     image_filename: str | None | object = UNSET
 
@@ -22,8 +23,8 @@ class UpdateCategoryDTO(BaseDTO):
         if self.slug is not UNSET:
             raise ValueError("category slug is immutable")
         if self.description is not UNSET:
-            self.description = validate_catalog_text(self.description).strip()
-            if not 10 <= len(self.description) <= 500:
-                raise ValueError("description must contain between 10 and 500 characters")
+            self.description = validate_catalog_description(self.description)
+        if self.meta_description is not UNSET:
+            self.meta_description = validate_catalog_description(self.meta_description)
         if self.image_action is not UNSET and self.image_action not in {"delete", "replace", "keep"}:
             raise ValueError("invalid image action")

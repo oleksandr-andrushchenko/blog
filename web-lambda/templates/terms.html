@@ -2,8 +2,8 @@
 
 {% set title = "Terms of Service" %}
 
-{% set meta_title = title ~ " | " ~ site_name %}
-{% set meta_desc = "Review the " ~ site_name ~ " terms of service, including account responsibilities, publishing rules, content ownership, and content reuse." %}
+{% set meta_title = page_metadata.title %}
+{% set meta_desc = page_metadata.description %}
 {% set meta_robots = "index, follow" %}
 {% set meta_canonical_url = url("terms", absolute=True) %}
 
@@ -49,7 +49,7 @@
             <h2>1. The Service &amp; Your Account</h2>
             <p>{{ site_name }} is a software system design publishing community. Visitors can read public articles
                 and profiles. Signed-in users can submit articles, comment, rate articles, follow or block authors,
-                and subscribe to tags, subject to account permissions and these
+                and subscribe to topics, subject to account permissions and these
                 <a href="{{ url('rules') }}" class="link-body-emphasis">Community Rules</a>. Our
                 <a href="{{ url('policy') }}" class="link-body-emphasis">Privacy Policy</a> explains data handling.</p>
             <p>You must be at least 13 years old, or 16 in the European Union. If you are below the age of legal
@@ -71,9 +71,9 @@
         <section>
             <h2>3. Publishing &amp; Acceptable Use</h2>
             <p>New articles start unpublished. Publication and rejection are controlled by account permissions.
-                Significant edits to a published title or article, or changes to its tags, can return it to unpublished
+                Significant edits to a published title or article, or changes to its topics, can return it to unpublished
                 status. Publication is not guaranteed, and approval is not a certification that every claim is correct.</p>
-            <p>Use accurate titles and relevant tags. Do not publish unlawful material, malware, stolen content,
+            <p>Use accurate titles and relevant topics. Do not publish unlawful material, malware, stolen content,
                 confidential information, spam, or deceptive promotions. Do not manipulate ratings or followers,
                 evade account restrictions, bypass access controls, or interfere with the Website.</p>
             <p>Search indexing is allowed within our published crawler instructions. Automated access must respect
@@ -140,7 +140,7 @@
 
         <section>
             <h2>6. Subscriptions, Donations &amp; External Services</h2>
-            <p>Tag subscriptions can send publication notifications to your account email. Manage or remove them
+            <p>Topic subscriptions can send publication notifications to your account email. Manage or remove them
                 with the subscription controls or the Interests section of your profile. We do not guarantee email
                 delivery or notification timing.</p>
             <p>Authors can add an optional Buy Me a Coffee username to display donation links. Donations are handled

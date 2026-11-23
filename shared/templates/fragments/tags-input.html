@@ -2,7 +2,7 @@
        name="tags"
        type="text"
        class="form-control p-0 {{ class_name }}"
-       placeholder="Tags"
+       placeholder="Topics"
        value='{% if tag_items is defined and tag_items %}{{ tag_items | tojson | safe }}{% else %}{{ ",".join(value) if value else "" }}{% endif %}'
        data-url="{{ url }}"
        {% if inject_hidden %}data-inject-hidden="true" {% endif %}

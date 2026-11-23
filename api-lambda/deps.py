@@ -1,3 +1,4 @@
+from web import read_json_body
 """API-only request dependencies.
 
 The web lambda keeps the shared read/query dependencies in ``shared``;
@@ -118,7 +119,7 @@ async def get_share_payload(request: Request):
     if len(await request.body()) > 4096:
         raise HTTPException(413, 'Sharing event too large')
     try:
-        return await request.json()
+        return await read_json_body(request)
     except ValueError:
         raise HTTPException(422, 'Invalid sharing event') from None
 

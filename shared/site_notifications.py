@@ -9,6 +9,7 @@ from web import HTTPException
 PRESENCE_INTERVAL_MS = 5 * 60 * 1000
 ONLINE_WINDOW_MS = PRESENCE_INTERVAL_MS + 60 * 1000
 NOTIFICATION_ICONS = {
+    "notify_article_bookmarks": "bookmark",
     "notify_comment_impressions": "hand-thumbs-up", "notify_article_shares": "share",
     "notify_direct_messages": "chat-dots", "notify_article_comments": "chat-left-text",
     "notify_article_status": "journal-check", "notify_user_impressions": "person-plus",

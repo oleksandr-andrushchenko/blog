@@ -7,6 +7,9 @@
         {'key': 'threads', 'name': 'Threads', 'icon': 'threads', 'route': 'share-article-threads',
          'enabled': threads_publisher_enabled, 'connected': cur_user.has_threads_integration,
          'shared': article.threads_shared_at, 'profile_base': 'https://www.threads.com/@'},
+        {'key': 'pinterest', 'name': 'Pinterest', 'icon': 'pinterest', 'route': 'share-article-pinterest',
+         'enabled': pinterest_publisher_enabled, 'connected': cur_user.has_pinterest_integration,
+         'shared': article.pinterest_shared_at, 'profile_base': 'https://www.pinterest.com/'},
         {'key': 'linkedin', 'name': 'LinkedIn', 'icon': 'linkedin', 'route': 'share-article-linkedin',
          'enabled': linkedin_publisher_enabled, 'connected': cur_user.has_linkedin_integration,
          'shared': article.linkedin_shared_at}
@@ -128,7 +131,7 @@
             message(`Sharing to ${name}…`, button)
             let preparingMedia = false
             try {
-              let payload = {}
+              let payload = button.dataset.platform === 'pinterest' ? {event_id: crypto.randomUUID()} : {}
               let data
               do {
                 const response = await fetch(button.dataset.shareUrl, {
@@ -162,7 +165,7 @@
               if (typeof data.post_url === 'string') {
                 const destinationUrl = new URL(data.post_url)
                 if (destinationUrl.protocol === 'https:' &&
-                    ['www.linkedin.com', 'www.threads.com', 'www.threads.net', 't.me'].includes(destinationUrl.hostname) &&
+                    ['www.pinterest.com', 'www.linkedin.com', 'www.threads.com', 'www.threads.net', 't.me'].includes(destinationUrl.hostname) &&
                     !destinationUrl.username && !destinationUrl.password) {
                   const link = document.createElement('a')
                   link.href = destinationUrl.href

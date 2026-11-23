@@ -414,3 +414,62 @@ def test_erasure_removes_conversation_history_peer_pointers_and_private_notifica
                    (f'USER#{uid}', 'SITE_NOTIFICATION#00000000000000000001#alert')):
         assert 'Item' not in table.get_item(Key={'pk': pk, 'sk': sk})
     assert table.get_item(Key={'pk': f'USER#{other}', 'sk': 'META'})['Item']['name'] == 'Other creator'
+
+
+def test_erasure_removes_owned_and_reverse_bookmark_references(account):
+    from bookmarks import bookmark_order_key
+    uid, other, put, table, _ = account
+    category = 'bookmarked-' + uid
+    put('CATEGORY', category, name='Bookmark Examples', published_articles_count=1)
+    article(put, uid, 'bookmarked-owned', category=category)
+    put(f'USER#{other}', 'BOOKMARK#bookmarked-owned', created_at=123)
+    put(f'USER#{other}', bookmark_order_key(123, 'bookmarked-owned'))
+    put(f'USER#{uid}', 'BOOKMARK#external-article', created_at=456)
+    put(f'USER#{uid}', bookmark_order_key(456, 'external-article'))
+    code = service.request_deletion(uid)
+    run(code)
+    for pk, sk in [(f'USER#{other}', 'BOOKMARK#bookmarked-owned'),
+                   (f'USER#{other}', bookmark_order_key(123, 'bookmarked-owned')),
+                   (f'USER#{uid}', 'BOOKMARK#external-article'),
+                   (f'USER#{uid}', bookmark_order_key(456, 'external-article'))]:
+        assert 'Item' not in table.get_item(Key={'pk': pk, 'sk': sk})
+    assert table.get_item(Key={'pk': f'USER#{other}', 'sk': 'META'})['Item']['status'] == 'active'
+
+
+
+def test_erasure_decrements_bookmarks_on_remaining_articles_once(account):
+    from bookmarks import bookmark_order_key
+    uid, other, put, table, _ = account
+    pid = 'external-' + uid
+    article(put, other, pid, bookmarks_count=2, bookmarks_revision=2)
+    for user_id in (uid, other):
+        put(f'USER#{user_id}', 'BOOKMARK#' + pid, created_at=123)
+        put(f'USER#{user_id}', bookmark_order_key(123, pid))
+    code = service.request_deletion(uid)
+    run(code)
+    remaining = table.get_item(Key={'pk': 'POST#' + pid, 'sk': 'META'}, ConsistentRead=True)['Item']
+    assert remaining['bookmarks_count'] == 1 and remaining['bookmarks_revision'] == 3
+    assert remaining['created_at'] == 1 and 'updated_at' not in remaining
+    run(code)
+    assert table.get_item(Key={'pk': 'POST#' + pid, 'sk': 'META'})['Item']['bookmarks_count'] == 1
+
+
+
+def test_erasure_removes_anonymous_bookmark_notices_and_advances_recipient_revision(account):
+    uid, other, put, table, _ = account
+    identifier = 'b' * 64
+    notice_key = 'SITE_NOTIFICATION#00000000000000000001#' + identifier
+    put('USER#' + other, unread_notifications_count=1, notifications_revision=5,
+        id=other, name='Remaining author', status='active', created_at=1)
+    put('USER#' + other, notice_key, id=identifier, actor_id=uid,
+        type='notify_article_bookmarks', is_read=False)
+    put('USER#' + other, 'SITE_NOTIFICATION_ID#' + identifier, notification_key=notice_key)
+    code = service.request_deletion(uid)
+    run(code)
+    remaining = table.get_item(Key={'pk': 'USER#' + other, 'sk': 'META'})['Item']
+    assert remaining['unread_notifications_count'] == 0
+    assert remaining['notifications_revision'] == 6
+    assert 'Item' not in table.get_item(Key={'pk': 'USER#' + other, 'sk': notice_key})
+    assert 'Item' not in table.get_item(Key={'pk': 'USER#' + other, 'sk': 'SITE_NOTIFICATION_ID#' + identifier})
+    run(code)
+    assert table.get_item(Key={'pk': 'USER#' + other, 'sk': 'META'})['Item']['notifications_revision'] == 6

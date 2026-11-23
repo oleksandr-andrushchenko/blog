@@ -17,14 +17,14 @@
     {% set visible_tags = article.tags if extended else article.tags[:1] %}
     {% for tag in visible_tags %}
         {% set display_tag = tag %}
-        <a href="{{ articles_url(tags=[tag]) }}" title="Browse articles tagged {{ display_tag }}"
+        <a href="{{ articles_url(tags=[tag]) }}" title="Browse articles about {{ display_tag }}"
            class="{{ 'btn btn-light btn-sm' if extended else 'badge text-bg-light border text-wrap text-break text-decoration-none' }}">
             <i class="bi bi-tags" aria-hidden="true"></i> {{ display_tag }}
         </a>
     {% endfor %}
     {% if not extended and article.tags | length > 1 %}
         <a href="{{ article_url(article) }}" class="badge text-bg-light border text-wrap text-break text-decoration-none"
-           title="View all {{ article.tags | length }} tags">
+           title="View all {{ article.tags | length }} topics">
             <i class="bi bi-tags" aria-hidden="true"></i> +{{ article.tags | length - 1 }}
         </a>
     {% endif %}

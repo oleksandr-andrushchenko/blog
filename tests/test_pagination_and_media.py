@@ -16,6 +16,8 @@ sys.path.insert(0, str(project_root / "shared"))
 from api_route_metadata import API_URL_ROUTES
 from query_dtos import ArticleCommentQueryDTO, ArticleListingQueryDTO, ArticleQueryDTO, UserQueryDTO, TagQueryDTO
 from shared_utils import encode_offset, get_jinja2_env
+sys.path.insert(0, str(project_root / "web-lambda"))
+from page_metadata import page_metadata_for
 from web import Application, Request, RequestValidationError, parse_dto
 from web_route_metadata import WEB_URL_ROUTES
 
@@ -106,7 +108,7 @@ def render():
     def render_template(template, metadata_only=False, **data):
         page = env.from_string('{% extends "' + template + '" %}{% block content %}{% endblock %}') \
             if metadata_only else env.get_template(template)
-        return page.render(request=request, cur_user=None, **data)
+        return page.render(request=request, cur_user=None, page_metadata=page_metadata_for(template, data), **data)
     return render_template
 
 
@@ -181,7 +183,7 @@ def test_article_breadcrumbs_keep_duplicate_display_names(render):
     ("tags.html", "tags_query", TagQueryDTO, {"tags": []}),
     ("user.html", "article_query", ArticleQueryDTO,
      {"user": SimpleNamespace(id="author", username="author", name="Author", status="active",
-                              headline="", about="", avatar_filename=None, website=None, github_username=None)}),
+                              published_articles_count=0, headline="", about="", avatar_filename=None, website=None, github_username=None)}),
 ])
 def test_cursor_listing_pages_are_not_indexable(render, template, query_name, query_type, extra):
     # Render the real metadata without requiring full models for the page body.

@@ -3,7 +3,8 @@
 
 
 {% set meta_robots = "noindex, nofollow" %}
-{% set meta_title = "New article | " ~ site_name %}
+{% set meta_title = page_metadata.title %}
+{% set meta_desc = page_metadata.description %}
 {% set meta_canonical_url = url("create-article", absolute=True) %}
 
 {% block breadcrumbs %}
@@ -13,5 +14,7 @@
 {% endblock %}
 
 {% block content %}
+    <h1>{{ page_metadata.heading }}</h1>
+    <p class="small text-secondary">{{ page_metadata.subtitle }}</p>
     {% include "fragments/article-form.html" %}
 {% endblock %}

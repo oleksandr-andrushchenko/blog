@@ -25,13 +25,8 @@
 {% set articles_title = ([val_map[article_query.type]["title"]] + [val_map[article_query.status]["title"]] + ["Articles"]) | select | join(" ") | title %}
 {% set meta_robots = ("noindex, follow" if article_query.offset else "index, follow") if user.status == UserStatus.ACTIVE and article_query.status == ArticleStatus.PUBLISHED else "noindex, nofollow" %}
 {% set articles_subtitle = ([val_map[article_query.type]["subtitle"]] + [val_map[article_query.status]["subtitle"]] + ["Articles"]) | select | join(" ") | title %}
-{% set meta_title = user.name ~ " - " ~ site_name %}
-{% set meta_desc = [
-    user.name ~ (' (@' ~ user.username ~ ')' if user.username else '') ~ " blog on " ~ site_name,
-    user.headline,
-    html_to_text(user.about),
-    site_desc
-] | select | join('. ') | truncate(155, False, '...', 0) %}
+{% set meta_title = page_metadata.title %}
+{% set meta_desc = page_metadata.description %}
 {% block meta_schema %}
     {% set same_as = [] %}
     {% if user.website %}{% set same_as = same_as + [user.website] %}{% endif %}
@@ -80,6 +75,7 @@
 {% endblock %}
 
 {% block content %}
+    {% with integration_links=creator_integration_links(user, "user_page") %}{% include "fragments/creator-integrations.html" %}{% endwith %}
     <section class="py-5 text-bg-light mb-4">
         <div class="container">
             <div class="row align-items-start g-4">

@@ -2,7 +2,8 @@
 
 {% set title = "Utils" %}
 {% set meta_robots = "noindex, nofollow" %}
-{% set meta_title = title ~ " | " ~ site_name %}
+{% set meta_title = page_metadata.title %}
+{% set meta_desc = page_metadata.description %}
 {% set meta_canonical_url = url("utils", absolute=True) %}
 {% set layout_assets = {"tagify": true} %}
 
@@ -14,6 +15,7 @@
 
 {% block content %}
     <h1>{{ title }}</h1>
+    <p class="small text-secondary">{{ page_metadata.subtitle }}</p>
 
     <div class="{{ {"def": 1, "sm": 2, "md": 3} | row_classes }}">
         {% if check_auth(cur_user, Permission.GENERATE_SITEMAP) %}

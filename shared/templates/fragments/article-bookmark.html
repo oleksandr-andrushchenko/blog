@@ -1,0 +1,22 @@
+{% if article.status == ArticleStatus.PUBLISHED %}
+    {% set bookmark_user = cur_user if cur_user is defined else request.state.cur_user | default(none) %}
+    {% if bookmark_user %}
+        {% set bookmark_state = bookmark_states.get(article.id, false) if bookmark_states is defined else false %}
+        <button type="button" class="btn btn-sm {{ 'btn-success' if bookmark_state else 'btn-light' }} btn-article-bookmark"
+                data-article-id="{{ article.id }}" data-bookmark-saved="{{ 'true' if bookmark_state else 'false' }}"
+                aria-pressed="{{ 'true' if bookmark_state else 'false' }}"
+                aria-label="{{ 'Remove bookmark' if bookmark_state else 'Bookmark this article' }}"
+                {% if bookmark_user.status != UserStatus.ACTIVE %}disabled data-bookmark-disabled="true" title="An active account is required"
+                {% else %}title="{{ 'Remove bookmark' if bookmark_state else 'Bookmark this article' }}"{% endif %}>
+            <i class="bi bi-bookmark{{ '-fill' if bookmark_state else '' }}" aria-hidden="true"></i> <span>{{ 'Bookmarked' if bookmark_state else 'Bookmark' }}</span>
+            <span data-bookmarks-count="{{ article.id }}" data-count="{{ article.bookmarks_count }}"{% if not article.bookmarks_count %} class="d-none"{% endif %}>{{ '{:,}'.format(article.bookmarks_count) }}</span>
+        </button>
+    {% else %}
+        <a href="{{ url('login', redirect_url=article_url(article)) }}" class="btn btn-sm btn-light"
+           data-auth-action="bookmark" data-auth-target="{{ article.id }}"
+           rel="nofollow" title="Sign up to bookmark this article" aria-label="Sign up to bookmark this article">
+            <i class="bi bi-bookmark" aria-hidden="true"></i> <span>Bookmark</span>
+            <span data-bookmarks-count="{{ article.id }}" data-count="{{ article.bookmarks_count }}"{% if not article.bookmarks_count %} class="d-none"{% endif %}>{{ '{:,}'.format(article.bookmarks_count) }}</span>
+        </a>
+    {% endif %}
+{% endif %}

@@ -7,10 +7,10 @@
 {% endfor %}
 <form id="home-search-form" action="{{ articles_url() }}" role="search" aria-label="Find articles" novalidate
       class="{{ {"xl": 10} | col_classes }} mx-auto position-relative text-start">
-    <label for="home-search" class="visually-hidden">Find articles by category or tag</label>
+    <label for="home-search" class="visually-hidden">Find articles by category or topic</label>
     <div class="input-group flex-nowrap" style="min-height: 2.75rem;">
         <input id="home-search" type="text" class="form-control bg-body text-body"
-               placeholder="Search articles by category or tag…" autocomplete="off"
+               placeholder="Search articles by category or topic…" autocomplete="off"
                aria-describedby="home-search-help"
                data-categories="{{ search_categories.items | tojson | forceescape }}"
                data-tags-url="{{ url('api-tags', absolute=True) }}">
@@ -88,7 +88,7 @@
     })
     finder.DOM.scope.classList.add("home-article-finder", "bg-body", "text-body", "flex-nowrap", "align-items-center")
     finder.DOM.input.classList.add("text-nowrap")
-    finder.DOM.input.setAttribute("aria-label", "Find articles by category or tag")
+    finder.DOM.input.setAttribute("aria-label", "Find articles by category or topic")
     finder.DOM.input.setAttribute("aria-describedby", status.id)
 
     let timer
@@ -128,13 +128,13 @@
           const items = await response.json()
           if (signal.aborted) return
           const tags = items.filter(item => Number(item.articles_count) > 0)
-            .slice(0, 4).map(item => suggestion(item, "Tag", "tags"))
+            .slice(0, 4).map(item => suggestion(item, "Topic", "tags"))
           finder.whitelist = [...local, ...tags]
           if (finder.whitelist.length) finder.dropdown.show(query)
           else finder.dropdown.hide()
-          setStatus(finder.whitelist.length ? "" : "No matching categories or tags.")
+          setStatus(finder.whitelist.length ? "" : "No matching categories or topics.")
         } catch (error) {
-          if (!signal.aborted) setStatus("Tag suggestions could not load. Choose a category or browse all articles.")
+          if (!signal.aborted) setStatus("Topic suggestions could not load. Choose a category or browse all articles.")
         } finally {
           if (!signal.aborted) finder.loading(false)
         }
@@ -152,7 +152,7 @@
     })
     form.addEventListener("submit", event => {
       event.preventDefault()
-      setStatus("Choose a category or tag from the suggestions.")
+      setStatus("Choose a category or topic from the suggestions.")
     })
   })
 </script>

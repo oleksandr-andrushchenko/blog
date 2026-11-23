@@ -211,6 +211,10 @@ def _mark(code, state, kind, identifier):
 
 
 def _article_id(item):
+    if item['sk'].startswith('BOOKMARK#'):
+        return item['sk'].removeprefix('BOOKMARK#')
+    if item['sk'].startswith('BOOKMARK_AT#'):
+        return item['sk'].rsplit('#', 1)[-1]
     if item['pk'].startswith('POST_SHARE#'):
         return item['pk'].removeprefix('POST_SHARE#')
     if item['pk'].startswith('POST#'):
@@ -383,6 +387,17 @@ def _remove(code, state, item, phase):
         guard['ExpressionAttributeValues'] = {':action': item['action']}
     article_item = get_dynamodb_item(f'POST#{article_id}', 'META', consistent_read=True) if article_id else None
     article_owner = article_item.get('user_id') if article_item else None
+    if sk.startswith('BOOKMARK#') and not own_article and article_item:
+        from bookmark_service import add_bookmark_count_update
+        add_bookmark_count_update(writes, article_item, -1)
+    if sk.startswith('SITE_NOTIFICATION#'):
+        identifier = item.get('id') or sk.rsplit('#', 1)[-1]
+        add_dynamodb_delete_transact(writes, (pk, f'SITE_NOTIFICATION_ID#{identifier}'))
+        if pk != f'USER#{uid}':
+            _existing_update(writes, pk, 'META', {
+                'notifications_revision': 1,
+                **({'unread_notifications_count': -1} if not item.get('is_read') else {}),
+            })
     action = item.get('action')
     if sk.startswith('IMP#') and action in ('like', 'dislike'):
         field = action + 's_count'

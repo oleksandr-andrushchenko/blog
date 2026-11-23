@@ -1,4 +1,6 @@
 {% extends "layout.html" %}
+{% set meta_title = page_metadata.title %}
+{% set meta_desc = page_metadata.description %}
 {% set layout_assets = {"validation": true} %}
 {% set peer_first_name = peer.name.split() | first | default("Member") %}
 {% set title = "Messages with " ~ peer_first_name %}

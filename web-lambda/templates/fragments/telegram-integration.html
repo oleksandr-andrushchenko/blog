@@ -1,4 +1,4 @@
-<section id="telegram-integration" aria-labelledby="telegram-heading" class="d-none d-flex flex-column gap-3">
+<section id="telegram-integration" aria-labelledby="telegram-heading" class="d-none card card-body gap-3 mb-4">
     <h2 class="h5 mb-0" id="telegram-heading"><i class="bi bi-telegram me-1" aria-hidden="true"></i>Telegram channel</h2>
     <p class="mb-0">Share articles to your Telegram channel.</p>
     <ol class="mb-0">
@@ -20,7 +20,19 @@
         </button>
     </div>
     <p class="form-text mb-0">Disconnecting leaves your existing channel posts in place.</p>
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="telegram_show_on_user_page" name="telegram_show_on_user_page" disabled
+               {% if user.telegram_show_on_user_page %}checked{% endif %}>
+        <label class="form-check-label" for="telegram_show_on_user_page">Show on my profile</label>
+    </div>
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="telegram_show_on_articles_pages" name="telegram_show_on_articles_pages" disabled
+               {% if user.telegram_show_on_articles_pages %}checked{% endif %}>
+        <label class="form-check-label" for="telegram_show_on_articles_pages">Show on my article pages</label>
+    </div>
+    <p class="form-text mb-0">Save your profile to apply visibility settings. Your channel appears only while connected. Private channels show their name without a link</p>
 </section>
+
 <script>
   document.addEventListener("DOMContentLoaded", () => {
     const endpoint = {{ url('telegram-connection', user_id=user.id, absolute=True) | tojson }}
@@ -53,6 +65,7 @@
         const data = await request("GET")
         document.getElementById("telegram-integration").classList.toggle("d-none", !data.configured)
         connect.disabled = !data.configured
+        ;[document.getElementById("telegram_show_on_user_page"), document.getElementById("telegram_show_on_articles_pages")].forEach(input => { input.disabled = !data.connected })
         connect.classList.toggle("btn-dark", data.connected)
         connect.classList.toggle("btn-outline-dark", !data.connected)
         connectLabel.textContent = data.connected ? "Connect another channel" : "Connect Telegram"
@@ -67,6 +80,7 @@
         if (data.pending) status.textContent += " Complete the channel selection in Telegram."
         status.className = data.connected ? "text-success" : "text-secondary"
       } catch (error) {
+        ;[document.getElementById("telegram_show_on_user_page"), document.getElementById("telegram_show_on_articles_pages")].forEach(input => { input.disabled = true })
         status.textContent = error.message
         status.className = "text-danger"
       } finally {
@@ -113,6 +127,7 @@
         connect.classList.remove("btn-dark")
         connect.classList.add("btn-outline-dark")
         connectLabel.textContent = "Connect Telegram"
+        ;[document.getElementById("telegram_show_on_user_page"), document.getElementById("telegram_show_on_articles_pages")].forEach(input => { input.disabled = true })
         status.textContent = "Telegram disconnected."
         status.className = "text-secondary"
       } catch (error) {

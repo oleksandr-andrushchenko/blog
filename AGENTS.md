@@ -454,7 +454,8 @@
   Do not pin versions or add refresh markers. Application startup remains environment-only; do not add runtime
   store calls or automatic refresh. Store updates require explicit deployment.
 - Production scripts bootstrap credentials after container startup; keep raw values out of Docker Config.Env,
-  argv, generated env/build files and logs. Their shared lock covers execution. Worktrees use `PROD_CONFIG_DIR`
+  argv, generated env/build files and logs. Their shared lock covers configuration loading; commands then
+  run from that snapshot after releasing it. Worktrees use `PROD_CONFIG_DIR`
   and `PROD_CONFIG_FILENAME` to mount the resolved main bootstrap directory. Older checkouts require the loader.
 - The migration runs through scripts-production, defaults to a redacted dry run, and requires an explicit command
   for `--apply`. Read back all individual records before replacing the local file; preserve existing keys,
@@ -468,3 +469,61 @@
 
 - Make only consumes nonsecret owner/stage/domain/zone deployment settings; application values and asset counters
   belong to `production_config.py`. Build cleanup must preserve unrelated `.tmp` checkpoints and importer state.
+
+## November 2026 PromptCatalog ports
+
+- The monthly review through sibling `851fc6d` is recorded in
+  `docs/promptcatalog-ports-2026-11.md`, including applicable ports, exclusions, and rollout requirements.
+- Shared JSON body parsing uses `read_json_body`: malformed/non-object/invalid-encoding input returns 422.
+  Request diagnostics are allowlisted and contain byte counts and parse positions, never body text or credentials.
+- Production scripts hold the shared lock only while loading their configuration snapshot, then release it
+  before execution and clear `PRODUCTION_LOCK_HELD`. Deployments retain their full-operation lock. An omitted
+  `SES_FROM_EMAIL` defaults to `no-reply@DOMAIN_NAME`; explicit script configuration is preserved.
+- Activity calendars use UTC daily/type counters. New writes are API-owned in `activity_service.py` and
+  share their caller's guarded transaction. Legacy accounts retain complete raw-history fallback until
+  `scripts/migrate_activity_counters.py` is explicitly applied after compatible writers have drained.
+  Migration is dry-run by default; activation verifies staged totals, and detail pruning is separately opt-in.
+- Article bookmarks are private account records with public aggregate totals. Web detail/private lists render
+  state on the server; public lists never fetch membership. Mutations, revisions, pointers, and totals commit
+  together. Notifications are anonymous to authors and honor default-enabled `notify_article_bookmarks`.
+  Erasure removes reverse references, repairs surviving totals, and advances notification revisions.
+- Sign-in handoffs use `shared/login_flow.py` with state, nonce, PKCE, browser binding, single-use claims,
+  and session-bound continuations. Finish only explicit guest actions through the API, atomically consuming
+  their continuation. Desired-state reactions never toggle an existing matching reaction. Preserve active-account
+  and pending-erasure guards. Return URLs stay same-origin, ASCII-safe, cursor-free, and outside auth pages.
+  DynamoDB TTL is cleanup only; every handoff checks expiration explicitly.
+- Guest comment drafts stay in tab-scoped IndexedDB with a 15-minute lifetime, are restored for review,
+  and are removed after a successful post. Never post restored text automatically. `static/comment-draft.js`
+  must remain tracked despite the static-directory ignore rule.
+- Integration visibility preferences are owner-only profile fields. Public provider identities are allowlisted,
+  opt-in snapshots, never raw connection records; public pages must not query credential records. Provider cards
+  remain hidden until their API status confirms availability. Keep LinkedIn's existing controls alongside new providers.
+- Pinterest OAuth/token/board/publishing operations remain API-owned. Publish only a public article cover,
+  title, preview, and canonical URL through an explicit active-owner action. Keep UUID receipts for uncertain
+  requests and never retry automatically. `PINTEREST_*` credentials stay out of the web Lambda; public website
+  `SITE_*` social URLs are independent of connections and publishing credentials.
+- Isolated Python test services load `tests/support/sitecustomize.py` before application imports. Real
+  external transports must be mocked. The test network has no public egress, and the shared audit log makes
+  even caught outbound attempts fail the suite. Run `make tests` and relevant Node UI harnesses.
+
+- Public labels call article tags “Topics.” Keep existing `/tags` URLs, route names, field names,
+  stored keys, and saved user-provided names compatible; this is presentation terminology.
+
+
+## Catalog descriptions and page metadata
+
+- Topics retain legacy tag routes and persistence keys. Topics and categories have separate optional
+  plain-text `description` and `meta_description` fields (at most 1,000 characters); old records default
+  to empty fields. Visible descriptions belong below collection H1s, while search summaries feed metadata.
+- Web-owned page metadata composes existing article previews and profile headline/about values; do not
+  add duplicate stored description fields to articles/users. Do not use a single-entity search summary
+  for a topic/category intersection.
+- Catalog metadata backfills use `scripts/enrich_catalog_descriptions.py` through `scripts-production`.
+  Export authoring context, review copy, then preview `--apply-plan`; writes additionally require `--apply`.
+  Compare saved name and copy atomically, preserve timestamps/counters, and keep review plans in ignored `.tmp`.
+
+- Local dummy fixtures seed both catalog copy fields through category/topic services. Keep all fixture
+  topics and categories covered so SEO previews exercise visible and search descriptions independently.
+- Preserve complete metadata summaries in the layout; do not reintroduce a hard character truncation.
+  Search-title count prefixes may use known public entity totals above 15, never page sizes, intersection
+  totals inferred from one filter, or published totals on private-status views.

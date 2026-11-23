@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% set title = "Categories" %}
-{% set meta_title = title ~ " | " ~ site_name %}
-{% set meta_desc = "Browse system design article categories on " ~ site_name ~ "." %}
+{% set meta_title = page_metadata.title %}
+{% set meta_desc = page_metadata.description %}
 {% set meta_robots = "index, follow" %}
 {% set meta_canonical_url = url("categories", absolute=True) %}
 
@@ -35,7 +35,7 @@
 
 {% block content %}
     <h1>{{ title }}</h1>
-    <p class="text-secondary">Browse articles by system design area.</p>
+    <p class="small text-secondary">{{ page_metadata.subtitle }}</p>
     <div class="{{ {"def": 1, "lg": 2, "xl": 3} | row_classes }} g-3" id="categories">
         {% for category in categories %}
             {% with category_image_loading="eager" if loop.index <= 2 else "lazy" %}

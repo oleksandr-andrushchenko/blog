@@ -1,0 +1,186 @@
+<section id="pinterest-integration" aria-labelledby="pinterest-heading" class="d-none card card-body gap-3 mb-4">
+    <h2 class="h5 mb-0" id="pinterest-heading"><i class="bi bi-pinterest me-1" aria-hidden="true"></i>Pinterest account</h2>
+    <p class="mb-0 small">Connect Pinterest and choose a public board. Share a cover image from an article page to create a Pin linking back to the article</p>
+    <div id="pinterest-status" role="status" aria-live="polite">Loading connection…</div>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+        <button type="button" class="btn btn-outline-dark" id="pinterest-connect" disabled>
+            <i class="bi bi-pinterest me-1" aria-hidden="true"></i><span id="pinterest-connect-label">Connect Pinterest</span>
+        </button>
+        <button type="button" class="btn btn-outline-danger" id="pinterest-disconnect" disabled>
+            <i class="bi bi-x-circle me-1" aria-hidden="true"></i>Disconnect
+        </button>
+    </div>
+    <div>
+        <label class="form-label" for="pinterest-board">Public board for new Pins</label>
+        <select class="form-select" id="pinterest-board" data-form-ignore disabled>
+            <option value="">Connect Pinterest to choose a board</option>
+        </select>
+        <p class="form-text mb-0">Board selection is saved immediately. Create a public board on Pinterest if none appear</p>
+    </div>
+    <p class="form-text mb-0">Disconnecting leaves your existing Pins in place</p>
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="pinterest_show_on_user_page" name="pinterest_show_on_user_page" disabled
+               {% if user.pinterest_show_on_user_page %}checked{% endif %}>
+        <label class="form-check-label" for="pinterest_show_on_user_page">Show on my profile</label>
+    </div>
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="pinterest_show_on_articles_pages" name="pinterest_show_on_articles_pages" disabled
+               {% if user.pinterest_show_on_articles_pages %}checked{% endif %}>
+        <label class="form-check-label" for="pinterest_show_on_articles_pages">Show on my article pages</label>
+    </div>
+    <p class="form-text mb-0">Save your profile to apply visibility settings. Your account appears only while connected</p>
+</section>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const endpoint = {{ url('pinterest-connection', user_id=user.id, absolute=True) | tojson }}
+    const status = document.getElementById("pinterest-status")
+    const connect = document.getElementById("pinterest-connect")
+    const label = document.getElementById("pinterest-connect-label")
+    const disconnect = document.getElementById("pinterest-disconnect")
+    const board = document.getElementById("pinterest-board")
+    const boardsEndpoint = {{ url("pinterest-boards", user_id=user.id, absolute=True) | tojson }}
+    let savedBoard = ""
+    const visibilityInputs = [
+      document.getElementById("pinterest_show_on_user_page"),
+      document.getElementById("pinterest_show_on_articles_pages")
+    ]
+    let busy = false
+    let configured = false
+    let connected = false
+    let pending = false
+    const currentUrl = new URL(window.location.href)
+    const outcome = currentUrl.searchParams.get("pinterest")
+    const reason = currentUrl.searchParams.get("pinterest_reason")
+    if (outcome) {
+      currentUrl.searchParams.delete("pinterest")
+      currentUrl.searchParams.delete("pinterest_reason")
+      window.history.replaceState(null, "", currentUrl)
+    }
+
+    function controls() {
+      connect.classList.toggle("btn-dark", connected)
+      connect.classList.toggle("btn-outline-dark", !connected)
+      connect.disabled = busy || !configured
+      disconnect.disabled = busy || !(connected || pending)
+      board.disabled = busy || !connected || !configured
+      visibilityInputs.forEach(input => { input.disabled = busy || !configured || !connected })
+    }
+
+    async function request(method, payload, destination = endpoint) {
+      const response = await fetch(destination, {
+        method, credentials: "include", cache: "no-store",
+        headers: {"Content-Type": "application/json"}, ...(["POST", "PATCH"].includes(method) ? {body: JSON.stringify(payload || {})} : {})
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(typeof data.details === "string" ? data.details : "Could not update your Pinterest connection")
+      return data
+    }
+
+    async function load() {
+      if (busy) return
+      busy = true
+      controls()
+      try {
+        const data = await request("GET")
+        configured = Boolean(data.configured)
+        document.getElementById("pinterest-integration").classList.toggle("d-none", !configured)
+        connected = data.connected
+        pending = data.pending || data.reconnect_required
+        board.replaceChildren()
+        const placeholder = document.createElement("option")
+        placeholder.value = ""
+        placeholder.textContent = connected ? "Choose a public board" : "Connect Pinterest to choose a board"
+        board.append(placeholder)
+        if (connected) {
+          const result = await request("GET", null, boardsEndpoint)
+          for (const item of result.boards) {
+            const option = document.createElement("option")
+            option.value = item.id
+            option.textContent = item.name
+            board.append(option)
+          }
+          savedBoard = result.board_id || ""
+          board.value = savedBoard
+        }
+        label.textContent = connected ? "Connect another account" : "Connect Pinterest"
+        status.textContent = !configured ? "Pinterest connections are not available yet. Please try again later" :
+          connected ? `Connected to @${data.username}.` : data.reconnect_required ?
+            "Your Pinterest connection expired. Connect again to continue sharing" : "No Pinterest account connected."
+        status.className = connected ? "text-success" : "text-secondary"
+        if (outcome === "denied") status.textContent += " Connection cancelled. You can connect again when ready"
+        if (outcome === "error") {
+          const messages = {
+            authorization: "Pinterest could not authorize this account. Check that your account has access to this app, then connect again",
+            token: "Pinterest could not finish granting access. Wait a moment, then select Connect Pinterest to try again",
+            profile: "Pinterest could not confirm your account. Wait a moment, then select Connect Pinterest to try again",
+            expired: "This connection attempt expired or was replaced. Select Connect Pinterest to start again",
+            rate_limit: "Pinterest is receiving too many requests. Wait before connecting again",
+            configuration: "Pinterest connections are temporarily unavailable. Please try again later"
+          }
+          status.textContent += " " + (Object.hasOwn(messages, reason) ? messages[reason] :
+            "Could not complete the connection. Select Connect Pinterest to try again")
+          status.className = "text-danger"
+        }
+        status.textContent = status.textContent.replace(/\.$/, "")
+      } catch (error) {
+        status.textContent = error.message
+        status.className = "text-danger"
+      } finally {
+        busy = false
+        controls()
+      }
+    }
+
+    connect.addEventListener("click", async () => {
+      if (busy) return
+      busy = true
+      controls()
+      try {
+        const data = await request("POST")
+        window.location.assign(data.connect_url)
+      } catch (error) {
+        status.textContent = error.message
+        status.className = "text-danger"
+        busy = false
+        controls()
+      }
+    })
+    disconnect.addEventListener("click", async () => {
+      if (busy) return
+      busy = true
+      controls()
+      try {
+        await request("DELETE")
+        connected = pending = false
+        label.textContent = "Connect Pinterest"
+        status.textContent = "Pinterest disconnected"
+        status.className = "text-secondary"
+      } catch (error) {
+        status.textContent = error.message
+        status.className = "text-danger"
+      } finally {
+        busy = false
+        controls()
+      }
+    })
+    board.addEventListener("change", async () => {
+      if (busy || !board.value) { board.value = savedBoard; return }
+      busy = true
+      controls()
+      try {
+        const result = await request("PATCH", {board_id: board.value})
+        savedBoard = result.board_id
+        status.textContent = "Pinterest board saved"
+        status.className = "text-success"
+      } catch (error) {
+        board.value = savedBoard
+        status.textContent = error.message
+        status.className = "text-danger"
+      } finally {
+        busy = false
+        controls()
+      }
+    })
+    load()
+  })
+</script>

@@ -1,3 +1,4 @@
+from activity_service import add_activity_counter
 from dataclasses import asdict, replace
 from datetime import datetime, timezone
 from html.parser import HTMLParser
@@ -12,7 +13,7 @@ from article_dtos import (
     ArticleCommentDTO, ArticleDTO, ArticleCommentImpressionAction, UpdateArticleCommentImpressionDTO, ArticleImpressionAction, UpdateArticleCommentDTO, UpdateArticleDTO,
     UpdateArticleImpressionDTO, UpdateArticleStatusDTO, UpdateTagDTO,
 )
-from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO
+from basic_dtos import ContactMessageDTO, FileDTO, ImageFileDTO, UNSET
 from category_dtos import UpdateCategoryDTO
 from email_service import send_email
 from profile_sync_service import add_profile_sync, dispatch_profile_sync
@@ -36,7 +37,7 @@ from user_dtos import (
     UpdateUserDTO, UpdateUserImpressionDTO, UpdateUserStatusDTO,
     UserImpressionAction,
 )
-from validation import normalize_slug, validate_catalog_text, validate_category_slug
+from validation import normalize_slug, validate_catalog_text, validate_category_slug, validate_catalog_description
 from web import HTTPException, RequestValidationError
 
 
@@ -387,9 +388,9 @@ def generate_sitemap(user: User, req) -> tuple[int, str]:
     return count, sitemap_url
 
 
-def create_tag_subscription(dto: TagSubscriptionDTO, user: User, *, req=None) -> TagSubscription:
+def create_tag_subscription(dto: TagSubscriptionDTO, user: User, *, req=None, completion_writes=()) -> TagSubscription:
     tag_subscription_id, now, key = str(uuid.uuid4()), utc_now(), tag_subscription_key(dto.tags)
-    transacts = []
+    transacts = list(completion_writes)
     add_dynamodb_put_transact(transacts, (f"USER#{user.id}", f"ARTICLE_TAG_SUBSCRIPTION#{tag_subscription_id}"),
                               {"article_tag_subscription_id": tag_subscription_id, "user_id": user.id,
                                "tags": dto.tags, "article_tag_subscription_key": key, "created_at": now})
@@ -397,6 +398,12 @@ def create_tag_subscription(dto: TagSubscriptionDTO, user: User, *, req=None) ->
                               {"user_id": user.id, "article_tag_subscription_id": tag_subscription_id,
                                "article_tag_subscription_key": key, "created_at": now}, new_pk_only=True)
     add_dynamodb_user_update_transact(transacts, user, deltas={"article_tag_subscriptions_count": 1})
+    if completion_writes:
+        actor_update = next(write['Update'] for write in transacts if write.get('Update', {}).get('Key') ==
+                            {'pk': f'USER#{user.id}', 'sk': 'META'})
+        actor_update['ConditionExpression'] += ' AND #actor_status = :actor_active'
+        actor_update.setdefault('ExpressionAttributeNames', {})['#actor_status'] = 'status'
+        actor_update.setdefault('ExpressionAttributeValues', {})[':actor_active'] = 'active'
     try:
         dynamodb_transact_write(transacts)
     except DynamoDBTransactionError as exc:
@@ -456,10 +463,9 @@ def update_tag(tag: Tag, update_tag_dto: UpdateTagDTO, cur_user: User,
     add_dynamodb_tag_update_transact(transacts, tag, changes)
     dynamodb_transact_write(transacts)
 
-    if "name" in changes:
-        tag.name = changes["name"]
-    if "image_filename" in changes:
-        tag.image_filename = changes["image_filename"]
+    for field, value in changes.items():
+        if hasattr(tag, field):
+            setattr(tag, field, value)
 
     if old_image and image_action in {"delete", "replace"}:
         drop_public_file(old_image)
@@ -501,18 +507,18 @@ def update_category(category: Category, dto: UpdateCategoryDTO, cur_user: User, 
         drop_public_file(old_image)
 
 
-def create_category(slug: str, name: str, description: str, cur_user: User, *, req=None) -> Category:
+def create_category(slug: str, name: str, description: str, cur_user: User, *,
+                    req=None, meta_description: str = "") -> Category:
     verify_authorization(cur_user, Permission.UPDATE_CATEGORY)
     if cur_user.status == UserStatus.BANNED:
         raise UserBannedError()
 
     slug = validate_category_slug(slug)
     name = validate_catalog_text(name).strip()
-    description = validate_catalog_text(description).strip()
+    description = validate_catalog_description(description)
+    meta_description = validate_catalog_description(meta_description)
     if not 2 <= len(name) <= 80:
         raise ValueError("name must contain between 2 and 80 characters")
-    if not 10 <= len(description) <= 500:
-        raise ValueError("description must contain between 10 and 500 characters")
 
     existing = find_category(slug)
     if existing:
@@ -523,6 +529,7 @@ def create_category(slug: str, name: str, description: str, cur_user: User, *, r
         "category_slug": slug,
         "name": name,
         "description": description,
+        "meta_description": meta_description,
         "published_articles_count": 0,
         "created_at": now,
     }
@@ -653,8 +660,7 @@ def create_article(article_dto: ArticleDTO, cur_user: User) -> Article:
         article_item["user_slug"] = cur_user.username
     add_dynamodb_put_transact(transacts, (f"POST#{article_id}", "META"), article_item, new_pk_only=True)
 
-    add_user_activity_transact(transacts, cur_user, "article.created", "article", article_id, title,
-                               f"/articles/{article_id}", cur_user.id, now)
+    add_activity_counter(transacts, cur_user.id, "article.created", now)
     add_dynamodb_user_update_transact(transacts, cur_user, deltas={
         "unpublished_posts_count": 1,
     })
@@ -833,8 +839,7 @@ def create_article_comment(article: Article, article_comment_dto: ArticleComment
 
     add_dynamodb_put_transact(transacts, (f"POST#{article.id}", f"COMMENT#{comment_id}"), article_comment_item)
     add_dynamodb_article_update_transact(transacts, article, deltas={"comments_count": 1})
-    add_user_activity_transact(transacts, cur_user, "comment.created", "comment", comment_id, article.title,
-                               f"/articles/{article.id}#comment-{comment_id}", cur_user.id, now)
+    add_activity_counter(transacts, cur_user.id, "comment.created", now)
     add_dynamodb_user_update_transact(transacts, cur_user, deltas={
         "post_comments_count": 1,
     })
@@ -924,6 +929,9 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
         raise UserBannedError()
 
     changes = update_user_dto.get_changes(user)
+    from integration_profiles import VISIBILITY_FIELDS
+    if cur_user.id != user.id and any(getattr(update_user_dto, name) is not UNSET for name in VISIBILITY_FIELDS):
+        raise HTTPException(403, 'Only the account owner can manage public integration links')
     link_changes = {name: changes.pop(name) for name in ("support_links",) if name in changes}
     if link_changes:
         changes.update({name: [asdict(link) for link in links] for name, links in link_changes.items()})
@@ -941,6 +949,9 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
             changes["website"] = website
 
     transacts = []
+    from integration_visibility import prepare_visibility_changes
+    prepare_visibility_changes(user, changes, transacts)
+
     avatar_action = changes.pop("avatar_action", "keep")
 
     if avatar_action == "delete":
@@ -986,6 +997,8 @@ def update_user(user: User, update_user_dto: UpdateUserDTO, cur_user: User, req)
             dynamodb_transact_write(transacts)
     except DynamoDBTransactionError as e:
         if e.is_conditional():
+            if any(name in changes for name in VISIBILITY_FIELDS):
+                raise HTTPException(409, 'Connection changed. Reload your profile before saving visibility') from None
             raise SlugDuplicationError(field="username")
         raise
 
@@ -1195,7 +1208,7 @@ def create_contact_message(message_dto: ContactMessageDTO, user: User = None, *,
 
 def update_article_impression(article: Article, update_article_impression_dto: UpdateArticleImpressionDTO,
                               cur_user: User,
-                              req) -> None:
+                              req, *, ensure=False, completion_writes=()) -> None:
     verify_authorization(cur_user, Permission.UPDATE_ARTICLE_IMPRESSION, article)
 
     if cur_user.status == UserStatus.BANNED:
@@ -1204,12 +1217,22 @@ def update_article_impression(article: Article, update_article_impression_dto: U
     current_impression = find_article_impression(article, cur_user)
     current_action = current_impression.action if current_impression else None
     action = update_article_impression_dto.action
+    if ensure and current_action == action:
+        from account_write_guards import add_account_guard
+        writes = list(completion_writes)
+        add_account_guard(writes, cur_user.id)
+        guard = writes[-1]['ConditionCheck']
+        guard['ConditionExpression'] += ' AND #actor_status = :actor_active'
+        guard['ExpressionAttributeNames'] = {'#actor_status': 'status'}
+        guard['ExpressionAttributeValues'] = {':actor_active': 'active'}
+        dynamodb_transact_write(writes)
+        return
     article_impression_item = {
         "post_id": article.id,
         "user_id": cur_user.id,
         "action": action,
     }
-    transacts = []
+    transacts = list(completion_writes)
 
     article_deltas = {}
     article_imp_key = (f"POST#{article.id}", f"IMP#{cur_user.id}")
@@ -1265,7 +1288,19 @@ def update_article_impression(article: Article, update_article_impression_dto: U
     for user_id, deltas in statistics.items():
         add_statistics_update(transacts, user_id, deltas)
     guard_reaction(transacts, article_imp_key, current_action)
+    if completion_writes:
+        actor_update = next(write['Update'] for write in transacts if write.get('Update', {}).get('Key') ==
+                            {'pk': f'USER#{cur_user.id}', 'sk': 'META'})
+        actor_update['ConditionExpression'] += ' AND #actor_status = :actor_active'
+        actor_update.setdefault('ExpressionAttributeNames', {})['#actor_status'] = 'status'
+        actor_update.setdefault('ExpressionAttributeValues', {})[':actor_active'] = 'active'
     write_reaction(transacts, writer=dynamodb_transact_write)
+    logger.info('Article impression changed', extra={'context': {
+        'article_url': get_article_url(req, article, absolute=True) if req else None,
+        'by': get_user_url(req, cur_user, absolute=True) if req else cur_user.id,
+        'previous_action': current_action,
+        'action': None if current_action == action else action,
+    }})
 
     if current_impression is None and cur_user.id != article.owner_id:
         verb = 'liked' if action == ArticleImpressionAction.LIKE else 'disliked'
@@ -1361,14 +1396,15 @@ def dispatch_article_published_event(article: Article) -> None:
 
 def _send_account_notification(user: User, preference: str, subject: str, message: str,
                                target: Article | User, req=None, *, detail: str | None = None, target_url: str | None = None,
-                               event_id: str | None = None, action: str | None = None) -> None:
+                               event_id: str | None = None, action: str | None = None, actor_id: str | None = None) -> None:
     if user.status != UserStatus.ACTIVE or not getattr(user, preference):
         return
     target_url = target_url or (get_article_url(req, target, absolute=True) if isinstance(target, Article)
                   else get_user_url(req, target, absolute=True))
     from site_notification_service import create_site_notification
     delivery = create_site_notification(user, preference, subject, message, target_url,
-                                        detail=detail, event_id=event_id, action=action)
+                                        detail=detail, event_id=event_id, action=action, actor_id=actor_id,
+                                        article_id=target.id if isinstance(target, Article) else None)
     if not delivery['email'] or not user.email:
         return
     settings_url = get_url(req, 'edit-user', user_id=user.id, absolute=True) + '#notifications'

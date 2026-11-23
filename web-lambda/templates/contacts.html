@@ -3,8 +3,8 @@
 {% set title = "Contacts" %}
 {% set meta_robots = "index, follow" %}
 {% set show_details = contact_phone or contact_email or contact_address or contact_socials %}
-{% set meta_title = title ~ " ~ " ~ site_name %}
-{% set meta_desc = "Contact " ~ site_name ~ " to ask questions, share feedback, discuss partnerships, or request support. Use our contact form to report issues and reach the team." %}
+{% set meta_title = page_metadata.title %}
+{% set meta_desc = page_metadata.description %}
 {% set meta_canonical_url = url("contacts", absolute=True) %}
 
 {% block meta_schema %}
@@ -34,7 +34,7 @@
 
 {% block content %}
     <h1>{{ title }}</h1>
-    <p class="small text-secondary">Contact us</p>
+    <p class="small text-secondary">{{ page_metadata.subtitle }}</p>
 
     {% include "fragments/contact-reasons.html" %}
 
@@ -95,14 +95,7 @@
                     {% if contact_socials %}
                         <div>
                             <i class="bi bi-people"></i> Socials
-                            <div class="h3">
-                                {% for contact_social in contact_socials %}
-                                    <a href="{{ contact_social.url }}" class="link-dark" target="_blank"
-                                       rel="nofollow noopener noreferrer">
-                                        <i class="bi bi-{{ contact_social.icon }}"></i>
-                                    </a>
-                                {% endfor %}
-                            </div>
+                            {% include "fragments/site-social-links.html" %}
                         </div>
                     {% endif %}
                 </div>

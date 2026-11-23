@@ -18,6 +18,13 @@ def validate_catalog_text(value: str) -> str:
     return value
 
 
+def validate_catalog_description(value: str) -> str:
+    value = validate_catalog_text(value).strip()
+    if len(value) > 1000 or '<' in value or '>' in value:
+        raise ValueError('description must be plain text containing at most 1000 characters')
+    return value
+
+
 def validate_category_slug(value: str) -> str:
     if not isinstance(value, str) or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", value):
         raise ValueError(f"unsupported article category: {value}")

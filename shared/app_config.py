@@ -32,6 +32,13 @@ def _get_live_config() -> dict[str, Any]:
         "telegram_publisher_enabled": os.getenv("TELEGRAM_PUBLISHER_ENABLED"),
         "threads_publisher_enabled": os.getenv("THREADS_PUBLISHER_ENABLED"),
         "linkedin_publisher_enabled": os.getenv("LINKEDIN_PUBLISHER_ENABLED"),
+        "pinterest_app_id": os.getenv("PINTEREST_APP_ID", ""),
+        "pinterest_app_secret": os.getenv("PINTEREST_APP_SECRET", ""),
+        "pinterest_token_encryption_key": os.getenv("PINTEREST_TOKEN_ENCRYPTION_KEY", ""),
+        "pinterest_publisher_enabled": os.getenv("PINTEREST_PUBLISHER_ENABLED", ""),
+        "site_telegram_channel_url": os.getenv("SITE_TELEGRAM_CHANNEL_URL", ""),
+        "site_threads_profile_url": os.getenv("SITE_THREADS_PROFILE_URL", ""),
+        "site_pinterest_profile_url": os.getenv("SITE_PINTEREST_PROFILE_URL", ""),
         "threads_app_id": os.getenv("THREADS_APP_ID", ""),
         "linkedin_app_id": os.getenv("LINKEDIN_APP_ID", ""),
         "linkedin_app_secret": os.getenv("LINKEDIN_APP_SECRET", ""),
@@ -238,6 +245,7 @@ def get_publisher_enabled(provider: str) -> bool:
     if flag not in (None, ''):
         return str(flag).strip().lower() == 'true'
     credentials = {'telegram': ('telegram_publisher_bot_token', 'telegram_publisher_webhook_secret'),
+                   'pinterest': ('pinterest_app_id', 'pinterest_app_secret', 'pinterest_token_encryption_key'),
                    'threads': ('threads_app_id', 'threads_app_secret', 'threads_token_encryption_key'),
                    'linkedin': ('linkedin_app_id', 'linkedin_app_secret', 'linkedin_token_encryption_key')}
     return all(str(settings.get(key) or '').strip() for key in credentials[provider])

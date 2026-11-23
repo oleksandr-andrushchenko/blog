@@ -29,7 +29,7 @@
             </div>
         </fieldset>
 
-        <small class="text-secondary bi bi-tags"> Tags:</small>
+        <small class="text-secondary bi bi-tags"> Topics:</small>
         {% with url=url("api-tags", absolute=True), value=article.tags if article else [] %}
             {% include "fragments/tags-input.html" %}
         {% endwith %}

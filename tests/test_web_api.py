@@ -67,7 +67,7 @@ def get_user(client, user_alias) -> pq:
     assert schema["breadcrumb"]["itemListElement"][-1]["name"] == user["name"]
     assert all(value is not None for value in schema.values())
     assert doc('meta[property="og:type"]').attr("content") == "profile"
-    assert doc('meta[name="description"]').attr("content").startswith(user["name"])
+    assert user["name"] in doc('meta[name="description"]').attr("content")
     main_el = doc("main")
     assert user["name"] in main_el("h1").text()
     return doc
@@ -93,7 +93,7 @@ def get_users(client):
     resp = get(client, "/users")
     assert resp.status_code == 200
     doc = pq(resp.text)
-    assert "users" in doc("head title").text().lower()
+    assert "community" in doc("head title").text().lower()
     schema = json.loads(doc('script[type="application/ld+json"]').text())
     assert schema["@type"] == "CollectionPage"
     assert schema["mainEntity"]["@type"] == "ItemList"
@@ -170,9 +170,9 @@ def check_header(doc, user_alias: str | None):
     header_el = doc("header")
     assert header_el('a[href$="/"]')
     assert header_el('a[href$="/articles"]')
-    assert header_el('a[href$="/categories"]').parent().next()('a[href$="/tags"]').text() == "Tags"
+    assert header_el('a[href$="/categories"]').parent().next()('a[href$="/tags"]').text() == "Topics"
     assert not header_el('a[href$="/users"]')
-    for path, label in (("/tags", "Tags"), ("/users", "Community")):
+    for path, label in (("/tags", "Topics"), ("/users", "Community")):
         assert doc("footer")(f'a[href$="{path}"]').text() == label
     assert header_el('a[href$="/contacts"]')
     if user_alias:
@@ -281,6 +281,8 @@ def check_articles(doc, articles_count: int, unpublished_control: bool, rejected
     else:
         assert not rejected_el
     tags_el = form_el('#tags-input')
+    if tags_control:
+        assert tags_el.attr('placeholder') == 'Topics'
     if tags_control:
         assert tags_el
         assert tags_el.attr("data-inject-hidden") == "true"
@@ -734,7 +736,7 @@ def test_public_page_seo_schema_and_metadata(guest_client, path, schema_type):
 
 
 @pytest.mark.parametrize(("path", "heading", "selector"), [
-    ("/", "SysDesPro", "h1"),
+    ("/", "System Design Articles", "h1"),
     ("/articles", "Articles", "h1"),
     ("/users", "Users", "h1"),
     ("/latest/users", "Users", "h1"),
@@ -801,8 +803,8 @@ def test_tags_fragment_endpoint_success(guest_client):
 
 
 @pytest.mark.parametrize(("tag_type", "expected_title", "canonical_suffix"), [
-    ("latest", "Latest Tags", "/tags"),
-    ("popular", "Popular Tags", "/tags?type=popular"),
+    ("latest", "Recently Added Topics", "/tags"),
+    ("popular", "Popular Topics", "/tags?type=popular"),
 ])
 def test_tags_page_type_is_in_metadata_and_heading(guest_client, tag_type, expected_title, canonical_suffix):
     response = guest_client.get(f"{WEB_TEST_BASE_URL}/tags?type={tag_type}", timeout=30)
@@ -810,9 +812,9 @@ def test_tags_page_type_is_in_metadata_and_heading(guest_client, tag_type, expec
     assert response.status_code == 200
     doc = pq(response.text)
     schema = json.loads(doc('script[type="application/ld+json"]').text())
-    assert expected_title in doc("head title").text()
+    assert expected_title.replace("Topics", "System Design Topics") in doc("head title").text()
     assert doc("main h1").text() == expected_title
-    assert expected_title in doc('meta[name="description"]').attr("content")
+    assert "system design topics" in doc('meta[name="description"]').attr("content")
     assert schema["name"] == expected_title
     assert schema["url"].endswith(canonical_suffix)
     assert doc('link[rel="canonical"]').attr("href").endswith(canonical_suffix)
@@ -856,7 +858,7 @@ def test_login_does_not_return_to_authentication_pages(path):
     response = get(get_guest_client(), "/login", headers={"Referer": WEB_TEST_BASE_URL + path},
                    allow_redirects=False)
     assert response.status_code == 307
-    assert SimpleCookie(response.headers["Set-Cookie"])["redirect_url"].value == "/"
+    assert response.cookies["redirect_url"].strip('"') == "/"
     assert response.headers["Cache-Control"] == "no-store"
 
 
@@ -888,14 +890,14 @@ def test_login_callback_validates_stored_return_destination(target, expected):
 def test_login_preserves_normal_return_destinations():
     response = get(get_guest_client(), "/login", headers={"Referer": WEB_TEST_BASE_URL + "/tags"},
                    allow_redirects=False)
-    assert SimpleCookie(response.headers["Set-Cookie"])["redirect_url"].value == WEB_TEST_BASE_URL + "/tags"
+    assert response.cookies["redirect_url"].strip('"') == WEB_TEST_BASE_URL + "/tags"
     response = get(get_guest_client(), "/login", params={"redirect_url": "/articles"},
                    allow_redirects=False)
-    assert SimpleCookie(response.headers["Set-Cookie"])["redirect_url"].value == "/articles"
+    assert response.cookies["redirect_url"].strip('"') == "/articles"
     response = get(get_guest_client(), "/login", params={
         "redirect_url": "/articles?tags=cache&offset=invalid&tags=queues&limit=2#comments",
     }, allow_redirects=False)
-    assert SimpleCookie(response.headers["Set-Cookie"])["redirect_url"].value == "/articles?tags=cache&tags=queues&limit=2#comments"
+    assert response.cookies["redirect_url"].strip('"') == "/articles?tags=cache&tags=queues&limit=2#comments"
 
 
 def test_logout_callback_success_and_wrong_method_failure(guest_client):
@@ -923,7 +925,7 @@ def test_user_edit_update_and_fragment_endpoints_success_and_failure(root_user_c
     assert [tab.text() for tab in form('[role="tab"]').items()] == [
         'Personal info', 'Links', 'Earn', 'Notifications', 'Integrations',
     ]
-    assert len(form('#notifications input[type="checkbox"]:checked')) == 8
+    assert len(form('#notifications input[type="checkbox"]:checked')) == 9
     assert form('.tab-pane.active').attr('id') == 'personal-info'
     assert form('#personal-info [name="name"]') and form('#personal-info [name="avatar_action"]')
     assert form('#links [name="website"]') and form('#links [name="github_username"]')
@@ -934,7 +936,8 @@ def test_user_edit_update_and_fragment_endpoints_success_and_failure(root_user_c
     assert 'Could not check available' not in edit_success.text
     assert form('#integrations #telegram-connect').text() == 'Connect Telegram'
     assert form('#integrations #linkedin-connect').text() == 'Connect LinkedIn'
-    assert not form('#integrations input[name]')
+    assert len(form('#integrations input[name]')) == 6
+    assert all(control.attr('type') == 'checkbox' for control in form('#integrations input[name]').items())
     assert not form('#medium-integration')
     assert not form('#telegram-token')
     linkedin_url = f"/users/{root_id}/integrations/linkedin"
@@ -1307,7 +1310,7 @@ def test_article_read_edit_update_status_endpoints_success_and_failure(guest_cli
     )
     assert category_tag_article_page.status_code == 200
     category_tag_doc = pq(category_tag_article_page.text)
-    expected_title = "Latest Functional-Tag Articles in Distributed Systems"
+    expected_title = "Functional-Tag Articles in Distributed Systems"
     assert expected_title in category_tag_doc("head title").text()
     assert category_tag_doc("main h1").text() == expected_title
     category_item = dynamodb_table.get_item(
@@ -1351,6 +1354,7 @@ def test_categories_page_and_admin_update_endpoints(guest_client):
     update_success = patch(root_client, "/categories/distributed-systems", json={
         "name": name,
         "description": description,
+        "meta_description": "Search summary for distributed architecture and its trade-offs.",
         "image_action": "keep",
     })
     assert update_success.status_code == 200, update_success.text
@@ -1358,6 +1362,24 @@ def test_categories_page_and_admin_update_endpoints(guest_client):
     categories_page = get(guest_client, "/categories").text
     assert name in categories_page
     assert description in categories_page
+    collection = pq(get(guest_client, "/articles?category=distributed-systems").text)
+    assert collection('main h1 + p').text() == description
+    assert collection('meta[name="description"]').attr('content') == "Search summary for distributed architecture and its trade-offs."
+    assert collection('meta[property="og:description"]').attr('content') == collection('meta[name="description"]').attr('content')
+    topic_description = "Understand service contracts and practical API trade-offs"
+    topic_summary = "Articles about service contracts, compatibility, API decisions, versioning strategies, request validation, failure handling, operational visibility, and production trade-offs."
+    topic_update = patch(root_client, "/tags/functional-tag", json={"description": topic_description, "meta_description": topic_summary})
+    assert topic_update.status_code == 200, topic_update.text
+    topic_collection = pq(get(guest_client, "/articles?tags=functional-tag").text)
+    assert topic_collection('main h1 + p').text() == topic_description
+    assert topic_collection('meta[name="description"]').attr('content') == topic_summary
+    assert topic_description in get(root_client, "/tags/functional-tag/edit").text
+    directory_response = guest_client.get(f"{WEB_TEST_BASE_URL}/tags?prefix=functional-tag", timeout=30)
+    assert directory_response.status_code == 200
+    assert directory_response.headers['content-type'].startswith('text/html')
+    topic_directory = pq(directory_response.text)
+    assert topic_directory('main h1').text() == 'Search Topics'
+    assert topic_directory(".tag .card-text").text() == topic_description
 
     immutable_category_slug = patch(root_client, "/categories/distributed-systems", json={
         "slug": "distributed-architecture",
@@ -1991,7 +2013,7 @@ def test_guest_article_controls_preserve_return_url_and_keep_support_public(gues
             assert login.path == "/login"
             assert parse_qs(login.query)["redirect_url"] == [destination]
             login_response = get(guest_client, link.attr("href"), allow_redirects=False)
-            assert SimpleCookie(login_response.headers["Set-Cookie"])["redirect_url"].value == destination
+            assert login_response.cookies["redirect_url"].strip('"').strip('"') == destination
         support_section = doc("aside > .creator-support-link")
         assert len(doc(".creator-support-link")) == len(support_section) == 1
         assert support_section.prev("section")("h2").text() == "Author"
@@ -3288,3 +3310,30 @@ def test_article_provenance_is_validated_persisted_and_kept_out_of_public_conten
     assert cleared.status_code == 200, cleared.text
     saved = get_dynamodb_article(article_id)
     assert 'source' not in saved and 'generation' not in saved
+
+
+@pytest.mark.parametrize('endpoint', ['/login', '/logout'])
+@pytest.mark.parametrize('destination', [
+    '/articles?tags=openai-gpt-image-2-0-и-2-5-одинаковый-оригинал-и-один-промпт',
+    '/articles/日本語?tags=café&next=%2Ftags#résultats',
+    '/articles?tags=openai-gpt-image-%D0%B8&limit=10',
+])
+def test_auth_handoffs_encode_unicode_return_urls_without_double_encoding(endpoint, destination):
+    expected = quote(destination, safe="/#%[]=:;$&()+,!?*@'~")
+    client = get_guest_client()
+    response = get(client, endpoint, params={'redirect_url': destination}, allow_redirects=False)
+    assert response.status_code == 307, response.text
+    cookies = [SimpleCookie(header) for header in response.raw.headers.getlist('Set-Cookie')]
+    assert next(cookie['redirect_url'].value for cookie in cookies if 'redirect_url' in cookie) == expected
+    if endpoint == '/login':
+        params = parse_qs(urlsplit(response.headers['location']).query)
+        callback = get(client, '/login-callback', params={'state': params['state'][0], 'error': 'access_denied'},
+                       allow_redirects=False)
+    else:
+        # The isolated service uses HTTP; explicitly replay the production Secure cookie.
+        cookie_value = next(cookie['redirect_url'].coded_value for cookie in cookies if 'redirect_url' in cookie)
+        callback = get(client, '/logout-callback', headers={'Cookie': 'redirect_url=' + cookie_value},
+                       allow_redirects=False)
+    assert callback.status_code in (302, 307), callback.text
+    assert callback.headers['location'] == expected
+    assert callback.headers['location'].isascii()

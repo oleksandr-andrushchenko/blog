@@ -1,0 +1,15 @@
+{% if integration_links %}
+    <div class="d-flex flex-wrap gap-3 my-2">
+        {% for integration in integration_links %}
+            <div>
+                <i class="bi {{ integration.icon }} me-1" aria-hidden="true"></i><span>{{ integration.provider }}:</span>
+                {% if integration.url %}
+                    <a class="text-decoration-none link-body-emphasis" href="{{ integration.url }}"
+                       target="_blank" rel="nofollow noopener noreferrer">{{ integration.label }}</a>
+                {% else %}
+                    <span>{{ integration.label }}</span>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}

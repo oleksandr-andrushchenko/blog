@@ -4,7 +4,8 @@
 
 {% set title = ("Edit " ~ article.title) | trim %}
 {% set meta_robots = "noindex, nofollow" %}
-{% set meta_title = title ~ " | " ~ site_name %}
+{% set meta_title = page_metadata.title %}
+{% set meta_desc = page_metadata.description %}
 {% set meta_canonical_url = url("edit-article", article_id=article.id, absolute=True) %}
 
 {% block breadcrumbs %}
@@ -14,5 +15,7 @@
 {% endblock %}
 
 {% block content %}
+    <h1>{{ page_metadata.heading }}</h1>
+    <p class="small text-secondary">{{ page_metadata.subtitle }}</p>
     {% include "fragments/article-form.html" %}
 {% endblock %}

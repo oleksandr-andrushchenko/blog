@@ -5,10 +5,10 @@
 {% set title = "For creators" %}
 {% set h1 = "Share Your Knowledge. Earn Support for Your Work" %}
 
-{% set meta_title = title ~ " | " ~ site_name %}
+{% set meta_title = page_metadata.title %}
 {% set meta_robots = "index, follow" %}
 {% set meta_canonical_url = url("earn", absolute=True) %}
-{% set meta_desc = "Publish articles on " ~ site_name ~ ", grow your audience, invite reader support, and share your work on Telegram and Threads." %}
+{% set meta_desc = page_metadata.description %}
 
 {% block meta_schema %}
     {{- {
@@ -94,7 +94,7 @@
             <h2 id="start-sharing" class="h3">Your next article could start a conversation</h2>
             <ol class="ps-3 mb-4">
                 <li class="mb-2"><strong>Make it yours.</strong> Add your bio, website, and support links to your profile.</li>
-                <li class="mb-2"><strong>Share something useful.</strong> Publish a clear article with examples, a category, and tags.</li>
+                <li class="mb-2"><strong>Share something useful.</strong> Publish a clear article with examples, a category, and topics.</li>
                 <li><strong>Bring people to your work.</strong> Share your published article, welcome feedback, and keep creating.</li>
             </ol>
             <p>You keep ownership of your work. Submit material you have the rights to share under our

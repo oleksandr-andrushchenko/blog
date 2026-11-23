@@ -1,7 +1,10 @@
-from datetime import timedelta
+from activity_counters import ACTIVITY_COUNTER_VERSION, ACTIVITY_TIMEZONE, activity_counts, activity_day
+from shared_utils import get_dynamodb_item
+from datetime import datetime, timedelta, timezone
+from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
-from query_dtos import ArticleCommentQueryDTO
+from query_dtos import ArticleCommentQueryDTO, ArticleQueryDTO
 from creator_links import encode_creator_click, get_creator_link
 from starlette.background import BackgroundTask
 from starlette.responses import RedirectResponse, Response
@@ -17,7 +20,7 @@ from shared_utils import (
     Article, ArticleStatus, ArticleQueryType, ArticleNotFoundError,
     ArticleByOldSlugRequestedError, User, UserStatus, UserNotFoundError,
     UserByOldSlugRequestedError, NotAuthenticatedError, Permission,
-    find_article, find_article_by_slug_follow_redirects, find_user_by_username_follow_redirects,
+    find_user, get_latest_articles_by_user, find_article, find_article_by_slug_follow_redirects, find_user_by_username_follow_redirects,
     check_authorization, verify_authorization,
     article_comment_from_dynamodb, decode_offset, get_url, get_article_url, get_user_url, logger,
     query_dynamodb_table, Key,
@@ -37,10 +40,10 @@ def get_login_redirect_url(callback_url: str) -> str:
     return callback_url
 
 
-def get_user_token_by_code(code: str, callback_url: str, *, req=None) -> UserTokenDTO:
+def get_user_token_by_code(code: str, callback_url: str, *, req=None, verifier=None, nonce=None) -> UserTokenDTO:
     from cognito_auth import exchange_login_code
 
-    user_token = exchange_login_code(code, callback_url)
+    user_token = exchange_login_code(code, callback_url, verifier=verifier, nonce=nonce)
     upsert_user_by_user_token(user_token, req=req)
     return user_token
 
@@ -86,71 +89,77 @@ def get_logout_redirect_url(callback_url: str) -> str:
 
 
 def get_auth_return_url(req, value: str | None) -> str:
-    fallback = get_url(req, "index")
-    if not value or "\\" in value or any(ord(char) < 32 for char in value):
-        return fallback
-    try:
-        parsed = urlparse(value)
-        base_url = urlparse(get_web_base_url())
-    except ValueError:
-        return fallback
-    if parsed.netloc:
-        if parsed.netloc != base_url.netloc or parsed.scheme not in {"", base_url.scheme}:
-            return fallback
-    elif parsed.scheme or not parsed.path.startswith("/"):
-        return fallback
-    path = unquote(parsed.path).rstrip("/") or "/"
-    if path in WEB_AUTH_URL_ROUTES.values() or path.startswith("//"):
-        return fallback
-    query = parse_qsl(parsed.query, keep_blank_values=True)
-    if any(key == "offset" for key, _ in query):
-        return parsed._replace(query=urlencode([(key, value) for key, value in query if key != "offset"])).geturl()
-    return value
+    from login_flow import return_url
+    return return_url(value)
 
 
 def get_redirect_url(req) -> str:
     return get_auth_return_url(req, req.query_params.get("redirect_url") or req.headers.get("referer"))
 
 
-def get_user_activities(user: User, year: int | None = None, recent_limit: int = 10) -> dict[str, Any]:
-    now = datetime.now(timezone.utc)
+def get_user_activities(user: User, year: int | None = None) -> dict[str, Any]:
+    now = datetime.now(ACTIVITY_TIMEZONE)
     if year is None:
         # Show the current calendar month plus the preceding 11 months.
         month_index = now.year * 12 + (now.month - 1) - 11
         start_year, start_month = divmod(month_index, 12)
-        start = datetime(start_year, start_month + 1, 1, tzinfo=timezone.utc)
+        start = datetime(start_year, start_month + 1, 1, tzinfo=ACTIVITY_TIMEZONE)
         end, calendar_year = now, None
     else:
         if year < 1970 or year > now.year:
             raise ValueError("invalid activity year")
-        start, end, calendar_year = datetime(year, 1, 1, tzinfo=timezone.utc), datetime(year + 1, 1, 1,
-                                                                                        tzinfo=timezone.utc), year
+        start, end, calendar_year = datetime(year, 1, 1, tzinfo=ACTIVITY_TIMEZONE), datetime(year + 1, 1, 1,
+                                                                                        tzinfo=ACTIVITY_TIMEZONE), year
     start_ms, end_ms = int(start.timestamp() * 1000), int(end.timestamp() * 1000)
-    activities = []
-    cursor = None
-    while True:
-        resp = query_dynamodb_table(
-            key_condition_expr=Key("pk").eq(f"USER_ACTIVITY#{user.id}") & Key("sk").between(
-                f"ACTIVITY#{start_ms}", f"ACTIVITY#{end_ms - 1}#~"
-            ),
-            scan_index_forward=False,
-            limit=1000,
-            exclusive_start_key=cursor,
-        )
-        activities.extend(
-            user_activity_from_dynamodb(item)
-            for item in resp.get("Items", [])
-            if item.get("profile_visible")
-        )
-        cursor = resp.get("LastEvaluatedKey")
-        if not cursor:
-            break
-    counts = {}
-    for activity in activities:
-        day = datetime.fromtimestamp(float(activity.created_at) / 1000, tz=timezone.utc).date().isoformat()
-        counts[day] = counts.get(day, 0) + 1
     first_day = start.date()
     last_day = (end - timedelta(milliseconds=1)).date()
+    ready = getattr(user, 'activity_version', 0) == ACTIVITY_COUNTER_VERSION
+
+    def daily_counts(include_legacy):
+        counts = {}
+        cursor = None
+        while True:
+            page = query_dynamodb_table(
+                key_condition_expr=Key('pk').eq(f'USER_ACTIVITY#{user.id}') & Key('sk').between(
+                    f'DAY#{first_day.isoformat()}', f'DAY#{last_day.isoformat()}'
+                ),
+                exclusive_start_key=cursor,
+                consistent_read=True,
+            )
+            for item in page.get('Items', []):
+                total = sum(activity_counts(item, include_legacy=include_legacy).values())
+                if total:
+                    counts[item['sk'].removeprefix('DAY#')] = total
+            cursor = page.get('LastEvaluatedKey')
+            if not cursor:
+                return counts
+
+    counts = daily_counts(ready)
+    if not ready:
+        # Until migration activates counters, legacy rows remain intact. Historical
+        # counter fields are ignored here so migrated events cannot count twice.
+        cursor = None
+        while True:
+            page = query_dynamodb_table(
+                key_condition_expr=Key('pk').eq(f'USER_ACTIVITY#{user.id}') & Key('sk').between(
+                    f'ACTIVITY#{start_ms}', f'ACTIVITY#{end_ms - 1}#~'
+                ),
+                projection_expr='event_type, created_at, profile_visible',
+                consistent_read=True,
+                exclusive_start_key=cursor,
+            )
+            for item in page.get('Items', []):
+                if item.get('profile_visible'):
+                    day = activity_day(item['created_at'])
+                    counts[day] = counts.get(day, 0) + 1
+            cursor = page.get('LastEvaluatedKey')
+            if not cursor:
+                break
+        # Activation may have happened while this request was reading raw rows.
+        # Re-read counters after activation, before trusting a partially pruned history.
+        current = get_dynamodb_item(f'USER#{user.id}', 'META', consistent_read=True)
+        if current and current.get('activity_v') == ACTIVITY_COUNTER_VERSION:
+            counts = daily_counts(True)
     calendar_days = []
     cursor = first_day
     while cursor <= last_day:
@@ -177,12 +186,21 @@ def get_user_activities(user: User, year: int | None = None, recent_limit: int =
     return {
         "year": calendar_year,
         "current_year": now.year,
-        "total": len(activities),
+        "total": sum(counts.values()),
         "days": counts,
         "calendar_days": calendar_days,
-        "months": months,
-        "recent": activities[:recent_limit]
+        "months": months
     }
+
+
+def get_article_author_articles(article: Article):
+    """A bounded public selection; no draft access even for its owner."""
+    author = find_user(article.user_id)
+    if author is None or author.status != UserStatus.ACTIVE:
+        return author, []
+    query = ArticleQueryDTO(limit=9, status=ArticleStatus.PUBLISHED)
+    candidates = get_latest_articles_by_user(author, query)
+    return author, [candidate for candidate in candidates if candidate.id != article.id][:8]
 
 
 def get_latest_published_articles(limit: int = BaseQueryDTO.DEFAULT_LIMIT) -> list[Article]:

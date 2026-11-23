@@ -2,8 +2,8 @@
 
 {% set title = "Privacy Policy" %}
 
-{% set meta_title = title ~ " | " ~ site_name %}
-{% set meta_desc = "Read the " ~ site_name ~ " privacy policy to learn how account information, cookies, analytics, and submitted content are handled." %}
+{% set meta_title = page_metadata.title %}
+{% set meta_desc = page_metadata.description %}
 {% set meta_robots = "index, follow" %}
 {% set meta_canonical_url = url("policy", absolute=True) %}
 
@@ -37,12 +37,20 @@
         <header>
             <h1>{{ site_name }} {{ title }}</h1>
             <p class="text-secondary"><b>Last updated:</b> <time datetime="2026-09-04">September 4, 2026</time></p>
-            <p class="small text-secondary">Updated to explain public profiles and interests, tag notification emails, uploads, service providers, and privacy request options.</p>
+            <p class="small text-secondary">Updated to explain public profiles and interests, topic notification emails, uploads, service providers, and privacy request options.</p>
             <p>Welcome to <b>{{ site_name }}</b> (“we,” “our,” or “us”). This Privacy Policy explains how we
                 collect, use, disclose, and protect your personal information when you visit <a
                         href="{{ url("index") }}" class="link-body-emphasis">{{ site_name }}</a>.</p>
         </header>
 
+        <section>
+            <h2>Saved Articles and Sign-In Drafts</h2>
+            <p>Bookmarks are private to the account that saved them. Public article pages may show aggregate bookmark totals;
+                authors can receive anonymous bookmark notifications. Account settings control those notifications.</p>
+            <p>Guest comment text is stored in this browser during sign-in, with a 15-minute expiration. It is restored for review,
+                not posted automatically, and removed after a successful comment submission. Abandoned expired drafts are cleaned up
+                on the next visit. Sign-in handoffs store temporary browser and session-bound action records.</p>
+        </section>
         <section>
             <h2>1. Information We Collect</h2>
             <ul>
@@ -52,7 +60,7 @@
                 <li><b>Profile information:</b> Your display name, username, avatar, headline, biography, location,
                     website, GitHub username, and Buy Me a Coffee username, when you provide them.</li>
                 <li><b>Contributions and preferences:</b> Articles (including unpublished submissions), images,
-                    comments, article likes and dislikes, author follows and blocks, tag subscriptions, and
+                    comments, article likes and dislikes, author follows and blocks, topic subscriptions, and
                     records of account activity and moderation decisions.</li>
                 <li><b>Contact messages:</b> Your name, email address, message, submission time, and your account
                     identifier if you are signed in. Messages are stored and can be forwarded to site operators
@@ -62,16 +70,16 @@
                     may record request information. Analytics and browser storage are described below.</li>
             </ul>
             <p>You can read public pages without an account. Signing in is required for publishing, commenting,
-                voting, following or blocking authors, and managing tag subscriptions. The contact form is also
+                voting, following or blocking authors, and managing topic subscriptions. The contact form is also
                 available without signing in.</p>
         </section>
 
         <section>
             <h2>2. How We Use Information</h2>
             <p>We use account and contribution information to authenticate users, save and publish contributions,
-                display profiles, organize articles by tags, calculate ratings and counts, and provide community
+                display profiles, organize articles by topics, calculate ratings and counts, and provide community
                 features. We use activity and moderation records to operate the site and investigate misuse.</p>
-            <p><b>Article notification emails:</b> Subscribing to a tag or a combination of tags stores your interests
+            <p><b>Article notification emails:</b> Subscribing to a topic or a combination of topics stores your interests
                 and enables emails to your account address when matching articles are published. Remove a
                 subscription using the subscribed button or the Interests section of your profile while signed in.
                 Removing every subscription stops future matching notifications; a message already being processed
@@ -100,7 +108,7 @@
 
         <section>
             <h2>4. Your Choices &amp; Privacy Requests</h2>
-            <p>You can edit profile fields and manage tag subscriptions while signed in. Profile editing does not
+            <p>You can edit profile fields and manage topic subscriptions while signed in. Profile editing does not
                 change credentials held by your sign-in provider. There is currently no self-service account deletion
                 or full data export button; use our <a href="{{ url('contacts') }}"
                 class="link-body-emphasis">Contacts</a> page to request account deletion, content removal, access,
@@ -120,7 +128,7 @@
             <p>Account records, contributions, activity records, and contact messages do not have a single automatic
                 expiry period. Retention depends on whether the account or content is still in use, whether a request
                 or dispute remains open, and any security or legal need to keep a record. Unsubscribing removes the
-                active tag subscription; signing out only ends your session.</p>
+                active topic subscription; signing out only ends your session.</p>
             <p>Request deletion through Contacts. Account closure, removal of public contributions, and deletion of
                 records held by an external sign-in provider are distinct actions; describe which you want.
                 Information may need to be retained for legal obligations or resolving disputes, and cached or backup
@@ -158,7 +166,7 @@
             <h2>7. What Is Public &amp; Who Receives Information</h2>
             <p><b>Public profiles:</b> Your name, username, avatar, biography, headline, location and external links
                 can appear publicly, together with join date, contribution and follower counts, selected activity
-                history, and your subscribed tags under Interests. Your account email is not displayed as a normal
+                history, and your subscribed topics under Interests. Your account email is not displayed as a normal
                 profile field. Do not put a home address or other private details in public profile fields.</p>
             <p><b>Contributions:</b> Published articles and comments are public. Unpublished and rejected article pages
                 require appropriate account permissions, but uploaded images are public files accessible by URL,

@@ -184,7 +184,8 @@
                 ('notify_tag_articles', 'New articles matching my interests'),
                 ('notify_article_comments', 'New comments on my articles'),
                 ('notify_comment_impressions', 'New reactions to my comments'),
-                ('notify_article_shares', 'Shares and social-share clicks on my articles')
+                ('notify_article_shares', 'Shares and social-share clicks on my articles'),
+                ('notify_article_bookmarks', 'Anonymous bookmark notifications for my articles')
             ] %}
                 <div class="form-check mb-2">
                     <input class="form-check-input" type="checkbox" name="{{ field }}" id="{{ field }}"
@@ -199,6 +200,7 @@
                 {% include "fragments/telegram-integration.html" %}
                 {% include "fragments/threads-integration.html" %}
                 {% include "fragments/linkedin-integration.html" %}
+                {% include "fragments/pinterest-integration.html" %}
             </div>
         {% endif %}
     </div>
@@ -360,6 +362,14 @@
     const profileValidator = handleFormSubmit("#user-form", {{ (url('update-user', user_id=user.id, absolute=True) if user else '') | tojson }}, {
       method: "{{ 'PATCH' if user else 'POST' }}",
       prepareData: data => {
+        for (const provider of ["telegram", "threads", "pinterest"]) {
+          for (const placement of ["user_page", "articles_pages"]) {
+            const name = `${provider}_show_on_${placement}`
+            const input = form.elements[name]
+            if (input && !input.disabled) data[name] = input.checked
+            else delete data[name]
+          }
+        }
         const username = form.elements.username
         if (data.username === (username.defaultValue.trim() || null)) delete data.username
         for (const kind of linkKinds) {

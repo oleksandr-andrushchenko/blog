@@ -1,3 +1,4 @@
+from integration_profiles import public_profile
 """Owner-authorized Threads account connections and article publishing."""
 import hashlib
 import hmac
@@ -161,9 +162,11 @@ def _guard(operation, record):
         operation["ConditionExpression"] = "attribute_not_exists(pk)"
 
 
-def _set_flag(writes, user_id, connected):
+def _set_flag(writes, user_id, connected, connection=None):
+    profile = public_profile("threads", connection) if connection else None
     add_dynamodb_update_transact(writes, (f"USER#{user_id}", "META"),
-                                 changes={"has_threads_integration": connected}, add_updated_at=False)
+                                 changes={"has_threads_integration": connected,
+                                          "threads_public_profile": profile}, add_updated_at=False)
     writes[-1]["Update"]["ConditionExpression"] = "attribute_exists(pk) AND attribute_not_exists(deletion_id)"
 
 
@@ -274,7 +277,7 @@ def complete_connection(actor, *, state, binding, code, denied=False):
     operation["ConditionExpression"] += " AND expires_at > :now AND claimed = :claimed"
     operation["ExpressionAttributeValues"].update({":now": now, ":claimed": True})
     add_dynamodb_put_transact(writes, (f"USER#{actor.id}", INTEGRATION_KEY), connection)
-    _set_flag(writes, actor.id, True)
+    _set_flag(writes, actor.id, True, connection)
     _write(writes)
     return True
 

@@ -921,7 +921,7 @@ $(document).on("click", ".btn-tag-subscription", function () {
     }
   })
     .fail((xhr) => {
-      message.text(xhr.responseJSON?.detail?.message || "Unable to update tag subscription.");
+      message.text(xhr.responseJSON?.detail?.message || "Unable to update topic subscription.");
       button.clearButtonLoading()
     })
 })
@@ -1219,3 +1219,269 @@ document.addEventListener("DOMContentLoaded", () => {
   const root = document.getElementById("site-notifications")
   if (root) initializeSiteNotifications(root)
 })
+
+// Detail and private-list bookmark states are rendered by the server.
+function initializeBookmarks() {
+  if (!window.CONFIG?.current_user || !window.CONFIG.update_bookmark_url) return
+  const busy = new Set()
+  const controls = id => [...document.querySelectorAll(".btn-article-bookmark")]
+    .filter(button => button.dataset.articleId === id && !button.dataset.bookmarkDisabled)
+  const paint = (id, saved, count) => {
+    for (const button of controls(id)) {
+      button.dataset.bookmarkSaved = String(saved)
+      button.disabled = false
+      button.removeAttribute("aria-busy")
+      button.setAttribute("aria-pressed", String(saved))
+      button.setAttribute("aria-label", saved ? "Remove bookmark" : "Bookmark this article")
+      button.title = saved ? "Remove bookmark" : "Bookmark this article"
+      button.classList.toggle("btn-success", saved)
+      button.classList.toggle("btn-light", !saved)
+      button.querySelector("i").className = `bi bi-bookmark${saved ? "-fill" : ""}`
+      button.querySelector("span").textContent = saved ? "Bookmarked" : "Bookmark"
+    }
+    for (const counter of document.querySelectorAll("[data-bookmarks-count]")) {
+      if (counter.dataset.bookmarksCount !== id) continue
+      counter.dataset.count = String(count)
+      counter.textContent = count.toLocaleString("en-US")
+      counter.classList.toggle("d-none", count === 0)
+      const stat = counter.closest("[data-bookmarks-stat]")
+      if (stat) {
+        stat.classList.toggle("d-none", count === 0)
+        stat.classList.toggle("d-inline-flex", count > 0)
+      }
+    }
+  }
+  const request = async (url, body) => {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 10000)
+    try {
+      const response = await fetch(url, {method: "POST", credentials: "include", signal: controller.signal,
+        headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)})
+      if (!response.ok) throw new Error("Bookmark request failed")
+      return await response.json()
+    } finally {
+      clearTimeout(timeout)
+    }
+  }
+  document.addEventListener("click", async event => {
+    const button = event.target.closest(".btn-article-bookmark")
+    if (!button || button.disabled || button.dataset.bookmarkDisabled) return
+    event.preventDefault()
+    const id = button.dataset.articleId
+    if (busy.has(id)) return
+    const saved = button.dataset.bookmarkSaved !== "true"
+    busy.add(id)
+    const pendingControls = controls(id)
+    for (const control of pendingControls) $(control).setButtonLoading()
+    const restoreControls = () => {
+      for (const control of pendingControls) $(control).clearButtonLoading()
+    }
+    try {
+      const result = await request(window.CONFIG.update_bookmark_url.replace("{article_id}", encodeURIComponent(id)),
+        {saved})
+      if (typeof result.saved !== "boolean" || !Number.isSafeInteger(result.bookmarks_count)
+          || result.bookmarks_count < 0) throw new Error("Invalid bookmark state")
+      // Restore the detached icon, label and counter before updating their state.
+      restoreControls()
+      paint(id, result.saved, result.bookmarks_count)
+      if (result.saved) {
+        document.dispatchEvent(new CustomEvent("article-bookmarked", {detail: {articleId: id}}))
+      }
+      if (!result.saved) {
+        const grid = document.getElementById("bookmarked-articles")
+        if (grid) {
+          for (const control of controls(id)) if (grid.contains(control)) control.closest(".article")?.remove()
+          if (!grid.querySelector(".article")) document.getElementById("bookmarks-empty")?.classList.remove("d-none")
+        }
+      }
+    } catch (_) {
+      restoreControls()
+      window.alert("Could not update bookmark. Please try again")
+    } finally {
+      busy.delete(id)
+    }
+  })
+}
+
+function initializeGuestEngagement() {
+  if (window.CONFIG.current_user || !window.CONFIG.guest_engagement_enabled || !window.bootstrap?.Modal) return
+  const popup = document.getElementById("guest-signup-article")
+  if (!popup) return
+  const sessionKey = "guest-engagement-v1"
+  const dismissalKey = "guest-signup-dismissed-at"
+  const cooldown = 7 * 24 * 60 * 60 * 1000
+  let state
+  function coolingDown() {
+    const dismissed = Number(localStorage.getItem(dismissalKey) || 0)
+    return dismissed > 0 && Date.now() - dismissed < cooldown
+  }
+  try {
+    if (coolingDown()) return
+    localStorage.setItem(dismissalKey, localStorage.getItem(dismissalKey) || "0")
+    const saved = JSON.parse(sessionStorage.getItem(sessionKey) || "null")
+    state = saved && Array.isArray(saved.views) && Array.isArray(saved.copies)
+      ? saved : {views: [], copies: [], activeMs: 0, shown: false}
+    if (state.shown) return
+    state.activeMs = Math.max(0, Math.min(60000, Number(state.activeMs) || 0))
+    sessionStorage.setItem(sessionKey, JSON.stringify(state))
+  } catch (_) {
+    return // Without working storage, frequency limits cannot be respected.
+  }
+  let enabled = true
+  let lastTick = Date.now()
+  let lastInteraction = Date.now()
+  let timer
+  const articleId = document.querySelector("article[data-article-id]")?.dataset.articleId
+  function save() {
+    try { sessionStorage.setItem(sessionKey, JSON.stringify(state)) }
+    catch (_) { enabled = false; clearInterval(timer) }
+  }
+  function foreground() {
+    return document.visibilityState === "visible" && document.hasFocus()
+  }
+  function tick() {
+    const now = Date.now()
+    const elapsed = Math.max(0, Math.min(5000, now - lastTick))
+    lastTick = now
+    if (!enabled || state.shown) return
+    try { if (coolingDown()) { enabled = false; clearInterval(timer); return } }
+    catch (_) { enabled = false; clearInterval(timer); return }
+    if (!foreground()) return
+    if (articleId && !state.views.includes(articleId) && state.views.length < 3) state.views.push(articleId)
+    state.activeMs = Math.min(60000, state.activeMs + elapsed)
+    save()
+    const eligible = state.views.length >= 3 && state.activeMs >= 60000
+    if (!enabled || !eligible || now - lastInteraction < 3000) return
+    if (document.querySelector(".modal.show, .modal.showing, .offcanvas.show") ||
+        document.activeElement?.closest("input, textarea, select, [contenteditable]:not([contenteditable=false])")) return
+    state.shown = true
+    save()
+    if (!enabled) return
+    clearInterval(timer)
+    popup.addEventListener("hidden.bs.modal", () => {
+      try { localStorage.setItem(dismissalKey, String(Date.now())) } catch (_) { /* Session limit still applies */ }
+    }, {once: true})
+    window.bootstrap.Modal.getOrCreateInstance(popup).show()
+  }
+  for (const name of ["pointerdown", "keydown", "scroll"]) {
+    document.addEventListener(name, () => { lastInteraction = Date.now() }, {passive: true})
+  }
+  document.addEventListener("visibilitychange", () => { lastTick = Date.now() })
+  window.addEventListener("pagehide", () => { clearInterval(timer); save() })
+  window.addEventListener("pageshow", event => {
+    if (!event.persisted || !enabled) return
+    try {
+      const latest = JSON.parse(sessionStorage.getItem(sessionKey) || "null")
+      if (latest && Array.isArray(latest.views) && Array.isArray(latest.copies)) state = latest
+    } catch (_) { enabled = false; return }
+    if (!state.shown) {
+      lastTick = lastInteraction = Date.now()
+      timer = setInterval(tick, 1000)
+    }
+  })
+  timer = setInterval(tick, 1000)
+  tick()
+}
+
+
+async function authActionRequest(url, body, {keepalive = false} = {}) {
+  const response = await fetch(url, {
+    method: "POST", credentials: "include", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body), signal: AbortSignal.timeout(15000), keepalive
+  })
+  if (!response.ok) {
+    let detail
+    try { detail = (await response.json()).detail } catch (_) { /* Use the fallback message */ }
+    throw new Error(typeof detail === "string" ? detail : "Could not finish this action. Please try again")
+  }
+  return response.json()
+}
+
+function showRegistrationWelcome(destination) {
+  const welcome = document.getElementById("registration-welcome")
+  if (!welcome || !window.bootstrap?.Modal) return false
+  welcome.addEventListener("shown.bs.modal", () => {
+    authActionRequest(window.CONFIG.welcome_seen_url, {}, {keepalive: true}).catch(() => {
+      // Keep the account pending so a later visit can retry delivery.
+    })
+  }, {once: true})
+  if (destination) {
+    welcome.addEventListener("hidden.bs.modal", () => window.location.replace(destination), {once: true})
+  }
+  window.bootstrap.Modal.getOrCreateInstance(welcome).show()
+  return true
+}
+
+function initializeAuthActions() {
+  document.addEventListener("click", async event => {
+    const link = event.target.closest("a[data-auth-action]")
+    if (!link || window.CONFIG.current_user || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
+    event.preventDefault()
+    if (link.dataset.authBusy) return
+    link.dataset.authBusy = "true"
+    link.setAttribute("aria-busy", "true")
+    const error = link.parentElement.querySelector("[data-auth-error]")
+    error?.remove()
+    try {
+      const body = {action: link.dataset.authAction, target: link.dataset.authTarget,
+        return_url: new URL(link.href, window.location.href).searchParams.get("redirect_url") || window.location.pathname + window.location.search + window.location.hash}
+      if (link.dataset.authTags) body.tags = JSON.parse(link.dataset.authTags)
+      const result = await authActionRequest(window.CONFIG.begin_auth_action_url, body)
+      window.location.assign(result.login_url)
+    } catch (error) {
+      const message = document.createElement("span")
+      message.dataset.authError = "true"
+      message.className = "d-block small text-danger"
+      message.setAttribute("role", "alert")
+      message.textContent = error.message
+      link.after(message)
+    } finally {
+      delete link.dataset.authBusy
+      link.removeAttribute("aria-busy")
+    }
+  })
+
+  const completion = document.getElementById("auth-completion")
+  if (!completion) {
+    if (window.CONFIG.current_user && window.CONFIG.welcome_pending) showRegistrationWelcome()
+    return
+  }
+  const message = document.getElementById("auth-action-message")
+  const retry = document.getElementById("auth-action-retry")
+  const skip = document.getElementById("auth-action-skip")
+  let busy = false
+  async function complete(skipAction = false) {
+    if (busy) return
+    busy = true
+    retry.disabled = skip.disabled = true
+    message.textContent = "Finishing your action…"
+    try {
+      const result = await authActionRequest(window.CONFIG.complete_auth_action_url, {skip: skipAction})
+      const destination = result.redirect_url
+      if (result.welcome && showRegistrationWelcome(destination)) {
+        message.textContent = "You’re all set"
+        retry.classList.add("d-none")
+        skip.classList.add("d-none")
+      } else {
+        window.location.replace(destination)
+      }
+    } catch (error) {
+      message.textContent = error.message
+      retry.classList.remove("d-none")
+      skip.classList.remove("d-none")
+      retry.disabled = skip.disabled = false
+      busy = false
+    }
+  }
+  retry.addEventListener("click", () => complete())
+  skip.addEventListener("click", () => complete(true))
+  complete()
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  initializeBookmarks()
+  initializeAuthActions()
+})
+
+
+document.addEventListener("DOMContentLoaded", initializeGuestEngagement)

@@ -57,11 +57,21 @@
         </div>
     </div>
 
+    <div class="mb-2">
+        <label for="description" class="form-label">Description</label>
+        <textarea id="description" name="description" class="form-control" rows="3">{{ tag.description | default('') }}</textarea>
+        <div class="form-text">Visible below the listing heading; up to 1,000 characters</div>
+    </div>
+    <div class="mb-2">
+        <label for="meta_description" class="form-label">Search summary</label>
+        <textarea id="meta_description" name="meta_description" class="form-control" rows="3">{{ tag.meta_description | default('') }}</textarea>
+        <div class="form-text">Separate summary for search and social metadata; up to 1,000 characters</div>
+    </div>
     <div class="form-group row">
         <div class="{{ {"def": 10} | col_classes }} offset-2">
             <button type="submit" class="btn btn-dark">
                 <i class="bi {% if tag %}bi-arrow-clockwise{% else %}bi-plus-lg{% endif %}"></i>
-                {% if tag %}Update{% else %}Create{% endif %} tag
+                {% if tag %}Update{% else %}Create{% endif %} topic
             </button>
         </div>
     </div>
@@ -88,6 +98,8 @@
     handleFormSubmit("#tag-form", {{ (url('update-tag', slug=tag.slug, absolute=True) if tag else '') | tojson }}, {
       method: "{{ 'PATCH' if tag else 'POST' }}",
       rules: {
+        description: [{rule: "maxLength", value: 1000}],
+        meta_description: [{rule: "maxLength", value: 1000}],
         image_file: [
           {rule: "required", errorMessage: "Cover image is required"},
           {

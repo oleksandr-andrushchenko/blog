@@ -22,6 +22,12 @@ class UpdateUserDTO(BaseDTO):
     github_username: str | None | object = UNSET
     crypto_wallets: list | object = UNSET
     support_links: list | object = UNSET
+    telegram_show_on_user_page: bool | object = UNSET
+    telegram_show_on_articles_pages: bool | object = UNSET
+    threads_show_on_user_page: bool | object = UNSET
+    threads_show_on_articles_pages: bool | object = UNSET
+    pinterest_show_on_user_page: bool | object = UNSET
+    pinterest_show_on_articles_pages: bool | object = UNSET
     notify_direct_messages: bool | object = UNSET
     notify_article_status: bool | object = UNSET
     notify_user_impressions: bool | object = UNSET
@@ -30,13 +36,20 @@ class UpdateUserDTO(BaseDTO):
     notify_article_comments: bool | object = UNSET
     notify_comment_impressions: bool | object = UNSET
     notify_article_shares: bool | object = UNSET
+    notify_article_bookmarks: bool | object = UNSET
 
     def __post_init__(self):
+        from integration_profiles import VISIBILITY_FIELDS
+        for name in VISIBILITY_FIELDS:
+            value = getattr(self, name)
+            if value is not UNSET and type(value) is not bool:
+                raise ValueError(f'{name} must be true or false')
+
         if self.crypto_wallets is not UNSET:
             self.crypto_wallets = validate_crypto_wallets(self.crypto_wallets)
         if self.support_links is not UNSET:
             self.support_links = validate_support_links(self.support_links)
-        for field in ('notify_direct_messages', 'notify_article_status', 'notify_user_impressions', 'notify_article_impressions', 'notify_tag_articles', 'notify_article_comments', 'notify_comment_impressions', 'notify_article_shares'):
+        for field in ('notify_direct_messages', 'notify_article_status', 'notify_user_impressions', 'notify_article_impressions', 'notify_tag_articles', 'notify_article_comments', 'notify_comment_impressions', 'notify_article_shares', 'notify_article_bookmarks'):
             value = getattr(self, field)
             if value is not UNSET and type(value) is not bool:
                 raise ValueError(f'{field} must be true or false')

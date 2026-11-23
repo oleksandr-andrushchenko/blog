@@ -1,6 +1,16 @@
 """Canonical API route names and path templates."""
 
 API_URL_ROUTES = {
+    "pinterest-connection": "/users/{user_id}/integrations/pinterest",
+    "pinterest-callback": "/integrations/pinterest/callback",
+    "pinterest-boards": "/users/{user_id}/integrations/pinterest/boards",
+    "share-article-pinterest": "/articles/{article_id}/share/pinterest",
+    "bookmarks-list": "/bookmarks",
+    "bookmark-status": "/bookmarks/status",
+    "update-bookmark": "/bookmarks/{article_id}",
+    "begin-auth-action": "/auth/actions",
+    "complete-auth-action": "/auth/actions/complete",
+    "welcome-seen": "/auth/welcome/seen",
     "direct-conversations-fragment": "/messages/inbox/fragment",
     "telegram-share-state": "/articles/{article_id}/share/telegram",
     "notification-status": "/notifications/status",

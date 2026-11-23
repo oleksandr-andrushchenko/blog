@@ -16,4 +16,5 @@
     </div>
     {% include "fragments/article-badges.html" %}
     {% include "fragments/article-meta.html" %}
+    {% if show_bookmark_controls | default(false) %}{% include "fragments/article-bookmark.html" %}{% endif %}
 </div>

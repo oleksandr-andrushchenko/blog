@@ -12,16 +12,34 @@
     </button>
 </form>
 
+<script src="{{ static_url('comment-draft.js', _=js_cache_counter) }}" defer></script>
 <script>
   document.addEventListener("DOMContentLoaded", () => {
-    {% set form_url = url('update-article-comment', article_id=article.id, article_comment_id=article_comment.id, absolute=True) if article_comment
+    {% set form_url = url('update-article-comment', article_id=article.id, comment_id=article_comment.id, absolute=True) if article_comment
     else url('create-article-comment', article_id=article.id, absolute=True) %}
+    const draft = commentDraftStore({{ article.id | tojson }})
+    const field = document.querySelector("#article-comment-form [name=text]")
+    {% if not article_comment %}
+    draft.load().then(saved => {
+      if (saved && !field.value) field.value = saved.text
+    }).catch(() => {})
+    {% endif %}
     handleFormSubmit("#article-comment-form", {{ form_url | tojson }}, {
+      authRequired: false,
+      beforeSubmit: async data => {
+        if (window.CONFIG.current_user) return
+        await draft.save(data.text, [])
+        window.location.assign({{ url('login', redirect_url=article_url(article) ~ '#article-comment-form') | tojson }})
+        return false
+      },
       method: "{{ 'PATCH' if article_comment else 'POST' }}",
       rules: {
         text: [{rule: "required"}, {rule: "minLength", value: 1}, {rule: "maxLength", value: 5_000}],
       },
-      onSuccess: (res) => res && (window.location.href = res),
+      onSuccess: async res => {
+        try { await draft.remove() } catch (_) { /* A saved comment must still navigate */ }
+        if (res) window.location.href = res
+      },
     })
   })
 </script>

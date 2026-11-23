@@ -1,5 +1,7 @@
 """Exercise both Lambdas' registered exception handlers through ASGI routing."""
 import asyncio
+import base64
+from dataclasses import dataclass
 from contextlib import nullcontext
 import importlib.util
 import json
@@ -22,6 +24,11 @@ from app_config import config as app_config
 from web import Application, Request, Response
 import shared_utils
 from shared_utils import Redirect
+
+
+@dataclass
+class ExampleBody:
+    message: str
 
 
 class ExceptionHandlerTests(unittest.TestCase):
@@ -342,3 +349,52 @@ class ExceptionHandlerTests(unittest.TestCase):
         finally:
             shared_utils.template_request.reset(token)
         self.assertNotIn("request", env.globals)
+
+    def test_invalid_json_is_a_client_error_with_safe_access_log_context(self):
+        cases = [
+            (b"", "application/json", "empty_body"),
+            (b" \n", "application/json", "empty_body"),
+            (b"name=Private+Reporter&message=private-content", "application/x-www-form-urlencoded", "invalid_json"),
+            (b'{"message": "private-content",}', "application/json", "invalid_json"),
+            (b'\xff', "application/json", "invalid_encoding"),
+            (b"null", "application/json", "expected_object"),
+            (b"[]", "application/json", "expected_object"),
+            (b'"private-content"', "application/json", "expected_object"),
+        ]
+        for module in self.modules:
+            for raw, content_type, reason in cases:
+                with self.subTest(module=module.__name__, raw=raw), patch.object(module, "logger") as logger:
+                    app = Application()
+                    app.exception_handlers.update(module.app.exception_handlers)
+                    app.middleware("http")(module.access_log_middleware)
+                    app.url_routes = [*module.app.routes, *module.app.url_routes]
+
+                    @app.post("/report", name="example-report")
+                    async def report(body: ExampleBody):
+                        self.fail("Invalid request reached the report handler")
+
+                    with patch.dict(app_config, {"function_templates_dir": str(project_root / "web-lambda/templates")}):
+                        templates = shared_utils.get_jinja2_env()
+                    with patch.object(shared_utils, "jinja2_env", return_value=templates):
+                        response = make_handler(app)({
+                            "rawPath": "/report", "body": base64.b64encode(raw).decode(), "isBase64Encoded": True,
+                            "headers": {"host": "example.com", "content-type": content_type,
+                                        "content-length": str(len(raw)), "authorization": "Bearer private-token",
+                                        "cookie": "session=private-cookie"},
+                            "requestContext": {"http": {"method": "POST"}},
+                        }, type("Context", (), {"aws_request_id": "request-json-123"})())
+                    self.assertEqual(response["statusCode"], 422, response)
+                    logger.error.assert_not_called()
+                    logger.log.assert_called_once()
+                    self.assertEqual(logger.log.call_args.args[0], logging.WARNING)
+                    context = logger.log.call_args.kwargs["extra"]["context"]
+                    self.assertEqual(context["body_error"], reason)
+                    self.assertEqual(context["body_bytes"], len(raw))
+                    self.assertEqual(context["content_type"], content_type)
+                    self.assertEqual(context["content_length"], str(len(raw)))
+                    self.assertEqual(context["route_name"], "example-report")
+                    self.assertEqual(context["aws_request_id"], "request-json-123")
+                    if reason in {"empty_body", "invalid_json"}:
+                        self.assertIn("json_position", context)
+                    self.assertNotIn("private-", json.dumps(context))
+                    self.assertNotIn("Private+Reporter", json.dumps(context))

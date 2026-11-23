@@ -2,8 +2,8 @@
 
 {% set title = "Rules" %}
 
-{% set meta_title = "Community Rules & Content Publishing Guidelines ~ " ~ site_name %}
-{% set meta_desc = "Read the " ~ site_name ~ " community rules for technical articles and discussions, including accuracy, AI use, source credit, privacy, reporting, and moderation." %}
+{% set meta_title = page_metadata.title %}
+{% set meta_desc = page_metadata.description %}
 {% set meta_robots = "index, follow" %}
 {% set meta_canonical_url = url("rules", absolute=True) %}
 
@@ -53,14 +53,14 @@
         <section>
             <h2>2. Publish Useful, Accurate Technical Content</h2>
             <p>Keep articles and comments relevant to software architecture, system design, and related engineering
-                topics. Use clear titles, relevant tags, readable explanations, and examples you have checked.
+                topics. Use clear titles, relevant topics, readable explanations, and examples you have checked.
                 Distinguish facts, opinions, estimates, and assumptions. Link to supporting sources for factual claims
                 where practical, and correct material errors when you discover them.</p>
             <p>AI assistance is allowed, but you remain responsible for accuracy, originality, and rights. Review
                 generated text and code; do not invent citations, benchmarks, credentials, or claims of personal
                 experience. Disclose substantial AI-generated material when omitting that information would mislead
                 readers. Do not flood the site with repetitive or unreviewed generated articles.</p>
-            <p>Submissions begin unpublished, and publication depends on permissions and review. Major edits or tag
+            <p>Submissions begin unpublished, and publication depends on permissions and review. Major edits or topic
                 changes can return an article to unpublished status. Do not use edits to replace approved content
                 with spam or unrelated material.</p>
         </section>

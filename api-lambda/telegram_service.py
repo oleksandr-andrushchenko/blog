@@ -1,3 +1,4 @@
+from integration_profiles import public_profile
 """Shared Telegram bot onboarding and owner-authorized channel publishing."""
 import hashlib
 import hmac
@@ -200,9 +201,12 @@ def begin_connection(user, actor):
             "expires_at": session["expires_at"]}
 
 
-def _set_connection_flag(writes, user_id, connected):
+def _set_connection_flag(writes, user_id, connected, connection=None):
+    profile = public_profile("telegram", {"title": connection.get("channel_title"),
+                                          "username": connection.get("channel_username")}) if connection else None
     add_dynamodb_update_transact(writes, (f"USER#{user_id}", "META"),
-                                 changes={"has_telegram_integration": connected}, add_updated_at=False)
+                                 changes={"has_telegram_integration": connected,
+                                          "telegram_public_profile": profile}, add_updated_at=False)
     writes[-1]["Update"]["ConditionExpression"] = "attribute_exists(pk) AND attribute_not_exists(deletion_id)"
 
 
@@ -303,7 +307,7 @@ def _finish_connection(message):
     add_dynamodb_delete_transact(writes, _session_key(session["session_hash"]))
     add_dynamodb_delete_transact(writes, _picker_key(telegram_user_id, session["request_id"]))
     _guard(writes[-1]["Delete"], session["session_hash"])
-    _set_connection_flag(writes, session["user_id"], True)
+    _set_connection_flag(writes, session["user_id"], True, record)
     _write(writes)
     # Finish the durable connection before this optional acknowledgement. Telegram may retry delivery.
     telegram_call("sendMessage", chat_id=telegram_user_id,

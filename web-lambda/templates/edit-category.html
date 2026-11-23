@@ -1,7 +1,8 @@
 {% extends "layout.html" %}
 {% set layout_assets = {"validation": true} %}
 {% set title = "Edit " ~ category.name %}
-{% set meta_title = title ~ " | " ~ site_name %}
+{% set meta_title = page_metadata.title %}
+{% set meta_desc = page_metadata.description %}
 {% set meta_robots = "noindex, nofollow" %}
 
 {% block breadcrumbs %}
@@ -12,5 +13,6 @@
 
 {% block content %}
     <h1>{{ title }}</h1>
+    <p class="small text-secondary">{{ page_metadata.subtitle }}</p>
     {% include "fragments/category-form.html" %}
 {% endblock %}

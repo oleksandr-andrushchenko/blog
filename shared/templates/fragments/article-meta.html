@@ -36,3 +36,9 @@
         {% endif %}
     {% endfor %}
 </div>
+
+{% if article.bookmarks_count %}
+    <span class="small text-secondary" data-bookmarks-stat><i class="bi bi-bookmark" aria-hidden="true"></i>
+        <span data-bookmarks-count="{{ article.id }}" data-count="{{ article.bookmarks_count }}">{{ '{:,}'.format(article.bookmarks_count) }}</span>
+    </span>
+{% endif %}

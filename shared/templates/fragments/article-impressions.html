@@ -34,12 +34,12 @@
             {% set impression_login_url = url('login', redirect_url=request.url.path ~ ("?" ~ request.url.query if request.url.query else "")) %}
             <div class="btn-group{% if btn_size %} btn-group-{{ btn_size }}{% endif %}" role="group" aria-label="Article feedback">
                 <a class="btn btn-light" href="{{ impression_login_url }}" rel="nofollow"
-                   title="Sign in to like this article" aria-label="Sign in to like this article">
+                   data-auth-action="like" data-auth-target="{{ article.id }}" title="Sign in to like this article" aria-label="Sign in to like this article">
                     <i class="bi bi-hand-thumbs-up" aria-hidden="true"></i> <span>Like</span>
                     {% if article.likes_count %}<span>{{ '{:,}'.format(article.likes_count) }}</span>{% endif %}
                 </a>
                 <a class="btn btn-light" href="{{ impression_login_url }}" rel="nofollow"
-                   title="Sign in to dislike this article" aria-label="Sign in to dislike this article">
+                   data-auth-action="dislike" data-auth-target="{{ article.id }}" title="Sign in to dislike this article" aria-label="Sign in to dislike this article">
                     <i class="bi bi-hand-thumbs-down" aria-hidden="true"></i> <span>Dislike</span>
                     {% if article.dislikes_count %}<span>{{ '{:,}'.format(article.dislikes_count) }}</span>{% endif %}
                 </a>

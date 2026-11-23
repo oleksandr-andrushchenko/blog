@@ -2,19 +2,14 @@
 {% set layout_assets = {"masonry": true} %}
 
 
-{% set val_map = {
-    (TagQueryType.LATEST): {"title": "Latest", "subtitle": "Recently added"},
-    (TagQueryType.POPULAR): {"title": "Popular", "subtitle": "Most popular"}
-} %}
-
-{% set title = ([val_map[tags_query.type]["title"], "Tags"]) | select | join(" ") | title %}
-{% set subtitle = ([val_map[tags_query.type]["subtitle"], "Tags"]) | select | join(" ") | title %}
-{% set meta_title = title ~ " | " ~ site_name %}
+{% set title = page_metadata.heading %}
+{% set subtitle = page_metadata.subtitle %}
+{% set meta_title = page_metadata.title %}
 {% set meta_robots = "noindex, follow" if tags_query.offset or tags_query.prefix else "index, follow" %}
 {% set meta_canonical_url = url("tags", type=None if tags_query.type == TagQueryDTO.DEFAULT_TYPE else tags_query.type,
     prefix=tags_query.prefix,
     limit=tags_query.limit if tags_query.limit != TagQueryDTO.DEFAULT_LIMIT else None, absolute=True) %}
-{% set meta_desc = [title, subtitle, site_desc] | select | join('. ') | truncate(155, False, '...', 0) %}
+{% set meta_desc = page_metadata.description %}
 
 {% block meta_schema %}
     {% set items = namespace(values=[]) %}
@@ -43,7 +38,7 @@
             "@type": "BreadcrumbList",
             "itemListElement": [
                 {"@type": "ListItem", "position": 1, "name": "Home", "item": url("index", absolute=True)},
-                {"@type": "ListItem", "position": 2, "name": "Tags", "item": url("tags", absolute=True)}
+                {"@type": "ListItem", "position": 2, "name": "Topics", "item": url("tags", absolute=True)}
             ] + ([{
                 "@type": "ListItem",
                 "position": 3,
@@ -55,12 +50,12 @@
 {% endblock %}
 
 {% block breadcrumbs %}
-    {% set breadcrumbs = {"Home": url("index"), "Tags": url("tags")} %}
+    {% set breadcrumbs = {"Home": url("index"), "Topics": url("tags")} %}
 
     {% if tags_query.type and tags_query.type != TagQueryDTO.DEFAULT_TYPE %}
         {% set breadcrumbs = breadcrumbs.update({tags_query.type | title: None}) or breadcrumbs %}
     {% else %}
-        {% set breadcrumbs = breadcrumbs.update({"Tags": None}) or breadcrumbs %}
+        {% set breadcrumbs = breadcrumbs.update({"Topics": None}) or breadcrumbs %}
     {% endif %}
 
     {% include "fragments/breadcrumbs.html" %}
@@ -72,17 +67,17 @@
 
     <form action="{{ url("tags") }}" method="get"
           class="d-flex flex-wrap align-items-center gap-3 mb-4 p-2 bg-white border rounded"
-          aria-label="Filter tags">
+          aria-label="Filter topics">
 
         <input type="hidden" name="type" value="{{ tags_query.type }}">
 
         <div class="d-flex align-items-center gap-2">
             <small class="text-secondary bi bi-sort-down"> Show:</small>
-            <div class="btn-group btn-group-sm" role="group" aria-label="Sort tags">
+            <div class="btn-group btn-group-sm" role="group" aria-label="Sort topics">
                 {% set is_latest = tags_query.type == TagQueryType.LATEST %}
                 <a href="{{ url("tags", **tags_query.get_dict({"type": None if is_latest else TagQueryType.LATEST, "offset": None})) }}"
                    class="btn {% if is_latest %}btn-dark active{% else %}btn-light{% endif %} bi bi-clock{{ "-fill" if is_latest else "" }}">
-                    {{ TagQueryType.LATEST | title }} first
+                    Newest first
                 </a>
                 {% set is_popular = tags_query.type == TagQueryType.POPULAR %}
                 <a href="{{ url("tags", **tags_query.get_dict({"type": None if is_popular else TagQueryType.POPULAR, "offset": None})) }}"

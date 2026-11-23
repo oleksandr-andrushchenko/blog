@@ -39,7 +39,7 @@ def _target_url(value):
     return urlunsplit(("", "", parts.path, parts.query, parts.fragment))
 
 
-def create_site_notification(user, preference, title, message, target_url, *, detail=None, event_id=None, action=None):
+def create_site_notification(user, preference, title, message, target_url, *, detail=None, event_id=None, action=None, actor_id=None, article_id=None):
     if preference not in NOTIFICATION_ICONS:
         raise ValueError("Unknown notification type")
     if action is not None and action not in NOTIFICATION_ACTION_ICONS.get(preference, {}):
@@ -65,6 +65,10 @@ def create_site_notification(user, preference, title, message, target_url, *, de
                         "url": target_url, "type": preference, "action": action,
                         "icon": notification_icon(preference, action), "is_read": False,
                         "delivery": "email" if email else "web", "created_at": now}
+        if actor_id:
+            notification["actor_id"] = actor_id
+        if article_id:
+            notification["article_id"] = article_id
         transacts = []
         add_dynamodb_put_transact(transacts, (partition, key), notification, new_pk_only=True)
         add_dynamodb_put_transact(transacts, (partition, receipt_key), {"notification_key": key}, new_pk_only=True)
@@ -81,6 +85,9 @@ def create_site_notification(user, preference, title, message, target_url, *, de
             update["ExpressionAttributeValues"][":seen"] = current["last_seen_at"]
         else:
             update["ConditionExpression"] += "attribute_not_exists(last_seen_at)"
+        if actor_id:
+            from account_write_guards import add_account_guard
+            add_account_guard(transacts, actor_id)
         try:
             dynamodb_transact_write(transacts)
             return {"created": True, "email": email}

@@ -1,3 +1,5 @@
+import pinterest_service
+from web import read_json_body
 import asyncio
 import json
 from dataclasses import replace
@@ -84,7 +86,7 @@ from deps import (
     UpsertRedirectDTODep,
     RelatedArticleQueryDep,
 )
-from notifications import get_access_log
+from notifications import get_access_log, get_request_log_context
 from query_dtos import UserStatus
 from related_articles import get_related_articles
 from shared_deps import (
@@ -146,7 +148,7 @@ async def add_no_robots_to_api(request: Request, call_next):
     response = await call_next(request)
 
     response.headers["X-Robots-Tag"] = "noindex, nofollow"
-    if request.url.path in {API_URL_ROUTES["threads-callback"], API_URL_ROUTES["login-link-callback"],
+    if request.url.path in {API_URL_ROUTES["pinterest-callback"], API_URL_ROUTES["threads-callback"], API_URL_ROUTES["login-link-callback"],
                             API_URL_ROUTES["linkedin-callback"]}:
         response.headers["Cache-Control"] = "no-store"
         response.headers["Referrer-Policy"] = "no-referrer"
@@ -171,11 +173,11 @@ async def access_log_middleware(request: Request, call_next):
     try:
         response = await call_next(request)
         status = response.status_code
-        if request.url.path.startswith(('/messages', '/notifications')) or request.url.path == '/presence':
+        if request.url.path.startswith(('/messages', '/notifications', '/bookmarks', '/auth/actions', '/auth/complete', '/auth/welcome')) or request.url.path == '/presence':
             response.headers['Cache-Control'] = 'private, no-store'
         return response
     finally:
-        logger.log(*get_access_log(request, status))
+        logger.log(*get_access_log(request, status), extra={"context": get_request_log_context(request)})
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -185,7 +187,8 @@ async def custom_http_exception_handler(_request: Request, exc: StarletteHTTPExc
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(_request: Request, exc: Exception):
-    logger.error("Unhandled request exception", exc_info=exc)
+    logger.error("Unhandled request exception", exc_info=exc,
+                 extra={"context": get_request_log_context(_request)})
     return get_error_response(500)
 
 
@@ -532,6 +535,74 @@ async def _upsert_redirect(cur_user: CurUserDep, redirect_dto: UpsertRedirectDTO
     return upsert_redirect(redirect_dto, cur_user)
 
 
+@route('get', 'bookmarks-list')
+async def bookmarks_list(request: Request, cur_user: CurUserDep):
+    from bookmarks import list_bookmarks
+
+    page = await to_thread(list_bookmarks, cur_user, request.query_params.get('limit', 24),
+                           request.query_params.get('offset'))
+    return JSONResponse({'articles': [{'id': p.id, 'title': p.title, 'url': get_article_url(request, p)}
+                                     for p in page['articles']], 'offset': page['offset']},
+                        headers={'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow'})
+
+
+@route('post', 'bookmark-status')
+async def bookmark_status(request: Request, cur_user: CurUserDep):
+    from bookmarks import bookmark_states
+
+    _integration_mutation(request)
+    body = await read_json_body(request)
+    if not isinstance(body, dict):
+        raise HTTPException(422, 'Supply article_ids')
+    states = await to_thread(bookmark_states, cur_user, body.get('article_ids'))
+    return JSONResponse(states, headers={'Cache-Control': 'private, no-store'})
+
+
+@route('post', 'update-bookmark')
+async def update_bookmark(article_id: str, request: Request, cur_user: CurUserDep):
+    from bookmark_service import set_bookmark
+
+    _integration_mutation(request)
+    body = await read_json_body(request)
+    if not isinstance(body, dict):
+        raise HTTPException(422, 'Supply saved')
+    result = await to_thread(set_bookmark, cur_user, article_id, body.get('saved'), request)
+    return JSONResponse(result, headers={'Cache-Control': 'private, no-store'})
+
+
+@route('post', 'begin-auth-action')
+async def begin_auth_action(request: Request):
+    from auth_action_service import require_action_request, validate_intent
+    from login_flow import begin_login, browser_cookie
+
+    require_action_request(request)
+    body = await read_json_body(request)
+    intent = validate_intent(body)
+    destination, binding = await to_thread(begin_login, request, body.get('return_url'), intent=intent)
+    response = JSONResponse({'login_url': destination}, headers={'Cache-Control': 'no-store'})
+    browser_cookie(response, binding)
+    return response
+
+
+@route('post', 'complete-auth-action')
+async def complete_auth_action(request: Request, cur_user: CurUserDep):
+    from auth_action_service import complete_action, require_action_request
+
+    require_action_request(request)
+    result = await to_thread(complete_action, cur_user, request, await read_json_body(request))
+    return JSONResponse(result, headers={'Cache-Control': 'private, no-store'})
+
+
+@route('post', 'welcome-seen')
+async def welcome_seen(request: Request, cur_user: CurUserDep):
+    from auth_action_service import require_action_request
+    from welcome_service import acknowledge_welcome
+
+    require_action_request(request)
+    result = await to_thread(acknowledge_welcome, cur_user)
+    return JSONResponse(result, headers={'Cache-Control': 'private, no-store'})
+
+
 def _integration_mutation(request):
     origin = request.headers.get("origin")
     if origin and origin not in get_allowed_origins():
@@ -546,7 +617,7 @@ async def delete_account(user: UserDep, cur_user: CurUserDep, request: Request):
 
     _integration_mutation(request)
     try:
-        payload = await request.json()
+        payload = await read_json_body(request)
     except (ValueError, UnicodeError):
         raise HTTPException(422, "Type DELETE to confirm account deletion") from None
     code = await to_thread(account_deletion_service.delete_own_account, user, cur_user, payload)
@@ -726,6 +797,90 @@ async def share_article_linkedin(article: ArticleDep, cur_user: CurUserDep, requ
                         headers={"Cache-Control": "no-store"})
 
 
+@route("get", "pinterest-connection")
+async def pinterest_connection(user: UserDep, cur_user: CurUserDep):
+    result = await to_thread(pinterest_service.connection_status, user, cur_user)
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+
+@route("post", "pinterest-connection")
+async def connect_pinterest(user: UserDep, cur_user: CurUserDep, request: Request):
+    _integration_mutation(request)
+    result, binding = await to_thread(pinterest_service.begin_connection, user, cur_user)
+    response = JSONResponse(result, headers={"Cache-Control": "no-store"})
+    response.set_cookie(pinterest_service.COOKIE_NAME, binding,
+                        max_age=pinterest_service.CONNECT_LIFETIME_MS // 1000,
+                        path=API_URL_ROUTES["pinterest-callback"], secure=True, httponly=True, samesite="lax")
+    return response
+
+
+@route("get", "pinterest-callback")
+async def pinterest_callback(cur_user: CurUserDep, request: Request):
+    reason = None
+    try:
+        connected = await to_thread(
+            pinterest_service.complete_connection, cur_user,
+            state=request.query_params.get("state"),
+            binding=request.cookies.get(pinterest_service.COOKIE_NAME),
+            code=request.query_params.get("code"),
+            denied=bool(request.query_params.get("error"))
+        )
+        outcome = "connected" if connected else "denied"
+    except HTTPException as error:
+        if error.status_code not in (409, 422, 429, 502, 503):
+            raise
+        step = getattr(error, "connection_step", "validation")
+        logger.warning("Pinterest connection failed: step=%s status=%s", step, error.status_code)
+        if error.status_code == 429:
+            reason = "rate_limit"
+        elif error.status_code == 503:
+            reason = "configuration"
+        elif step in ("authorization", "token", "profile"):
+            reason = step
+        elif error.status_code == 409:
+            reason = "expired"
+        outcome = "error"
+    destination = get_url(request, "edit-user", user_id=cur_user.id, absolute=True,
+                          pinterest=outcome, pinterest_reason=reason) + "#integrations"
+    response = RedirectResponse(destination, status_code=303, headers={"Cache-Control": "no-store",
+                                                                       "Referrer-Policy": "no-referrer"})
+    response.delete_cookie(pinterest_service.COOKIE_NAME, path=API_URL_ROUTES["pinterest-callback"],
+                           secure=True, httponly=True, samesite="lax")
+    return response
+
+
+@route("delete", "pinterest-connection")
+async def disconnect_pinterest(user: UserDep, cur_user: CurUserDep, request: Request):
+    _integration_mutation(request)
+    result = await to_thread(pinterest_service.disconnect, user, cur_user)
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+
+@route("get", "pinterest-boards")
+async def pinterest_boards(user: UserDep, cur_user: CurUserDep):
+    result = await to_thread(pinterest_service.list_boards, user, cur_user)
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+
+@route("patch", "pinterest-connection")
+async def select_pinterest_board(user: UserDep, cur_user: CurUserDep, request: Request,
+                                 payload: SharePayloadDep = None):
+    _integration_mutation(request)
+    board_id = payload.get("board_id") if isinstance(payload, dict) else None
+    result = await to_thread(pinterest_service.select_board, user, cur_user, board_id)
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+
+@route("post", "share-article-pinterest")
+async def share_article_pinterest(article: ArticleDep, cur_user: CurUserDep, request: Request,
+                                 payload: SharePayloadDep = None):
+    _integration_mutation(request)
+    event_id = payload.get("event_id") if isinstance(payload, dict) else None
+    result = await to_thread(pinterest_service.share_article, article, cur_user, request, event_id)
+    return JSONResponse(result, status_code=202 if result.get("status") == "unconfirmed" else 200,
+                        headers={"Cache-Control": "no-store"})
+
+
 @route("get", "threads-connection")
 async def threads_connection(user: UserDep, cur_user: CurUserDep):
     result = await to_thread(threads_sharing_service.connection_status, user, cur_user)
@@ -833,7 +988,7 @@ async def article_comment_impression(article: ArticleDep, article_comment: Artic
 async def _direct_message_body(request, fields):
     _integration_mutation(request)
     try:
-        body = await request.json()
+        body = await read_json_body(request)
     except ValueError as exc:
         raise HTTPException(422, "Expected message details as JSON") from exc
     if not isinstance(body, dict) or set(body) != set(fields):
@@ -880,7 +1035,7 @@ async def direct_message_read(user_id: str, request: Request, cur_user: CurUserD
 async def _empty_notification_mutation(request):
     _integration_mutation(request)
     try:
-        body = await request.json()
+        body = await read_json_body(request)
     except ValueError as exc:
         raise HTTPException(422, "Expected an empty JSON object") from exc
     if body != {}:

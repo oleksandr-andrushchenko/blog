@@ -8,7 +8,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import PlainTextResponse
 from starlette.routing import Match
 
-from notifications import get_access_log
+from notifications import get_access_log, get_request_log_context
+from page_metadata import render_page as get_html_content
 from related_articles import get_related_articles
 from query_dtos import (
     TagQueryDTO,
@@ -27,7 +28,7 @@ from shared_deps import (
     CategoryDep,
 )
 from shared_utils import (
-    template_request, get_html_content, find_category, find_redirect,
+    template_request, find_category, find_redirect,
     get_categories, get_category, get_static_url, get_tags,
 )
 from web import (
@@ -67,6 +68,7 @@ from web_utils import (
     get_article_url,
     get_users,
     get_latest_articles_by_user,
+    get_article_author_articles,
     get_articles,
     get_latest_published_articles,
     get_popular_tags,
@@ -95,6 +97,12 @@ from web_utils import (
     get_legacy_article_redirect_url,
     get_legacy_article_id_redirect_url,
 )
+
+from creator_integrations import creator_integration_links
+from site_socials import website_social_links
+from shared_utils import jinja2_env
+
+jinja2_env().globals.update(creator_integration_links=creator_integration_links, contact_socials=website_social_links())
 
 app = Application()
 app.add_middleware(TrailingSlashMiddleware)
@@ -259,11 +267,11 @@ async def access_log_middleware(request: Request, call_next):
     try:
         response = await call_next(request)
         status = response.status_code
-        if request.url.path.startswith(('/messages', '/notifications')) or request.url.path == '/presence':
+        if request.url.path.startswith(('/messages', '/notifications', '/bookmarks', '/auth/actions', '/auth/complete', '/auth/welcome')) or request.url.path == '/presence':
             response.headers['Cache-Control'] = 'private, no-store'
         return response
     finally:
-        logger.log(*get_access_log(request, status))
+        logger.log(*get_access_log(request, status), extra={"context": get_request_log_context(request)})
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -280,7 +288,8 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(_request: Request, exc: Exception):
-    logger.error("Unhandled request exception", exc_info=exc)
+    logger.error("Unhandled request exception", exc_info=exc,
+                 extra={"context": get_request_log_context(_request)})
     return get_error_response(500, request=_request)
 
 
@@ -361,15 +370,28 @@ async def index(cur_user: OptCurUserDep) -> str:
     })
 
 
+@route('get', 'bookmarks', response_class=HTMLResponse)
+async def bookmarks_page(request: Request, cur_user: CurUserDep):
+    from bookmarks import list_bookmarks
+    page = await to_thread(list_bookmarks, cur_user, request.query_params.get('limit', 24),
+                           request.query_params.get('offset'))
+    return HTMLResponse(get_html_content('bookmarks.html', {
+        **page, 'cur_user': cur_user,
+        'bookmark_states': {article.id: True for article in page['articles']},
+    }), headers={'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow'})
+
+
 async def _article_page(article: ArticleDep, cur_user: OptCurUserDep) -> HTMLResponse:
+    from bookmarks import bookmark_states
+    saved_bookmarks = await to_thread(bookmark_states, cur_user, [article.id]) if cur_user and cur_user.status == UserStatus.ACTIVE else {}
     (
-        author,
+        (author, author_articles),
         article_impression,
         related_articles,
         comments,
         category,
     ) = await asyncio.gather(
-        to_thread(find_user, article.user_id),
+        to_thread(get_article_author_articles, article),
         to_thread(find_article_impression, article, cur_user) if cur_user else asyncio.sleep(0, result=None),
         get_related_articles(article),
         to_thread(get_article_comments, article),
@@ -380,13 +402,15 @@ async def _article_page(article: ArticleDep, cur_user: OptCurUserDep) -> HTMLRes
         "cur_user": cur_user,
         "article": article,
         "author": author,
+        "author_articles": author_articles,
         "article_impression": article_impression,
+        "bookmark_states": saved_bookmarks,
         "related_articles": related_articles,
         "comments": comments,
         "category": category,
         "comments_query": ArticleCommentQueryDTO()
     })
-    return HTMLResponse(html_content)
+    return HTMLResponse(html_content, headers={"Cache-Control": "private, no-store"} if cur_user else None)
 
 
 async def _articles_page(query_dto: ArticleQueryDTO, cur_user: OptCurUserDep) -> HTMLResponse:
@@ -613,41 +637,67 @@ async def edit_user(user: UserDep, cur_user: CurUserDep) -> str:
 
 @route("get", "login", response_class=RedirectResponse)
 async def login(request: Request) -> RedirectResponse:
-    from web_utils import get_login_redirect_url
+    from login_flow import begin_login, browser_cookie
 
     redirect_url = get_redirect_url(request)
-    callback_url = get_url(request, 'login-callback', absolute=True)
-    provider_redirect_url = get_login_redirect_url(callback_url)
+    provider_redirect_url, binding = await to_thread(begin_login, request, redirect_url)
     response = RedirectResponse(provider_redirect_url)
     response.set_cookie("redirect_url", redirect_url, httponly=True, secure=True)
+    browser_cookie(response, binding)
     return response
 
 
 @route("get", "login-callback", response_class=RedirectResponse)
 async def login_callback(request: Request) -> RedirectResponse:
     from web_utils import create_auth_jwt_token, get_auth_return_url, get_user_token_by_code
+    from login_flow import browser_cookie, claim_login, save_continuation
 
     try:
-        redirect_url = get_auth_return_url(request, request.cookies.get("redirect_url"))
+        pending = await to_thread(claim_login, request)
+        redirect_url = get_auth_return_url(request, pending['return_url'] if pending else request.cookies.get("redirect_url"))
         callback_url = get_url(request, 'login-callback', absolute=True)
+        if request.query_params.get('error'):
+            response = RedirectResponse(redirect_url, 302)
+            browser_cookie(response)
+            response.delete_cookie('redirect_url')
+            return response
 
         cognito_user_token = get_user_token_by_code(
             code=request.query_params.get("code"),
             callback_url=callback_url,
             req=request,
+            verifier=pending['verifier'] if pending else None,
+            nonce=request.query_params.get('state') if pending else None,
         )
         response = RedirectResponse(redirect_url, 302)
         response.delete_cookie("redirect_url")
+        browser_cookie(response)
         token = create_auth_jwt_token(cognito_user_token)
         set_token_cookie(token, response)
         user = get_user_by_auth_token(token)
         if user:
+            if pending and (pending.get('intent') or user.welcome_state in {'pending', 'ready'} and not user.welcome_seen_at):
+                await to_thread(save_continuation, user, token, pending)
+                response.headers['location'] = get_url(request, 'auth-complete')
             logger.info('User signed in', extra={'context': {
                 'url': get_user_url(request, user, absolute=True),
             }})
         return response
     except (InvalidCodeError, CodeExchangeFailedError, InvalidTokenError) as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@route('get', 'auth-complete', response_class=HTMLResponse)
+async def auth_complete(request: Request, cur_user: CurUserDep):
+    from login_flow import get_continuation
+
+    pending = await to_thread(get_continuation, cur_user, request)
+    return HTMLResponse(get_html_content('auth-complete.html', {
+        'cur_user': cur_user,
+        'meta_title': 'Completing Sign-In',
+        'return_url': pending['return_url'],
+    }), headers={'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow',
+                 'Referrer-Policy': 'no-referrer'})
 
 
 @route("get", "logout", response_class=RedirectResponse)

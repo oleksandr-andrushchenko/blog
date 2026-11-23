@@ -1,6 +1,7 @@
 {% extends 'layout.html' %}
 {% set title = 'Account deletion' %}
-{% set meta_title = title ~ ' ' ~ site_name %}
+{% set meta_title = page_metadata.title %}
+{% set meta_desc = page_metadata.description %}
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), (title): None} %}
         {% include "fragments/breadcrumbs.html" %}

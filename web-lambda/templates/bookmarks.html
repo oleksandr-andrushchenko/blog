@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+{% set meta_title = page_metadata.title %}
+{% set meta_desc = page_metadata.description %}
+{% set meta_robots = "noindex, nofollow" %}
+{% block breadcrumbs %}
+    {% with breadcrumbs={"Home": url('index'), "Bookmarks": None} %}
+        {% include "fragments/breadcrumbs.html" %}
+    {% endwith %}
+{% endblock %}
+{% block content %}
+    <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2">
+        <h1>Bookmarks</h1>
+    </div>
+    <p class="text-secondary small">{{ page_metadata.subtitle }}</p>
+    {% if articles %}
+        <div id="bookmarked-articles" class="{{ {"def": 1, "sm": 2, "lg": 3} | row_classes }} g-1">
+            {% with show_bookmark_controls=true %}
+                {% include "fragments/articles.html" %}
+            {% endwith %}
+        </div>
+        <p id="bookmarks-empty" class="d-none mt-3">No bookmarks left on this page. <a href="{{ articles_url() }}">Browse articles</a> to save more</p>
+    {% else %}
+        <div class="p-4 rounded text-bg-light mb-3">
+            <i class="bi bi-bookmark fs-3" aria-hidden="true"></i>
+            <h2 class="h5 mb-0">No public bookmarks on this page</h2>
+            <p class="small">Use Bookmark on an article to save it here</p>
+            <a href="{{ articles_url() }}" class="btn btn-dark">Find articles</a>
+        </div>
+    {% endif %}
+    <div class="d-flex gap-2 mt-3">
+        {% if request.query_params.get('offset') %}
+            <a class="btn btn-light" href="{{ url('bookmarks') }}">First page</a>
+        {% endif %}
+        {% if offset %}
+            <a class="btn btn-light" href="{{ url('bookmarks', offset=offset, limit=request.query_params.get('limit', 24)) }}">Next page</a>
+        {% endif %}
+    </div>
+{% endblock %}

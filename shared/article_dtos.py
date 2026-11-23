@@ -6,7 +6,8 @@ from urllib.parse import urlsplit
 from basic_dtos import BaseDTO, UNSET
 from support_links import validate_support_providers
 from query_dtos import ArticleStatus
-from validation import normalize_slug, validate_catalog_text, validate_category_slug, validate_http_url
+from validation import (normalize_slug, validate_catalog_text, validate_category_slug,
+                        validate_http_url, validate_catalog_description)
 
 
 def _validate_source(value):
@@ -146,6 +147,8 @@ class UpdateArticleDTO(BaseDTO):
 
 @dataclass(slots=True)
 class UpdateTagDTO(BaseDTO):
+    description: str | object = UNSET
+    meta_description: str | object = UNSET
     name: str | object = UNSET
     slug: str | object = UNSET
     image_action: str | None | object = UNSET
@@ -160,6 +163,10 @@ class UpdateTagDTO(BaseDTO):
                 raise ValueError("name must contain between 2 and 40 characters")
         if self.slug is not UNSET:
             raise ValueError("tag slug is immutable")
+        for field_name in ('description', 'meta_description'):
+            value = getattr(self, field_name)
+            if value is not UNSET:
+                setattr(self, field_name, validate_catalog_description(value))
         if self.image_action is not UNSET and self.image_action not in (None, "delete", "replace", "keep"):
             raise ValueError("invalid image action")
 
