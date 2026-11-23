@@ -11,7 +11,15 @@ services:
       - .env
       - ${TEST_ENV_FILE:-.env.test}
     environment:
+      TEST_EXTERNAL_CALL_LOG: "/test-audit/external-calls.jsonl"
       APP_STAGE: local
+      PINTEREST_APP_ID: ""
+      PINTEREST_APP_SECRET: ""
+      PINTEREST_TOKEN_ENCRYPTION_KEY: ""
+      PINTEREST_PUBLISHER_ENABLED: "false"
+      SITE_TELEGRAM_CHANNEL_URL: ""
+      SITE_THREADS_PROFILE_URL: ""
+      SITE_PINTEREST_PROFILE_URL: ""
       LINKEDIN_APP_ID: ""
       LINKEDIN_APP_SECRET: ""
       LINKEDIN_TOKEN_ENCRYPTION_KEY: ""
@@ -40,9 +48,12 @@ services:
       DYNAMODB_TABLE: app_test
       EMAIL_FILES_DIR: "/app-emails"
       STATIC_FILES_DIR: "/app-static"
-      PYTHONPATH: "/app:/web-lambda"
+      TEST_SERVICE_NAME: web-lambda
+      PYTHONPATH: "/test-support:/app:/web-lambda"
       FUNCTION_TEMPLATES_DIR: "/web-lambda/templates"
     volumes:
+      - ./tests/support:/test-support:ro
+      - ./.tmp/test-audit:/test-audit
       - ./shared:/app
       - ./tests/site-config.json:/app/data.json:ro
       - ./web-lambda:/web-lambda
@@ -62,7 +73,15 @@ services:
       - .env
       - ${TEST_ENV_FILE:-.env.test}
     environment:
+      TEST_EXTERNAL_CALL_LOG: "/test-audit/external-calls.jsonl"
       APP_STAGE: local
+      PINTEREST_APP_ID: ""
+      PINTEREST_APP_SECRET: ""
+      PINTEREST_TOKEN_ENCRYPTION_KEY: ""
+      PINTEREST_PUBLISHER_ENABLED: "false"
+      SITE_TELEGRAM_CHANNEL_URL: ""
+      SITE_THREADS_PROFILE_URL: ""
+      SITE_PINTEREST_PROFILE_URL: ""
       LINKEDIN_APP_ID: ""
       LINKEDIN_APP_SECRET: ""
       LINKEDIN_TOKEN_ENCRYPTION_KEY: ""
@@ -92,9 +111,12 @@ services:
       DYNAMODB_TABLE: app_test
       EMAIL_FILES_DIR: "/app-emails"
       STATIC_FILES_DIR: "/app-static"
-      PYTHONPATH: "/app:/api-lambda"
+      TEST_SERVICE_NAME: api-lambda
+      PYTHONPATH: "/test-support:/app:/api-lambda"
       FUNCTION_TEMPLATES_DIR: "/api-lambda/templates"
     volumes:
+      - ./tests/support:/test-support:ro
+      - ./.tmp/test-audit:/test-audit
       - ./shared:/app
       - ./tests/site-config.json:/app/data.json:ro
       - ./api-lambda:/api-lambda
@@ -115,7 +137,9 @@ services:
       - .env
       - ${TEST_ENV_FILE:-.env.test}
     environment:
-      PYTHONPATH: "/tests:/scripts"
+      TEST_EXTERNAL_CALL_LOG: "/test-audit/external-calls.jsonl"
+      TEST_SERVICE_NAME: tests
+      PYTHONPATH: "/test-support:/tests:/scripts"
       WEB_TEST_BASE_URL: "http://web-lambda:5000"
       API_TEST_BASE_URL: "http://api-lambda:5000"
       TEST_DYNAMODB_TABLE: app_test
@@ -125,6 +149,13 @@ services:
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"
+      PINTEREST_APP_ID: ""
+      PINTEREST_APP_SECRET: ""
+      PINTEREST_TOKEN_ENCRYPTION_KEY: ""
+      PINTEREST_PUBLISHER_ENABLED: "false"
+      SITE_TELEGRAM_CHANNEL_URL: ""
+      SITE_THREADS_PROFILE_URL: ""
+      SITE_PINTEREST_PROFILE_URL: ""
       LINKEDIN_APP_ID: ""
       LINKEDIN_APP_SECRET: ""
       LINKEDIN_TOKEN_ENCRYPTION_KEY: ""
@@ -143,6 +174,8 @@ services:
       TELEGRAM_BOT_TOKEN: ""
       TELEGRAM_CHAT_ID: ""
     volumes:
+      - ./tests/support:/test-support:ro
+      - ./.tmp/test-audit:/test-audit
       - ./tests:/tests
       - ./:/project
       - ./tests/site-config.json:/project/shared/data.json:ro
@@ -161,3 +194,7 @@ services:
 
 volumes:
   dynamodb-test-data:
+
+networks:
+  default:
+    internal: true

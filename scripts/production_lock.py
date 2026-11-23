@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Serialize production tooling from all worktrees against the shared configuration."""
 import argparse
+from contextlib import contextmanager
 import fcntl
 import os
 from pathlib import Path
@@ -9,16 +10,23 @@ import subprocess
 import sys
 
 
-def run_locked(env_file, command, *, load_config=True):
-    # Resolve links so all worktrees use the main checkout's single lock.
+@contextmanager
+def production_lock(env_file):
+    # Resolve links so all worktrees share a lock outside disposable build directories.
     production_file = Path(env_file).resolve()
-    # Build cleanup removes .tmp; keep the common lock outside disposable directories.
+    if os.environ.get('PRODUCTION_LOCK_HELD') == '1' and os.environ.get('PROD_ENV_FILE') == str(production_file):
+        yield dict(os.environ)
+        return
     lock_path = production_file.parent / '.production-deploy.lock'
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
     with lock_path.open('a') as lock:
         print('Waiting for shared production tooling lock…', flush=True)
         fcntl.flock(lock, fcntl.LOCK_EX)
-        environment = {**os.environ, 'PROD_ENV_FILE': str(production_file), 'PRODUCTION_LOCK_HELD': '1'}
+        yield {**os.environ, 'PROD_ENV_FILE': str(production_file), 'PRODUCTION_LOCK_HELD': '1'}
+
+
+def run_locked(env_file, command, *, load_config=True):
+    production_file = Path(env_file).resolve()
+    with production_lock(production_file) as environment:
         if load_config and production_file.exists():
             if Path(__file__).with_name('production_config.py').exists():
                 from production_config import read_env, bootstrap_values, deployment_environment

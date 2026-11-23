@@ -11,6 +11,7 @@ import sys
 
 # Explicit classification prevents a newly added credential from silently entering SSM.
 SECRET_KEYS = frozenset({
+    'PINTEREST_APP_SECRET', 'PINTEREST_TOKEN_ENCRYPTION_KEY',
     'APP_SECRET', 'AUTH_JWT_SECRET', 'GOOGLE_OAUTH_CLIENT_SECRET',
     'TELEGRAM_BOT_TOKEN', 'TELEGRAM_PUBLISHER_BOT_TOKEN', 'TELEGRAM_PUBLISHER_WEBHOOK_SECRET',
     'THREADS_APP_SECRET', 'THREADS_TOKEN_ENCRYPTION_KEY',
@@ -18,6 +19,8 @@ SECRET_KEYS = frozenset({
     'BING_WEBMASTER_API_KEY', 'YANDEX_WEBMASTER_OAUTH_TOKEN', 'PEXELS_API_KEY', 'OPENAI_API_KEY',
 })
 CONFIG_KEYS = frozenset({
+    'SES_FROM_EMAIL',
+    'PINTEREST_APP_ID', 'SITE_TELEGRAM_CHANNEL_URL', 'SITE_THREADS_PROFILE_URL', 'SITE_PINTEREST_PROFILE_URL',
     'AWS_OWNER', 'APP_STAGE', 'APP_ENV', 'APP_DEBUG', 'DOMAIN_NAME', 'HOSTED_ZONE_ID',
     'NOTIFICATION_EMAIL', 'NOTIFICATION_PHONE', 'GOOGLE_ANALYTICS_ID', 'INDEXNOW_KEY',
     'GOOGLE_SEARCH_CONSOLE_SITE_URL', 'YANDEX_WEBMASTER_USER_ID', 'YANDEX_WEBMASTER_HOST_ID',
@@ -214,8 +217,11 @@ def deployment_environment(bootstrap, inherited, reader=aws_json):
 
 def script_environment(bootstrap, inherited, reader=aws_json):
     if not bootstrap.get('PROD_CONFIG_PREFIX'):
-        return {**inherited, **bootstrap, 'AWS_PROFILE': bootstrap['AWS_PROJECT'],
-                'AWS_DEFAULT_REGION': bootstrap['AWS_REGION']}
+        environment = {**inherited, **bootstrap, 'AWS_PROFILE': bootstrap['AWS_PROJECT'],
+                       'AWS_DEFAULT_REGION': bootstrap['AWS_REGION']}
+        if not environment.get('SES_FROM_EMAIL') and environment.get('DOMAIN_NAME'):
+            environment['SES_FROM_EMAIL'] = 'no-reply@' + environment['DOMAIN_NAME']
+        return environment
     if set(bootstrap) - LOCAL_KEYS:
         raise ConfigurationError('Cloud mode requires a bootstrap-only .env.prod')
     config, credentials = cloud_values(bootstrap, reader)
@@ -227,6 +233,8 @@ def script_environment(bootstrap, inherited, reader=aws_json):
                         'AWS_PROFILE': bootstrap['AWS_PROJECT'], 'AWS_DEFAULT_REGION': bootstrap['AWS_REGION']})
     for key in ('DYNAMODB_ENDPOINT', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_SESSION_TOKEN'):
         environment.pop(key, None)
+    if not environment.get('SES_FROM_EMAIL') and environment.get('DOMAIN_NAME'):
+        environment['SES_FROM_EMAIL'] = 'no-reply@' + environment['DOMAIN_NAME']
     return environment
 
 
@@ -339,6 +347,12 @@ CF_PARAMETERS = {
     'TelegramBotToken': 'TELEGRAM_BOT_TOKEN',
     'ThreadsAppId': 'THREADS_APP_ID',
     'FacebookCredentialsSecretArn': 'FACEBOOK_CREDENTIALS_SECRET_ARN',
+    'PinterestAppId': 'PINTEREST_APP_ID',
+    'PinterestAppSecret': 'PINTEREST_APP_SECRET',
+    'PinterestTokenEncryptionKey': 'PINTEREST_TOKEN_ENCRYPTION_KEY',
+    'SiteTelegramChannelUrl': 'SITE_TELEGRAM_CHANNEL_URL',
+    'SiteThreadsProfileUrl': 'SITE_THREADS_PROFILE_URL',
+    'SitePinterestProfileUrl': 'SITE_PINTEREST_PROFILE_URL',
     'LinkedInAppId': 'LINKEDIN_APP_ID',
     'LinkedInAppSecret': 'LINKEDIN_APP_SECRET',
     'LinkedInTokenEncryptionKey': 'LINKEDIN_TOKEN_ENCRYPTION_KEY',
@@ -442,12 +456,12 @@ def main(argv=None):
         command = args.command[1:] if args.command[:1] == ['--'] else args.command
         if not command:
             raise ConfigurationError('A production script command is required')
-        if os.environ.get('PRODUCTION_LOCK_HELD') != '1':
-            from production_lock import run_locked
-            return run_locked(args.env_file, [sys.executable, str(Path(__file__).resolve()),
-                              '--env-file', args.env_file, 'run', '--', *command], load_config=False)
-        bootstrap = bootstrap_values(args.env_file)
-        environment = script_environment(bootstrap, os.environ)
+        from production_lock import production_lock
+        with production_lock(args.env_file) as locked_environment:
+            bootstrap = bootstrap_values(args.env_file)
+            environment = script_environment(bootstrap, locked_environment)
+        # The job keeps a configuration snapshot, but must not claim to hold the lock.
+        environment.pop('PRODUCTION_LOCK_HELD', None)
         os.execvpe(command[0], command, environment)
     except (ConfigurationError, OSError, KeyError):
         # No raw provider exception/request, CLI output, or credential values.

@@ -54,8 +54,8 @@ configuration. CloudFormation sensitive parameters retain their existing `NoEcho
 Production scripts load raw credentials into their process environment **after container startup**, before
 importing application modules. Credentials are not placed in Docker's configured environment, build artifacts,
 temporary env files, command arguments, or configuration-review output. Scripts reload AWS configuration on
-launch; running jobs retain their snapshot. The shared production lock covers the job's lifetime, so pause long
-maintenance runs before deploying. Unknown/malformed schemas, unsafe Make interpolation, and AWS errors stop
+launch; running jobs retain their snapshot. The shared production lock protects snapshot loading and is released
+before the maintenance command runs. Coordinate operations that must not overlap deployment explicitly. Unknown/malformed schemas, unsafe Make interpolation, and AWS errors stop
 execution without falling back to stale local secrets.
 
 ## Review and migrate the existing file
@@ -150,3 +150,13 @@ those settings as Make variables. A minimal local fallback supports pre-migratio
 Full code builds clean their own vendor directories and do not remove the entire temporary directory.
 The legacy wildcard `drop-cdn-cache` target is removed. Cache invalidation requires an explicit instruction
 and a command listing only exact affected file paths.
+
+## Maintenance snapshots and email sender
+
+Production script commands load an authoritative configuration snapshot under the shared production lock,
+then release the lock before running the command. The command's environment does not claim
+`PRODUCTION_LOCK_HELD`. Deployments continue holding the lock throughout their operation. Long-running
+maintenance retains its original snapshot; coordinate explicitly if it must not overlap a deployment.
+
+Scripts derive `SES_FROM_EMAIL=no-reply@DOMAIN_NAME` when no sender is configured, matching the existing
+Lambda default. An explicitly configured sender is preserved. `SES_FROM_EMAIL` is a nonsecret script setting.

@@ -25,7 +25,7 @@ export PROD_ENV_FILE''')
     if '_PRODUCTION_LOCK_GOALS' not in text:
         wrapper = '''# Acquire the shared production lock before a fresh recursive Make reads settings.
 # Local services/tests keep their independent worktree configuration and ports.
-_PRODUCTION_LOCK_GOALS := $(filter deploy deploy-% generate-code-files generate-%-lambda-code-files delete-% drop-cdn-cache,$(MAKECMDGOALS))
+_PRODUCTION_LOCK_GOALS := $(filter deploy deploy-% generate-code-files generate-%-lambda-code-files delete-%,$(MAKECMDGOALS))
 ifneq ($(_PRODUCTION_LOCK_GOALS),)
 ifneq ($(PRODUCTION_LOCK_HELD),1)
 _PRODUCTION_LOCK_REQUIRED := 1

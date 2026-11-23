@@ -1,4 +1,5 @@
 """AWS-backed config is resolved by tooling, never by Lambda cold starts."""
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -449,3 +450,52 @@ def test_relocate_failure_preserves_active_bootstrap(tmp_path, stores, failure):
     with pytest.raises(config.ConfigurationError):
         config.relocate(path, '/example/new/', 'example/new/', apply=True, reader=reader)
     assert path.read_bytes() == (original + b'CSS_CACHE_COUNTER=43\n' if failure == 'concurrent' else original)
+
+
+@pytest.mark.parametrize('cloud', [True, False])
+@pytest.mark.parametrize('sender', [None, 'notifications@example.test'])
+def test_scripts_default_to_lambda_sender_and_preserve_explicit_sender(stores, cloud, sender):
+    if sender:
+        stores.settings['SES_FROM_EMAIL'] = sender
+    bootstrap = stores.bootstrap if cloud else {
+        'AWS_PROJECT': 'example-profile', 'AWS_REGION': 'us-west-2', **stores.settings,
+    }
+    environment = config.script_environment(bootstrap, {}, stores.reader)
+    assert environment['SES_FROM_EMAIL'] == (sender or 'no-reply@example.test')
+
+
+
+@pytest.mark.parametrize('fail_snapshot', [False, True])
+def test_script_snapshot_is_locked_but_command_runs_after_release(tmp_path, monkeypatch, fail_snapshot):
+    bootstrap = tmp_path / '.env.prod'
+    bootstrap.write_text('AWS_STACK=example\n')
+    lock_path = tmp_path / '.production-deploy.lock'
+    monkeypatch.delenv('PRODUCTION_LOCK_HELD', raising=False)
+    monkeypatch.setattr(config, 'bootstrap_values', lambda path: {'AWS_STACK': 'example'})
+    calls = []
+
+    def snapshot(values, inherited):
+        assert inherited['PRODUCTION_LOCK_HELD'] == '1'
+        with lock_path.open('a') as contender:
+            with pytest.raises(BlockingIOError):
+                fcntl.flock(contender, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        calls.append('snapshot')
+        if fail_snapshot:
+            raise config.ConfigurationError('synthetic failure')
+        return {**inherited, 'APP_SECRET': 'synthetic-in-memory-secret'}
+
+    def execute(program, command, environment):
+        assert program == 'example-command' and command == ['example-command', '--example']
+        assert 'PRODUCTION_LOCK_HELD' not in environment
+        assert environment['APP_SECRET'] == 'synthetic-in-memory-secret'
+        with lock_path.open('a') as contender:
+            fcntl.flock(contender, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        calls.append('command')
+
+    monkeypatch.setattr(config, 'script_environment', snapshot)
+    monkeypatch.setattr(os, 'execvpe', execute)
+    result = config.main(['--env-file', str(bootstrap), 'run', '--', 'example-command', '--example'])
+    assert result == (1 if fail_snapshot else None)
+    assert calls == (['snapshot'] if fail_snapshot else ['snapshot', 'command'])
+    with lock_path.open('a') as contender:
+        fcntl.flock(contender, fcntl.LOCK_EX | fcntl.LOCK_NB)

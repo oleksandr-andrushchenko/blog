@@ -447,6 +447,8 @@ recreate-local-dynamodb: ## Recreate DynamoDB table in local DynamoDB & populate
 
 .PHONY: tests
 tests: ## Run the full test suite in the isolated Docker Compose stack
+	@mkdir -p .tmp/test-audit
+	@: > .tmp/test-audit/external-calls.jsonl
 	@status=0; \
 	echo "==> Starting test services..."; \
 	$(TEST_DC) up -d --build --remove-orphans || status=$$?; \
