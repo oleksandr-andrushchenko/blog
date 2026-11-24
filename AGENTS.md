@@ -179,7 +179,9 @@
 ## Maintenance and import scripts
 
 - Production configuration records use `/sysdespro/prod/KEY` in Parameter Store and
-  `sysdespro/prod/KEY` in Secrets Manager. Use `scripts/production_config.py relocate`
+  `sysdespro/prod/KEY` in legacy Secrets Manager. Secure-mode bootstraps use standard SecureString
+  under the parameter prefix; use `scripts/secure_parameters.py` for the verified migration. Use
+  `scripts/production_config.py relocate` only for legacy bootstraps
   through `scripts-production` to review prefix changes, then an explicitly authorized
   `--apply` to copy, verify, and switch the bootstrap. Old records remain for separate cleanup.
 - Run production maintenance and import commands through `scripts-production` in
@@ -451,8 +453,10 @@
 ## AWS-backed production configuration
 
 - Production configuration migration is implemented in `scripts/production_config.py`; see
-  `docs/production-configuration.md` and `.env.prod.example`. Each credential has its own raw-string Secrets Manager
-  secret; each nonsecret setting has its own SSM String parameter. Never bundle values into aggregate JSON records.
+  `docs/production-configuration.md`, `docs/secure-parameters.md` and `.env.prod.example`. With
+  `PROD_SECRET_STORE=ssm`, each application credential has its own standard SSM SecureString; each nonsecret
+  setting has its own SSM String parameter. An absent selector retains the legacy Secrets Manager reader.
+  Never bundle values into aggregate JSON records.
   Classify new keys explicitly; never infer sensitivity from names or store unreviewed credentials in plaintext parameters.
 - Resolve current records by name under the shared production lock. Make receives only nonsecret settings;
   the deployment helper sends raw CloudFormation parameter values through a memory-only descriptor, never argv or disk files.
@@ -532,3 +536,18 @@
 - Preserve complete metadata summaries in the layout; do not reintroduce a hard character truncation.
   Search-title count prefixes may use known public entity totals above 15, never page sizes, intersection
   totals inferred from one filter, or published totals on private-status views.
+
+## Encrypted parameter migration
+
+- Ported from PromptCatalog `97f6dd0`. Run `scripts/secure_parameters.py` through scripts-production,
+  preview first, then an explicitly authorized `--apply`. Hold the shared production lock; preflight all
+  copies, verify decrypted values, Standard tier and ownership tags, then compare complete source/destination
+  snapshots before atomically switching the bootstrap. Preserve key values and custom KMS keys.
+- Keep Apple, Facebook and Search Console documents and Cognito-generated credentials in their current
+  provider/CloudFormation ownership. Reject rotating, replicated, retiring or provider/stack-owned scalar
+  sources for separate review. Never fall back to legacy secrets after secure cutover.
+- Copy the current production loader, lock and secure-parameter helper into new worktrees; upgrade all
+  existing readers sharing a bootstrap before cutover. Legacy prefix relocation rejects secure-mode files.
+- Retain source secrets until exact names/ARNs, lifecycle and current value equality have been reviewed.
+  Cleanup requires a separate explicit command, exact records only, and a 30-day recovery window; never
+  force-delete. Migration alone does not authorize deployment or publishing.

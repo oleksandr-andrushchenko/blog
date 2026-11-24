@@ -1,4 +1,5 @@
 """Shared production configuration support for independently checked-out worktrees."""
+from pathlib import Path
 import re
 import shutil
 
@@ -46,18 +47,11 @@ else
 
 
 def update_compose(path):
-    if '/app/scripts/production_config.py' in path.read_text():
-        return
-    text = path.read_text().replace('      - .env.prod\n', '      - ${PROD_ENV_FILE:-.env.prod}\n')
-    if 'target: /app/.env.prod' not in text:
-        text = text.replace('      - ./:/app\n', '''      - ./:/app
-      # A worktree link may point outside /app; bind the shared host file here.
-      - type: bind
-        source: ${PROD_ENV_FILE:-./.env.prod}
-        target: /app/.env.prod
-        read_only: true
-''')
-    path.write_text(text)
+    # Production tooling must use the current loader and directory mounts even
+    # when the target checkout predates the bootstrap migration.
+    template = Path(__file__).resolve().parents[1] / 'docker-compose.scripts.production.yml'
+    if template.resolve() != path.resolve():
+        path.write_text(template.read_text())
 
 
 def link_production_env(source, target):
@@ -82,8 +76,11 @@ def configure_worktree_production(source, target):
         update_makefile(target / 'Makefile')
     if (target / 'docker-compose.scripts.production.yml').is_file():
         update_compose(target / 'docker-compose.scripts.production.yml')
-    helper = source / 'scripts/production_lock.py'
-    if helper.is_file():
-        destination = target / 'scripts/production_lock.py'
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(helper, destination)
+    # Use current tooling even when the source checkout predates the migration.
+    tools_root = Path(__file__).parent
+    for name in ('production_lock.py', 'production_config.py', 'secure_parameters.py'):
+        helper = tools_root / name
+        destination = target / 'scripts' / name
+        if helper.is_file() and helper.resolve() != destination.resolve():
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(helper, destination)

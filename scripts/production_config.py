@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 
-# Explicit classification prevents a newly added credential from silently entering SSM.
+# Explicit classification prevents credentials from entering plaintext SSM settings.
 SECRET_KEYS = frozenset({
     'PINTEREST_APP_SECRET', 'PINTEREST_TOKEN_ENCRYPTION_KEY',
     'APP_SECRET', 'AUTH_JWT_SECRET', 'GOOGLE_OAUTH_CLIENT_SECRET',
@@ -35,7 +35,7 @@ CONFIG_KEYS = frozenset({
     'CLOUDFRONT_CERTIFICATE_ARN', 'API_CERTIFICATE_ARN',
 })
 LOCAL_KEYS = frozenset({
-    'AWS_STACK', 'AWS_PROJECT', 'AWS_REGION', 'PROD_CONFIG_PREFIX', 'PROD_SECRETS_PREFIX',
+    'AWS_STACK', 'AWS_PROJECT', 'AWS_REGION', 'PROD_CONFIG_PREFIX', 'PROD_SECRETS_PREFIX', 'PROD_SECRET_STORE',
     # Generated deployment state and asset cache revisions remain local, not credentials.
     'WEB_LAMBDA_CODE_TIMESTAMP', 'API_LAMBDA_CODE_TIMESTAMP', 'IMG_LAMBDA_CODE_TIMESTAMP',
     'CSS_CACHE_COUNTER', 'JS_CACHE_COUNTER',
@@ -165,7 +165,15 @@ def cloud_values(bootstrap, reader=aws_json):
         missing = response.get('InvalidParameters', [])
         if len(missing) != len(set(missing)) or set(missing) != set(requested) - seen:
             raise ConfigurationError('Incomplete production parameter response')
-    for key in sorted(SECRET_KEYS):
+    store = bootstrap.get('PROD_SECRET_STORE', 'secretsmanager')
+    if store not in {'ssm', 'secretsmanager'}:
+        raise ConfigurationError('Unknown production credential store')
+    legacy_keys = SECRET_KEYS
+    if store == 'ssm':
+        from secure_parameters import MANAGED_SECRET_KEYS, read_credentials
+        credentials = read_credentials(bootstrap, SECRET_KEYS, reader, ConfigurationError)
+        legacy_keys = SECRET_KEYS & MANAGED_SECRET_KEYS
+    for key in sorted(legacy_keys):
         name = bootstrap['PROD_SECRETS_PREFIX'] + key
         try:
             secret = reader(bootstrap, 'secretsmanager', 'get-secret-value', '--secret-id', name)
@@ -240,6 +248,8 @@ def script_environment(bootstrap, inherited, reader=aws_json):
 
 def migrate(path, parameter_prefix, secret_prefix, apply=False, reader=aws_json):
     values = bootstrap_values(path)
+    if values.get('PROD_SECRET_STORE') == 'ssm':
+        raise ConfigurationError('Encrypted parameters require the dedicated migration; legacy migration is disabled')
     if values.get('PROD_CONFIG_PREFIX'):
         raise ConfigurationError('Configuration is already in cloud mode')
     unknown = set(values) - LOCAL_KEYS - CONFIG_KEYS - SECRET_KEYS
@@ -290,6 +300,8 @@ def relocate(path, parameter_prefix, secret_prefix, apply=False, reader=aws_json
     """Copy cloud records without overwriting values, then switch the bootstrap."""
     original = Path(path).read_bytes()
     bootstrap = bootstrap_values(path)
+    if bootstrap.get('PROD_SECRET_STORE') == 'ssm':
+        raise ConfigurationError('Encrypted parameters require a dedicated relocation; legacy relocation is disabled')
     if not bootstrap.get('PROD_CONFIG_PREFIX') or set(bootstrap) - LOCAL_KEYS:
         raise ConfigurationError('Relocation requires a bootstrap-only cloud configuration')
     validate_prefixes(parameter_prefix, secret_prefix)

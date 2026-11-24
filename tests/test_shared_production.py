@@ -84,12 +84,16 @@ build:
     assert '$(MAKE) -j1 PRODUCTION_LOCK_HELD=1 $(MAKECMDGOALS)' in first
     assert first.count('_PRODUCTION_LOCK_GOALS :=') == 1
     assert '@echo local-help' in first
-    assert (target / 'scripts/production_lock.py').read_bytes() == (source / 'scripts/production_lock.py').read_bytes()
+    for name in ('production_lock.py', 'production_config.py', 'secure_parameters.py'):
+        assert (target / 'scripts' / name).read_bytes() == (ROOT / 'scripts' / name).read_bytes()
     composition = yaml.safe_load((target / 'docker-compose.scripts.production.yml').read_text())
     service = composition['services']['scripts-production']
-    assert service['env_file'] == ['${PROD_ENV_FILE:-.env.prod}']
-    assert {'type': 'bind', 'source': '${PROD_ENV_FILE:-./.env.prod}',
-            'target': '/app/.env.prod', 'read_only': True} in service['volumes']
+    assert 'env_file' not in service
+    assert service['entrypoint'][1] == '/app/scripts/production_config.py'
+    assert {'type': 'bind', 'source': '${PROD_CONFIG_DIR:-.}',
+            'target': '/production', 'read_only': False} in service['volumes']
+    assert not any(isinstance(volume, dict) and volume.get('target') == '/app/.env.prod'
+                   for volume in service['volumes'])
 
 
 def test_lock_serializes_worktrees_and_child_reads_configuration_after_lock(pair, tmp_path):

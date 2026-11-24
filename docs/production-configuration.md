@@ -4,8 +4,8 @@ Each production value has its own AWS record, named after its uppercase environm
 
 | Value | AWS record | Stored value |
 | --- | --- | --- |
-| `AUTH_JWT_SECRET` | Secrets Manager `sysdespro/prod/AUTH_JWT_SECRET` | The raw signing secret |
-| `TELEGRAM_BOT_TOKEN` | Secrets Manager `sysdespro/prod/TELEGRAM_BOT_TOKEN` | The raw bot token |
+| `AUTH_JWT_SECRET` | Parameter Store SecureString `/sysdespro/prod/AUTH_JWT_SECRET` | The raw signing secret |
+| `TELEGRAM_BOT_TOKEN` | Parameter Store SecureString `/sysdespro/prod/TELEGRAM_BOT_TOKEN` | The raw bot token |
 | `DOMAIN_NAME` | Parameter Store String `/sysdespro/prod/DOMAIN_NAME` | The domain name |
 | `TELEGRAM_LOG_LEVEL` | Parameter Store String `/sysdespro/prod/TELEGRAM_LOG_LEVEL` | The log level |
 
@@ -13,7 +13,7 @@ There is no aggregate JSON record or stored key manifest. Bootstrap prefixes ide
 the explicit code classification identifies individual keys. Blank optional values are represented by absent
 records, because SSM does not allow empty strings. Migration prints an explicit `skip empty` for those keys.
 
-Both stores use the project/stage prefix directly, without a `settings/` or `secrets/` segment.
+Application values use the project/stage prefix directly, without a `settings/` or `secrets/` segment.
 Parameter Store names start with `/`; Secrets Manager names do not.
 Prefixes are configurable through the bootstrap file. The explicit classification is in
 `scripts/production_config.py`; unknown keys fail migration rather than silently becoming plaintext settings.
@@ -21,8 +21,8 @@ OAuth client IDs, public TinyMCE/analytics IDs and the public IndexNow ownership
 Credentials remain partitioned by consumer in CloudFormation: API publisher secrets are not added to the web Lambda.
 
 The local `.env.prod` becomes the small bootstrap shown in `.env.prod.example`: AWS profile, region, stack,
-namespace prefixes, generated ZIP timestamps, and CSS/JS cache counters. Keep its existing timestamps and cache
-counters. Stack-owned resources continue using CloudFormation references. Existing Apple, Facebook and Search
+namespace prefixes, `PROD_SECRET_STORE=ssm`, generated ZIP timestamps, and CSS/JS cache counters.
+Keep its existing timestamps and cache counters. Stack-owned resources continue using CloudFormation references. Existing Apple, Facebook and Search
 Console credential secrets remain separate; this migration neither copies nor changes their contents.
 
 ## Runtime and update behavior
@@ -48,7 +48,7 @@ reads of separate provider secrets retain their existing behavior.
 
 Shared authentication/encryption keys must remain compatible between web, API and workers; this tooling never
 generates replacements or rotates them. Lambda environment values remain encrypted at rest and accessible to
-appropriately authorized principals; storing their source in Secrets Manager does not remove copies from Lambda
+appropriately authorized principals; storing their source in encrypted Parameter Store does not remove copies from Lambda
 configuration. CloudFormation sensitive parameters retain their existing `NoEcho` protection.
 
 Production scripts load raw credentials into their process environment **after container startup**, before
@@ -58,7 +58,17 @@ launch; running jobs retain their snapshot. The shared production lock protects 
 before the maintenance command runs. Coordinate operations that must not overlap deployment explicitly. Unknown/malformed schemas, unsafe Make interpolation, and AWS errors stop
 execution without falling back to stale local secrets.
 
-## Review and migrate the existing file
+## Encrypted application credentials
+
+Follow [the SecureString migration guide](secure-parameters.md) for the current
+Secrets Manager to standard Parameter Store migration, ownership tags, permissions,
+verification, and retained-source cleanup review. Provider documents (Apple,
+Facebook, Search Console) and Cognito-generated credentials retain their existing
+ownership. `PROD_SECRET_STORE=ssm` selects the encrypted reader with no legacy
+fallback. Omit it only for the legacy reader. Old migration/relocation commands
+below are for legacy bootstraps and reject secure-mode files.
+
+## Legacy local-file migration
 
 Implementation does not migrate resources or authorize deployment. The migration defaults to a local, read-only
 review. It prints one redacted JSON review line per value with its service, record name and intended action,
@@ -102,16 +112,18 @@ covers the operation. Relocation retains the old records; removing them requires
 ## Permissions and operations
 
 The deployment principal needs scoped
-`ssm:GetParameters` and `secretsmanager:GetSecretValue` on the configured record prefixes, plus `kms:Decrypt`
+`ssm:GetParameters` on the configured parameter prefix, plus `kms:Decrypt` for encrypted parameters.
+Legacy mode also requires `secretsmanager:GetSecretValue`. Additional migration permissions are listed in
+[the SecureString guide](secure-parameters.md). Legacy migration requires `kms:Decrypt`
 if using a customer managed key. Migration additionally needs `ssm:PutParameter` and `secretsmanager:CreateSecret`. Production script
 credentials need the corresponding read permissions. **Application Lambda roles and the CloudFormation service role need no new store-read permissions.**
-The migration uses the default Secrets Manager encryption key; existing custom-key stores can be provisioned
+The legacy local-file migration uses the default Secrets Manager encryption key; existing custom-key stores can be provisioned
 separately and reused only with identical reviewed values.
 
 Each record stores its value directly as a string, not JSON. Optional integrations use absent records to
 stay disabled; documented defaults apply to omitted log-level and API-version settings. Required app/signing
-keys and deployment settings must remain present. Each standard SSM parameter is limited to 4 KB; each secret
-is limited to 64 KB. Migration checks each value's UTF-8 size. Normal deployment settings may not contain
+keys and deployment settings must remain present. Each standard SSM parameter, including SecureString,
+is limited to 4 KiB; legacy Secrets Manager records are limited to 64 KiB. Migration checks each value's UTF-8 size. Normal deployment settings may not contain
 Make/shell syntax or whitespace; credentials can contain punctuation because they are sent through a memory-only descriptor.
 When adding a provider, classify its fields explicitly before creating its records. Deployment reads explicit
 names, so it does not need `ListSecrets` or `GetParametersByPath` permission. SSM batched reads use
