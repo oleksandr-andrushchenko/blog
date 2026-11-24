@@ -197,9 +197,14 @@
                                 <li><a class="dropdown-item" href="{{ profile_url }}#my-articles">
                                     <i class="bi bi-collection me-2" aria-hidden="true"></i>My articles
                                 </a></li>
-                                <li><a class="dropdown-item{% if current_route in ['direct-messages', 'direct-conversation'] %} active{% endif %}" href="{{ url('direct-messages') }}"{% if current_route in ['direct-messages', 'direct-conversation'] %} aria-current="page"{% endif %}>
-                                    <i class="bi bi-chat me-2" aria-hidden="true"></i>Messages
-                                </a></li>
+                                {% if cur_user.status == UserStatus.ACTIVE %}
+                                    <li><a class="dropdown-item" href="{{ url('bookmarks') }}">
+                                        <i class="bi bi-bookmark me-2" aria-hidden="true"></i>Bookmarks
+                                    </a></li>
+                                    <li><a class="dropdown-item{% if current_route in ['direct-messages', 'direct-conversation'] %} active{% endif %}" href="{{ url('direct-messages') }}"{% if current_route in ['direct-messages', 'direct-conversation'] %} aria-current="page"{% endif %}>
+                                        <i class="bi bi-chat me-2" aria-hidden="true"></i>Messages
+                                    </a></li>
+                                {% endif %}
                                 <li>
                                     <hr class="dropdown-divider">
                                 </li>
@@ -224,9 +229,6 @@
                                 </li>
                                 <li><a class="dropdown-item" href="{{ url("logout") }}" rel="nofollow">
                                     <i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>Sign out
-                                </a></li>
-                                <li><a class="dropdown-item" href="{{ url('bookmarks') }}">
-                                    <i class="bi bi-bookmark me-2" aria-hidden="true"></i>Bookmarks
                                 </a></li>
                             </ul>
                         </li>
