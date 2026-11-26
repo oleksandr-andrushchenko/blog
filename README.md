@@ -457,6 +457,12 @@ Structured action context appears in console/CloudWatch logs as well as Telegram
 Sign-in and sign-out events include the profile URL; contact submissions include
 the message ID and, for signed-in senders, their profile URL.
 
+### Facebook Page publishing
+
+Authorized administrators can connect a site-wide Facebook Page in **Utils** and share published
+articles they own from the article’s sharing panel. See the
+[Facebook Page setup and publishing guide](docs/facebook-page-integration.md).
+
 ### LinkedIn publishing
 
 Owners can connect their personal LinkedIn account under **Edit profile → Integrations**, then

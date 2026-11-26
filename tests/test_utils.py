@@ -118,6 +118,8 @@ def _is_api_request(method: str, url: str) -> bool:
     if path in {"/articles-fragment", "/tags-fragment", "/users-fragment"} or any(
             path.endswith(suffix) for suffix in ("/comments-fragment", "/articles-fragment", "/related-fragment")):
         return True
+    if path.startswith('/integrations/facebook-page') or path.endswith('/share/facebook-page'):
+        return True
     if '/integrations/pinterest' in path or path == '/integrations/pinterest/callback' or path.endswith('/share/pinterest'):
         return True
     if re.fullmatch(r"/users/[^/]+/deletion", path) or re.fullmatch(r"/auth/[^/]+/data-deletion", path):

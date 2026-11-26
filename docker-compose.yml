@@ -8,6 +8,9 @@ services:
     env_file:
       - .env
     environment:
+      FACEBOOK_PAGE_APP_ID: ""
+      FACEBOOK_PAGE_APP_SECRET: ""
+      FACEBOOK_PAGE_TOKEN_ENCRYPTION_KEY: ""
       APP_STAGE: local
       APP_ENV: dev
       APP_DEBUG: 1

@@ -1,3 +1,4 @@
+import facebook_service
 import pinterest_service
 from web import read_json_body
 import asyncio
@@ -148,7 +149,10 @@ async def add_no_robots_to_api(request: Request, call_next):
     response = await call_next(request)
 
     response.headers["X-Robots-Tag"] = "noindex, nofollow"
-    if request.url.path in {API_URL_ROUTES["pinterest-callback"], API_URL_ROUTES["threads-callback"], API_URL_ROUTES["login-link-callback"],
+    path = request.url.path.rstrip("/")
+    if path.startswith("/integrations/facebook-page") or path.endswith("/share/facebook-page"):
+        response.headers["Cache-Control"] = "private, no-store"
+    if path in {API_URL_ROUTES["facebook-page-callback"], API_URL_ROUTES["pinterest-callback"], API_URL_ROUTES["threads-callback"], API_URL_ROUTES["login-link-callback"],
                             API_URL_ROUTES["linkedin-callback"]}:
         response.headers["Cache-Control"] = "no-store"
         response.headers["Referrer-Policy"] = "no-referrer"
@@ -796,6 +800,73 @@ async def share_article_linkedin(article: ArticleDep, cur_user: CurUserDep, requ
     result = await to_thread(linkedin_service.share_article, article, cur_user, request)
     return JSONResponse(result, status_code=202 if result.get("status") == "unconfirmed" else 200,
                         headers={"Cache-Control": "no-store"})
+
+
+@route("get", "facebook-page-connection")
+async def facebook_page_connection(cur_user: CurUserDep, request: Request):
+    return await to_thread(facebook_service.connection_status, cur_user, request.cookies.get("token"))
+
+
+@route("post", "facebook-page-connection")
+async def connect_facebook_page(cur_user: CurUserDep, request: Request):
+    _integration_mutation(request)
+    result, binding = await to_thread(facebook_service.begin_connection, cur_user, request.cookies.get("token"))
+    response = JSONResponse(result)
+    response.set_cookie(facebook_service.COOKIE_NAME, binding,
+                        max_age=facebook_service.CONNECT_LIFETIME_MS // 1000,
+                        path=API_URL_ROUTES["facebook-page-callback"], secure=True, httponly=True, samesite="lax")
+    return response
+
+
+@route("get", "facebook-page-callback")
+async def facebook_page_callback(cur_user: CurUserDep, request: Request):
+    try:
+        connected = await to_thread(
+            facebook_service.complete_connection, cur_user,
+            state=request.query_params.get("state"),
+            binding=request.cookies.get(facebook_service.COOKIE_NAME),
+            auth_cookie=request.cookies.get("token"),
+            code=request.query_params.get("code"),
+            denied=bool(request.query_params.get("error")),
+        )
+        outcome = "choose-page" if connected else "denied"
+    except HTTPException as error:
+        if error.status_code not in (409, 422, 429, 502, 503):
+            raise
+        logger.warning("Facebook Page connection failed: status=%s", error.status_code)
+        outcome = "error"
+    destination = get_url(request, "utils", absolute=True, facebook=outcome) + "#facebook-page"
+    response = RedirectResponse(destination, status_code=303)
+    response.delete_cookie(facebook_service.COOKIE_NAME, path=API_URL_ROUTES["facebook-page-callback"],
+                           secure=True, httponly=True, samesite="lax")
+    return response
+
+
+@route("delete", "facebook-page-connection")
+async def disconnect_facebook_page(cur_user: CurUserDep, request: Request):
+    _integration_mutation(request)
+    return await to_thread(facebook_service.disconnect, cur_user)
+
+
+@route("get", "facebook-page-pages")
+async def facebook_page_pages(cur_user: CurUserDep, request: Request):
+    return await to_thread(facebook_service.list_pages, cur_user, request.cookies.get("token"))
+
+
+@route("patch", "facebook-page-connection")
+async def select_facebook_page(cur_user: CurUserDep, request: Request, payload: SharePayloadDep = None):
+    _integration_mutation(request)
+    page_id = payload.get("page_id") if isinstance(payload, dict) else None
+    return await to_thread(facebook_service.select_page, cur_user, page_id, request.cookies.get("token"))
+
+
+@route("post", "share-article-facebook-page")
+async def share_article_facebook_page(article: ArticleDep, cur_user: CurUserDep, request: Request,
+                                      payload: SharePayloadDep = None):
+    _integration_mutation(request)
+    event_id = payload.get("event_id") if isinstance(payload, dict) else None
+    result = await to_thread(facebook_service.share_article, article, cur_user, request, event_id)
+    return JSONResponse(result, status_code=202 if result.get("status") == "unconfirmed" else 200)
 
 
 @route("get", "pinterest-connection")

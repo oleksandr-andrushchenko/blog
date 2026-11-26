@@ -58,6 +58,21 @@ Parameters:
   ThreadsAppId:
     Type: String
     Default: ''
+  FacebookPageAppId:
+    Type: String
+    Default: ''
+  FacebookPageAppSecret:
+    Type: String
+    Default: ''
+    NoEcho: true
+  FacebookPageTokenEncryptionKey:
+    Type: String
+    Default: ''
+    NoEcho: true
+  FacebookPageApiVersion:
+    Type: String
+    Default: 'v27.0'
+    AllowedPattern: '^v[0-9]+\.[0-9]+$'
   PinterestAppId:
     Type: String
     Default: ''
@@ -191,6 +206,14 @@ Conditions:
           - Fn::Equals: [!Ref ThreadsAppSecret, '']
       - Fn::Not:
           - Fn::Equals: [!Ref ThreadsTokenEncryptionKey, '']
+  FacebookPagePublishingEnabled:
+    Fn::And:
+      - Fn::Not:
+          - Fn::Equals: [!Ref FacebookPageAppId, '']
+      - Fn::Not:
+          - Fn::Equals: [!Ref FacebookPageAppSecret, '']
+      - Fn::Not:
+          - Fn::Equals: [!Ref FacebookPageTokenEncryptionKey, '']
   PinterestPublishingEnabled:
     Fn::And:
       - Fn::Not:
@@ -722,6 +745,8 @@ Resources:
             Fn::If: [TelegramPublishingEnabled, 'true', 'false']
           THREADS_PUBLISHER_ENABLED:
             Fn::If: [ThreadsPublishingEnabled, 'true', 'false']
+          FACEBOOK_PAGE_PUBLISHER_ENABLED:
+            Fn::If: [FacebookPagePublishingEnabled, 'true', 'false']
           PINTEREST_PUBLISHER_ENABLED:
             Fn::If: [PinterestPublishingEnabled, 'true', 'false']
           LINKEDIN_PUBLISHER_ENABLED:
@@ -782,6 +807,10 @@ Resources:
           SITEMAP_FUNCTION_NAME: !Sub "${AWS::StackName}-${Stage}-sitemap"
           MEDIA_ORIGINALS_S3_BUCKET: !Ref MediaOriginalsBucket
           THREADS_APP_ID: !Ref ThreadsAppId
+          FACEBOOK_PAGE_APP_ID: !Ref FacebookPageAppId
+          FACEBOOK_PAGE_APP_SECRET: !Ref FacebookPageAppSecret
+          FACEBOOK_PAGE_TOKEN_ENCRYPTION_KEY: !Ref FacebookPageTokenEncryptionKey
+          FACEBOOK_PAGE_API_VERSION: !Ref FacebookPageApiVersion
           PINTEREST_APP_ID: !Ref PinterestAppId
           PINTEREST_APP_SECRET: !Ref PinterestAppSecret
           PINTEREST_TOKEN_ENCRYPTION_KEY: !Ref PinterestTokenEncryptionKey

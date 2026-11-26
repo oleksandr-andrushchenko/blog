@@ -1,0 +1,103 @@
+<section id="facebook-page" class="border rounded p-4 bg-light" aria-labelledby="facebook-page-heading">
+    <h2 class="h5 mb-0" id="facebook-page-heading">Facebook Page</h2>
+    <p class="small text-muted mb-3">Choose the Facebook Page where authorized authors can share their published articles.</p>
+    <p id="facebook-page-status" class="small" role="status" aria-live="polite">Loading connection…</p>
+    <div class="btn-group btn-group-sm mb-3" role="group" aria-label="Facebook Page connection">
+        <button type="button" class="btn btn-outline-dark" id="facebook-page-connect" disabled>
+            <i class="bi bi-facebook me-1" aria-hidden="true"></i><span id="facebook-page-connect-label">Connect</span>
+        </button>
+        <button type="button" class="btn btn-outline-danger" id="facebook-page-disconnect" disabled>
+            <i class="bi bi-x-circle me-1" aria-hidden="true"></i>Disconnect
+        </button>
+    </div>
+    <form id="facebook-page-select-form" class="d-none" novalidate>
+        <label class="form-label" for="facebook-page-select">Page for publishing</label>
+        <select id="facebook-page-select" class="form-select mb-3" disabled>
+            <option value="">Choose a Page</option>
+        </select>
+        <button type="submit" class="btn btn-dark btn-sm" id="facebook-page-save" disabled>
+            <i class="bi bi-check-circle me-1" aria-hidden="true"></i>Use this Page
+        </button>
+    </form>
+</section>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const endpoint = {{ url('facebook-page-connection', absolute=True) | tojson }}
+    const pagesEndpoint = {{ url('facebook-page-pages', absolute=True) | tojson }}
+    const status = document.getElementById('facebook-page-status')
+    const connect = document.getElementById('facebook-page-connect')
+    const connectLabel = document.getElementById('facebook-page-connect-label')
+    const disconnect = document.getElementById('facebook-page-disconnect')
+    const form = document.getElementById('facebook-page-select-form')
+    const select = document.getElementById('facebook-page-select')
+    const save = document.getElementById('facebook-page-save')
+    let configured = false
+    let connected = false
+    let busy = false
+    const current = new URL(window.location.href)
+    const outcome = current.searchParams.get('facebook')
+    if (outcome) {
+      current.searchParams.delete('facebook')
+      history.replaceState(null, '', current)
+    }
+    const notice = outcome === 'denied' ? 'Facebook connection cancelled' :
+      outcome === 'error' ? 'Facebook connection failed. Check permissions and connect again' : ''
+    async function call(url, method = 'GET', payload) {
+      const response = await fetch(url, {method, credentials: 'include',
+        headers: {'Content-Type': 'application/json'},
+        signal: AbortSignal.timeout(20000), body: payload ? JSON.stringify(payload) : undefined})
+      const data = await response.json()
+      if (!response.ok) throw new Error(typeof data.details === 'string' ? data.details : 'Could not update the Facebook connection')
+      return data
+    }
+    function controls() {
+      connect.disabled = busy || !configured
+      disconnect.disabled = busy || !configured || (!connected && form.classList.contains('d-none'))
+      select.disabled = busy
+      save.disabled = busy || !select.value
+      connect.classList.toggle('btn-dark', connected)
+      connect.classList.toggle('btn-outline-dark', !connected)
+      connectLabel.textContent = connected ? 'Reconnect' : 'Connect'
+    }
+    async function refresh() {
+      const data = await call(endpoint)
+      configured = data.configured === true
+      connected = data.connected
+      status.textContent = !configured ? 'Facebook Page publishing is not configured. Set the Facebook Page app credentials to enable connections' :
+        connected ? `Connected to ${data.page_name}` : 'No Facebook Page connected'
+      if (notice) status.textContent += `. ${notice}`
+      form.classList.toggle('d-none', !data.can_select)
+      if (data.can_select) {
+        const result = await call(pagesEndpoint)
+        select.replaceChildren(new Option('Choose a Page', ''))
+        for (const page of result.pages) select.add(new Option(page.name, page.id))
+        if (!result.pages.length) status.textContent = 'No Pages with publishing access found. Reconnect and allow access to your Page'
+      }
+    }
+    async function run(action) {
+      if (busy) return
+      busy = true
+      controls()
+      try { await action() }
+      catch (error) { status.textContent = error.message }
+      finally { busy = false; controls() }
+    }
+    connect.addEventListener('click', () => run(async () => {
+      const data = await call(endpoint, 'POST')
+      const target = new URL(data.connect_url)
+      if (target.origin !== 'https://www.facebook.com') throw new Error('Invalid Facebook connection URL')
+      window.location.assign(target.href)
+    }))
+    disconnect.addEventListener('click', () => run(async () => {
+      await call(endpoint, 'DELETE')
+      await refresh()
+    }))
+    select.addEventListener('change', controls)
+    form.addEventListener('submit', event => {
+      event.preventDefault()
+      if (!select.value) return
+      run(async () => { await call(endpoint, 'PATCH', {page_id: select.value}); await refresh() })
+    })
+    run(refresh)
+  })
+</script>

@@ -2,6 +2,10 @@
 
 API_URL_ROUTES = {
     "pinterest-connection": "/users/{user_id}/integrations/pinterest",
+    "facebook-page-connection": "/integrations/facebook-page",
+    "facebook-page-callback": "/integrations/facebook-page/callback",
+    "facebook-page-pages": "/integrations/facebook-page/pages",
+    "share-article-facebook-page": "/articles/{article_id}/share/facebook-page",
     "pinterest-callback": "/integrations/pinterest/callback",
     "pinterest-boards": "/users/{user_id}/integrations/pinterest/boards",
     "share-article-pinterest": "/articles/{article_id}/share/pinterest",

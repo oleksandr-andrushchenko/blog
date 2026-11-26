@@ -366,6 +366,19 @@
   post URN updates share history. Preserve remote success on history failures; never retry uncertain
   publishing requests. Expired or revoked tokens require reconnection.
 
+## Facebook Page publishing
+
+- Ported from PromptCatalog `95963f8` and `197725d`. An active administrator with
+  `manage-facebook-page` manages the site Page in Utils. Sharing also requires article ownership
+  and publication. Keep Facebook Page publishing separate from Cognito Facebook login.
+- Keep the Meta app secret and encryption key API-owned and classified as encrypted production
+  settings. Bind OAuth and selection to the authenticated session, and redact callback queries
+  and referrers. Erasure must conditionally remove the Page pointer without deleting a replacement.
+- Share only the article title, public preview, canonical URL, category/topic hashtags and optional
+  cover. Record confirmed `facebook_publish` independently of `facebook_share_click`. Keep receipts
+  guarded and preserve remote success when local history fails. See [Facebook Page publishing](docs/facebook-page-integration.md)
+  and run `node --test tests/test_facebook_page_ui.cjs` for UI changes.
+
 ## Background work, erasure, and worktrees
 
 - `background_handler.handler` dispatches profile sync, creator clicks, account deletion, and deletion recovery.

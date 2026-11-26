@@ -298,6 +298,7 @@ class Article:
     telegram_shared_at: int | None = None
     threads_shared_at: int | None = None
     linkedin_shared_at: int | None = None
+    facebook_shared_at: int | None = None
     pinterest_shared_at: int | None = None
     support_wallets: list[str] | None = None
     support_providers: list[str] | None = None
@@ -396,6 +397,7 @@ class Permission(StrEnum):
     UPDATE_ARTICLE_COMMENT = "update_post_comment"
     READ_NON_PUBLISHED_ARTICLE_COMMENT = "read_non_published_post_comment"
 
+    MANAGE_FACEBOOK_PAGE = "manage-facebook-page"
     UTILS = "utils"
     GENERATE_SITEMAP = "generate_sitemap"
     DROP_CDN_CACHE = "drop_cdn_cache"
@@ -993,7 +995,7 @@ def get_jinja2_env():
     jinja2_env.globals.update(get_config())
     from app_config import get_publisher_enabled
     jinja2_env.globals.update({provider + '_publisher_enabled': get_publisher_enabled(provider)
-                              for provider in ('telegram', 'threads', 'linkedin', 'pinterest')})
+                              for provider in ('telegram', 'threads', 'linkedin', 'pinterest', 'facebook_page')})
     jinja2_env.globals.update({
         "static_url": jinja2_static_url,
         "render_article_content": jinja2_render_article_content,
@@ -1317,6 +1319,7 @@ def article_from_dynamodb(d_item: dict[str, Any]) -> Article:
         telegram_shared_at=d_item.get("telegram_shared_at"),
         threads_shared_at=d_item.get("threads_shared_at"),
         linkedin_shared_at=d_item.get("linkedin_shared_at"),
+        facebook_shared_at=d_item.get("facebook_shared_at"),
         pinterest_shared_at=d_item.get("pinterest_shared_at"),
         support_wallets=d_item.get("support_wallets"),
         support_providers=d_item.get("support_providers"),

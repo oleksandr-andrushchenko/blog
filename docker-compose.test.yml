@@ -13,6 +13,11 @@ services:
     environment:
       TEST_EXTERNAL_CALL_LOG: "/test-audit/external-calls.jsonl"
       APP_STAGE: local
+      FACEBOOK_PAGE_APP_ID: ""
+      FACEBOOK_PAGE_APP_SECRET: ""
+      FACEBOOK_PAGE_TOKEN_ENCRYPTION_KEY: ""
+      FACEBOOK_PAGE_API_VERSION: "v27.0"
+      FACEBOOK_PAGE_PUBLISHER_ENABLED: "false"
       PINTEREST_APP_ID: ""
       PINTEREST_APP_SECRET: ""
       PINTEREST_TOKEN_ENCRYPTION_KEY: ""
@@ -75,6 +80,11 @@ services:
     environment:
       TEST_EXTERNAL_CALL_LOG: "/test-audit/external-calls.jsonl"
       APP_STAGE: local
+      FACEBOOK_PAGE_APP_ID: ""
+      FACEBOOK_PAGE_APP_SECRET: ""
+      FACEBOOK_PAGE_TOKEN_ENCRYPTION_KEY: ""
+      FACEBOOK_PAGE_API_VERSION: "v27.0"
+      FACEBOOK_PAGE_PUBLISHER_ENABLED: "false"
       PINTEREST_APP_ID: ""
       PINTEREST_APP_SECRET: ""
       PINTEREST_TOKEN_ENCRYPTION_KEY: ""
@@ -149,6 +159,11 @@ services:
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"
+      FACEBOOK_PAGE_APP_ID: ""
+      FACEBOOK_PAGE_APP_SECRET: ""
+      FACEBOOK_PAGE_TOKEN_ENCRYPTION_KEY: ""
+      FACEBOOK_PAGE_API_VERSION: "v27.0"
+      FACEBOOK_PAGE_PUBLISHER_ENABLED: "false"
       PINTEREST_APP_ID: ""
       PINTEREST_APP_SECRET: ""
       PINTEREST_TOKEN_ENCRYPTION_KEY: ""

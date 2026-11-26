@@ -19,6 +19,7 @@ from sitemap_handler import get_web_request
     ('telegram', ('telegram_publisher_bot_token', 'telegram_publisher_webhook_secret')),
     ('threads', ('threads_app_id', 'threads_app_secret', 'threads_token_encryption_key')),
     ('linkedin', ('linkedin_app_id', 'linkedin_app_secret', 'linkedin_token_encryption_key')),
+    ('facebook_page', ('facebook_page_app_id', 'facebook_page_app_secret', 'facebook_page_token_encryption_key')),
 ])
 def test_each_provider_requires_all_credentials_or_a_nonsecret_web_flag(monkeypatch, provider, credentials):
     settings = {key: 'configured' for key in credentials}
@@ -105,9 +106,25 @@ def test_web_capability_flags_do_not_include_publisher_secrets():
     from test_apple_signin import template
     resources = template()['Resources']
     web = resources['WebFunction']['Properties']['Environment']['Variables']
-    for provider in ('TELEGRAM', 'THREADS', 'LINKEDIN'):
+    for provider in ('TELEGRAM', 'THREADS', 'LINKEDIN', 'FACEBOOK_PAGE'):
         assert provider + '_PUBLISHER_ENABLED' in web
-    assert not any(name in web for name in ('TELEGRAM_PUBLISHER_BOT_TOKEN', 'THREADS_APP_SECRET', 'LINKEDIN_APP_SECRET'))
+    assert not any(name in web for name in ('TELEGRAM_PUBLISHER_BOT_TOKEN', 'THREADS_APP_SECRET', 'LINKEDIN_APP_SECRET',
+                                            'FACEBOOK_PAGE_APP_SECRET', 'FACEBOOK_PAGE_TOKEN_ENCRYPTION_KEY'))
+
+
+def test_facebook_page_sharing_is_available_only_to_authorized_owners(render):
+    page, user, article = render
+    user.permissions = ['regular']
+    assert not page(facebook_page_publisher_enabled=True)('#facebook-share')
+    user.permissions = ['root']
+    assert not page(facebook_page_publisher_enabled=False)('#facebook-share')
+    share = page(facebook_page_publisher_enabled=True)('#facebook-share')
+    assert share.attr('data-share-url').endswith('/articles/example/share/facebook-page')
+    assert share.attr('data-connection-status-url').endswith('/integrations/facebook-page')
+    assert share.attr('disabled') is not None
+    assert share.attr('data-can-share') == 'true'
+    article.status = 'unpublished'
+    assert page(facebook_page_publisher_enabled=True)('#facebook-share').attr('data-can-share') == 'false'
 
 
 def test_background_worker_shares_api_artifact_and_recovers_erasure():

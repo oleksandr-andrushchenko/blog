@@ -32,6 +32,11 @@ def _get_live_config() -> dict[str, Any]:
         "telegram_publisher_enabled": os.getenv("TELEGRAM_PUBLISHER_ENABLED"),
         "threads_publisher_enabled": os.getenv("THREADS_PUBLISHER_ENABLED"),
         "linkedin_publisher_enabled": os.getenv("LINKEDIN_PUBLISHER_ENABLED"),
+        "facebook_page_app_id": os.getenv("FACEBOOK_PAGE_APP_ID", ""),
+        "facebook_page_app_secret": os.getenv("FACEBOOK_PAGE_APP_SECRET", ""),
+        "facebook_page_token_encryption_key": os.getenv("FACEBOOK_PAGE_TOKEN_ENCRYPTION_KEY", ""),
+        "facebook_page_api_version": os.getenv("FACEBOOK_PAGE_API_VERSION", "v27.0"),
+        "facebook_page_publisher_enabled": os.getenv("FACEBOOK_PAGE_PUBLISHER_ENABLED"),
         "pinterest_app_id": os.getenv("PINTEREST_APP_ID", ""),
         "pinterest_app_secret": os.getenv("PINTEREST_APP_SECRET", ""),
         "pinterest_token_encryption_key": os.getenv("PINTEREST_TOKEN_ENCRYPTION_KEY", ""),
@@ -245,6 +250,7 @@ def get_publisher_enabled(provider: str) -> bool:
     if flag not in (None, ''):
         return str(flag).strip().lower() == 'true'
     credentials = {'telegram': ('telegram_publisher_bot_token', 'telegram_publisher_webhook_secret'),
+                   'facebook_page': ('facebook_page_app_id', 'facebook_page_app_secret', 'facebook_page_token_encryption_key'),
                    'pinterest': ('pinterest_app_id', 'pinterest_app_secret', 'pinterest_token_encryption_key'),
                    'threads': ('threads_app_id', 'threads_app_secret', 'threads_token_encryption_key'),
                    'linkedin': ('linkedin_app_id', 'linkedin_app_secret', 'linkedin_token_encryption_key')}

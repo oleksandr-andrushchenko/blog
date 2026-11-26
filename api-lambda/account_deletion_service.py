@@ -381,6 +381,11 @@ def _remove(code, state, item, phase):
     add_dynamodb_delete_transact(writes, (pk, sk))
     guard = writes[0]['Delete']
     guard['ConditionExpression'] = 'attribute_exists(pk)'
+    facebook_pointer = (pk, sk) == ('SITE#facebook', 'META')
+    if facebook_pointer:
+        # Another administrator can replace the Page while erasure is scanning.
+        guard['ConditionExpression'] += ' AND owner_id = :owner'
+        guard['ExpressionAttributeValues'] = {':owner': uid}
     if 'action' in item:
         guard['ConditionExpression'] += ' AND #action = :action'
         guard['ExpressionAttributeNames'] = {'#action': 'action'}
@@ -441,8 +446,10 @@ def _remove(code, state, item, phase):
     try:
         dynamodb_transact_write(writes)
     except DynamoDBTransactionError as error:
-        if error.is_conditional() and not get_dynamodb_item(pk, sk, consistent_read=True):
-            return
+        if error.is_conditional():
+            current = get_dynamodb_item(pk, sk, consistent_read=True)
+            if not current or (facebook_pointer and current.get('owner_id') != uid):
+                return
         raise
 
 

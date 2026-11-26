@@ -11,6 +11,7 @@ import sys
 
 # Explicit classification prevents credentials from entering plaintext SSM settings.
 SECRET_KEYS = frozenset({
+    'FACEBOOK_PAGE_APP_SECRET', 'FACEBOOK_PAGE_TOKEN_ENCRYPTION_KEY',
     'PINTEREST_APP_SECRET', 'PINTEREST_TOKEN_ENCRYPTION_KEY',
     'APP_SECRET', 'AUTH_JWT_SECRET', 'GOOGLE_OAUTH_CLIENT_SECRET',
     'TELEGRAM_BOT_TOKEN', 'TELEGRAM_PUBLISHER_BOT_TOKEN', 'TELEGRAM_PUBLISHER_WEBHOOK_SECRET',
@@ -20,6 +21,7 @@ SECRET_KEYS = frozenset({
 })
 CONFIG_KEYS = frozenset({
     'SES_FROM_EMAIL',
+    'FACEBOOK_PAGE_APP_ID', 'FACEBOOK_PAGE_API_VERSION',
     'PINTEREST_APP_ID', 'SITE_TELEGRAM_CHANNEL_URL', 'SITE_THREADS_PROFILE_URL', 'SITE_PINTEREST_PROFILE_URL',
     'AWS_OWNER', 'APP_STAGE', 'APP_ENV', 'APP_DEBUG', 'DOMAIN_NAME', 'HOSTED_ZONE_ID',
     'NOTIFICATION_EMAIL', 'NOTIFICATION_PHONE', 'GOOGLE_ANALYTICS_ID', 'INDEXNOW_KEY',
@@ -40,7 +42,7 @@ LOCAL_KEYS = frozenset({
     'WEB_LAMBDA_CODE_TIMESTAMP', 'API_LAMBDA_CODE_TIMESTAMP', 'IMG_LAMBDA_CODE_TIMESTAMP',
     'CSS_CACHE_COUNTER', 'JS_CACHE_COUNTER',
 })
-DEFAULTS = {'TELEGRAM_LOG_LEVEL': 'INFO', 'LINKEDIN_API_VERSION': '202610'}
+DEFAULTS = {'TELEGRAM_LOG_LEVEL': 'INFO', 'LINKEDIN_API_VERSION': '202610', 'FACEBOOK_PAGE_API_VERSION': 'v27.0'}
 
 
 class ConfigurationError(ValueError):
@@ -196,6 +198,15 @@ def validate_settings(config, credentials):
                 'GOOGLE_OAUTH_CLIENT_ID'):
         if not config.get(key):
             raise ConfigurationError(f'Missing production setting: {key}')
+    facebook_fields = {
+        'FACEBOOK_PAGE_APP_ID': config.get('FACEBOOK_PAGE_APP_ID'),
+        'FACEBOOK_PAGE_APP_SECRET': credentials.get('FACEBOOK_PAGE_APP_SECRET'),
+        'FACEBOOK_PAGE_TOKEN_ENCRYPTION_KEY': credentials.get('FACEBOOK_PAGE_TOKEN_ENCRYPTION_KEY'),
+    }
+    if any(facebook_fields.values()) and not all(facebook_fields.values()):
+        raise ConfigurationError('Incomplete publisher credentials: ' + ', '.join(facebook_fields))
+    if config.get('FACEBOOK_PAGE_API_VERSION') and not re.fullmatch(r'v[0-9]+\.[0-9]+', config['FACEBOOK_PAGE_API_VERSION']):
+        raise ConfigurationError('Invalid FACEBOOK_PAGE_API_VERSION')
     webhook = credentials.get('TELEGRAM_PUBLISHER_WEBHOOK_SECRET')
     if webhook and not re.fullmatch(r'[A-Za-z0-9_-]{32,256}', webhook):
         raise ConfigurationError('Invalid TELEGRAM_PUBLISHER_WEBHOOK_SECRET')
@@ -359,6 +370,10 @@ CF_PARAMETERS = {
     'TelegramBotToken': 'TELEGRAM_BOT_TOKEN',
     'ThreadsAppId': 'THREADS_APP_ID',
     'FacebookCredentialsSecretArn': 'FACEBOOK_CREDENTIALS_SECRET_ARN',
+    'FacebookPageAppId': 'FACEBOOK_PAGE_APP_ID',
+    'FacebookPageAppSecret': 'FACEBOOK_PAGE_APP_SECRET',
+    'FacebookPageTokenEncryptionKey': 'FACEBOOK_PAGE_TOKEN_ENCRYPTION_KEY',
+    'FacebookPageApiVersion': 'FACEBOOK_PAGE_API_VERSION',
     'PinterestAppId': 'PINTEREST_APP_ID',
     'PinterestAppSecret': 'PINTEREST_APP_SECRET',
     'PinterestTokenEncryptionKey': 'PINTEREST_TOKEN_ENCRYPTION_KEY',

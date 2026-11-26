@@ -22,7 +22,7 @@ def _access_log_url(value):
     if parts.path.startswith('/account-deletion/status/'):
         return urlunsplit((parts.scheme, parts.netloc, '/account-deletion/status/[private]', '', ''))
     if parts.path.rstrip("/") in {
-        API_URL_ROUTES["threads-callback"], API_URL_ROUTES["login-link-callback"],
+        API_URL_ROUTES["facebook-page-callback"], API_URL_ROUTES["threads-callback"], API_URL_ROUTES["login-link-callback"],
         API_URL_ROUTES["linkedin-callback"], API_URL_ROUTES["pinterest-callback"],
         WEB_AUTH_URL_ROUTES["login-callback"], WEB_AUTH_URL_ROUTES["logout-callback"],
     }:

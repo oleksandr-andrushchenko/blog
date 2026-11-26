@@ -14,6 +14,15 @@
          'enabled': linkedin_publisher_enabled, 'connected': cur_user.has_linkedin_integration,
          'shared': article.linkedin_shared_at}
     ] %}
+    {% if facebook_page_publisher_enabled and cur_user.status == UserStatus.ACTIVE
+          and check_auth(cur_user, Permission.MANAGE_FACEBOOK_PAGE) and check_auth(cur_user, Permission.UTILS) %}
+        {% set sharing_platforms = sharing_platforms + [
+            {'key': 'facebook', 'name': 'Facebook Page', 'icon': 'facebook', 'route': 'share-article-facebook-page',
+             'enabled': true, 'connected': true, 'shared': article.facebook_shared_at,
+             'connection_url': url('utils') ~ '#facebook-page',
+             'connection_status_url': url('facebook-page-connection', absolute=True)}
+        ] %}
+    {% endif %}
     <section class="card shadow-sm my-4 article-sharing" aria-labelledby="article-sharing-heading">
         <div class="card-body">
             <h2 id="article-sharing-heading" class="h4 card-title">
@@ -28,6 +37,7 @@
             {% endif %}
             <div class="d-flex flex-wrap gap-2">
                 {% for platform in sharing_platforms %}
+                    {% set platform_connection_url = platform.connection_url | default(connection_url) %}
                     {% set share_state = 'unavailable' if not platform.enabled else 'disconnected' if not platform.connected else 'shared' if platform.shared else 'connected' %}
                     {% set connection_style = 'btn-light' if not platform.enabled else 'btn-dark' if platform.connected else 'btn-outline-dark' %}
                     {% set share_action = platform.name ~ ' sharing is not available' if not platform.enabled else ('Share again to ' if platform.shared else 'Share to ') ~ platform.name if platform.connected else 'Connect ' ~ platform.name %}
@@ -37,26 +47,35 @@
                                     id="{{ platform.key }}-share" data-state="unavailable"
                                     aria-label="{{ share_action }}" title="{{ share_action }}" disabled>
                         {% elif platform.connected %}
-                            <button type="button" class="btn btn-sm {{ 'btn-success' if platform.shared else 'btn-dark' }} article-share-action"
+                            <button type="button" class="btn btn-sm {{ 'btn-light' if platform.connection_status_url is defined else 'btn-success' if platform.shared else 'btn-dark' }} article-share-action"
                                     id="{{ platform.key }}-share" data-state="{{ share_state }}"
                                     data-platform="{{ platform.key }}" data-platform-name="{{ platform.name }}"
                                     data-share-url="{{ url(platform.route, article_id=article.id, absolute=True) }}"
                                     {% if platform.key == 'telegram' %}data-share-state-url="{{ url('telegram-share-state', article_id=article.id, absolute=True) }}" {% endif %}
                                     data-profile-base="{{ platform.profile_base | default('') }}"
                                     aria-label="{{ share_action }}" title="{{ share_action }}"
-                                    {% if not can_share %}disabled{% endif %}>
+                                    {% if platform.connection_status_url is defined %}
+                                        data-connection-status-url="{{ platform.connection_status_url }}"
+                                        data-can-share="{{ 'true' if can_share else 'false' }}"
+                                    {% endif %}
+                                    {% if not can_share or platform.connection_status_url is defined %}disabled{% endif %}>
                         {% else %}
-                            <a href="{{ connection_url }}" class="btn btn-sm btn-outline-dark article-share-action"
+                            <a href="{{ platform_connection_url }}" class="btn btn-sm btn-outline-dark article-share-action"
                                id="{{ platform.key }}-share" data-state="disconnected"
                                aria-label="{{ share_action }}" title="{{ share_action }}">
                         {% endif %}
                             <i class="bi bi-{{ platform.icon }} me-1" aria-hidden="true"></i>
                             <span>{{ platform.name }}</span>
                             <span class="mx-1" aria-hidden="true">·</span>
-                            <span data-share-state>{{ 'Unavailable' if not platform.enabled else 'Connect' if not platform.connected else 'Shared' if platform.shared else 'Connected' }}</span>
+                            <span data-share-state>{{ 'Checking…' if platform.connection_status_url is defined else 'Unavailable' if not platform.enabled else 'Connect' if not platform.connected else 'Shared' if platform.shared else 'Connected' }}</span>
                         {% if not platform.enabled or platform.connected %}</button>{% else %}</a>{% endif %}
+                        {% if platform.connection_status_url is defined %}
+                            <a href="{{ platform_connection_url }}" class="btn btn-sm btn-outline-dark d-none" data-connect-action>
+                                <i class="bi bi-{{ platform.icon }} me-1" aria-hidden="true"></i>Connect {{ platform.name }}
+                            </a>
+                        {% endif %}
                         {% if platform.enabled %}
-                            <a href="{{ connection_url }}" class="btn btn-sm {{ connection_style }}"
+                            <a href="{{ platform_connection_url }}" class="btn btn-sm {{ connection_style }}"
                                aria-label="Manage {{ platform.name }} connection" title="Manage {{ platform.name }} connection">
                                 <i class="bi bi-gear" aria-hidden="true"></i>
                             </a>
@@ -88,9 +107,10 @@
         function state(button, name, text, style = 'dark') {
           button.dataset.state = name
           button.querySelector('[data-share-state]').textContent = text
-          button.classList.remove('btn-dark', 'btn-success', 'btn-danger')
+          button.classList.remove('btn-dark', 'btn-success', 'btn-danger', 'btn-light')
           button.classList.add(`btn-${style}`)
-          const action = name === 'shared' ? `Share again to ${button.dataset.platformName}` :
+          const action = name === 'unavailable' ? `${button.dataset.platformName} sharing is not available` :
+            name === 'shared' ? `Share again to ${button.dataset.platformName}` :
             name === 'unconfirmed' ? `Check ${button.dataset.platformName} before sharing again` :
               `Share to ${button.dataset.platformName}`
           button.setAttribute('aria-label', action)
@@ -98,8 +118,30 @@
         }
 
         document.querySelectorAll('.article-share-action[data-share-url]').forEach(button => {
-          if (button.disabled) return
           const name = button.dataset.platformName
+          if (button.dataset.connectionStatusUrl) {
+            fetch(button.dataset.connectionStatusUrl, {credentials: 'include', cache: 'no-store'})
+              .then(async response => {
+                if (!response.ok) throw new Error('Unable to load connection')
+                const data = await response.json()
+                if (data.configured !== true) {
+                  state(button, 'unavailable', 'Unavailable', 'light')
+                  return
+                }
+                if (data.connected !== true) {
+                  button.classList.add('d-none')
+                  button.parentElement.querySelector('[data-connect-action]').classList.remove('d-none')
+                  return
+                }
+                const shared = button.dataset.state === 'shared'
+                state(button, shared ? 'shared' : 'connected', shared ? 'Shared' : 'Connected', shared ? 'success' : 'dark')
+                button.disabled = button.dataset.canShare !== 'true'
+              })
+              .catch(() => {
+                state(button, 'unavailable', 'Unavailable', 'light')
+                message('Could not load the Facebook Page connection. Refresh before sharing.', button)
+              })
+          } else if (button.disabled) return
           if (button.dataset.shareStateUrl) {
             button.disabled = true
             fetch(button.dataset.shareStateUrl, {credentials: 'include', cache: 'no-store'})
@@ -131,12 +173,13 @@
             message(`Sharing to ${name}…`, button)
             let preparingMedia = false
             try {
-              let payload = button.dataset.platform === 'pinterest' ? {event_id: crypto.randomUUID()} : {}
+              let payload = ['pinterest', 'facebook'].includes(button.dataset.platform) ? {event_id: crypto.randomUUID()} : {}
               let data
               do {
                 const response = await fetch(button.dataset.shareUrl, {
                   method: 'POST', credentials: 'include', headers: {'Content-Type': 'application/json'},
-                  body: JSON.stringify(payload)
+                  body: JSON.stringify(payload),
+                  ...(button.dataset.platform === 'facebook' ? {signal: AbortSignal.timeout(45000)} : {})
                 })
                 data = await response.json()
                 if (!response.ok) {
@@ -145,6 +188,7 @@
                   throw error
                 }
                 if (data.status === 'processing') {
+                  if (button.dataset.platform !== 'threads') throw new Error('Unexpected share status')
                   preparingMedia = true
                   if (typeof data.continuation !== 'string') throw new Error('Missing share progress')
                   state(button, 'preparing', 'Preparing…')
@@ -155,17 +199,17 @@
               } while (data.status === 'processing')
               if (data.status === 'unconfirmed') {
                 state(button, 'unconfirmed', 'Check account', 'danger')
-                message(`${name} has not confirmed this share yet. Check your account before trying again.`, button, data.username)
+                message(`${name} has not confirmed this share yet. Check ${button.dataset.platform === 'facebook' ? 'the Page' : 'your account'} before trying again.`, button, data.username)
                 return
               }
               if (data.shared !== true) throw new Error('Unconfirmed share')
               state(button, 'shared', 'Shared', 'success')
-              const destination = data.channel_title || (data.username ? `@${data.username}` : name)
+              const destination = data.page_name || data.channel_title || (data.username ? `@${data.username}` : name)
               message(`Shared to ${destination}.`, button)
               if (typeof data.post_url === 'string') {
                 const destinationUrl = new URL(data.post_url)
                 if (destinationUrl.protocol === 'https:' &&
-                    ['www.pinterest.com', 'www.linkedin.com', 'www.threads.com', 'www.threads.net', 't.me'].includes(destinationUrl.hostname) &&
+                    ['www.facebook.com', 'www.pinterest.com', 'www.linkedin.com', 'www.threads.com', 'www.threads.net', 't.me'].includes(destinationUrl.hostname) &&
                     !destinationUrl.username && !destinationUrl.password) {
                   const link = document.createElement('a')
                   link.href = destinationUrl.href
@@ -179,8 +223,8 @@
               button.disabled = false
             } catch (error) {
               state(button, error.canRetry ? 'retry' : 'unconfirmed', error.canRetry ? 'Try again' : 'Check account', 'danger')
-              message(error.canRetry ? error.message :
-                `Could not confirm this share. Check your ${name} account before trying again.`, button)
+              const destination = button.dataset.platform === 'facebook' ? 'the Facebook Page' : `your ${name} account`
+              message(error.canRetry ? error.message : `Could not confirm this share. Check ${destination} before trying again.`, button)
               button.disabled = !error.canRetry
             } finally {
               button.removeAttribute('aria-busy')
