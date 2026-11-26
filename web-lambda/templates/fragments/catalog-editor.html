@@ -1,0 +1,109 @@
+<form id="catalog-editor" class="d-flex flex-column gap-3" novalidate>
+    <div>
+        <label for="catalog-name" class="form-label label-required">Name</label>
+        <input type="text" class="form-control" id="catalog-name" name="name" value="{{ entry.name }}">
+        <div class="form-text">Slug: <code>{{ entry.slug }}</code></div>
+    </div>
+    <fieldset>
+        <legend class="form-label fs-6">Cover image</legend>
+        {% if entry.image_filename %}
+            {% with filename=entry.image_filename, alt="", img_class="img-fluid rounded mb-2",
+                    img_sizes={"default": "240px"}, img_style="max-width: min(100%, 240px);" %}
+                {% include "fragments/image.html" %}
+            {% endwith %}
+        {% endif %}
+        <div class="d-flex flex-wrap gap-3">
+            <div class="form-check">
+                <input type="radio" class="form-check-input" id="catalog-image-keep" name="image_action"
+                       value="keep" checked>
+                <label for="catalog-image-keep" class="form-check-label">
+                    {{ "Keep current image" if entry.image_filename else "No cover image" }}
+                </label>
+            </div>
+            {% if entry.image_filename %}
+                <div class="form-check">
+                    <input type="radio" class="form-check-input" id="catalog-image-delete" name="image_action"
+                           value="delete">
+                    <label for="catalog-image-delete" class="form-check-label">Remove image</label>
+                </div>
+            {% endif %}
+            <div class="form-check">
+                <input type="radio" class="form-check-input" id="catalog-image-replace" name="image_action"
+                       value="replace">
+                <label for="catalog-image-replace" class="form-check-label">Upload new image</label>
+            </div>
+        </div>
+        <div id="catalog-image-upload" class="d-none mt-2">
+            <label for="catalog-image-file" class="form-label">Image file</label>
+            <input type="file" class="form-control" id="catalog-image-file" name="image_file" disabled
+                   accept="image/jpeg,image/png,image/gif,image/webp,image/avif" data-public-file>
+        </div>
+    </fieldset>
+    <div>
+        <label for="description" class="form-label">Listing description</label>
+        <textarea id="description" name="description" class="form-control" rows="3">{{ entry.description | default('') }}</textarea>
+        <div class="form-text">Up to 1,000 characters. Appears below the listing heading.</div>
+    </div>
+    <div>
+        <label for="meta_description" class="form-label">Search summary</label>
+        <textarea id="meta_description" name="meta_description" class="form-control" rows="3">{{ entry.meta_description | default('') }}</textarea>
+        <div class="form-text">Up to 1,000 characters. Used in search and social metadata.</div>
+    </div>
+    <button type="submit" class="btn btn-dark align-self-start">
+        <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Save changes
+    </button>
+</form>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const form = document.getElementById("catalog-editor")
+    const file = form.elements.image_file
+    const replace = form.querySelector("#catalog-image-replace")
+    const upload = form.querySelector("#catalog-image-upload")
+    const fileSelector = '[name="image_file"]'
+    const validator = handleFormSubmit("#catalog-editor", {{ update_url | tojson }}, {
+      method: "PATCH",
+      rules: {
+        name: [{rule: "required"}, {rule: "minLength", value: 2}, {rule: "maxLength", value: {{ max_name_length }}}],
+        description: [{rule: "maxLength", value: 1000}],
+        meta_description: [{rule: "maxLength", value: 1000}],
+      },
+      prepareData: data => ({
+        ...data, description: data.description ?? "", meta_description: data.meta_description ?? "",
+      }),
+      onSuccess: url => { if (url) window.location.href = url },
+      resetOnSuccess: false,
+    })
+
+    function syncImageUpload() {
+      const replacing = replace.checked
+      if (replacing === !file.disabled) return
+      file.disabled = !replacing
+      upload.classList.toggle("d-none", !replacing)
+      if (replacing) {
+        validator?.addField(fileSelector, [
+          {rule: "required", errorMessage: "Choose an image to upload"},
+          {
+            rule: "files",
+            value: {
+              files: {
+                extensions: ["jpeg", "jpg", "png", "gif", "webp", "avif"],
+                maxSize: 10000000,
+                minSize: 1000,
+                types: ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/avif"],
+              },
+            },
+          },
+        ])
+      } else {
+        validator?.removeField(fileSelector)
+        file.value = ""
+      }
+    }
+
+    form.querySelectorAll('input[name="image_action"]').forEach(radio => {
+      radio.addEventListener("change", syncImageUpload)
+    })
+    syncImageUpload()
+  })
+</script>

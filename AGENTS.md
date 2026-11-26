@@ -521,6 +521,11 @@
 
 ## Catalog descriptions and page metadata
 
+- Topic cards share one fragment across the homepage, directory, and API pagination/search.
+  Show the edit link only to active users with read and update permissions, and serve API topic
+  fragments with `Cache-Control: private, no-store`. Category and topic editors share a web-owned
+  form. Register cover validation only for replacement and submit empty copy as empty strings.
+
 - Topics retain legacy tag routes and persistence keys. Topics and categories have separate optional
   plain-text `description` and `meta_description` fields (at most 1,000 characters); old records default
   to empty fields. Visible descriptions belong below collection H1s, while search summaries feed metadata.

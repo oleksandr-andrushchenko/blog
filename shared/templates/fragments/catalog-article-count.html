@@ -1,0 +1,3 @@
+{% if count %}
+    <small class="text-secondary">{{ '{:,}'.format(count) }} article{% if count != 1 %}s{% endif %}</small>
+{% endif %}

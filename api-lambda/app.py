@@ -459,10 +459,11 @@ async def _update_category(update_category_dto: UpdateCategoryDTODep,
 
 
 @route("get", "tags-fragment", response_class=HTMLResponse)
-async def tags_fragment(query_dto: TagQueryDep) -> str:
-    return get_html_content("fragments/tags.html", {
+async def tags_fragment(query_dto: TagQueryDep, cur_user: OptCurUserDep) -> HTMLResponse:
+    return HTMLResponse(get_html_content("fragments/tags.html", {
         "tags": get_tags(query_dto),
-    })
+        "cur_user": cur_user,
+    }), headers={"Cache-Control": "private, no-store"})
 
 
 @route("get", "users-fragment", response_class=HTMLResponse)

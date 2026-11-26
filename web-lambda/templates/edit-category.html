@@ -3,10 +3,11 @@
 {% set title = "Edit " ~ category.name %}
 {% set meta_title = page_metadata.title %}
 {% set meta_desc = page_metadata.description %}
+{% set meta_canonical_url = url("edit-category", slug=category.slug, absolute=True) %}
 {% set meta_robots = "noindex, nofollow" %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), "Categories": url("categories"), category.name: None} %}
+    {% with breadcrumbs = {"Home": url("index"), "Categories": url("categories"), category.name: articles_url(category=category.slug), "Edit": None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
@@ -14,5 +15,7 @@
 {% block content %}
     <h1>{{ title }}</h1>
     <p class="small text-secondary">{{ page_metadata.subtitle }}</p>
-    {% include "fragments/category-form.html" %}
+    {% with entry=category, max_name_length=80, update_url=url("update-category", slug=category.slug, absolute=True) %}
+        {% include "fragments/catalog-editor.html" %}
+    {% endwith %}
 {% endblock %}

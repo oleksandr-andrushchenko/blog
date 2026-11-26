@@ -9,7 +9,7 @@
 {% set meta_canonical_url = url("edit-tag", slug=tag.slug, absolute=True) %}
 
 {% block breadcrumbs %}
-    {% with breadcrumbs = {"Home": url("index"), "Articles": articles_url(), (tag.name|title): articles_url(tags=[tag.slug]), "Edit": None} %}
+    {% with breadcrumbs = {"Home": url("index"), "Topics": url("tags"), tag.name: articles_url(tags=[tag.slug]), "Edit": None} %}
         {% include "fragments/breadcrumbs.html" %}
     {% endwith %}
 {% endblock %}
@@ -17,5 +17,7 @@
 {% block content %}
     <h1>{{ title }}</h1>
     <p class="small text-secondary">{{ page_metadata.subtitle }}</p>
-    {% include "fragments/tag-form.html" %}
+    {% with entry=tag, max_name_length=40, update_url=url("update-tag", slug=tag.slug, absolute=True) %}
+        {% include "fragments/catalog-editor.html" %}
+    {% endwith %}
 {% endblock %}

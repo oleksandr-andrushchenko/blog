@@ -67,11 +67,9 @@
 
     {% include "fragments/tag-filters.html" %}
 
-    <div class="{{ {"def": 2, "sm": 3, "md": 4, "lg": 5, "xl": 6} | row_classes }} g-3" id="tags"
+    <div class="{{ {"def": 1, "sm": 2, "lg": 3, "xl": 4} | row_classes }} g-3 align-items-start" id="tags"
          data-masonry-options='{"percentPosition": true }'>
-        {% for tag in tags %}
-            {% include "fragments/tag.html" %}
-        {% endfor %}
+        {% include "fragments/tags.html" %}
     </div>
 
     <div id="topic-pagination">

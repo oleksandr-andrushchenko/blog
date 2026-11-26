@@ -49,6 +49,8 @@
     </section>
 
     <div class="container">
+        {% set homepage_article_grid = {"def": 1, "sm": 2, "lg": 3} | row_classes %}
+        {% set homepage_article_image_sizes = {"1400px": "306px", "1200px": "261px", "992px": "296px", "768px": "336px", "576px": "246px", "default": "calc(100vw - 26px)"} %}
         {% if show_popular_articles %}
             <section class="mb-4">
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-0">
@@ -59,14 +61,10 @@
                 </div>
                 <p class="text-secondary mb-3 small">Explore articles ranked by community feedback</p>
                 {% if popular_articles %}
-                    <div id="popular-articles" class="{{ {"def": 1, "md": 2} | row_classes }} g-2 mb-2"
+                    <div id="popular-articles" class="{{ homepage_article_grid }} g-3 mb-2"
                          data-masonry-options='{"percentPosition": true }'>
                         {% with articles=popular_articles,
-                        preview=False,
-                        vert_gap=0,
-                        h_display_size=6,
-                        horizontal=True,
-                        article_img_sizes={"1400px": "161px", "1200px": "138px", "992px": "116px", "768px": "86px", "576px": "126px", "default": "calc(100vw - 26px)"}, eager_article_images=1 %}
+                                article_img_sizes=homepage_article_image_sizes, eager_article_images=1 %}
                             {% include "fragments/articles.html" %}
                         {% endwith %}
                     </div>
@@ -105,14 +103,14 @@
             </div>
             <p class="text-secondary mb-3 small">Find articles about a specific subject, technology, or practice</p>
             {% if popular_tags %}
-                {% for tag in popular_tags %}
-                    <a href="{{ articles_url(tags=[tag.slug]) }}" class="btn btn-light btn-sm tag mb-1">
-                        <h3 class="h6 fw-normal mb-0">{{ tag.name }}{% if tag.articles_count %} &mdash; {{ '{:,}'.format(tag.articles_count) }}{% endif %}</h3>
-                    </a>
-                {% endfor %}
-
+                <div id="homepage-topics" class="{{ {"def": 1, "sm": 2, "lg": 3} | row_classes }} g-3 align-items-start"
+                     data-masonry-options='{"percentPosition": true}'>
+                    {% with tags=popular_tags, topic_heading_level=3 %}
+                        {% include "fragments/tags.html" %}
+                    {% endwith %}
+                </div>
             {% else %}
-                <div>N/A</div>
+                <p class="small text-secondary mb-0">No topics available yet</p>
             {% endif %}
         </section>
 
@@ -125,10 +123,10 @@
             </div>
             <p class="text-secondary mb-3 small">Find fresh insights in articles recently shared by authors</p>
             {% if latest_articles %}
-                <div id="articles" class="{{ {"def": 1, "sm": 2, "lg": 3} | row_classes }} g-3 mb-2"
+                <div id="articles" class="{{ homepage_article_grid }} g-3 mb-2"
                      data-masonry-options='{"percentPosition": true }'>
                     {% with articles=latest_articles,
-                            article_img_sizes={"1400px": "306px", "1200px": "261px", "992px": "296px", "768px": "336px", "576px": "246px", "default": "calc(100vw - 26px)"}, eager_article_images=1 %}
+                            article_img_sizes=homepage_article_image_sizes, eager_article_images=1 %}
                         {% include "fragments/articles.html" %}
                     {% endwith %}
                 </div>

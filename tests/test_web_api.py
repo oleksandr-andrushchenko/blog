@@ -800,6 +800,8 @@ def test_tags_fragment_endpoint_success(guest_client):
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
+    assert response.headers["cache-control"] == "private, no-store"
+    assert not pq(response.text)('a[aria-label^="Edit topic"]')
 
 
 @pytest.mark.parametrize(("tag_type", "expected_title", "canonical_suffix"), [
@@ -1343,6 +1345,9 @@ def test_categories_page_and_admin_update_endpoints(guest_client):
     assert schema["@type"] == "CollectionPage"
     assert len(doc("#categories .card")) > 1
     assert doc('a[href="/articles?category=distributed-systems"]')
+    category_edit_path = "/categories/distributed-systems/edit"
+    assert not doc(f'a[href="{category_edit_path}"]')
+    assert pq(get(root_client, "/categories").text)(f'a[href="{category_edit_path}"]')
 
     edit_success = get(root_client, "/categories/distributed-systems/edit")
     assert edit_success.status_code == 200
@@ -1380,6 +1385,16 @@ def test_categories_page_and_admin_update_endpoints(guest_client):
     topic_directory = pq(directory_response.text)
     assert topic_directory('main h1').text() == 'Search Topics'
     assert topic_directory(".tag .card-text").text() == topic_description
+    topic_edit = 'a[href="/tags/functional-tag/edit"]'
+    assert not topic_directory(topic_edit)
+    editor_directory = root_client.get(f"{WEB_TEST_BASE_URL}/tags?prefix=functional-tag", timeout=30)
+    assert editor_directory.status_code == 200
+    assert pq(editor_directory.text)(topic_edit)
+    for client, can_edit in [(root_client, True), (regular_client, False), (guest_client, False)]:
+        fragment = get(client, "/tags-fragment?prefix=functional-tag")
+        assert fragment.status_code == 200
+        assert fragment.headers["cache-control"] == "private, no-store"
+        assert bool(pq(fragment.text)(topic_edit)) == can_edit
 
     immutable_category_slug = patch(root_client, "/categories/distributed-systems", json={
         "slug": "distributed-architecture",

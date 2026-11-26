@@ -61,9 +61,10 @@ def test_get_popular_tags_queries_rating_index(monkeypatch):
 
 def test_tag_directory_includes_tag_content():
     template_path = project_root / "web-lambda/templates/tags.html"
-    template_source = template_path.read_text()
+    shared_list = project_root / "shared/templates/fragments/tags.html"
 
-    assert 'include "fragments/tag.html"' in template_source
+    assert 'include "fragments/tags.html"' in template_path.read_text()
+    assert 'include "fragments/tag.html"' in shared_list.read_text()
 
 
 def test_tag_fragment_propagates_pagination_offset():

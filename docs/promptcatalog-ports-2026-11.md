@@ -154,3 +154,19 @@ remain outside this article adaptation.
 Fixture/SEO follow-up validation: `make tests` passed 1,306 tests and 131 subtests;
 all 14 UI harnesses and `git diff --check` passed. No deployment, commit, production
 maintenance, or development database reset was performed in this follow-up.
+
+## November 25 follow-up
+
+Reviewed the 19 committed changes from `851fc6d` through `91d7cb9`.
+`6678c6f` and the grid portion of `2b94ce1` align the popular and latest article
+cards without increasing the number of homepage articles fetched. `9ae4370` and
+`2630fc6` supply the shared topic cards, homepage topic grid, article counts, and
+permission-gated catalog edit links. `334ee7b` aligns the existing topic and
+category editors. `bf01645` and the relevant layout guidance from `280d8f9` supply
+the masonry layout for Utils.
+
+Topic prefix search, filter toolbars, profile spacing, encrypted parameters, and
+the three-column desktop category grid already have SysDesPro equivalents. Prompt
+ranking weights, media and copy controls, model catalogs, and importer changes are
+specific to PromptCatalog. Its administrator-managed Facebook Page lets staff
+publish any public item and falls outside SysDesPro's owner-only sharing contract.

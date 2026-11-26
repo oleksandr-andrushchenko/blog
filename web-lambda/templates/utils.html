@@ -5,7 +5,7 @@
 {% set meta_title = page_metadata.title %}
 {% set meta_desc = page_metadata.description %}
 {% set meta_canonical_url = url("utils", absolute=True) %}
-{% set layout_assets = {"tagify": true} %}
+{% set layout_assets = {"masonry": true, "tagify": true} %}
 
 {% block breadcrumbs %}
     {% with breadcrumbs = {"Home": url("index"), (title): None} %}
@@ -17,10 +17,11 @@
     <h1>{{ title }}</h1>
     <p class="small text-secondary">{{ page_metadata.subtitle }}</p>
 
-    <div class="{{ {"def": 1, "sm": 2, "md": 3} | row_classes }}">
+    <div class="{{ {"def": 1, "sm": 2, "md": 3} | row_classes }} g-3 align-items-start mb-4"
+         data-masonry-options='{"percentPosition": true, "itemSelector": ".col"}'>
         {% if check_auth(cur_user, Permission.GENERATE_SITEMAP) %}
             <div class="col">
-                <section class="border rounded p-4 mb-4 bg-light">
+                <section class="border rounded p-4 bg-light">
                     <h2 class="h4 mb-2">Generate Sitemap</h2>
 
                     <p class="small text-muted mb-3">
@@ -46,7 +47,7 @@
 
         {% if check_auth(cur_user, Permission.DROP_CDN_CACHE) %}
             <div class="col">
-                <section class="col border rounded p-4 mb-4 bg-light">
+                <section class="border rounded p-4 bg-light">
                     <h2 class="h4 mb-2">Drop Static CDN Cache</h2>
 
                     <p class="small text-muted mb-3">
@@ -94,7 +95,7 @@
 
         {% if check_auth(cur_user, Permission.UPSERT_REDIRECT) %}
             <div class="col">
-                <section class="border rounded p-4 mb-4 bg-light">
+                <section class="border rounded p-4 bg-light">
                     <h2 class="h4 mb-2">Upsert Redirect</h2>
 
                     <p class="small text-muted mb-3">
